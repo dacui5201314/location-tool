@@ -1,0 +1,48 @@
+# ============================================================
+# AI 商业选址决策系统 — 后端 .gitignore
+# ============================================================
+
+# Python 缓存
+__pycache__/
+*.py[cod]
+*.pyo
+*.egg-info/
+
+# 虚拟环境
+venv/
+.venv/
+env/
+
+# ★ 环境密钥文件（含 API Key / JWT Secret / Admin 密码）
+.env
+*.env
+!.env.example
+
+# ★ SQLite 数据库及 WAL 文件
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite3
+
+# ★ 运行时生成的报告文件
+storage/reports/
+storage/reports/*
+!storage/reports/.gitkeep
+
+# 上传的静态资源（二维码等——运营数据，不应入库）
+storage/assets/
+storage/assets/*
+!storage/assets/.gitkeep
+
+# IDE
+.vscode/
+.idea/
+
+# 调试 / 临时文件
+debug_types.json
+pre_judged_*.txt
+
+# OS
+.DS_Store
+Thumbs.db

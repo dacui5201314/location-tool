@@ -1,0 +1,403 @@
+"""认证路由 — JWT 签发、设备指纹、微信授权、手机号注册/登录、新用户奖励（多端兼容）"""
+import hashlib
+import os
+from datetime import datetime, timedelta
+from fastapi import APIRouter, Depends, Query, HTTPException, Request
+from sqlalchemy.orm import Session
+from sqlalchemy import func, or_
+from pydantic import BaseModel
+
+from database import get_db
+from models.db_models import User, BillingRecord, SystemConfig
+from auth import create_token
+from config import (
+    SIGNUP_BONUS_CREDITS as _ENV_SIGNUP_BONUS,
+    SIGNUP_FREE_CREDITS as _ENV_SIGNUP_FREE,
+    WECHAT_MP_APPID,
+    WECHAT_MP_SECRET,
+)
+
+router = APIRouter(prefix="/api/auth", tags=["认证"])
+
+MAX_FREE_ACCOUNTS_PER_DEVICE = 2
+FREE_POINT_HOURS = 24
+
+
+def _hash_password(password: str) -> str:
+    """PBKDF2-SHA256 密码哈希"""
+    salt = os.urandom(16)
+    dk = hashlib.pbkdf2_hmac("sha256", password.encode(), salt, 100000)
+    return salt.hex() + ":" + dk.hex()
+
+
+def _verify_password(password: str, stored: str) -> bool:
+    """校验密码"""
+    try:
+        salt_hex, dk_hex = stored.split(":", 1)
+        salt = bytes.fromhex(salt_hex)
+        dk = hashlib.pbkdf2_hmac("sha256", password.encode(), salt, 100000)
+        return dk.hex() == dk_hex
+    except (ValueError, AttributeError):
+        return False
+
+
+def _get_config_int(db: Session, key: str, default: int) -> int:
+    """从 SystemConfig 表中读取整数配置，未设置则回退默认值"""
+    row = db.query(SystemConfig).filter(SystemConfig.key == key).first()
+    if row and row.value:
+        try:
+            return int(row.value)
+        except ValueError:
+            pass
+    return default
+
+
+def _get_client_ip(request: Request) -> str:
+    forwarded = request.headers.get("X-Forwarded-For", "")
+    if forwarded:
+        return forwarded.split(",")[0].strip()
+    return request.client.host if request.client else ""
+
+
+# ================================================================
+# 共享 Helper：用户查找 / 创建 / 防刷 / 奖励
+# ================================================================
+def _find_or_create_user(
+    db: Session,
+    *,
+    wx_openid: str = "",
+    phone: str = "",
+    device_id: str = "",
+    channel: str = "web",
+    client_ip: str = "",
+) -> tuple[User, bool, str]:
+    """查找已有用户，不存在则创建。
+    新用户自动执行防刷检查 + 新手礼包 + BONUS 流水。
+    返回 (user, is_new, gift_note)。
+    """
+    # ── 按优先级匹配已有用户 ──
+    user = None
+    if wx_openid:
+        user = db.query(User).filter(User.wx_openid == wx_openid).first()
+    if not user and phone:
+        user = db.query(User).filter(User.phone == phone).first()
+    if not user and device_id:
+        user = db.query(User).filter(User.device_id == device_id).first()
+
+    if user:
+        # 增量绑定缺失的身份字段
+        updated = False
+        if wx_openid and not user.wx_openid:
+            user.wx_openid = wx_openid
+            updated = True
+        if phone and not user.phone:
+            user.phone = phone
+            updated = True
+        if updated:
+            db.commit()
+            db.refresh(user)
+        return user, False, ""
+
+    # ── 新用户创建 ──
+    cutoff = datetime.now() - timedelta(hours=FREE_POINT_HOURS)
+
+    abuse_count = 0
+    if device_id or client_ip:
+        conditions = []
+        if device_id:
+            conditions.append(User.device_id == device_id)
+        if client_ip:
+            conditions.append(User.registration_ip == client_ip)
+        abuse_count = db.query(func.count(User.id)).filter(
+            or_(*conditions),
+            User.created_at >= cutoff,
+        ).scalar() or 0
+
+    give_free_points = abuse_count < MAX_FREE_ACCOUNTS_PER_DEVICE
+
+    if give_free_points:
+        # ★ 从数据库 SystemConfig 读取奖励点数（运营可在后台可视化调整）
+        bonus_credits = _get_config_int(db, "register_bonus", _ENV_SIGNUP_BONUS)
+        free_credits = _get_config_int(db, "register_free", _ENV_SIGNUP_FREE)
+        total_points = bonus_credits + free_credits
+        free_expire = datetime.now() + timedelta(hours=FREE_POINT_HOURS)
+    else:
+        bonus_credits = 0
+        free_credits = 0
+        total_points = 0
+        free_expire = None
+
+    user = User(
+        balance_credits=total_points,
+        membership_tier="free",
+        free_point_expire_at=free_expire,
+        device_id=device_id,
+        registration_ip=client_ip,
+        wx_openid=wx_openid or None,
+        phone=phone or None,
+        channel=channel,
+        is_new_user=True,
+    )
+    db.add(user)
+    db.flush()
+
+    if give_free_points:
+        db.add(BillingRecord(
+            user_id=user.id,
+            amount=bonus_credits,
+            balance_after=total_points,
+            record_type="BONUS",
+            reason="新用户注册奖励",
+        ))
+        db.add(BillingRecord(
+            user_id=user.id,
+            amount=free_credits,
+            balance_after=total_points,
+            record_type="BONUS",
+            reason=f"新用户免费体验（{FREE_POINT_HOURS}h后过期）",
+        ))
+
+    db.commit()
+    db.refresh(user)
+
+    if give_free_points:
+        gift_note = (
+            f"新用户注册奖励：赠送 {bonus_credits} 点"
+            f" + {free_credits} 点免费体验（{FREE_POINT_HOURS}小时后过期）"
+        )
+    else:
+        gift_note = "检测到设备异常，未赠送初始点数，请充值后使用"
+
+    return user, True, gift_note
+
+
+# ================================================================
+# 通用 Token 签发（device_id / wx_openid / phone）
+# ================================================================
+@router.post("/token")
+def get_token(
+    device_id: str = Query("", description="设备指纹"),
+    wx_openid: str = Query("", description="微信 OpenID"),
+    phone: str = Query("", description="手机号"),
+    channel: str = Query("web", description="注册来源"),
+    request: Request = None,
+    db: Session = Depends(get_db),
+):
+    client_ip = _get_client_ip(request) if request else ""
+    user, is_new, gift_note = _find_or_create_user(
+        db,
+        wx_openid=wx_openid,
+        phone=phone,
+        device_id=device_id,
+        channel=channel,
+        client_ip=client_ip,
+    )
+    token = create_token(user.id, role="user")
+    return {
+        "token": token,
+        "user": user.to_dict(),
+        "is_new_user": is_new,
+        "gift_note": gift_note,
+    }
+
+
+# ================================================================
+# 手机号 + 密码 注册 / 登录
+# ================================================================
+class PhoneRegisterBody(BaseModel):
+    phone: str
+    password: str
+
+
+class PhoneLoginBody(BaseModel):
+    phone: str
+    password: str
+
+
+@router.post("/register")
+def phone_register(
+    body: PhoneRegisterBody,
+    request: Request = None,
+    db: Session = Depends(get_db),
+):
+    """手机号 + 密码注册。phone 必填且唯一，密码哈希入库，返回 JWT。"""
+    phone = body.phone.strip()
+    password = body.password.strip()
+
+    if not phone or len(phone) < 11:
+        raise HTTPException(status_code=400, detail="请输入有效的手机号")
+    if not password or len(password) < 6:
+        raise HTTPException(status_code=400, detail="密码至少 6 位")
+
+    # 检查手机号是否已注册
+    existing = db.query(User).filter(User.phone == phone).first()
+    if existing:
+        raise HTTPException(status_code=409, detail="该手机号已注册，请直接登录")
+
+    client_ip = _get_client_ip(request) if request else ""
+
+    # 防刷检查
+    cutoff = datetime.now() - timedelta(hours=FREE_POINT_HOURS)
+    abuse_count = db.query(func.count(User.id)).filter(
+        User.registration_ip == client_ip,
+        User.created_at >= cutoff,
+    ).scalar() or 0
+
+    give_free_points = abuse_count < MAX_FREE_ACCOUNTS_PER_DEVICE
+
+    if give_free_points:
+        bonus_credits = _get_config_int(db, "register_bonus", _ENV_SIGNUP_BONUS)
+        free_credits = _get_config_int(db, "register_free", _ENV_SIGNUP_FREE)
+        total_points = bonus_credits + free_credits
+        free_expire = datetime.now() + timedelta(hours=FREE_POINT_HOURS)
+    else:
+        total_points = 0
+        free_expire = None
+
+    user = User(
+        balance_credits=total_points,
+        membership_tier="free",
+        free_point_expire_at=free_expire,
+        registration_ip=client_ip,
+        phone=phone,
+        password_hash=_hash_password(password),
+        channel="phone",
+        is_new_user=True,
+    )
+    db.add(user)
+    db.flush()
+
+    if give_free_points:
+        db.add(BillingRecord(
+            user_id=user.id,
+            amount=bonus_credits if give_free_points else 0,
+            balance_after=total_points,
+            record_type="BONUS",
+            reason="新用户注册奖励",
+        ))
+        db.add(BillingRecord(
+            user_id=user.id,
+            amount=free_credits if give_free_points else 0,
+            balance_after=total_points,
+            record_type="BONUS",
+            reason=f"新用户免费体验（{FREE_POINT_HOURS}h后过期）",
+        ))
+
+    db.commit()
+    db.refresh(user)
+
+    token = create_token(user.id, role="user")
+    gift_note = (
+        f"注册成功！赠送 {bonus_credits} 点 + {free_credits} 点免费体验"
+        if give_free_points
+        else "注册成功，请充值后使用"
+    )
+
+    return {
+        "token": token,
+        "user": user.to_dict(),
+        "is_new_user": True,
+        "gift_note": gift_note,
+    }
+
+
+@router.post("/login")
+def phone_login(
+    body: PhoneLoginBody,
+    db: Session = Depends(get_db),
+):
+    """手机号 + 密码登录，校验成功返回 JWT。"""
+    phone = body.phone.strip()
+    password = body.password.strip()
+
+    if not phone or not password:
+        raise HTTPException(status_code=400, detail="请输入手机号和密码")
+
+    user = db.query(User).filter(User.phone == phone).first()
+    if not user:
+        raise HTTPException(status_code=401, detail="手机号未注册")
+
+    if not user.password_hash or not _verify_password(password, user.password_hash):
+        raise HTTPException(status_code=401, detail="密码错误")
+
+    token = create_token(user.id, role="user")
+    return {
+        "token": token,
+        "user": user.to_dict(),
+        "is_new_user": False,
+        "gift_note": "",
+    }
+
+
+# ================================================================
+# 公众号网页授权登录
+# ================================================================
+class WechatOfficialBody(BaseModel):
+    code: str
+    state: str = ""
+
+
+@router.post("/wechat/official")
+def wechat_official_login(
+    body: WechatOfficialBody,
+    request: Request = None,
+    db: Session = Depends(get_db),
+):
+    """微信公众号网页授权登录。
+    前端传入 wx.authorize() 返回的 code，后端换取 openid 后签发 JWT。
+    流程：code → access_token → openid → find/create user → JWT。
+    """
+    if not WECHAT_MP_APPID or not WECHAT_MP_SECRET:
+        raise HTTPException(
+            status_code=503,
+            detail="微信公众号未配置（WECHAT_MP_APPID / WECHAT_MP_SECRET 缺失）",
+        )
+
+    # 1. 调用微信接口换取 openid
+    wx_url = (
+        "https://api.weixin.qq.com/sns/oauth2/access_token"
+        f"?appid={WECHAT_MP_APPID}"
+        f"&secret={WECHAT_MP_SECRET}"
+        f"&code={body.code}"
+        "&grant_type=authorization_code"
+    )
+
+    import httpx
+    try:
+        wx_resp = httpx.get(wx_url, timeout=10)
+        wx_data = wx_resp.json()
+    except Exception:
+        raise HTTPException(status_code=502, detail="微信接口请求失败，请重试")
+
+    if "errcode" in wx_data and wx_data["errcode"] != 0:
+        err_map = {
+            40029: "code 无效，请重新授权",
+            40163: "code 已被使用，请重新授权",
+            41002: "appid 配置错误",
+            -1: "微信接口限频，请稍后重试",
+        }
+        detail = err_map.get(wx_data["errcode"], f"微信授权失败（{wx_data.get('errmsg', '')}）")
+        raise HTTPException(status_code=400, detail=detail)
+
+    openid = wx_data.get("openid", "")
+    if not openid:
+        raise HTTPException(status_code=400, detail="未获取到微信 OpenID，请检查授权配置")
+
+    # 2. 查找或创建用户
+    client_ip = _get_client_ip(request) if request else ""
+    user, is_new, gift_note = _find_or_create_user(
+        db,
+        wx_openid=openid,
+        channel="official_account",
+        client_ip=client_ip,
+    )
+
+    # 3. 签发 JWT
+    token = create_token(user.id, role="user")
+    return {
+        "token": token,
+        "user": user.to_dict(),
+        "is_new_user": is_new,
+        "gift_note": gift_note,
+        "wx_openid": openid,
+    }
