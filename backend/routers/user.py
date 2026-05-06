@@ -6,6 +6,7 @@ from sqlalchemy import func
 from database import get_db
 from models.db_models import User, AnalysisRecord, SavedLocation
 from services.billing_service import check_billing_access
+from services.runtime_config import get_user_skus
 from auth import get_current_user
 
 router = APIRouter(prefix="/api/user", tags=["用户中心"])
@@ -97,7 +98,6 @@ def get_profile(
         "quarterly": "季度会员",
         "yearly": "年度会员",
     }
-
     return {
         "user": db_user.to_dict(),
         "membership": {
@@ -112,6 +112,24 @@ def get_profile(
         "favorite_count": favorite_count,
         "is_new_user": False,
         "gift_note": "",
+    }
+
+
+@router.get("/skus")
+def get_visible_skus(
+    user: dict = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """返回当前用户实际可见套餐：用户专属配置优先，否则继承全局套餐。"""
+    user_id = user["user_id"]
+    db_user = db.query(User).filter(User.id == user_id).first()
+    if not db_user:
+        raise HTTPException(status_code=404, detail="用户不存在")
+    skus, inherited = get_user_skus(user_id, db)
+    return {
+        "user_id": user_id,
+        "inherited": inherited,
+        "skus": [item for item in skus if item.get("visible", True)],
     }
 
 

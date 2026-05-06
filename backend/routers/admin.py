@@ -1,7 +1,5 @@
 """管理后台 API — JWT 鉴权 + Admin 角色校验"""
 import os
-import shutil
-import base64
 import time as _time
 from pathlib import Path
 from datetime import datetime, date, timedelta
@@ -11,24 +9,22 @@ from fastapi import APIRouter, Depends, Query, HTTPException, UploadFile, File, 
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 from sqlalchemy import func, update
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from database import get_db
 from models.db_models import User, AnalysisRecord, SavedLocation, RedeemCode, SystemConfig
-from auth import get_current_admin, create_token
-
-# === 内存存储（后续迁移至 SQLite 表） ===
-# 双轨 SKU：会员档位 + 点数档位
-_SKU_STORE: list[dict] = [
-    # 会员档位
-    {"id": 1, "type": "membership", "label": "月度会员", "price": "88", "tier": "monthly", "duration_days": 30, "badge": "", "desc": "30天无限次分析"},
-    {"id": 2, "type": "membership", "label": "季度会员", "price": "218", "tier": "quarterly", "duration_days": 90, "badge": "推荐", "desc": "90天无限次分析"},
-    {"id": 3, "type": "membership", "label": "年度会员", "price": "888", "tier": "yearly", "duration_days": 365, "badge": "最值", "desc": "365天无限次分析"},
-    # 点数档位
-    {"id": 11, "type": "points", "label": "体验包", "price": "9.9", "credits": 1, "badge": "", "desc": "1次分析"},
-    {"id": 12, "type": "points", "label": "标准包", "price": "29.9", "credits": 5, "badge": "", "desc": "5次分析"},
-    {"id": 13, "type": "points", "label": "专业包", "price": "99", "credits": 25, "badge": "热销", "desc": "25次分析"},
-    {"id": 14, "type": "points", "label": "企业包", "price": "299", "credits": 100, "badge": "最值", "desc": "100次分析"},
-]
+from auth import get_current_admin, get_current_user, create_token
+from services.runtime_config import (
+    CORE_CONFIG_DEFAULTS,
+    PDF_CONFIG_DEFAULTS,
+    get_core_config as load_core_config,
+    get_pdf_config as load_pdf_config,
+    get_skus as load_skus,
+    get_user_skus as load_user_skus,
+    save_skus as persist_skus,
+    save_user_skus as persist_user_skus,
+    clear_user_skus,
+    set_config_values,
+)
 
 _ERROR_LOGS: list[dict] = [
     {"time": "2026-04-30 10:23:15", "user_id": 1, "type": "API", "msg": "DeepSeek API 超时重试中 (attempt 2/3)"},
@@ -36,17 +32,26 @@ _ERROR_LOGS: list[dict] = [
     {"time": "2026-04-29 18:30:44", "user_id": 1, "type": "AMAP", "msg": "高德POI搜索返回空结果 (radius=1000, types=050000)"},
 ]
 
-_UI_CONFIG: dict = {
-    "announcement": "",
-    "cs_wechat": "",
-    "cs_phone": "",
-    "customer_service_name": "",
-    "customer_service_qr_url": "",
-}
-
 router = APIRouter(prefix="/api/admin", tags=["管理后台"])
 
 ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "admin123")
+QRCODE_CONFIG_KEY = "OFFICIAL_QRCODE_URL"
+
+
+def _asset_filename(url: str) -> str:
+    if not url.startswith("/assets/"):
+        return ""
+    return url.rsplit("/", 1)[-1]
+
+
+def _is_foreign_asset_url(url: str, tag: str) -> bool:
+    filename = _asset_filename(url)
+    if not filename:
+        return False
+    if tag == "cs" and filename == "official_qrcode.png":
+        return True
+    known_prefixes = {"brand_", "cs_"}
+    return any(filename.startswith(prefix) for prefix in known_prefixes) and not filename.startswith(f"{tag}_")
 
 
 class LoginBody(BaseModel):
@@ -165,9 +170,15 @@ class ConfigBody(BaseModel):
     wx_notify_url: str = ""
 
 
+@router.get("/config")
+def get_config(admin: dict = Depends(get_current_admin), db: Session = Depends(get_db)):
+    """获取核心系统配置（需管理员权限）。"""
+    return load_core_config(db)
+
+
 @router.put("/config")
 def save_config(body: ConfigBody, admin: dict = Depends(get_current_admin), db: Session = Depends(get_db)):
-    """保存系统配置到数据库（需管理员权限）"""
+    """保存核心系统配置到数据库（需管理员权限，运行时读取生效）"""
     config_map = {
         "amap_key": body.amap_key,
         "ai_provider": body.ai_provider,
@@ -179,14 +190,8 @@ def save_config(body: ConfigBody, admin: dict = Depends(get_current_admin), db: 
         "wx_cert_sn": body.wx_cert_sn,
         "wx_notify_url": body.wx_notify_url,
     }
-    for key, value in config_map.items():
-        row = db.query(SystemConfig).filter(SystemConfig.key == key).first()
-        if row:
-            row.value = value
-        else:
-            db.add(SystemConfig(key=key, value=value, description=f"系统设置-{key}"))
-    db.commit()
-    return {"ok": True, "message": "配置已保存"}
+    set_config_values(config_map, {key: f"系统设置-{key}" for key in CORE_CONFIG_DEFAULTS}, db)
+    return {"ok": True, "message": "配置已保存", "config": load_core_config(db)}
 
 
 # ============================================================
@@ -194,25 +199,127 @@ def save_config(body: ConfigBody, admin: dict = Depends(get_current_admin), db: 
 # ============================================================
 class SkuItem(BaseModel):
     id: int = 0
+    type: str = "points"
     label: str = ""
     price: str = "0"
     credits: int = 0
     badge: str = ""
+    tier: str = ""
+    duration_days: int = 0
+    desc: str = ""
+    visible: bool = True
 
 class SkuListBody(BaseModel):
     items: List[SkuItem] = []
 
+
+class ApplyUserSkuBody(BaseModel):
+    item: SkuItem
+
 @router.get("/skus")
-def get_skus():
+def get_skus(db: Session = Depends(get_db)):
     """获取套餐列表（前端充值弹窗动态拉取）"""
-    return {"skus": _SKU_STORE}
+    return {"skus": load_skus(db)}
 
 @router.put("/skus")
-def save_skus(body: SkuListBody, admin: dict = Depends(get_current_admin)):
+def save_skus(body: SkuListBody, admin: dict = Depends(get_current_admin), db: Session = Depends(get_db)):
     """保存套餐配置（需管理员权限）"""
-    global _SKU_STORE
-    _SKU_STORE = [item.model_dump() for item in body.items]
-    return {"ok": True, "skus": _SKU_STORE}
+    items = [item.model_dump() for item in body.items]
+    persist_skus(items, db)
+    return {"ok": True, "skus": load_skus(db)}
+
+
+@router.get("/users/{user_id}/skus")
+def get_user_sku_config(
+    user_id: int,
+    admin: dict = Depends(get_current_admin),
+    db: Session = Depends(get_db),
+):
+    """获取某个用户实际可见套餐；无专属配置时继承全局套餐。"""
+    db_user = db.query(User).filter(User.id == user_id).first()
+    if not db_user:
+        raise HTTPException(status_code=404, detail="用户不存在")
+    skus, inherited = load_user_skus(user_id, db)
+    return {"user_id": user_id, "inherited": inherited, "skus": skus}
+
+
+@router.put("/users/{user_id}/skus")
+def save_user_sku_config(
+    user_id: int,
+    body: SkuListBody,
+    admin: dict = Depends(get_current_admin),
+    db: Session = Depends(get_db),
+):
+    """保存某个用户的专属套餐配置；前端用户中心会优先显示这份配置。"""
+    db_user = db.query(User).filter(User.id == user_id).first()
+    if not db_user:
+        raise HTTPException(status_code=404, detail="用户不存在")
+    items = [item.model_dump() for item in body.items]
+    persist_user_skus(user_id, items, db)
+    skus, inherited = load_user_skus(user_id, db)
+    return {"ok": True, "user_id": user_id, "inherited": inherited, "skus": skus}
+
+
+@router.delete("/users/{user_id}/skus")
+def reset_user_sku_config(
+    user_id: int,
+    admin: dict = Depends(get_current_admin),
+    db: Session = Depends(get_db),
+):
+    """清除某个用户的专属套餐配置，恢复继承全局套餐。"""
+    db_user = db.query(User).filter(User.id == user_id).first()
+    if not db_user:
+        raise HTTPException(status_code=404, detail="用户不存在")
+    clear_user_skus(user_id, db)
+    skus, inherited = load_user_skus(user_id, db)
+    return {"ok": True, "user_id": user_id, "inherited": inherited, "skus": skus}
+
+
+@router.post("/users/{user_id}/apply-sku")
+def apply_user_sku(
+    user_id: int,
+    body: ApplyUserSkuBody,
+    admin: dict = Depends(get_current_admin),
+    db: Session = Depends(get_db),
+):
+    """把某个套餐实际应用到账户：点数包=加点数，会员套餐=延长会员截止日期。"""
+    db_user = db.query(User).filter(User.id == user_id).first()
+    if not db_user:
+        raise HTTPException(status_code=404, detail="用户不存在")
+
+    item = body.item
+    now = datetime.now()
+    if item.type == "membership":
+        default_days = {"monthly": 30, "quarterly": 90, "yearly": 365}
+        tier = item.tier or "monthly"
+        days = item.duration_days or default_days.get(tier, 30)
+        base = db_user.membership_expiry if db_user.membership_expiry and db_user.membership_expiry > now else now
+        db_user.membership_tier = tier
+        db_user.membership_expiry = base + timedelta(days=days)
+        message = f"已为用户开通/延长 {days} 天会员"
+    else:
+        credits = max(0, int(item.credits or 0))
+        if credits <= 0:
+            raise HTTPException(status_code=400, detail="点数包必须包含大于 0 的点数")
+        db_user.balance_credits += credits
+        message = f"已为用户增加 {credits} 点"
+
+    db.commit()
+    db.refresh(db_user)
+    tier_labels = {"free": "非会员", "monthly": "月度", "quarterly": "季度", "yearly": "年度"}
+    return {
+        "ok": True,
+        "message": message,
+        "user": {
+            "id": db_user.id,
+            "balance_credits": db_user.balance_credits,
+            "membership_tier": db_user.membership_tier,
+            "membership_label": tier_labels.get(db_user.membership_tier, "非会员"),
+            "is_member": db_user.is_member,
+            "membership_days_left": db_user.membership_days_left,
+            "membership_expiry": db_user.membership_expiry.isoformat() if db_user.membership_expiry else None,
+        },
+    }
 
 
 # ============================================================
@@ -228,8 +335,15 @@ def get_logs(
 
 
 # ============================================================
-# 全局 UI 配置（公告 / 客服）
+# 全局 UI 配置（公告 / 客服）— DB 持久化 + 内存缓存
 # ============================================================
+_UI_CONFIG_KEYS = [
+    "announcement",
+    "cs_wechat",
+    "cs_phone",
+    "customer_service_name",
+]
+
 class UiConfigBody(BaseModel):
     announcement: str = ""
     cs_wechat: str = ""
@@ -237,22 +351,71 @@ class UiConfigBody(BaseModel):
     customer_service_name: str = ""
     customer_service_qr_url: str = ""
 
+
+class CustomerServiceQrcodeBody(BaseModel):
+    url: str = ""
+
+
+def _load_ui_config_from_db(db: Session) -> dict:
+    """从数据库加载 UI 配置，未配置项回退默认值"""
+    cfg = {
+        "announcement": "",
+        "cs_wechat": "",
+        "cs_phone": "",
+        "customer_service_name": "",
+    }
+    for key in _UI_CONFIG_KEYS:
+        row = db.query(SystemConfig).filter(SystemConfig.key == f"ui_{key}").first()
+        if row and row.value:
+            cfg[key] = row.value
+    cfg["customer_service_qr_url"] = _get_customer_service_qrcode(db)
+    return cfg
+
+
+def _get_customer_service_qrcode(db: Session) -> str:
+    return _get_qrcode_slot(db, "cs")
+
+
 @router.get("/ui-config")
-def get_ui_config():
-    return _UI_CONFIG
+def get_ui_config(db: Session = Depends(get_db)):
+    """获取 UI 配置（公开，从 DB 加载）"""
+    return _load_ui_config_from_db(db)
+
+
+@router.get("/customer-service-qrcode")
+def get_customer_service_qrcode(db: Session = Depends(get_db)):
+    """获取客服二维码 URL（公开，从 DB 加载并清洗污染值）"""
+    return {"url": _get_customer_service_qrcode(db)}
+
+
+@router.put("/customer-service-qrcode")
+def save_customer_service_qrcode(
+    body: CustomerServiceQrcodeBody,
+    admin: dict = Depends(get_current_admin),
+    db: Session = Depends(get_db),
+):
+    """保存客服二维码 URL（需管理员权限）。"""
+    url = _save_qrcode_slot(db, "cs", body.url)
+    return {"ok": True, "url": url}
+
 
 @router.put("/ui-config")
-def save_ui_config(body: UiConfigBody, admin: dict = Depends(get_current_admin)):
-    """保存 UI 配置（需管理员权限）"""
-    global _UI_CONFIG
-    _UI_CONFIG = {
+def save_ui_config(body: UiConfigBody, admin: dict = Depends(get_current_admin), db: Session = Depends(get_db)):
+    """保存 UI 配置至数据库（需管理员权限，持久化不丢失）"""
+    cfg = {
         "announcement": body.announcement,
         "cs_wechat": body.cs_wechat,
         "cs_phone": body.cs_phone,
         "customer_service_name": body.customer_service_name,
-        "customer_service_qr_url": body.customer_service_qr_url,
     }
-    return {"ok": True, "config": _UI_CONFIG}
+    for key in _UI_CONFIG_KEYS:
+        row = db.query(SystemConfig).filter(SystemConfig.key == f"ui_{key}").first()
+        if row:
+            row.value = cfg[key]
+        else:
+            db.add(SystemConfig(key=f"ui_{key}", value=cfg[key], description=f"UI配置-{key}"))
+    db.commit()
+    return {"ok": True, "config": {**cfg, "customer_service_qr_url": _get_customer_service_qrcode(db)}}
 
 
 # ============================================================
@@ -265,8 +428,9 @@ class GenCdkBody(BaseModel):
     days_valid: int = 90
 
 class ActivateCdkBody(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     code: str = ""
-    user_id: int = 1
 
 @router.post("/cdk/generate")
 def generate_cdk(body: GenCdkBody, admin: dict = Depends(get_current_admin), db: Session = Depends(get_db)):
@@ -312,11 +476,21 @@ def _check_cdk_rate(request: Request) -> None:
 
 
 @router.post("/cdk/activate")
-def activate_cdk(body: ActivateCdkBody, request: Request, db: Session = Depends(get_db)):
-    """激活兑换码 — 原子化 UPDATE 防一码多充 + IP 速率限制防暴力枚举"""
+def activate_cdk(
+    body: ActivateCdkBody,
+    request: Request,
+    user: dict = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """激活兑换码 — 从 JWT 绑定用户，原子化 UPDATE 防一码多充。"""
     _check_cdk_rate(request)
 
     code_str = body.code.strip().upper()
+    user_id = int(user["user_id"])
+
+    db_user = db.query(User).filter(User.id == user_id).first()
+    if not db_user:
+        raise HTTPException(status_code=404, detail="当前用户不存在，请重新登录")
 
     # 先查询兑换码是否存在、是否过期（非竞态路径，仅用于友好错误提示）
     c = db.query(RedeemCode).filter(RedeemCode.code == code_str).first()
@@ -329,17 +503,15 @@ def activate_cdk(body: ActivateCdkBody, request: Request, db: Session = Depends(
     result = db.execute(
         update(RedeemCode)
         .where(RedeemCode.code == code_str, RedeemCode.is_used == 0)
-        .values(is_used=1, used_by=body.user_id, used_at=datetime.now())
+        .values(is_used=1, used_by=user_id, used_at=datetime.now())
     )
     if result.rowcount == 0:
         raise HTTPException(status_code=400, detail="该兑换码已被使用")
 
     # 点数充值
-    user = db.query(User).filter(User.id == body.user_id).first()
-    if user:
-        user.balance_credits += c.credits
+    db_user.balance_credits += c.credits
     db.commit()
-    return {"ok": True, "credits_added": c.credits, "balance": user.balance_credits if user else 0}
+    return {"ok": True, "credits_added": c.credits, "balance": db_user.balance_credits}
 
 
 # ============================================================
@@ -362,26 +534,21 @@ def get_trends(admin: dict = Depends(get_current_admin), db: Session = Depends(g
             "top_brands": [{"name": k, "count": v} for k, v in top_brands]}
 
 
-# ============================================================
-# PDF 白标配置
-# ============================================================
-_PDF_CONFIG = {"logo_url": "", "footer_text": "AI 选址分析 · 商业数据决策平台"}
-
 class PdfConfigBody(BaseModel):
     logo_url: str = ""
     footer_text: str = ""
 
 @router.get("/pdf-config")
-def get_pdf_config(admin: dict = Depends(get_current_admin)):
-    """获取 PDF 品牌配置（需管理员权限）"""
-    return _PDF_CONFIG
+def get_pdf_config(db: Session = Depends(get_db)):
+    """获取 PDF 品牌配置（公开：导出报告需要读取页眉页脚品牌信息）"""
+    return load_pdf_config(db)
 
 @router.put("/pdf-config")
-def save_pdf_config(body: PdfConfigBody, admin: dict = Depends(get_current_admin)):
-    """保存 PDF 品牌配置（需管理员权限）"""
-    global _PDF_CONFIG
-    _PDF_CONFIG = {"logo_url": body.logo_url, "footer_text": body.footer_text}
-    return {"ok": True, "config": _PDF_CONFIG}
+def save_pdf_config(body: PdfConfigBody, admin: dict = Depends(get_current_admin), db: Session = Depends(get_db)):
+    """保存 PDF 品牌配置（需管理员权限，DB 持久化）"""
+    cfg = {"logo_url": body.logo_url, "footer_text": body.footer_text}
+    set_config_values(cfg, {key: f"PDF配置-{key}" for key in PDF_CONFIG_DEFAULTS}, db)
+    return {"ok": True, "config": load_pdf_config(db)}
 
 
 # ============================================================
@@ -399,7 +566,7 @@ _DEFAULT_STORAGE = {
 def _load_storage_config(db: Session) -> dict:
     """从数据库加载存储配置"""
     cfg = dict(_DEFAULT_STORAGE)
-    rows = db.query(SystemConfig).filter(SystemConfig.key.like("storage_%")).all()
+    rows = db.query(SystemConfig).filter(SystemConfig.key.in_(cfg.keys())).all()
     for r in rows:
         if r.key in cfg:
             cfg[r.key] = r.value
@@ -409,7 +576,7 @@ def _load_storage_config(db: Session) -> dict:
 def _save_storage_config(db: Session, cfg: dict):
     """保存存储配置到数据库"""
     for key, value in cfg.items():
-        if not key.startswith("storage_"):
+        if key not in _DEFAULT_STORAGE:
             continue
         row = db.query(SystemConfig).filter(SystemConfig.key == key).first()
         if row:
@@ -451,10 +618,106 @@ def save_storage_config(body: StorageConfigBody, admin: dict = Depends(get_curre
 # 公众号二维码上传 & 获取
 # ============================================================
 ASSETS_DIR = Path(__file__).resolve().parent.parent / "storage" / "assets"
-ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg", "gif", "webp", "svg"}
+ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg", "gif", "webp"}
 MAX_UPLOAD_SIZE = 2 * 1024 * 1024  # 2MB
 
-QRCODE_CONFIG_KEY = "OFFICIAL_QRCODE_URL"
+class QrcodeBody(BaseModel):
+    url: str = ""
+
+
+class QrcodeSlotBody(BaseModel):
+    url: str = ""
+
+
+def _qrcode_config_key(slot: str) -> str:
+    if slot == "brand":
+        return QRCODE_CONFIG_KEY
+    if slot == "cs":
+        return "ui_customer_service_qr_url"
+    raise HTTPException(status_code=400, detail="二维码槽位非法，仅支持 brand 或 cs")
+
+
+def _validate_qrcode_url(url: str):
+    if url and not (url.startswith("/assets/") or url.startswith("http://") or url.startswith("https://") or url.startswith("data:image/")):
+        raise HTTPException(status_code=400, detail="二维码 URL 非法")
+
+
+def _get_qrcode_slot(db: Session, slot: str) -> str:
+    key = _qrcode_config_key(slot)
+    url = _get_config_value(db, key, "").strip()
+    opposite = "brand" if slot == "cs" else "cs"
+    opposite_url = _get_config_value(db, _qrcode_config_key(opposite), "").strip()
+    if url and (_is_foreign_asset_url(url, slot) or (opposite_url and url == opposite_url)):
+        _set_config_value(db, key, "")
+        return ""
+    return url
+
+
+def _save_qrcode_slot(db: Session, slot: str, url: str) -> str:
+    url = url.strip()
+    _validate_qrcode_url(url)
+    opposite = "brand" if slot == "cs" else "cs"
+    opposite_url = _get_config_value(db, _qrcode_config_key(opposite), "").strip()
+    if _is_foreign_asset_url(url, slot) or (url and opposite_url and url == opposite_url):
+        label = "品牌" if slot == "cs" else "客服"
+        target = "客服" if slot == "cs" else "品牌引流"
+        raise HTTPException(status_code=400, detail=f"不能把{label}二维码保存为{target}二维码")
+    _set_config_value(db, _qrcode_config_key(slot), url)
+    return url
+
+
+def _clamp(value: int, low: int, high: int) -> int:
+    return max(low, min(value, high))
+
+
+def _prepare_rgb_image(img):
+    from PIL import Image, ImageOps
+
+    img = ImageOps.exif_transpose(img)
+    if img.mode in ("RGBA", "LA") or (img.mode == "P" and "transparency" in img.info):
+        rgba = img.convert("RGBA")
+        bg = Image.new("RGB", rgba.size, (255, 255, 255))
+        bg.paste(rgba, mask=rgba.getchannel("A"))
+        return bg
+    if img.mode != "RGB":
+        return img.convert("RGB")
+    return img
+
+
+def _crop_qrcode_square(img):
+    """Crop to a square around dark QR content; fallback to centered square."""
+    rgb = _prepare_rgb_image(img)
+    width, height = rgb.size
+    min_dim = min(width, height)
+
+    def center_square():
+        left = (width - min_dim) // 2
+        top = (height - min_dim) // 2
+        return rgb.crop((left, top, left + min_dim, top + min_dim))
+
+    # Most QR screenshots are black modules on a white phone screenshot.
+    # Build a mask from darker pixels so wide white borders do not survive.
+    mask = rgb.convert("L").point(lambda p: 255 if p < 245 else 0)
+    bbox = mask.getbbox()
+    if not bbox:
+        return center_square()
+
+    left, top, right, bottom = bbox
+    box_w = right - left
+    box_h = bottom - top
+    box_area = box_w * box_h
+    image_area = width * height
+    if box_area < image_area * 0.002 or box_area > image_area * 0.92:
+        return center_square()
+
+    content_side = max(box_w, box_h)
+    padding = max(12, int(content_side * 0.12))
+    side = min(max(content_side + padding * 2, 1), min_dim)
+    cx = (left + right) // 2
+    cy = (top + bottom) // 2
+    crop_left = _clamp(cx - side // 2, 0, width - side)
+    crop_top = _clamp(cy - side // 2, 0, height - side)
+    return rgb.crop((crop_left, crop_top, crop_left + side, crop_top + side))
 
 
 def _get_config_value(db: Session, key: str, default: str = "") -> str:
@@ -471,13 +734,9 @@ def _set_config_value(db: Session, key: str, value: str):
     db.commit()
 
 
-@router.post("/upload-qrcode")
-async def upload_qrcode(
-    admin: dict = Depends(get_current_admin),
-    file: UploadFile = File(...),
-    db: Session = Depends(get_db),
-):
-    """上传公众号二维码图片（需管理员权限）"""
+async def _store_uploaded_qrcode(file: UploadFile, tag: str) -> dict:
+    if tag not in {"brand", "cs"}:
+        raise HTTPException(status_code=400, detail="二维码类型非法，仅支持 brand 或 cs")
 
     # 校验扩展名
     ext = file.filename.rsplit(".", 1)[-1].lower() if "." in (file.filename or "") else ""
@@ -489,32 +748,108 @@ async def upload_qrcode(
     if len(content) > MAX_UPLOAD_SIZE:
         raise HTTPException(status_code=400, detail="图片大小不能超过 2MB")
 
-    # 保存文件
+    # 确保目录存在
     ASSETS_DIR.mkdir(parents=True, exist_ok=True)
-    safe_name = f"official_qrcode.{ext}"
+
+    # ── Pillow 强制居中正方形裁剪 ──────────────────────────────────
+    from io import BytesIO
+    from PIL import Image
+    import uuid as _uuid
+
+    safe_name = f"{tag}_{_uuid.uuid4().hex}.png"
     dest = ASSETS_DIR / safe_name
-    dest.write_bytes(content)
 
-    # 存储路径到数据库（存储为静态可访问的相对路径 + base64 备用）
-    b64 = base64.b64encode(content).decode("utf-8")
-    data_uri = f"data:image/{'svg+xml' if ext == 'svg' else ext.replace('jpg', 'jpeg')};base64,{b64}"
+    try:
+        pil_img = Image.open(BytesIO(content))
+        cropped_img = _crop_qrcode_square(pil_img)
+        cropped_img.save(str(dest), "PNG")
+        final_bytes = dest.read_bytes()
 
-    # 存 base64 data URI 到数据库（前端 PDF 导出可直接使用）
-    _set_config_value(db, QRCODE_CONFIG_KEY, data_uri)
+    except Exception as e:
+        print(f"[严重错误] Pillow 裁剪崩溃: {e}")
+        raise HTTPException(status_code=500, detail=f"图片裁剪失败: {e}")
+
+    asset_url = f"/assets/{safe_name}"
 
     return {
         "ok": True,
+        "tag": tag,
         "filename": safe_name,
-        "size": len(content),
-        "message": "二维码已上传，将自动应用到导出的 PDF 报告中",
+        "url": asset_url,
+        "size": len(final_bytes),
+        "message": "二维码已上传并裁剪为正方形",
     }
+
+
+@router.post("/upload-customer-service-qrcode")
+async def upload_customer_service_qrcode(
+    admin: dict = Depends(get_current_admin),
+    file: UploadFile = File(...),
+):
+    """上传客服二维码图片。只返回 cs_ 文件 URL，不触碰品牌配置。"""
+    return await _store_uploaded_qrcode(file, "cs")
+
+
+@router.post("/upload-brand-qrcode")
+async def upload_brand_qrcode(
+    admin: dict = Depends(get_current_admin),
+    file: UploadFile = File(...),
+):
+    """上传品牌引流二维码图片。只返回 brand_ 文件 URL，不触碰客服配置。"""
+    return await _store_uploaded_qrcode(file, "brand")
+
+
+@router.post("/upload-qrcode")
+async def upload_qrcode(
+    admin: dict = Depends(get_current_admin),
+    file: UploadFile = File(...),
+    tag: str = Query("brand", description="标识: brand=品牌引流 / cs=客服"),
+):
+    """兼容旧入口：上传二维码图片，不触碰数据库。"""
+    return await _store_uploaded_qrcode(file, tag)
 
 
 @router.get("/qrcode")
 def get_qrcode(db: Session = Depends(get_db)):
-    """获取当前公众号二维码 (base64 data URI)"""
-    url = _get_config_value(db, QRCODE_CONFIG_KEY, "")
-    return {"url": url}
+    """获取当前公众号二维码 URL"""
+    return get_brand_qrcode(db)
+
+
+@router.get("/brand-qrcode")
+def get_brand_qrcode(db: Session = Depends(get_db)):
+    """获取品牌引流二维码 URL（公开，从 DB 加载并清洗污染值）"""
+    return {"url": _get_qrcode_slot(db, "brand")}
+
+
+@router.get("/qrcode-slot/{slot}")
+def get_qrcode_slot(slot: str, db: Session = Depends(get_db)):
+    """统一二维码槽位读取：brand=PDF引流，cs=客服。"""
+    return {"slot": slot, "url": _get_qrcode_slot(db, slot)}
+
+
+@router.put("/qrcode")
+def save_qrcode(body: QrcodeBody, admin: dict = Depends(get_current_admin), db: Session = Depends(get_db)):
+    """保存品牌引流二维码 URL（需管理员权限）。"""
+    return save_brand_qrcode(body, admin, db)
+
+
+@router.put("/brand-qrcode")
+def save_brand_qrcode(body: QrcodeBody, admin: dict = Depends(get_current_admin), db: Session = Depends(get_db)):
+    """保存品牌引流二维码 URL（需管理员权限）。"""
+    url = _save_qrcode_slot(db, "brand", body.url)
+    return {"ok": True, "url": url}
+
+
+@router.put("/qrcode-slot/{slot}")
+def save_qrcode_slot(
+    slot: str,
+    body: QrcodeSlotBody,
+    admin: dict = Depends(get_current_admin),
+    db: Session = Depends(get_db),
+):
+    """统一二维码槽位保存：brand=PDF引流，cs=客服。"""
+    url = _save_qrcode_slot(db, slot, body.url)
+    return {"ok": True, "slot": slot, "url": url}
 
 
 # ============================================================

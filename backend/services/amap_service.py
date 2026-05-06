@@ -99,6 +99,7 @@ def is_real_hotel(name: str) -> bool:
     return True
 import os
 from dataclasses import dataclass, field
+from services.runtime_config import get_config_value
 
 AMAP_WEB_KEY = os.getenv("AMAP_WEB_KEY", os.getenv("AMAP_KEY", ""))
 AMAP_BASE = "https://restapi.amap.com/v3"
@@ -304,9 +305,9 @@ class LocationData:
 
 class AmapService:
     def __init__(self, api_key: str = ""):
-        self.key = api_key or AMAP_WEB_KEY
+        self.key = api_key or get_config_value("amap_key", "") or AMAP_WEB_KEY
         if not self.key:
-            raise ValueError("AMAP_WEB_KEY 未配置，请在 .env 中设置")
+            raise ValueError("高德 Web API Key 未配置，请在后台核心配置或 .env 中设置")
 
     async def _request(self, path: str, params: dict) -> dict:
         params["key"] = self.key

@@ -73,6 +73,7 @@ location-tool/
 │   │   ├── __init__.py
 │   │   ├── amap_service.py            # ★ 高德 POI 采集：搜索/分类/脱水/竞品检测
 │   │   ├── billing_service.py         # ★ 统一计费校验：会员优先 + 原子化点数扣除 + 免费过期原子判定
+│   │   ├── runtime_config.py          # ★ 运行时配置引擎：DB 持久化配置 / SKU 管理 / LLM 动态切换 / 报告归一化
 │   │   └── storage_service.py         # ★ 报告存储：本地/云端 OSS + Fallback + HTML 生成（XSS 安全）
 │   │
 │   └── storage/                       # 文件存储（运行时生成）
@@ -178,8 +179,8 @@ VITE_AMAP_SECURITY_CODE=你的高德安全密钥
 
 ```bash
 cd backend
-pip install -r requirements.txt
-python main.py
+uv run python main.py
+# 或：uv run uvicorn main:app --host 0.0.0.0 --port 8000
 # 启动于 http://localhost:8000
 ```
 
@@ -359,7 +360,9 @@ npx vite --host
 | PDF 图表就绪检测 | `exportToPDF.js` | RAF 轮询 SVG/Canvas 渲染完毕，替代 setTimeout(800) |
 | 雷达图无障碍 | `RadarChart.jsx` | `<title>` + `<desc>` + `role="img"` 屏幕阅读器兼容 |
 | JWT 弱密钥启动拦截 | `config.py` | 检测到默认 JWT_SECRET 直接 `raise ValueError`，物理杜绝弱密钥部署 |
-| 公众号网页授权 | `auth.py` | `POST /api/auth/wechat/official` code→openid→JWT 完整闭环 |
+| 运行时配置引擎 | `runtime_config.py` | DB 持久化运行时配置，SKU/LLM Provider/API Key 动态切换无需重启 |
+| 报告归一化 | `runtime_config.py` | `normalize_report_result()` 统一评分计算、执行摘要生成、行动计划模板 |
+| 用户专属套餐 | `runtime_config.py` + `admin.py` | Admin 可为单个用户设置独立 SKU 定价策略 |
 | 用户模型多端兼容 | `db_models.py` | `wx_openid` / `phone` / `channel` 字段，多端身份统一绑定 |
 | 点数流水审计 | `db_models.py` | `BillingRecord` 表，`record_type` 区分 BONUS/PURCHASE/CONSUME/REFUND |
 | 新手礼包可视化配置 | `admin.py` + `AdminPage.jsx` | 后台"全局参数"Tab 动态调整赠送点数，DB 持久化即时生效 |
@@ -376,6 +379,7 @@ npx vite --host
 
 ## 版本历史
 
+- **v3.8** (2026-05-06) — 运行时配置引擎与后台增强：DB 持久化运行时配置中心（SKU/LLM/AI Key 动态切换）、报告结果归一化引擎、管理后台大重构（用户专属套餐、增强用户管理面板）、PDF 导出引擎优化、存储服务增强
 - **v3.7** (2026-05-05) — 私域运营与账号体系：手机号+密码注册登录、强制登录门控、模拟支付替换为私域客服二维码+CDK、幽灵 UI 裁剪（移除 10+ 占位项）、管理后台用户充值面板、系统配置真实持久化、客服二维码运营配置、.gitignore 全量覆盖
 - **v3.6** (2026-05-04) — 商业化增长模块：公众号网页授权登录、用户多端兼容模型（wx_openid/phone/channel）、BillingRecord 点数流水审计、新用户注册奖励可视化后台配置、收藏/记录页面全新 UI 重构、JWT 弱密钥启动拦截
 - **v3.5** (2026-05-04) — 安全狙击清零：敏感配置 GET 端点 Admin 鉴权、下线前端 consume 端点、CDK IP 速率限制防暴力枚举、JWT 过期延长至 7 天、Token 抢跑门控消除 401

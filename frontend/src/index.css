@@ -4749,3 +4749,95 @@ textarea {
 .bottom-nav .is-active {
   color: #1b63ff;
 }
+
+.admin-page {
+  background:
+    radial-gradient(circle at 50% -12%, rgba(36, 107, 255, 0.18), transparent 36%),
+    linear-gradient(180deg, #f7faff 0%, var(--page-bg) 100%);
+}
+
+.admin-header {
+  overflow: hidden;
+  background:
+    linear-gradient(90deg, rgba(255, 255, 255, 0.055) 1px, transparent 1px),
+    linear-gradient(0deg, rgba(255, 255, 255, 0.045) 1px, transparent 1px),
+    linear-gradient(146deg, #06152f 0%, #09275e 44%, #124ee6 100%);
+  background-size: 34px 34px, 34px 34px, auto;
+  box-shadow: 0 16px 36px rgba(3, 17, 55, 0.16);
+}
+
+.admin-header::after {
+  content: "";
+  position: absolute;
+  right: -40px;
+  top: -26px;
+  width: 180px;
+  height: 180px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.12), transparent 46%),
+    url("/brand-logo-transparent.png") center / 120px 120px no-repeat;
+  opacity: 0.16;
+  transform: rotate(-8deg);
+  pointer-events: none;
+}
+
+.admin-tabs {
+  scrollbar-width: none;
+}
+
+.admin-tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.admin-tab {
+  flex: 0 0 auto;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.09);
+  color: rgba(226, 237, 255, 0.74);
+  backdrop-filter: blur(12px);
+}
+
+.admin-tab:hover,
+.admin-tab.is-active {
+  background: rgba(255, 255, 255, 0.18);
+  color: #ffffff;
+}
+
+.admin-login-card,
+.admin-page .rounded-xl.bg-white {
+  border: 1px solid rgba(125, 155, 216, 0.22);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.95);
+  box-shadow: 0 16px 42px rgba(9, 24, 54, 0.08);
+  backdrop-filter: blur(16px);
+}
+
+.admin-page input,
+.admin-page select,
+.admin-page textarea {
+  border-radius: 8px;
+}
+
+.admin-page button {
+  border-radius: 8px;
+}
+
+.admin-page .bg-blue-600 {
+  background: linear-gradient(135deg, #2878ff, #1555ed);
+  box-shadow: 0 10px 20px rgba(37, 99, 255, 0.18);
+}
+
+.admin-page .bg-blue-600:hover {
+  background: linear-gradient(135deg, #1f6ef2, #124de0);
+}
+
+.admin-page .bg-slate-100 {
+  background: #eef4ff;
+  color: #1b63ff;
+}
+
+.admin-page .border-dashed {
+  background: linear-gradient(180deg, #ffffff, #f7faff);
+}

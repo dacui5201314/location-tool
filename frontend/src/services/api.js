@@ -8,6 +8,18 @@ import { getDeviceId } from '../utils/deviceId'
 
 const API_BASE = '/api'
 const TOKEN_KEY = '_auth_token'
+const ADMIN_TOKEN_KEY = '_admin_token'
+
+/**
+ * 构造静态资源完整 URL — 开发环境走 Vite 代理，生产环境可配置 VITE_API_BASE_URL
+ * 用法：getAssetUrl('/assets/qr_code.png') → 'http://localhost:8000/assets/qr_code.png' 或 '/assets/qr_code.png'
+ */
+export function getAssetUrl(path) {
+  if (!path) return ''
+  if (path.startsWith('http') || path.startsWith('data:')) return path
+  const base = import.meta.env.VITE_API_BASE_URL || ''
+  return `${base}${path}`
+}
 
 // ── Token 管理 ────────────────────────────────────────────
 
@@ -24,21 +36,33 @@ export function getToken() {
 export function setToken(token) {
   try {
     localStorage.setItem(TOKEN_KEY, token)
-  } catch (e) {
-    // 静默失败
-  }
+  } catch (e) { /* */ }
 }
 
 export function clearToken() {
   try {
     localStorage.removeItem(TOKEN_KEY)
+  } catch (e) { /* */ }
+}
+
+export function getAdminToken() {
+  try {
+    return localStorage.getItem(ADMIN_TOKEN_KEY)
   } catch (e) {
-    // 静默失败
+    return null
   }
 }
 
-export function getCurrentUserId() {
-  return _currentUser?.id || null
+export function setAdminToken(token) {
+  try {
+    localStorage.setItem(ADMIN_TOKEN_KEY, token)
+  } catch (e) { /* */ }
+}
+
+export function clearAdminToken() {
+  try {
+    localStorage.removeItem(ADMIN_TOKEN_KEY)
+  } catch (e) { /* */ }
 }
 
 export function setCurrentUser(user) {
@@ -227,13 +251,12 @@ export async function adminLogin(password) {
     throw new Error(err.detail || '密码错误')
   }
   const data = await resp.json()
-  // Admin 使用独立 token key 避免覆盖用户 token
-  setToken(data.token)
+  setAdminToken(data.token)
   return data
 }
 
 export async function fetchSystemSettings() {
-  const token = getToken()
+  const token = getAdminToken()
   const headers = { 'Content-Type': 'application/json' }
   if (token) headers['Authorization'] = `Bearer ${token}`
   const resp = await fetch(`${API_BASE}/admin/system-settings`, { headers })
@@ -242,7 +265,7 @@ export async function fetchSystemSettings() {
 }
 
 export async function saveSystemSettings(items) {
-  const token = getToken()
+  const token = getAdminToken()
   const headers = { 'Content-Type': 'application/json' }
   if (token) headers['Authorization'] = `Bearer ${token}`
   const resp = await fetch(`${API_BASE}/admin/system-settings`, {

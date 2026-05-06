@@ -137,6 +137,23 @@ def build_system_prompt(business_type: str = "") -> str:
   "disadvantages": ["5条劣势，每条引用具体POI数据"],
   "warning": "最致命1个风险点，25字以内",
   "summary": "100字以内，直击要害，用数据说话",
+  "executive_summary": {{
+    "verdict": "建议推进/谨慎推进/不建议贸然推进（三选一）",
+    "summary": "40字以内的商业结论",
+    "top_strengths": ["最关键3条机会"],
+    "top_risks": ["最关键3条风险"]
+  }},
+  "dimension_scores": [
+    {{"key":"population_density","label":"人口密集度","score":0到100的整数,"text":"一句话解释"}},
+    {{"key":"traffic_accessibility","label":"交通可达性","score":0到100的整数,"text":"一句话解释"}},
+    {{"key":"traffic_flow","label":"客流特征","score":0到100的整数,"text":"一句话解释"}},
+    {{"key":"consumer_profile","label":"消费人群","score":0到100的整数,"text":"一句话解释"}},
+    {{"key":"competition","label":"竞争环境","score":0到100的整数,"text":"一句话解释"}},
+    {{"key":"complementary_businesses","label":"互补业态","score":0到100的整数,"text":"一句话解释"}},
+    {{"key":"category_advantage","label":"品类优势","score":0到100的整数,"text":"一句话解释"}},
+    {{"key":"cost_estimate","label":"成本压力","score":0到100的整数,"text":"一句话解释"}}
+  ],
+  "action_plan": ["开业前验证动作1", "定价/产品动作2", "获客动作3"],
   "details": {{
     "population_density": "引用住宅/写字楼/学校/医院数据推算人口量级，末尾「评分：XX」",
     "traffic_accessibility": "引用地铁/公交/停车场数据，按交通判定标准得出结论，末尾「评分：XX」",

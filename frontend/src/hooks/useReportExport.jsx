@@ -20,15 +20,23 @@
 import { useState, useCallback, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { exportElementToPDF, exportDataToPDF } from '../utils/exportToPDF'
-import { getToken } from '../services/api'
+import { ensureToken, getToken, getAssetUrl } from '../services/api'
 
 // 获取公众号二维码
 async function fetchQrcode() {
   try {
-    const r = await fetch('/api/admin/qrcode')
+    const r = await fetch('/api/admin/qrcode-slot/brand')
     const d = await r.json()
-    return d.url || ''
+    return getAssetUrl(d.url || '')
   } catch { return '' }
+}
+
+async function fetchPdfConfig() {
+  try {
+    const r = await fetch('/api/admin/pdf-config')
+    if (!r.ok) return {}
+    return await r.json()
+  } catch { return {} }
 }
 
 export default function useReportExport() {
@@ -67,10 +75,11 @@ export default function useReportExport() {
 
     setLoading(true)
     try {
+      await ensureToken()
       // 1. 检查会员状态
       const profile = await fetch(`/api/user/profile`, {
         headers: { 'Authorization': `Bearer ${getToken()}` }
-      }).then(r => r.json())
+      }).then(r => r.ok ? r.json() : null)
       const isMember = profile?.membership?.is_member
 
       // 2. 会员 → 直接放行
@@ -165,8 +174,8 @@ export default function useReportExport() {
         await exportElementToPDF(el, name)
       } else if (data) {
         // 模式 B: 从 JSON 构建
-        const qrcodeUrl = await fetchQrcode()
-        await exportDataToPDF(data, meta || {}, qrcodeUrl)
+        const [qrcodeUrl, pdfConfig] = await Promise.all([fetchQrcode(), fetchPdfConfig()])
+        await exportDataToPDF(data, meta || {}, qrcodeUrl, pdfConfig, filename)
       }
       showToast('PDF 下载完成')
       return true

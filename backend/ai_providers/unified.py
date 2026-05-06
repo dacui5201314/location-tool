@@ -4,12 +4,14 @@ generate_llm_response(prompt) —— 业务代码只调用这一个函数
 切换模型只需修改 .env 中 LLM_PROVIDER / LLM_MODEL / LLM_BASE_URL / LLM_API_KEY
 """
 import httpx
-from config import LLM_CONFIG
+from services.runtime_config import get_llm_config
 
 
 async def generate_llm_response(prompt: str) -> str:
     """调用当前激活的大模型，返回响应文本"""
-    cfg = LLM_CONFIG
+    cfg = get_llm_config()
+    if not cfg.get("api_key"):
+        raise RuntimeError(f"{cfg.get('provider', 'LLM')} API Key 未配置，请在后台核心配置中填写")
     headers = {
         "Authorization": f"Bearer {cfg['api_key']}",
         "Content-Type": "application/json",

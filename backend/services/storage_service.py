@@ -6,6 +6,7 @@ from datetime import datetime
 from pathlib import Path
 from database import SessionLocal
 from models.db_models import SystemConfig
+from services.runtime_config import get_config_value, get_pdf_config
 
 STORAGE_DIR = Path(__file__).resolve().parent.parent / "storage" / "reports"
 
@@ -27,11 +28,10 @@ def _get_config(db_session=None) -> dict:
         db_session = SessionLocal()
         close_db = True
     try:
-        rows = db_session.query(SystemConfig).filter(
-            SystemConfig.key.like("storage_%")
-        ).all()
+        rows = db_session.query(SystemConfig).filter(SystemConfig.key.in_(cfg.keys())).all()
         for r in rows:
-            cfg[r.key] = r.value
+            if r.key in cfg:
+                cfg[r.key] = r.value
     finally:
         if close_db:
             db_session.close()
@@ -91,13 +91,36 @@ def get_report_content(record_id: int, report_file: str = "", report_url: str = 
 
 
 def _build_report_html(record_id: int, report_data: dict, address: str, brand_name: str) -> str:
-    """生成标准分析报告 HTML 文件"""
+    """生成可直接浏览的标准分析报告 HTML 文件。"""
     score = report_data.get("score", 0)
     summary = report_data.get("summary", "")
     advantages = report_data.get("advantages", [])
     disadvantages = report_data.get("disadvantages", [])
     warning = report_data.get("warning", "")
     details = report_data.get("details", {})
+    exec_summary = report_data.get("executive_summary") or {}
+    dimension_scores = report_data.get("dimension_scores") or []
+    action_plan = report_data.get("action_plan") or []
+    pdf_cfg = get_pdf_config()
+    brand_qr = get_config_value("OFFICIAL_QRCODE_URL", "")
+    footer_text = pdf_cfg.get("footer_text") or "AI 选址分析 · 商业数据决策平台"
+    logo_url = pdf_cfg.get("logo_url") or ""
+    verdict = exec_summary.get("verdict") or ("建议推进" if score >= 75 else "谨慎验证" if score >= 60 else "高风险")
+    tone = "#0f8a5f" if score >= 75 else "#b7791f" if score >= 60 else "#dc2626"
+
+    def _list_html(items):
+        return "".join(f"<li>{html.escape(str(i))}</li>" for i in (items or []) if str(i).strip())
+
+    def _bar(score_value):
+        try:
+            n = max(0, min(100, int(score_value or 0)))
+        except Exception:
+            n = 0
+        color = "#0f8a5f" if n >= 75 else "#b7791f" if n >= 60 else "#dc2626"
+        return (
+            '<div class="bar"><i style="width:%s%%;background:%s"></i></div>'
+            % (n, color)
+        )
 
     detail_html = ""
     detail_labels = {
@@ -110,11 +133,22 @@ def _build_report_html(record_id: int, report_data: dict, address: str, brand_na
     for key, label in detail_labels.items():
         val = details.get(key)
         if val:
-            detail_html += f'<div class="dim"><h4>{html.escape(str(label))}</h4><p>{html.escape(str(val))}</p></div>'
+            clean_val = str(val).replace("评分：", "评分: ")
+            detail_html += f'<div class="dim"><h4>{html.escape(str(label))}</h4><p>{html.escape(clean_val)}</p></div>'
 
-    adv_html = "".join(f"<li>{html.escape(str(a))}</li>" for a in advantages)
-    dis_html = "".join(f"<li>{html.escape(str(d))}</li>" for d in disadvantages)
+    dim_html = ""
+    if dimension_scores:
+        for item in dimension_scores[:8]:
+            label = html.escape(str(item.get("label") or item.get("key") or "指标"))
+            val = int(item.get("score") or 0)
+            dim_html += f'<div class="metric"><div><strong>{label}</strong><span>{val or "-"}</span></div>{_bar(val)}</div>'
+
+    adv_html = _list_html(exec_summary.get("top_strengths") or advantages)
+    dis_html = _list_html(exec_summary.get("top_risks") or disadvantages)
+    action_html = _list_html(action_plan)
     warning_html = f'<div class="warning">⚠️ {html.escape(str(warning))}</div>' if warning else ""
+    logo_html = f'<img class="logo" src="{html.escape(logo_url)}" alt="logo">' if logo_url else '<div class="logo-fallback">址</div>'
+    qr_html = f'<img class="qr" src="{html.escape(brand_qr)}" alt="品牌二维码">' if brand_qr else '<div class="qr empty"></div>'
 
     return f"""<!DOCTYPE html>
 <html lang="zh-CN">
@@ -122,35 +156,85 @@ def _build_report_html(record_id: int, report_data: dict, address: str, brand_na
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>选址分析报告 - {html.escape(brand_name or address)}</title>
 <style>
-  body {{ font-family: -apple-system, "Microsoft YaHei", sans-serif; max-width: 720px; margin: 0 auto; padding: 24px; color: #1e293b; background: #f8fafc; }}
-  h1 {{ font-size: 20px; text-align: center; color: #0f172a; }}
-  .meta {{ text-align: center; font-size: 12px; color: #94a3b8; margin-bottom: 20px; }}
-  .score {{ text-align: center; margin: 16px 0; }}
-  .score-num {{ font-size: 48px; font-weight: 900; color: {'#16a34a' if score >= 75 else '#ca8a04' if score >= 60 else '#dc2626'}; }}
-  .card {{ background: #fff; border-radius: 12px; padding: 16px; margin-bottom: 12px; box-shadow: 0 1px 3px rgba(0,0,0,.05); }}
-  .card h3 {{ font-size: 14px; margin: 0 0 8px; }}
-  .adv {{ border-left: 3px solid #16a34a; }}
-  .dis {{ border-left: 3px solid #dc2626; }}
-  .adv h3 {{ color: #16a34a; }}
-  .dis h3 {{ color: #dc2626; }}
-  .warning {{ background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; padding: 10px; font-size: 13px; color: #991b1b; margin-bottom: 12px; }}
-  .dim {{ background: #fff; border-radius: 8px; padding: 12px; margin-bottom: 8px; }}
-  .dim h4 {{ font-size: 12px; color: #475569; margin: 0 0 4px; }}
-  .dim p {{ font-size: 12px; color: #64748b; line-height: 1.6; margin: 0; white-space: pre-wrap; }}
-  ul {{ margin: 0; padding-left: 18px; font-size: 13px; line-height: 1.8; color: #475569; }}
-  .footer {{ text-align: center; font-size: 10px; color: #94a3b8; margin-top: 24px; border-top: 1px solid #e2e8f0; padding-top: 12px; }}
+  body {{ font-family: -apple-system, "Microsoft YaHei", "PingFang SC", sans-serif; max-width: 860px; margin: 0 auto; color: #1e293b; background: #eef3f8; }}
+  .cover {{ background:#0f172a; color:white; padding:34px 40px; border-radius:0 0 18px 18px; }}
+  .cover-top {{ display:flex; justify-content:space-between; gap:24px; align-items:flex-start; }}
+  .eyebrow {{ color:#93c5fd; font-size:11px; letter-spacing:4px; margin-bottom:10px; }}
+  h1 {{ font-size:28px; line-height:1.25; margin:0; }}
+  .meta {{ font-size:12px; color:#cbd5e1; line-height:1.8; margin-top:10px; }}
+  .logo,.logo-fallback {{ width:58px; height:58px; border-radius:10px; background:white; object-fit:contain; padding:6px; box-sizing:border-box; }}
+  .logo-fallback {{ display:flex; align-items:center; justify-content:center; color:#2563eb; font-weight:900; font-size:24px; }}
+  .hero-grid {{ display:grid; grid-template-columns:1.1fr .9fr; gap:18px; margin-top:26px; }}
+  .score-card {{ background:white; color:#0f172a; border-radius:14px; padding:20px; }}
+  .score-num {{ font-size:56px; font-weight:900; color:{tone}; line-height:.9; }}
+  .verdict {{ display:inline-block; font-size:12px; font-weight:800; color:{tone}; background:#f8fafc; padding:5px 10px; border-radius:999px; }}
+  main {{ padding:26px 40px 38px; }}
+  .card {{ background:#fff; border-radius:12px; padding:18px; margin-bottom:16px; box-shadow:0 1px 4px rgba(15,23,42,.06); border:1px solid #e2e8f0; }}
+  .split {{ display:grid; grid-template-columns:1fr 1fr; gap:16px; }}
+  h2 {{ font-size:16px; margin:0 0 12px; color:#0f172a; }}
+  .adv {{ border-color:#bbf7d0; background:#f8fffb; }}
+  .dis {{ border-color:#fecaca; background:#fffafa; }}
+  .adv h2 {{ color:#047857; }}
+  .dis h2 {{ color:#b91c1c; }}
+  .warning {{ background:#fef2f2; border:1px solid #fecaca; border-radius:10px; padding:12px 14px; font-size:13px; color:#991b1b; margin-bottom:16px; font-weight:700; }}
+  .metrics {{ display:grid; grid-template-columns:repeat(4,1fr); gap:10px; }}
+  .metric {{ border:1px solid #e2e8f0; border-radius:10px; padding:12px; background:white; }}
+  .metric div:first-child {{ display:flex; justify-content:space-between; gap:8px; align-items:center; }}
+  .metric strong {{ font-size:12px; color:#334155; }}
+  .metric span {{ font-size:16px; font-weight:900; color:#0f172a; }}
+  .bar {{ height:6px; border-radius:99px; background:#e5e7eb; margin-top:8px; overflow:hidden; }}
+  .bar i {{ display:block; height:100%; }}
+  .dim {{ background:#f8fafc; border-radius:10px; padding:14px; margin-bottom:10px; border-left:3px solid #2563eb; }}
+  .dim h4 {{ font-size:13px; color:#0f172a; margin:0 0 6px; }}
+  .dim p {{ font-size:13px; color:#475569; line-height:1.75; margin:0; white-space:pre-wrap; }}
+  ul,ol {{ margin:0; padding-left:20px; font-size:13px; line-height:1.85; color:#334155; }}
+  .footer {{ display:flex; gap:22px; align-items:center; margin-top:24px; padding:20px; border-top:3px solid #0f172a; background:#f8fafc; border-radius:12px; }}
+  .footer-copy {{ flex:1; font-size:11px; color:#64748b; line-height:1.8; }}
+  .qr {{ width:112px; height:112px; object-fit:contain; border-radius:8px; border:1px solid #e2e8f0; background:white; }}
+  .qr.empty {{ border-style:dashed; }}
 </style>
 </head>
 <body>
-<h1>选址分析报告</h1>
-<div class="meta">地址：{html.escape(address)} | 品牌：{html.escape(brand_name)} | 报告编号：#{record_id}</div>
-<div class="score"><div class="score-num">{score}</div><div style="font-size:12px;color:#94a3b8;">综合评分</div></div>
-{warning_html}
-<div class="card"><h3>分析摘要</h3><p style="font-size:13px;line-height:1.8;color:#475569;">{html.escape(summary)}</p></div>
-<div class="card adv"><h3>✅ 优势</h3><ul>{adv_html}</ul></div>
-<div class="card dis"><h3>⚠️ 劣势与风险</h3><ul>{dis_html}</ul></div>
-<div style="margin-top:16px;"><h3 style="font-size:14px;">各维度详细分析</h3>{detail_html}</div>
-<div class="footer">址得选 · AI选址分析决策平台 | 仅供参考，不构成投资建议</div>
+<section class="cover">
+  <div class="cover-top">
+    <div>
+      <div class="eyebrow">AI LOCATION INTELLIGENCE</div>
+      <h1>{html.escape(brand_name or "选址分析报告")}</h1>
+      <div class="meta">地址：{html.escape(address)}<br>报告编号：#{record_id} · 生成时间：{datetime.now().strftime("%Y-%m-%d")}</div>
+    </div>
+    {logo_html}
+  </div>
+  <div class="hero-grid">
+    <div class="score-card">
+      <div style="font-size:12px;color:#64748b;margin-bottom:8px;">综合评分</div>
+      <div><span class="score-num">{score or "-"}</span> <span class="verdict">{html.escape(verdict)}</span></div>
+      <p style="font-size:13px;line-height:1.8;color:#334155;margin:16px 0 0;">{html.escape(exec_summary.get("summary") or summary or "暂无摘要")}</p>
+    </div>
+    <div style="border:1px solid rgba(255,255,255,.18);border-radius:14px;padding:18px;color:#cbd5e1;font-size:12px;line-height:2;">
+      <div>品牌：{html.escape(brand_name or "-")}</div>
+      <div>结论：{html.escape(verdict)}</div>
+      <div>数据结构：结论卡 / 指标卡 / 分模块分析</div>
+    </div>
+  </div>
+</section>
+<main>
+  {warning_html}
+  <div class="split">
+    <section class="card adv"><h2>关键机会</h2><ol>{adv_html}</ol></section>
+    <section class="card dis"><h2>主要风险</h2><ol>{dis_html}</ol></section>
+  </div>
+  {f'<section class="card"><h2>指标卡</h2><div class="metrics">{dim_html}</div></section>' if dim_html else ''}
+  {f'<section class="card"><h2>落地行动清单</h2><ol>{action_html}</ol></section>' if action_html else ''}
+  <section class="card"><h2>分模块详细分析</h2>{detail_html}</section>
+  <section class="footer">
+    <div class="footer-copy">
+      <strong style="color:#0f172a;font-size:14px;">址得选 AI 选址分析报告</strong><br>
+      {html.escape(footer_text)}<br>
+      本报告由系统自动生成，仅供商业决策参考，不构成投资建议。
+    </div>
+    <div>{qr_html}<div style="font-size:10px;text-align:center;color:#1d4ed8;font-weight:800;margin-top:7px;">扫码获取更多测算</div></div>
+  </section>
+</main>
 </body>
 </html>"""
 

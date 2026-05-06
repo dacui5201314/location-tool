@@ -27,11 +27,11 @@ def decode_token(token: str) -> dict:
         raise HTTPException(status_code=401, detail="无效的 Token")
 
 
-def get_current_user(authorization: str = Header(...)) -> dict:
+def get_current_user(authorization: str = Header("")) -> dict:
     """FastAPI 依赖：从 Authorization: Bearer <token> 解析当前用户。
     返回 {"user_id": int, "role": str}，鉴权失败抛出 401。
     """
-    if not authorization.startswith("Bearer "):
+    if not authorization or not authorization.startswith("Bearer "):
         raise HTTPException(status_code=401, detail="需要 Bearer Token")
     token = authorization[7:]
     payload = decode_token(token)

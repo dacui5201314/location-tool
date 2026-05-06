@@ -126,16 +126,19 @@ export default function PdfExport({ selectedLocation, result, businessType, bran
   })
 
   const handleExport = useCallback(async () => {
-    // 首先 render portal DOM，下个 tick 截取
-    setRenderPortal(true)
-    // 等一帧让 portal 挂载
-    await new Promise(r => requestAnimationFrame(r))
-    await new Promise(r => setTimeout(r, 200))
-    // 调用统一导出
     const filename = `选址分析报告_${selectedLocation?.name || 'report'}_${new Date().toISOString().slice(0, 10)}.pdf`
-    await exportPdf({ el: reportRef.current, filename })
-    setRenderPortal(false)
-  }, [selectedLocation, exportPdf])
+    await exportPdf({
+      data: result,
+      meta: {
+        address: selectedLocation?.address || selectedLocation?.name || '',
+        brandName,
+        businessType,
+        storeSize: '',
+        date: new Date().toISOString(),
+      },
+      filename,
+    })
+  }, [selectedLocation, exportPdf, result, brandName, businessType])
 
   // Portal 渲染控制
   const [renderPortal, setRenderPortal] = useState(false)

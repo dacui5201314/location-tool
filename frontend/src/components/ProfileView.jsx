@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import useFetch from '../hooks/useFetch'
-import { clearToken, getCurrentUserId, getToken } from '../services/api'
+import { clearToken, getToken, getAssetUrl } from '../services/api'
 
 export default function ProfileView() {
   const navigate = useNavigate()
@@ -30,10 +30,15 @@ export default function ProfileView() {
 
   const { data: profileResp, loading, error: profileError, refetch } = useFetch('/api/user/profile')
   const { data: uiData } = useFetch('/api/admin/ui-config')
+  const { data: csQrData } = useFetch('/api/admin/qrcode-slot/cs')
+  const { data: skuData } = useFetch('/api/user/skus')
 
   const profile = profileResp || {}
   const membership = profileResp?.membership || {}
   const points = profileResp?.points ?? 0
+  const skus = Array.isArray(skuData?.skus) ? skuData.skus : []
+  const membershipSkus = skus.filter(s => s.type === 'membership').slice(0, 3)
+  const pointSkus = skus.filter(s => s.type !== 'membership').slice(0, 4)
 
   useEffect(() => {
     try {
@@ -41,9 +46,12 @@ export default function ProfileView() {
       setCsWechat(d?.cs_wechat || '')
       setCsPhone(d?.cs_phone || '')
       setCsName(d?.customer_service_name || '')
-      setCsQrUrl(d?.customer_service_qr_url || '')
     } catch { /* silent */ }
   }, [uiData])
+
+  useEffect(() => {
+    setCsQrUrl(csQrData?.url || '')
+  }, [csQrData])
 
   const freePointExpireAt = profileResp?.user?.free_point_expire_at
   const freePointActive = profileResp?.user?.free_point_active
@@ -254,21 +262,59 @@ export default function ProfileView() {
               开通会员或购买点数，请扫码添加专属客服微信，<br/>或使用兑换码激活。
             </p>
 
+            {(membershipSkus.length > 0 || pointSkus.length > 0) && (
+              <div className="mt-4 space-y-3">
+                {membershipSkus.length > 0 && (
+                  <div>
+                    <div className="mb-2 text-[11px] font-bold text-slate-500">会员套餐</div>
+                    <div className="grid grid-cols-3 gap-2">
+                      {membershipSkus.map(item => (
+                        <button key={item.id} type="button"
+                          onClick={() => showToast(`已选择 ${item.label}，请扫码联系客服开通`, 3000)}
+                          className="relative rounded-xl border border-amber-100 bg-amber-50/70 px-2 py-3 text-center hover:border-amber-300">
+                          {item.badge && <em className="absolute -top-2 right-2 rounded-full bg-amber-500 px-1.5 py-0.5 text-[9px] not-italic font-bold text-white">{item.badge}</em>}
+                          <strong className="block text-xs text-slate-800">{item.label}</strong>
+                          <span className="mt-1 block text-sm font-black text-amber-600">¥{item.price}</span>
+                          <em className="mt-0.5 block not-italic text-[10px] text-slate-400">{item.duration_days || 0}天</em>
+                          {item.desc && <small className="mt-1 block text-[10px] leading-4 text-slate-500">{item.desc}</small>}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {pointSkus.length > 0 && (
+                  <div>
+                    <div className="mb-2 text-[11px] font-bold text-slate-500">点数包</div>
+                    <div className="grid grid-cols-2 gap-2">
+                      {pointSkus.map(item => (
+                        <button key={item.id} type="button"
+                          onClick={() => showToast(`已选择 ${item.label}，请扫码联系客服充值`, 3000)}
+                          className="relative rounded-xl border border-blue-100 bg-blue-50/60 px-3 py-2 text-left hover:border-blue-300">
+                          {item.badge && <em className="absolute -top-2 right-2 rounded-full bg-blue-600 px-1.5 py-0.5 text-[9px] not-italic font-bold text-white">{item.badge}</em>}
+                          <span className="block text-xs font-bold text-slate-800">{item.label}</span>
+                          <span className="mt-0.5 block text-[11px] text-slate-500">{item.credits || 0} 次分析</span>
+                          {item.desc && <small className="mt-0.5 block text-[10px] leading-4 text-slate-500">{item.desc}</small>}
+                          <strong className="mt-1 block text-sm text-blue-600">¥{item.price}</strong>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
             <div className="mt-4 flex flex-col items-center rounded-xl bg-slate-50 border border-slate-100 p-4">
               {csQrUrl ? (
-                <img src={csQrUrl} alt="客服二维码"
+                <img src={getAssetUrl(csQrUrl)} alt="客服二维码"
                   className="w-36 h-36 object-contain rounded-lg mb-2 border border-slate-200" />
               ) : (
                 <div className="w-36 h-36 rounded-lg bg-slate-200 flex items-center justify-center mb-2">
                   <span className="text-4xl text-slate-400">♟</span>
                 </div>
               )}
-              <span className="text-xs font-semibold text-slate-600">
-                {csName ? `专属客服（${csName}）` : '扫码添加专属客服'}
-              </span>
-              <span className="text-[10px] text-slate-400 mt-0.5">
-                {csName ? `联系 ${csName} 获取点数充值 / 开通会员` : '获取点数充值 / 开通会员'}
-              </span>
+              <span className="text-xs font-semibold text-slate-600">扫码联系专属客服</span>
+              <span className="text-[10px] text-slate-400 mt-0.5">如需充值点数或开通会员，请添加官方客服微信。</span>
             </div>
 
             <div className="mt-4 pt-4 border-t border-slate-100">
@@ -281,11 +327,10 @@ export default function ProfileView() {
                   const code = cdkInput.trim()
                   if (!code) { showToast('请输入兑换码', 3000); return }
                   try {
-                    const userId = getCurrentUserId() || 0
                     const token = getToken()
                     const headers = { 'Content-Type': 'application/json' }
                     if (token) headers['Authorization'] = `Bearer ${token}`
-                    const r = await fetch('/api/admin/cdk/activate', { method: 'POST', headers, body: JSON.stringify({ code, user_id: userId }) })
+                    const r = await fetch('/api/admin/cdk/activate', { method: 'POST', headers, body: JSON.stringify({ code }) })
                     const d = await r.json()
                     if (r.ok) {
                       showToast(`兑换成功！+${d.credits_added} 点已到账`, 3500)
@@ -320,11 +365,10 @@ export default function ProfileView() {
                 const code = cdkInput.trim()
                 if (!code) { showToast('请输入兑换码', 3000); return }
                 try {
-                  const userId = getCurrentUserId() || 0
                   const token = getToken()
                   const headers = { 'Content-Type': 'application/json' }
                   if (token) headers['Authorization'] = `Bearer ${token}`
-                  const r = await fetch('/api/admin/cdk/activate', { method: 'POST', headers, body: JSON.stringify({ code, user_id: userId }) })
+                  const r = await fetch('/api/admin/cdk/activate', { method: 'POST', headers, body: JSON.stringify({ code }) })
                   const d = await r.json()
                   if (r.ok) {
                     showToast(`兑换成功！+${d.credits_added} 点已到账`, 3500)

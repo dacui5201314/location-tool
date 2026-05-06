@@ -37,26 +37,36 @@ export default function useFetch(url, options = {}) {
         headers['Authorization'] = `Bearer ${token}`
       }
 
-      return fetch(url, { ...options, headers, signal: controller.signal })
-        .then(r => {
-          if (r.status === 401) {
-            try { localStorage.removeItem('_auth_token') } catch (e) { /* */ }
+      try {
+        let resp = await fetch(url, { ...options, headers, signal: controller.signal })
+
+        const shouldRefreshToken =
+          resp.status === 401 ||
+          (resp.status === 404 && String(url).includes('/api/user/profile'))
+
+        if (shouldRefreshToken) {
+          try { localStorage.removeItem('_auth_token') } catch (e) { /* */ }
+          try { await ensureToken() } catch (e) { /* */ }
+          const nextToken = getToken()
+          const retryHeaders = { ...options.headers }
+          if (nextToken) retryHeaders['Authorization'] = `Bearer ${nextToken}`
+          if (!controller.signal.aborted) {
+            resp = await fetch(url, { ...options, headers: retryHeaders, signal: controller.signal })
           }
-          if (!r.ok) throw new Error(`HTTP ${r.status}`)
-          return r.json()
-        })
-        .then(d => {
-          if (mountedRef.current && !controller.signal.aborted) {
-            setData(d)
-            setLoading(false)
-          }
-        })
-        .catch(err => {
-          if (mountedRef.current && !controller.signal.aborted && err.name !== 'AbortError') {
-            setError('数据加载失败，点击重试')
-            setLoading(false)
-          }
-        })
+        }
+
+        if (!resp.ok) throw new Error(`HTTP ${resp.status}`)
+        const d = await resp.json()
+        if (mountedRef.current && !controller.signal.aborted) {
+          setData(d)
+          setLoading(false)
+        }
+      } catch (err) {
+        if (mountedRef.current && !controller.signal.aborted && err.name !== 'AbortError') {
+          setError('数据加载失败，点击重试')
+          setLoading(false)
+        }
+      }
     }
 
     doFetch()

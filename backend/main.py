@@ -17,6 +17,7 @@ from database import init_db, SessionLocal
 from models.db_models import AnalysisRecord
 from services.storage_service import save_report
 from services.billing_service import check_billing_access, refund_credits
+from services.runtime_config import get_config_value as get_runtime_config_value, get_llm_config, normalize_report_result
 from models.db_models import User
 from auth import get_current_user
 
@@ -213,8 +214,11 @@ async def analyze_location(req: AnalyzeRequest, user: dict = Depends(get_current
         db_billing.close()
         raise HTTPException(status_code=500, detail="计费系统异常")
 
-    # 3. 构建提示词并调用大模型（provider 由 .env 中 LLM_PROVIDER 控制）
-    prompt = build_system_prompt(req.business_type) + "\n\n" + build_analysis_prompt(
+    # 3. 构建提示词并调用大模型（provider 从后台核心配置热读取）
+    runtime_llm = get_llm_config()
+    custom_system_prompt = get_runtime_config_value("system_prompt", "").strip()
+    system_prompt = custom_system_prompt or build_system_prompt(req.business_type)
+    prompt = system_prompt + "\n\n" + build_analysis_prompt(
         req.address, req.location.lng, req.location.lat,
         req.business_type or "", real_data,
         brand_name=req.brand_name or "",
@@ -225,7 +229,8 @@ async def analyze_location(req: AnalyzeRequest, user: dict = Depends(get_current
         raw_response = await generate_llm_response(prompt)
         raw_response = _extract_json(raw_response)
         result = json.loads(raw_response)
-        result["provider"] = "deepseek"
+        result = normalize_report_result(result)
+        result["provider"] = runtime_llm.get("provider", req.provider)
         result["error"] = None
         result["real_data"] = real_data
 

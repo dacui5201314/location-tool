@@ -157,7 +157,7 @@ export async function exportElementToPDF(element, filename) {
 // ============================================================
 // 模式 B: 从原始数据构建完整报告 DOM 再导出
 // ============================================================
-export async function exportDataToPDF(reportData, meta = {}, qrcodeUrl = '') {
+export async function exportDataToPDF(reportData, meta = {}, qrcodeUrl = '', pdfConfig = {}, filename = '') {
   const { address = '', brandName = '', businessType = '', storeSize = '', date = '' } = meta
 
   const container = document.createElement('div')
@@ -165,29 +165,57 @@ export async function exportDataToPDF(reportData, meta = {}, qrcodeUrl = '') {
     'position:fixed;left:-9999px;top:0;width:800px;background:#fff;' +
     'font-family:"Microsoft YaHei","PingFang SC","Noto Sans SC",sans-serif;' +
     'color:#1e293b;padding:0;z-index:-1;'
-  container.innerHTML = buildFullReportHTML(reportData, { address, brandName, businessType, storeSize, date }, qrcodeUrl)
+  container.innerHTML = buildFullReportHTML(reportData, { address, brandName, businessType, storeSize, date }, qrcodeUrl, pdfConfig)
   document.body.appendChild(container)
 
   try {
     const safeName = (brandName || businessType || 'report').replace(/[\\/:*?"<>|]/g, '').slice(0, 30)
     const safeLoc = (address || '').slice(0, 20).replace(/[\\/:*?"<>|]/g, '')
     const d = date?.slice(0, 10) || new Date().toISOString().slice(0, 10)
-    await domToPDF(container, `选址分析报告_${safeName}_${safeLoc}_${d}.pdf`)
+    await domToPDF(container, filename || `选址分析报告_${safeName}_${safeLoc}_${d}.pdf`)
   } finally {
     document.body.removeChild(container)
   }
 }
 
 // ============================================================
-// 完整报告 HTML 模板（含评分环、所有维度、Footer）
+// 完整报告 HTML 模板（咨询报告式版式）
 // ============================================================
-function buildFullReportHTML(data, meta, qrcodeUrl = '') {
+function escapeHtml(value = '') {
+  return String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+}
+
+function asList(value, limit = 5) {
+  if (Array.isArray(value)) return value.filter(Boolean).slice(0, limit)
+  if (!value) return []
+  return String(value).split(/[；;\n]/).map(s => s.trim()).filter(Boolean).slice(0, limit)
+}
+
+function stripScore(value = '') {
+  return String(value).replace(/[，,]?\s*评分[：:]\s*\d{1,3}\s*分?\s*$/, '').trim()
+}
+
+function scoreTone(score = 0) {
+  if (score >= 75) return { color: '#0f8a5f', bg: '#ecfdf5', label: '高潜力' }
+  if (score >= 60) return { color: '#b7791f', bg: '#fffbeb', label: '可验证' }
+  return { color: '#dc2626', bg: '#fef2f2', label: '高风险' }
+}
+
+function buildFullReportHTML(data, meta, qrcodeUrl = '', pdfConfig = {}) {
   const { address, brandName, businessType, storeSize, date } = meta
-  const { advantages = [], disadvantages = [], summary = '', warning = '', details = {}, score } = data
+  const { advantages = [], disadvantages = [], summary = '', warning = '', details = {}, score = 0 } = data
+  const tone = scoreTone(score)
+  const reportDate = date?.slice(0, 10) || new Date().toISOString().slice(0, 10)
+  const footerText = pdfConfig.footer_text || 'AI 选址分析 · 商业数据决策平台'
+  const logoUrl = pdfConfig.logo_url || ''
+  const exec = data.executive_summary || {}
 
-  const scoreColor = score >= 75 ? '#16a34a' : score >= 60 ? '#ca8a04' : '#dc2626'
-
-  const dims = [
+  const fallbackDims = [
     { key: 'population_density', label: '人口密集度' },
     { key: 'traffic_accessibility', label: '交通可达性' },
     { key: 'traffic_flow', label: '客流特征' },
@@ -197,131 +225,108 @@ function buildFullReportHTML(data, meta, qrcodeUrl = '') {
     { key: 'category_advantage', label: '品类优势' },
     { key: 'cost_estimate', label: '成本预估' },
   ]
-
-  // 提取分数
   const extractScore = (key) => {
     const txt = String(details[key] || '')
     const m = txt.match(/(\d{1,3})\s*分/)
     return m ? parseInt(m[1]) : 0
   }
-
-  // 内联雷达图 SVG
-  const radarSvg = buildInlineRadarSVG(dims.map(d => ({ ...d, score: extractScore(d.key) })))
-
-  // 评分环
-  const ringSize = 120
-  const strokeW = 10
-  const r2 = (ringSize - strokeW) / 2
-  const circumference = 2 * Math.PI * r2
-  const offset = circumference * (1 - (score || 0) / 100)
-
-  // 各维度详细分析
+  const dims = Array.isArray(data.dimension_scores) && data.dimension_scores.length
+    ? data.dimension_scores
+    : fallbackDims.map(d => ({ ...d, score: extractScore(d.key), text: stripScore(details[d.key] || '') }))
+  const radarSvg = buildInlineRadarSVG(dims.map(d => ({ key: d.key, label: d.label, score: Number(d.score || 0) })))
   const detailLabels = {
     population_density: '人口密集度', traffic_accessibility: '交通与可达性', traffic_flow: '客流特征',
     consumer_profile: '消费人群属性', competition: '竞争环境', complementary_businesses: '周边互补业态',
     category_advantage: '品类优势与差异化', cost_estimate: '房租成本预估',
     revenue_estimation: '营收测算模型', site_suggestion: '选址分析与运营策略',
   }
-
+  const metricCards = dims.slice(0, 8).map(d => {
+    const s = Number(d.score || 0)
+    const t = scoreTone(s)
+    return `<div style="padding:12px 14px;border:1px solid #e2e8f0;border-radius:8px;background:#fff">
+      <div style="display:flex;justify-content:space-between;gap:8px;align-items:center">
+        <strong style="font-size:12px;color:#334155">${escapeHtml(d.label)}</strong>
+        <span style="font-size:15px;font-weight:900;color:${t.color}">${s || '-'}</span>
+      </div>
+      <div style="height:6px;background:#e5e7eb;border-radius:99px;margin-top:8px;overflow:hidden">
+        <i style="display:block;height:100%;width:${Math.max(0, Math.min(100, s))}%;background:${t.color}"></i>
+      </div>
+    </div>`
+  }).join('')
   const detailBlocks = Object.entries(detailLabels)
     .filter(([k]) => details[k])
     .map(([k, label]) =>
-      `<div style="margin-bottom:8px;padding:10px 14px;background:#f8fafc;border-radius:8px;border-left:3px solid #3b82f6">
-         <strong style="font-size:13px;color:#1e293b">${label}</strong>
-         <p style="font-size:12px;color:#475569;line-height:1.7;margin:6px 0 0;white-space:pre-wrap">${String(details[k])}</p>
+      `<div style="break-inside:avoid;margin-bottom:10px;padding:12px 14px;background:#f8fafc;border-radius:8px;border-left:3px solid #2563eb">
+         <strong style="font-size:13px;color:#0f172a">${escapeHtml(label)}</strong>
+         <p style="font-size:12px;color:#475569;line-height:1.75;margin:6px 0 0;white-space:pre-wrap">${escapeHtml(stripScore(details[k]))}</p>
        </div>`
     ).join('')
-
+  const strengths = asList(exec.top_strengths?.length ? exec.top_strengths : advantages, 3)
+  const risks = asList(exec.top_risks?.length ? exec.top_risks : disadvantages, 3)
+  const actions = asList(data.action_plan, 5)
   return `<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8"></head>
-<body style="margin:0;padding:40px 44px;background:#fff;">
-
-<!-- 页眉 -->
-<div style="text-align:center;padding-bottom:16px;margin-bottom:20px;border-bottom:3px solid #1e40af">
-  <div style="font-size:11px;color:#93c5fd;letter-spacing:4px;margin-bottom:4px">AI LOCATION INTELLIGENCE</div>
-  <h1 style="font-size:20px;color:#1e40af;margin:0;font-weight:900;letter-spacing:2px">址得选 AI选址分析报告</h1>
-  <p style="font-size:10px;color:#94a3b8;margin:6px 0 0">AI-Powered Location Intelligence Report · ${date || ''}</p>
-</div>
-
-<h2 style="font-size:18px;color:#0f172a;text-align:center;margin:0 0 16px;font-weight:700">
-  ${brandName ? `${brandName} · ` : ''}选址分析报告
-</h2>
-
-<!-- 元信息 -->
-<div style="background:linear-gradient(135deg,#eff6ff,#f0f9ff);border-radius:10px;padding:14px 18px;margin-bottom:18px;font-size:12px;line-height:2;color:#334155;border:1px solid #bfdbfe">
-  <table style="width:100%;border-collapse:collapse">
-    <tr><td style="width:56px;color:#64748b;padding:2px 0">地  址</td><td style="font-weight:600">${address || '-'}</td></tr>
-    ${brandName ? `<tr><td style="color:#64748b;padding:2px 0">品  牌</td><td style="font-weight:600">${brandName}</td></tr>` : ''}
-    ${businessType ? `<tr><td style="color:#64748b;padding:2px 0">业  态</td><td style="font-weight:600">${businessType}</td></tr>` : ''}
-    ${storeSize ? `<tr><td style="color:#64748b;padding:2px 0">面  积</td><td style="font-weight:600">${storeSize}㎡</td></tr>` : ''}
-  </table>
-</div>
-
-<!-- 综合评分 -->
-${score != null ? `<div style="text-align:center;margin:12px 0 20px">
-  <div style="display:flex;align-items:center;justify-content:center;gap:24px">
-    <svg width="${ringSize}" height="${ringSize}" viewBox="0 0 ${ringSize} ${ringSize}">
-      <circle cx="${ringSize/2}" cy="${ringSize/2}" r="${r2}" fill="none" stroke="#e5e7eb" stroke-width="${strokeW}"/>
-      <circle cx="${ringSize/2}" cy="${ringSize/2}" r="${r2}" fill="none" stroke="${scoreColor}" stroke-width="${strokeW}"
-        stroke-dasharray="${circumference}" stroke-dashoffset="${offset}" stroke-linecap="round"
-        transform="rotate(-90 ${ringSize/2} ${ringSize/2})"/>
-      <text x="${ringSize/2}" y="${ringSize/2-4}" text-anchor="middle" font-size="34" font-weight="900" fill="${scoreColor}">${score}</text>
-      <text x="${ringSize/2}" y="${ringSize/2+14}" text-anchor="middle" font-size="10" fill="#9ca3af">/ 100</text>
-    </svg>
-    <div style="text-align:left;font-size:12px">
-      <div style="font-size:32px;font-weight:900;color:${scoreColor};line-height:1">${score}</div>
-      <div style="font-size:11px;color:#94a3b8">综合评分</div>
+<body style="margin:0;background:#fff;color:#1e293b;font-family:Microsoft YaHei,PingFang SC,Noto Sans SC,sans-serif">
+<div style="padding:38px 44px 28px;background:#0f172a;color:white">
+  <div style="display:flex;align-items:center;justify-content:space-between;gap:24px">
+    <div>
+      <div style="font-size:10px;letter-spacing:4px;color:#93c5fd;margin-bottom:10px">AI LOCATION INTELLIGENCE</div>
+      <h1 style="font-size:26px;line-height:1.25;margin:0;font-weight:900">${escapeHtml(brandName || businessType || '选址分析报告')}</h1>
+      <p style="font-size:12px;line-height:1.7;color:#cbd5e1;margin:10px 0 0">${escapeHtml(address || '-')}</p>
+    </div>
+    ${logoUrl ? `<img src="${escapeHtml(logoUrl)}" style="width:54px;height:54px;object-fit:contain;border-radius:8px;background:white;padding:6px"/>` : '<div style="width:54px;height:54px;border-radius:8px;background:#2563eb;display:flex;align-items:center;justify-content:center;font-weight:900">址</div>'}
+  </div>
+  <div style="display:grid;grid-template-columns:1.15fr .85fr;gap:18px;margin-top:28px">
+    <div style="background:white;color:#0f172a;border-radius:12px;padding:20px">
+      <div style="font-size:11px;color:#64748b">综合评分</div>
+      <div style="display:flex;align-items:flex-end;gap:12px;margin-top:4px">
+        <strong style="font-size:52px;line-height:.9;color:${tone.color}">${score || '-'}</strong>
+        <span style="font-size:13px;font-weight:800;color:${tone.color};background:${tone.bg};padding:5px 9px;border-radius:999px">${tone.label}</span>
+      </div>
+      <p style="font-size:13px;line-height:1.8;color:#334155;margin:16px 0 0">${escapeHtml(exec.summary || summary || '暂无摘要')}</p>
+    </div>
+    <div style="border:1px solid rgba(255,255,255,.18);border-radius:12px;padding:16px;color:#cbd5e1;font-size:12px;line-height:2">
+      <div>生成日期：${escapeHtml(reportDate)}</div>
+      ${businessType ? `<div>目标业态：${escapeHtml(businessType)}</div>` : ''}
+      ${storeSize ? `<div>预计面积：${escapeHtml(storeSize)}㎡</div>` : ''}
+      <div>结论：${escapeHtml(exec.verdict || tone.label)}</div>
     </div>
   </div>
-</div>` : ''}
-
-<!-- 雷达图 -->
-${details ? `<div style="text-align:center;margin-bottom:18px">${radarSvg}</div>` : ''}
-
-<!-- 警告 -->
-${warning ? `<div style="padding:12px 16px;margin-bottom:16px;background:#fef2f2;border:1px solid #fecaca;border-radius:8px;font-size:12px;color:#991b1b;font-weight:600">⚠️ ${warning}</div>` : ''}
-
-<!-- 分析摘要 -->
-${summary ? `<div style="padding:14px 18px;margin-bottom:16px;background:#f8fafc;border-radius:10px;border:1px solid #e2e8f0">
-  <h3 style="font-size:14px;color:#1e293b;margin:0 0 8px">📋 分析摘要</h3>
-  <p style="font-size:12px;color:#475569;line-height:1.9;margin:0">${summary}</p>
-</div>` : ''}
-
-<!-- 优势 -->
-${advantages.length ? `<div style="margin-bottom:16px">
-  <h3 style="font-size:14px;color:#16a34a;border-left:4px solid #16a34a;padding-left:10px;margin:0 0 10px">✅ 优势</h3>
-  <ul style="font-size:12px;line-height:2;padding-left:20px;margin:0;color:#334155">${advantages.map(a => `<li style="margin-bottom:4px">${a}</li>`).join('')}</ul>
-</div>` : ''}
-
-<!-- 劣势 -->
-${disadvantages.length ? `<div style="margin-bottom:16px">
-  <h3 style="font-size:14px;color:#dc2626;border-left:4px solid #dc2626;padding-left:10px;margin:0 0 10px">⚠️ 劣势与风险</h3>
-  <ul style="font-size:12px;line-height:2;padding-left:20px;margin:0;color:#334155">${disadvantages.map(d => `<li style="margin-bottom:4px">${d}</li>`).join('')}</ul>
-</div>` : ''}
-
-<!-- 各维度详细分析 -->
-${detailBlocks ? `<div style="margin-bottom:16px">
-  <h3 style="font-size:14px;color:#1e293b;border-left:4px solid #1e40af;padding-left:10px;margin:0 0 10px">📊 各维度详细分析</h3>
-  ${detailBlocks}
-</div>` : ''}
-
-<!-- ====== 引流 Footer ====== -->
-<div style="display:flex;align-items:center;gap:28px;margin-top:24px;padding:20px 24px;
-  background:linear-gradient(135deg,#f8fafc,#eff6ff);border-radius:12px;
-  border:1px solid #bfdbfe;border-top:3px solid #1e40af;">
-  <div style="flex:1;min-width:0">
-    <div style="font-size:15px;font-weight:900;color:#1e40af;letter-spacing:2px;margin-bottom:8px">址得选 AI选址分析报告</div>
-    <div style="font-size:11px;color:#64748b;line-height:1.7">本报告由址得选 AI 选址分析平台自动生成，仅供参考。</div>
-    <div style="font-size:10px;color:#94a3b8;margin-top:6px;line-height:1.6">数据底座：全网多维度商业POI聚合数据库<br/>不构成投资建议 · 请结合实地考察做出最终决策</div>
-  </div>
-  <div style="flex-shrink:0;text-align:center;width:110px">
-    ${qrcodeUrl
-      ? `<img src="${qrcodeUrl}" width="110" height="110" alt="公众号二维码" style="display:block;border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,.08);object-fit:contain"/>`
-      : `<img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='110' height='110'%3E%3Crect width='110' height='110' fill='%23f1f5f9' rx='8'/%3E%3Crect x='4' y='4' width='102' height='102' fill='none' stroke='%23cbd5e1' stroke-width='2' rx='7' stroke-dasharray='6,4'/%3E%3Ctext x='55' y='45' text-anchor='middle' font-size='11' fill='%2394a3b8'%3E二维码%3C/text%3E%3Ctext x='55' y='61' text-anchor='middle' font-size='11' fill='%2394a3b8'%3E占位图%3C/text%3E%3C/svg%3E" width="110" height="110" style="display:block;border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,.08)"/>`
-    }
-    <div style="font-size:10px;font-weight:700;color:#dc2626;margin-top:6px;line-height:1.4">扫码关注<br/>免费获取您的专属选址测算</div>
-  </div>
 </div>
-
+<div style="padding:26px 44px 36px">
+  ${warning ? `<div style="padding:12px 16px;margin-bottom:18px;background:#fef2f2;border:1px solid #fecaca;border-radius:8px;font-size:12px;color:#991b1b;font-weight:700">风险提示：${escapeHtml(warning)}</div>` : ''}
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-bottom:22px">
+    <section style="border:1px solid #dcfce7;border-radius:10px;padding:16px;background:#f8fffb">
+      <h2 style="font-size:14px;margin:0 0 10px;color:#047857">关键机会</h2>
+      <ol style="margin:0;padding-left:18px;font-size:12px;color:#334155;line-height:1.85">${strengths.map(x => `<li>${escapeHtml(x)}</li>`).join('')}</ol>
+    </section>
+    <section style="border:1px solid #fee2e2;border-radius:10px;padding:16px;background:#fffafa">
+      <h2 style="font-size:14px;margin:0 0 10px;color:#b91c1c">主要风险</h2>
+      <ol style="margin:0;padding-left:18px;font-size:12px;color:#334155;line-height:1.85">${risks.map(x => `<li>${escapeHtml(x)}</li>`).join('')}</ol>
+    </section>
+  </div>
+  <h2 style="font-size:15px;margin:0 0 12px;color:#0f172a">指标雷达与维度评分</h2>
+  <div style="display:grid;grid-template-columns:360px 1fr;gap:18px;align-items:center;margin-bottom:22px">
+    <div style="text-align:center">${radarSvg}</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">${metricCards}</div>
+  </div>
+  ${actions.length ? `<section style="break-inside:avoid;border:1px solid #dbeafe;border-radius:10px;background:#f8fbff;padding:16px;margin-bottom:22px">
+    <h2 style="font-size:15px;margin:0 0 10px;color:#1d4ed8">落地行动清单</h2>
+    <ol style="margin:0;padding-left:18px;font-size:12px;color:#334155;line-height:1.85">${actions.map(x => `<li>${escapeHtml(x)}</li>`).join('')}</ol>
+  </section>` : ''}
+  <h2 style="font-size:15px;margin:0 0 12px;color:#0f172a">详细分析</h2>
+  ${detailBlocks}
+  <section style="break-inside:avoid;margin-top:24px;display:flex;align-items:center;gap:24px;border-top:3px solid #0f172a;background:#f8fafc;border-radius:10px;padding:20px">
+    <div style="flex:1">
+      <div style="font-size:15px;font-weight:900;color:#0f172a;margin-bottom:6px">址得选 AI 选址分析报告</div>
+      <div style="font-size:11px;color:#64748b;line-height:1.8">${escapeHtml(footerText)}</div>
+      <div style="font-size:10px;color:#94a3b8;margin-top:6px">本报告由系统自动生成，仅供商业决策参考，不构成投资建议。</div>
+    </div>
+    <div style="width:112px;text-align:center;flex-shrink:0">
+      ${qrcodeUrl ? `<img src="${escapeHtml(qrcodeUrl)}" width="112" height="112" style="display:block;border-radius:8px;object-fit:contain;background:white;border:1px solid #e2e8f0"/>` : '<div style="width:112px;height:112px;border:1px dashed #cbd5e1;border-radius:8px;background:white"></div>'}
+      <div style="font-size:10px;font-weight:800;color:#1d4ed8;margin-top:7px;line-height:1.4">扫码获取更多测算</div>
+    </div>
+  </section>
+</div>
 </body></html>`
 }
 

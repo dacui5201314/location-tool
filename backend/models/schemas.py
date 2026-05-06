@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from typing import Optional
 
 
@@ -8,6 +8,8 @@ class Location(BaseModel):
 
 
 class AnalyzeRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     address: str
     location: Location
     provider: str  # gemini, deepseek, kimi, minimax, zhipu
@@ -15,7 +17,6 @@ class AnalyzeRequest(BaseModel):
     brand_name: str = ""  # 品牌名称或主营特色描述
     store_size: int = 0  # 门店预估面积（平方米）
     real_data: Optional[dict] = None  # 前端采集的高德数据
-    user_id: int = 1  # 用户ID（接入鉴权后从 token 解析）
 
 
 class AnalyzeResponse(BaseModel):
@@ -25,6 +26,9 @@ class AnalyzeResponse(BaseModel):
     warning: Optional[str] = None
     summary: str = ""
     details: dict[str, object] = {}
+    executive_summary: dict[str, object] = {}
+    dimension_scores: list[dict[str, object]] = []
+    action_plan: list[str] = []
     provider: str = ""
     error: Optional[str] = None
     real_data: Optional[dict] = None

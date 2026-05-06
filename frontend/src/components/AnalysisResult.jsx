@@ -137,7 +137,7 @@ function MetricBadge({ icon, label, val, sub, highlight, raw }) {
 export default function AnalysisResult({ data }) {
   if (!data) return null
 
-  const { advantages, disadvantages, summary, details, warning, real_data } = data
+  const { advantages, disadvantages, summary, details, warning, real_data, executive_summary = {}, dimension_scores = [], action_plan = [] } = data
 
   if (data.error) {
     return (
@@ -159,12 +159,28 @@ export default function AnalysisResult({ data }) {
     radarScores[key] = pd.score
     parsedDetails[key] = pd
   })
+  if (dimension_scores?.length) {
+    dimension_scores.forEach((item) => {
+      if (!item?.key) return
+      radarScores[item.key] = Number(item.score || 0)
+      parsedDetails[item.key] = {
+        score: Number(item.score || 0),
+        text: item.text || parsedDetails[item.key]?.text || String(details?.[item.key] || ''),
+      }
+    })
+  }
 
-  const totalScore = Math.round(Object.keys(WEIGHTS).reduce((sum, key) => {
+  const weightedScore = Math.round(Object.keys(WEIGHTS).reduce((sum, key) => {
     return sum + (radarScores[key] || 0) * WEIGHTS[key]
   }, 0))
+  const totalScore = Number(data.score || 0) || weightedScore
 
   const summaryText = generateRadarSummary(radarScores, totalScore)
+  const verdict = executive_summary?.verdict || (totalScore >= 75 ? '建议推进' : totalScore >= 60 ? '谨慎推进' : '不建议贸然推进')
+  const topStrengths = executive_summary?.top_strengths?.length ? executive_summary.top_strengths : (advantages || []).slice(0, 3)
+  const topRisks = executive_summary?.top_risks?.length ? executive_summary.top_risks : (disadvantages || []).slice(0, 3)
+  const scoreTone = totalScore >= 75 ? 'text-emerald-700 bg-emerald-50 border-emerald-100' : totalScore >= 60 ? 'text-amber-700 bg-amber-50 border-amber-100' : 'text-red-700 bg-red-50 border-red-100'
+  const primaryDims = (dimension_scores?.length ? dimension_scores : Object.keys(dimLabel).map(key => ({ key, label: dimLabel[key], score: radarScores[key] || 0 }))).slice(0, 8)
 
   return (
     <div className="space-y-3 animate-in">
@@ -175,30 +191,61 @@ export default function AnalysisResult({ data }) {
         </p>
       </div>
 
-      {/* Summary Card */}
-      <div className="report-card p-4">
+      {/* Executive Summary */}
+      <div className="report-card overflow-hidden p-0">
+        <div className="bg-slate-950 p-5 text-white">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <div className="text-[11px] font-semibold uppercase tracking-[0.28em] text-blue-200">Executive Summary</div>
+              <h2 className="mt-2 text-xl font-black leading-tight">{verdict}</h2>
+              <p className="mt-2 max-w-xl text-sm leading-6 text-slate-300">
+                {executive_summary?.summary || summary || summaryText}
+              </p>
+            </div>
+            {totalScore > 0 && (
+              <div className="flex-shrink-0 rounded-xl bg-white px-5 py-4 text-center text-slate-950">
+                <div className="text-[11px] font-semibold text-slate-400">综合评分</div>
+                <div className="text-4xl font-black leading-none">{totalScore}</div>
+                <div className={`mt-2 rounded-full border px-2.5 py-1 text-[11px] font-bold ${scoreTone}`}>{verdict}</div>
+              </div>
+            )}
+          </div>
+        </div>
         {warning && (
-          <div className="mb-3 rounded-lg border border-red-100 bg-red-50 p-3 text-xs font-medium leading-5 text-red-700">
+          <div className="mx-4 mt-4 rounded-lg border border-red-100 bg-red-50 p-3 text-xs font-semibold leading-5 text-red-700">
             风险提示：{warning}
           </div>
         )}
-
-        {totalScore > 0 && (
-          <>
-            <ScoreRing score={totalScore} />
-            {summaryText && (
-              <p className="mx-auto mb-4 max-w-sm text-center text-xs leading-5 text-slate-500">
-                {summaryText}
-              </p>
-            )}
-          </>
-        )}
-
-        {summary && (
-          <p className="report-soft mb-4 p-3 text-sm leading-6 text-slate-700">{summary}</p>
-        )}
-
-        <RadarChart scores={radarScores} />
+        <div className="grid gap-3 p-4 sm:grid-cols-2">
+          <div className="rounded-lg border border-emerald-100 bg-emerald-50 p-3">
+            <div className="mb-2 text-sm font-bold text-emerald-800">关键机会</div>
+            <ul className="space-y-1.5 text-sm leading-6 text-slate-700">
+              {topStrengths.map((item, i) => <li key={i}>· {item}</li>)}
+            </ul>
+          </div>
+          <div className="rounded-lg border border-red-100 bg-red-50 p-3">
+            <div className="mb-2 text-sm font-bold text-red-800">主要风险</div>
+            <ul className="space-y-1.5 text-sm leading-6 text-slate-700">
+              {topRisks.map((item, i) => <li key={i}>· {item}</li>)}
+            </ul>
+          </div>
+        </div>
+        <div className="grid gap-2 px-4 pb-4 sm:grid-cols-4">
+          {primaryDims.map((d) => (
+            <div key={d.key} className="rounded-lg border border-slate-100 bg-slate-50 p-3">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-xs font-semibold text-slate-500">{d.label || dimLabel[d.key]}</span>
+                <strong className={(d.score || 0) >= 75 ? 'text-emerald-700' : (d.score || 0) >= 60 ? 'text-amber-700' : 'text-red-600'}>{d.score || '-'}</strong>
+              </div>
+              <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-200">
+                <i className="block h-full rounded-full bg-blue-600" style={{ width: `${Math.max(0, Math.min(100, d.score || 0))}%` }} />
+              </div>
+            </div>
+          ))}
+        </div>
+        <div className="border-t border-slate-100 p-4">
+          <RadarChart scores={radarScores} />
+        </div>
       </div>
 
       {/* Real Data Card */}
@@ -342,6 +389,20 @@ export default function AnalysisResult({ data }) {
           )}
         </div>
       </div>
+
+      {action_plan?.length > 0 && (
+        <div className="report-card p-4">
+          <SectionHeader title="落地行动清单" color="blue" />
+          <div className="grid gap-2 sm:grid-cols-3">
+            {action_plan.slice(0, 6).map((item, i) => (
+              <div key={i} className="rounded-lg border border-blue-100 bg-blue-50 p-3 text-sm leading-6 text-slate-700">
+                <span className="mb-2 inline-flex h-6 w-6 items-center justify-center rounded-full bg-blue-600 text-xs font-bold text-white">{i + 1}</span>
+                <p>{item}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Detail Analysis */}
       {details && Object.keys(details).length > 0 && (
