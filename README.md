@@ -397,6 +397,7 @@ npx vite --host
 
 ## 版本历史
 
+- **v4.4** (2026-05-07) — 业态名称精细化：删除 11 条斜杠拼凑名，插入 34 个清爽专业业态名（中餐厅/日料店/咖啡馆/火锅店等），按 6 大类分组展示，前端选择器彻底专业化
 - **v4.3** (2026-05-07) — 安全防线加固：SSE 退款精确化（仅 LLM 500 错误退款，客户端断开/JSON解析失败不退款）、管理员登录速率限制（5次/分钟/IP, HTTP 429）、报告 UUID 防遍历（report_uuid 替代自增 id，存量数据已补齐）、API 端点全面 UUID 化
 - **v4.2** (2026-05-07) — 安全审计清零：修复 SSE 双重退款 Bug（统一 finally 收口 + GeneratorExit 客户端断开不退款）、清理 api.js 死代码陷阱（analyzeLocation/fetchProviders）、数据驱动业态选择器（config_key + 动态 API 绑定替代 34 个硬编码业态）、消除前后端 AMAP 映射重复
 - **v4.1** (2026-05-07) — 业态专属规则引擎：数据库驱动业态配置（business_industries 表）、Admin 可视化管理界面（列表/新增/编辑/规则编辑器抽屉/删除）、专属 Prompt 动态拼接注入 LLM、前台自动匹配 industry_id、OperationLog 全量审计
