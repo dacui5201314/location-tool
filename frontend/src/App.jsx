@@ -29,7 +29,7 @@ export default function App() {
         <Route path="/favorites" element={<SafeView><FavoriteView /></SafeView>} />
         <Route path="/profile" element={<SafeView><ProfileView /></SafeView>} />
       </Route>
-      <Route path="/record/:id" element={<SafeView><RecordDetail /></SafeView>} />
+      <Route path="/record/:uuid" element={<SafeView><RecordDetail /></SafeView>} />
       <Route path="/admin" element={<SafeView><AdminPage /></SafeView>} />
     </Routes>
   )

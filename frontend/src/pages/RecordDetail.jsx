@@ -5,7 +5,7 @@ import AnalysisResult from '../components/AnalysisResult'
 import { fetchRecordDetail } from '../services/api'
 
 export default function RecordDetail() {
-  const { id } = useParams()
+  const { uuid } = useParams()
   const navigate = useNavigate()
 
   const [data, setData] = useState(null)
@@ -16,12 +16,12 @@ export default function RecordDetail() {
 
   // 拉取报告详情
   useEffect(() => {
-    if (!id) { setLoading(false); return }
+    if (!uuid) { setLoading(false); return }
     setLoading(true)
     let cancelled = false
     const run = async () => {
       try {
-        const d = await fetchRecordDetail(id)
+        const d = await fetchRecordDetail(uuid)
         if (cancelled) return
         setData(d)
         if (d.report_json) {
@@ -35,7 +35,7 @@ export default function RecordDetail() {
     }
     run()
     return () => { cancelled = true }
-  }, [id, showToast])
+  }, [uuid, showToast])
 
   // 统一导出
   const triggerDownload = useCallback(async () => {
@@ -48,7 +48,7 @@ export default function RecordDetail() {
         storeSize: String(data?.store_size || ''),
         date: data?.created_at?.slice(0, 10),
       },
-      recordId: data?.id,
+      recordUuid: data?.report_uuid,
       isPdfUnlocked: data?.is_pdf_unlocked,
     })
     if (result?.ok && result?.unlocked) {
@@ -66,7 +66,7 @@ export default function RecordDetail() {
         storeSize: String(data?.store_size || ''),
         date: data?.created_at?.slice(0, 10),
       },
-      recordId: data?.id,
+      recordUuid: data?.report_uuid,
       isPdfUnlocked: false,
     })
     if (result?.ok && result?.unlocked) {

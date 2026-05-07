@@ -165,20 +165,20 @@ export async function fetchRecords(page = 1, pageSize = 20) {
   return resp.json()
 }
 
-export async function fetchRecordDetail(recordId) {
-  const resp = await authFetch(`${API_BASE}/records/${recordId}`)
+export async function fetchRecordDetail(reportUuid) {
+  const resp = await authFetch(`${API_BASE}/records/${reportUuid}`)
   if (!resp.ok) throw new Error('记录不存在')
   return resp.json()
 }
 
-export async function deleteRecord(recordId) {
-  const resp = await authFetch(`${API_BASE}/records/${recordId}`, { method: 'DELETE' })
+export async function deleteRecord(reportUuid) {
+  const resp = await authFetch(`${API_BASE}/records/${reportUuid}`, { method: 'DELETE' })
   if (!resp.ok) throw new Error('删除失败')
   return resp.json()
 }
 
-export async function unlockPdf(recordId) {
-  const resp = await authFetch(`${API_BASE}/records/${recordId}/unlock-pdf`, { method: 'POST' })
+export async function unlockPdf(reportUuid) {
+  const resp = await authFetch(`${API_BASE}/records/${reportUuid}/unlock-pdf`, { method: 'POST' })
   if (!resp.ok) {
     const err = await resp.json().catch(() => ({}))
     throw new Error(err.detail || '解锁失败')

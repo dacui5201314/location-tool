@@ -1,4 +1,4 @@
-"""分析记录 API — 全接口 JWT 鉴权"""
+"""分析记录 API — 全接口 JWT 鉴权 + UUID 防遍历"""
 from fastapi import APIRouter, Depends, Query, HTTPException
 from fastapi.responses import HTMLResponse
 from sqlalchemy.orm import Session
@@ -12,10 +12,6 @@ from auth import get_current_user
 router = APIRouter(prefix="/api/records", tags=["分析记录"])
 
 
-def _get_user_id(user: dict = Depends(get_current_user)) -> int:
-    return user["user_id"]
-
-
 @router.get("")
 def list_records(
     user: dict = Depends(get_current_user),
@@ -23,7 +19,7 @@ def list_records(
     page_size: int = Query(20, ge=1, le=100),
     db: Session = Depends(get_db),
 ):
-    """获取当前用户的分析记录列表，按时间倒序"""
+    """获取当前用户的分析记录列表（返回 report_uuid 供后续操作）"""
     user_id = user["user_id"]
     query = db.query(AnalysisRecord).filter(
         AnalysisRecord.user_id == user_id
@@ -40,18 +36,25 @@ def list_records(
     }
 
 
-@router.get("/{record_id}")
+def _get_record_by_uuid(report_uuid: str, user_id: int, db: Session) -> AnalysisRecord | None:
+    """通过 report_uuid 获取记录，同时校验归属用户"""
+    if not report_uuid or len(report_uuid) != 32:
+        return None
+    return db.query(AnalysisRecord).filter(
+        AnalysisRecord.report_uuid == report_uuid,
+        AnalysisRecord.user_id == user_id,
+    ).first()
+
+
+@router.get("/{report_uuid}")
 def get_record(
-    record_id: int,
+    report_uuid: str,
     user: dict = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    """获取单条分析记录详情（含完整报告JSON）"""
+    """获取单条分析记录详情（含完整报告JSON）— 通过 UUID 访问"""
     user_id = user["user_id"]
-    record = db.query(AnalysisRecord).filter(
-        AnalysisRecord.id == record_id,
-        AnalysisRecord.user_id == user_id,
-    ).first()
+    record = _get_record_by_uuid(report_uuid, user_id, db)
     if not record:
         return {"error": "记录不存在"}
     data = record.to_dict()
@@ -61,37 +64,32 @@ def get_record(
     return data
 
 
-@router.delete("/{record_id}")
+@router.delete("/{report_uuid}")
 def delete_record(
-    record_id: int,
+    report_uuid: str,
     user: dict = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    """删除分析记录"""
+    """删除分析记录 — 通过 UUID 访问"""
     user_id = user["user_id"]
-    record = db.query(AnalysisRecord).filter(
-        AnalysisRecord.id == record_id,
-        AnalysisRecord.user_id == user_id,
-    ).first()
+    record = _get_record_by_uuid(report_uuid, user_id, db)
     if not record:
         return {"error": "记录不存在"}
+    record_id = record.id
     db.delete(record)
     db.commit()
-    return {"ok": True, "deleted_id": record_id}
+    return {"ok": True, "deleted_uuid": report_uuid}
 
 
-@router.post("/{record_id}/unlock-pdf")
+@router.post("/{report_uuid}/unlock-pdf")
 def unlock_pdf(
-    record_id: int,
+    report_uuid: str,
     user: dict = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    """消耗1个点数解锁PDF导出权限"""
+    """消耗1个点数解锁PDF导出权限 — 通过 UUID 访问"""
     user_id = user["user_id"]
-    record = db.query(AnalysisRecord).filter(
-        AnalysisRecord.id == record_id,
-        AnalysisRecord.user_id == user_id,
-    ).first()
+    record = _get_record_by_uuid(report_uuid, user_id, db)
     if not record:
         raise HTTPException(status_code=404, detail="记录不存在")
     if record.is_pdf_unlocked:
@@ -108,7 +106,7 @@ def unlock_pdf(
     # 原子化更新 is_pdf_unlocked，防止并发双扣
     result = db.execute(
         update(AnalysisRecord)
-        .where(AnalysisRecord.id == record_id, AnalysisRecord.is_pdf_unlocked == 0)
+        .where(AnalysisRecord.id == record.id, AnalysisRecord.is_pdf_unlocked == 0)
         .values(is_pdf_unlocked=1)
     )
     if result.rowcount == 0:
@@ -128,18 +126,15 @@ def unlock_pdf(
     }
 
 
-@router.get("/{record_id}/download")
+@router.get("/{report_uuid}/download")
 def download_report_file(
-    record_id: int,
+    report_uuid: str,
     user: dict = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    """动态获取报告文件内容（根据存储模式自动路由 本地/云端）"""
+    """动态获取报告文件内容 — 通过 UUID 访问"""
     user_id = user["user_id"]
-    record = db.query(AnalysisRecord).filter(
-        AnalysisRecord.id == record_id,
-        AnalysisRecord.user_id == user_id,
-    ).first()
+    record = _get_record_by_uuid(report_uuid, user_id, db)
     if not record:
         return HTMLResponse(content="<h2>记录不存在</h2>", status_code=404)
 

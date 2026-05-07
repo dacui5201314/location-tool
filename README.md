@@ -397,6 +397,7 @@ npx vite --host
 
 ## 版本历史
 
+- **v4.3** (2026-05-07) — 安全防线加固：SSE 退款精确化（仅 LLM 500 错误退款，客户端断开/JSON解析失败不退款）、管理员登录速率限制（5次/分钟/IP, HTTP 429）、报告 UUID 防遍历（report_uuid 替代自增 id，存量数据已补齐）、API 端点全面 UUID 化
 - **v4.2** (2026-05-07) — 安全审计清零：修复 SSE 双重退款 Bug（统一 finally 收口 + GeneratorExit 客户端断开不退款）、清理 api.js 死代码陷阱（analyzeLocation/fetchProviders）、数据驱动业态选择器（config_key + 动态 API 绑定替代 34 个硬编码业态）、消除前后端 AMAP 映射重复
 - **v4.1** (2026-05-07) — 业态专属规则引擎：数据库驱动业态配置（business_industries 表）、Admin 可视化管理界面（列表/新增/编辑/规则编辑器抽屉/删除）、专属 Prompt 动态拼接注入 LLM、前台自动匹配 industry_id、OperationLog 全量审计
 - **v4.0** (2026-05-07) — 全栈架构重构：SSE 实时分析流（四步进度推送+控制台UI+流中断自动退款）、PDF 引擎彻底重写（html2pdf.js+iframe独立渲染+物理分页+Table/float布局+零高度切断+inline-block防断）、安全防线全线加固（Phase 1-5 审计修复：弱密码拦截/OperationLog审计流水/CDK原子性/竞态修复/N+1性能/死代码清理）、管理员仪表盘（15天趋势+业态/品牌TOP分布+用户多条件筛选）、套餐分配+独立点数调整+Prompt热更新端点、数据精度锁定（后端强制维度平均接管LLM总分+维度固定顺序+Prompt去决策化+JSON尾逗号清洗）、前端三重算分+雷达图ORDER锁+UTC时区修正、综合评分环+高级商务排版

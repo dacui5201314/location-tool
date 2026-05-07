@@ -124,10 +124,10 @@ function RecordCard({ record, exportingId, onDownload, onDelete, onOpen }) {
           <button
             type="button"
             onClick={(e) => onDownload(record, e)}
-            disabled={exportingId === record.id}
+            disabled={exportingId === record.report_uuid}
             className={`record-primary ${record.is_pdf_unlocked ? '' : 'is-locked'}`}
           >
-            {exportingId === record.id ? '导出中' : record.is_pdf_unlocked ? '导出PDF' : '导出PDF 🔒'}
+            {exportingId === record.report_uuid ? '导出中' : record.is_pdf_unlocked ? '导出PDF' : '导出PDF 🔒'}
           </button>
         </div>
       </div>
@@ -165,7 +165,7 @@ export default function RecordsView() {
   const handleDownload = useCallback(async (record, e) => {
     e.stopPropagation()
     if (exportingPdf) return
-    setExportingId(record.id)
+    setExportingId(record.report_uuid)
 
     try {
       let reportData = {}
@@ -173,7 +173,7 @@ export default function RecordsView() {
         try { reportData = JSON.parse(record.report_json) } catch {}
       } else {
         try {
-          const r = await fetch(`/api/records/${record.id}`, {
+          const r = await fetch(`/api/records/${record.report_uuid}`, {
             headers: { 'Authorization': `Bearer ${getToken()}` }
           }).then(r => r.json())
           if (r?.report_json) { try { reportData = JSON.parse(r.report_json) } catch {} }
@@ -189,12 +189,12 @@ export default function RecordsView() {
           storeSize: String(record.store_size || ''),
           date: record.created_at?.slice(0, 10),
         },
-        recordId: record.id,
+        recordId: record.report_uuid,
         isPdfUnlocked: record.is_pdf_unlocked,
       })
 
       if (result?.ok && result?.unlocked) {
-        const updated = records.map(r => r.id === record.id ? { ...r, is_pdf_unlocked: true } : r)
+        const updated = records.map(r => r.id === record.report_uuid ? { ...r, is_pdf_unlocked: true } : r)
         setLocalRecords(updated)
       }
     } catch {
@@ -266,7 +266,7 @@ export default function RecordsView() {
               exportingId={exportingId}
               onDownload={handleDownload}
               onDelete={() => setDeleteConfirmId(r.id)}
-              onOpen={() => navigate(`/record/${r.id}`)}
+              onOpen={() => navigate(`/record/${r.report_uuid}`)}
             />
           ))
         )}

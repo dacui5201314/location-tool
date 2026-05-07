@@ -1,6 +1,7 @@
 """管理后台 API — JWT 鉴权 + Admin 角色校验"""
 import os
 import time as _time
+import threading
 from pathlib import Path
 from datetime import datetime, date, timedelta
 from typing import List
@@ -63,13 +64,42 @@ def _is_foreign_asset_url(url: str, tag: str) -> bool:
     return any(filename.startswith(prefix) for prefix in known_prefixes) and not filename.startswith(f"{tag}_")
 
 
+# ── 管理员登录速率限制（防暴力破解）─────────────────────
+_login_attempts: dict[str, list[float]] = {}
+_login_lock = threading.Lock()
+_LOGIN_RATE_LIMIT = 5       # 每分钟最多尝试次数
+_LOGIN_RATE_WINDOW = 60.0   # 窗口（秒）
+
+
+def _check_login_rate(client_ip: str) -> bool:
+    """检查 IP 是否超过速率限制，返回 True=允许 False=拒绝"""
+    now = _time.time()
+    with _login_lock:
+        attempts = _login_attempts.get(client_ip, [])
+        # 清理过期记录
+        attempts = [t for t in attempts if now - t < _LOGIN_RATE_WINDOW]
+        if len(attempts) >= _LOGIN_RATE_LIMIT:
+            _login_attempts[client_ip] = attempts  # 保持现状
+            return False
+        attempts.append(now)
+        _login_attempts[client_ip] = attempts
+        return True
+
+
 class LoginBody(BaseModel):
     password: str
 
 
 @router.post("/login")
-def admin_login(body: LoginBody):
-    """管理员登录：密码校验通过后签发 JWT（role=admin）"""
+def admin_login(body: LoginBody, request: Request):
+    """管理员登录：密码校验通过后签发 JWT（role=admin）— 速率限制 5次/分钟"""
+    client_ip = request.client.host if request.client else "127.0.0.1"
+    if not _check_login_rate(client_ip):
+        raise HTTPException(
+            status_code=429,
+            detail="登录尝试过于频繁，请 1 分钟后再试",
+            headers={"Retry-After": "60"},
+        )
     if body.password != ADMIN_PASSWORD:
         raise HTTPException(status_code=403, detail="密码错误")
     token = create_token(user_id=0, role="admin")

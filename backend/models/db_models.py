@@ -1,7 +1,12 @@
 """数据库 ORM 模型"""
+import uuid
 from datetime import datetime
 from sqlalchemy import Column, Integer, String, Float, Text, DateTime, Boolean, func
 from database import Base
+
+
+def _new_uuid() -> str:
+    return uuid.uuid4().hex
 
 
 class SystemConfig(Base):
@@ -107,6 +112,7 @@ class AnalysisRecord(Base):
     __tablename__ = "analysis_records"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
+    report_uuid = Column(String(32), unique=True, index=True, default=_new_uuid, comment="公开唯一标识（防遍历）")
     user_id = Column(Integer, index=True, nullable=False, comment="用户ID")
     brand_desc = Column(String(200), default="", comment="品牌描述")
     address = Column(String(500), default="", comment="详细地址")
@@ -124,6 +130,7 @@ class AnalysisRecord(Base):
     def to_dict(self):
         return {
             "id": self.id,
+            "report_uuid": self.report_uuid or "",
             "brand_desc": self.brand_desc,
             "address": self.address,
             "latitude": self.latitude,

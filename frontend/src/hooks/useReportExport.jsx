@@ -6,7 +6,7 @@
  * 计费流程:
  *   1. GET /api/user/profile → 检查 membership
  *   2. 会员有效 → 直接导出（免费）
- *   3. 非会员 + recordId 已解锁 → 直接导出
+ *   3. 非会员 + reportUuid 已解锁 → 直接导出
  *   4. 非会员 + 未解锁 → 弹出确认 Modal → POST /api/records/{id}/unlock-pdf
  *   5. 扣点成功 → 导出
  *
@@ -65,12 +65,12 @@ export default function useReportExport() {
    *   - el?: HTMLElement         模式A: 直接截取 live DOM
    *   - data?: object            模式B: 从 JSON 构建报告
    *   - meta?: {address, brandName, businessType, storeSize, date}
-   *   - recordId?: number        历史记录 ID（用于解锁校验）
+   *   - reportUuid?: number        历史记录 ID（用于解锁校验）
    *   - isPdfUnlocked?: boolean  是否已解锁
    *   - filename?: string
    */
   const exportPdf = useCallback(async (opts = {}) => {
-    const { el, data, meta, recordId, isPdfUnlocked, filename } = opts
+    const { el, data, meta, reportUuid, isPdfUnlocked, filename } = opts
     if (loading) return
 
     setLoading(true)
@@ -90,24 +90,24 @@ export default function useReportExport() {
       }
 
       // 3. 非会员 + 已解锁 → 直接放行
-      if (recordId && isPdfUnlocked) {
+      if (reportUuid && isPdfUnlocked) {
         const didExport = await doExport({ el, data, meta, filename })
         return { ok: didExport, didExport, unlocked: false }
       }
 
-      // 4. 非会员 + 未解锁 + 有 recordId → 弹窗确认
-      if (recordId && !isPdfUnlocked) {
+      // 4. 非会员 + 未解锁 + 有 reportUuid → 弹窗确认
+      if (reportUuid && !isPdfUnlocked) {
         setLoading(false)
         return await new Promise((resolve) => {
           setModalMode('unlock')
           setModalTitle('解锁 PDF 导出')
           setModalBody('确认消耗 1 个分析点数解锁并下载本报告的 PDF 版本吗？')
-          pendingRef.current = { el, data, meta, recordId, filename, type: 'unlock', resolve }
+          pendingRef.current = { el, data, meta, reportUuid, filename, type: 'unlock', resolve }
           setShowModal(true)
         })
       }
 
-      // 5. 无 recordId（新鲜报告）→ 分析时已扣费，直接导出
+      // 5. 无 reportUuid（新鲜报告）→ 分析时已扣费，直接导出
       showToast('正在生成高清报告...')
       const didExport = await doExport({ el, data, meta, filename })
       return { ok: didExport, didExport, unlocked: false }
@@ -132,7 +132,7 @@ export default function useReportExport() {
     try {
       if (pending.type === 'unlock') {
         // 调用解锁 API
-        const r = await fetch(`/api/records/${pending.recordId}/unlock-pdf`, {
+        const r = await fetch(`/api/records/${pending.reportUuid}/unlock-pdf`, {
           method: 'POST',
           headers: { 'Authorization': `Bearer ${getToken()}` },
         })

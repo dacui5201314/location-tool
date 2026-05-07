@@ -205,6 +205,7 @@ async def analyze_location(req: AnalyzeRequest, user: dict = Depends(get_current
         _stream_ok = False  # ★ 流完整成功时置 True
         _refund_processed = False  # ★ 防双重退款
         _client_disconnect = False  # ★ 客户端主动断开不退款
+        _llm_server_error = False  # ★ 仅 LLM 500 级错误才退款
         try:
             # ═══════════════════════════════════════════
             # Step 1 — POI 数据采集
@@ -305,7 +306,15 @@ async def analyze_location(req: AnalyzeRequest, user: dict = Depends(get_current
                 config=industry_config,
             )
 
-            raw_response = await generate_llm_response(prompt)
+            try:
+                raw_response = await generate_llm_response(prompt)
+            except Exception as e:
+                # ★ 判定是否为 LLM 服务端 5xx 错误（唯一允许退款的场景）
+                if hasattr(e, 'response') and hasattr(e.response, 'status_code'):
+                    if e.response.status_code >= 500:
+                        _llm_server_error = True
+                        print(f"[SSE Guard] LLM 服务端 {e.response.status_code} 错误，标记可退款", flush=True)
+                raise  # 继续上抛，由外层 except 统一处理
             raw_response = _extract_json(raw_response)
             result = json.loads(raw_response)
             result = normalize_report_result(result)
@@ -374,19 +383,21 @@ async def analyze_location(req: AnalyzeRequest, user: dict = Depends(get_current
             _client_disconnect = True
             print("[SSE Guard] 客户端主动断开，不执行退款", flush=True)
         except json.JSONDecodeError:
+            print("[SSE Error] JSON 解析失败", flush=True)
             yield _sse("error", "AI 引擎数据生成异常，请稍后重试")
             await asyncio.sleep(0)
-        except Exception:
+        except Exception as e:
+            print(f"[SSE Error] 分析异常: {type(e).__name__}: {e}", flush=True)
             yield _sse("error", "分析服务异常，请稍后重试")
             await asyncio.sleep(0)
         finally:
-            # ★ 统一退款收口：仅非成功、非客户端断开、扣点模式、未退过款时执行一次
-            if not _stream_ok and not _client_disconnect and not _refund_processed:
+            # ★ 退款收口：仅 LLM 服务端 500 错误 + 扣点模式 + 未退过款 → 补偿一次
+            if _llm_server_error and not _refund_processed:
                 if billing and billing.source == "points":
                     _refund_processed = True
                     try:
                         refund_credits(current_user_id, 1)
-                        print("[SSE Guard] 流异常中断，已执行点数退款", flush=True)
+                        print("[SSE Guard] LLM服务端异常，已执行点数退款", flush=True)
                     except Exception:
                         import traceback
                         print("[CRITICAL] 点数退还失败！", flush=True)
