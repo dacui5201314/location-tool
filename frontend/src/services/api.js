@@ -151,18 +151,20 @@ async function authFetch(url, options = {}) {
 
 // ── 业务 API ──────────────────────────────────────────────
 
-export async function analyzeLocation(address, location, provider, businessType = '', realData = null, brandName = '', storeSize = '') {
+export async function analyzeLocation(address, location, provider, businessType = '', realData = null, brandName = '', storeSize = '', industryId = null) {
+  const body = {
+    address,
+    location: { lng: location.lng, lat: location.lat },
+    provider,
+    business_type: businessType,
+    brand_name: brandName,
+    store_size: parseInt(storeSize) || 0,
+    real_data: realData,
+  }
+  if (industryId) body.industry_id = industryId
   const resp = await authFetch(`${API_BASE}/analyze`, {
     method: 'POST',
-    body: JSON.stringify({
-      address,
-      location: { lng: location.lng, lat: location.lat },
-      provider,
-      business_type: businessType,
-      brand_name: brandName,
-      store_size: parseInt(storeSize) || 0,
-      real_data: realData,
-    }),
+    body: JSON.stringify(body),
   })
 
   if (!resp.ok) {

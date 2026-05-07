@@ -16,11 +16,10 @@ from prompts.industry_config import get_config
 from services.amap_service import collect_location_data
 from ai_providers.unified import generate_llm_response
 from database import init_db, SessionLocal
-from models.db_models import AnalysisRecord
+from models.db_models import AnalysisRecord, User, BusinessIndustry
 from services.storage_service import save_report
 from services.billing_service import check_billing_access, refund_credits
 from services.runtime_config import get_config_value as get_runtime_config_value, get_llm_config, normalize_report_result
-from models.db_models import User
 from auth import get_current_user
 
 # 注册业务路由
@@ -29,6 +28,7 @@ from routers.favorites import router as favorites_router
 from routers.user import router as user_router
 from routers.admin import router as admin_router
 from routers.auth import router as auth_router
+from routers.industries import router as industries_router, public_router as industries_public_router
 
 app = FastAPI(title="址得选 API", version="3.7.0", description="址得选 — AI 选址分析 SaaS 平台后端服务")
 app.include_router(auth_router)
@@ -36,6 +36,8 @@ app.include_router(records_router)
 app.include_router(favorites_router)
 app.include_router(user_router)
 app.include_router(admin_router)
+app.include_router(industries_router)
+app.include_router(industries_public_router)
 
 # 挂载静态资源目录（上传的二维码等）— 按 /assets 对外暴露
 import os as _os2
@@ -261,6 +263,20 @@ async def analyze_location(req: AnalyzeRequest, user: dict = Depends(get_current
             runtime_llm = get_llm_config()
             custom_system_prompt = get_runtime_config_value("system_prompt", "").strip()
             system_prompt = custom_system_prompt or build_system_prompt(req.business_type)
+            # ★ 业态专属规则注入：叠加 industry 专属 Prompt 到 system_prompt 尾部
+            if req.industry_id:
+                try:
+                    db_local = SessionLocal()
+                    industry = db_local.query(BusinessIndustry).filter(
+                        BusinessIndustry.id == req.industry_id,
+                        BusinessIndustry.is_active == 1
+                    ).first()
+                    db_local.close()
+                    if industry and industry.exclusive_prompt and industry.exclusive_prompt.strip():
+                        system_prompt += "\n\n## 业态专属测算规则（优先于通用规则执行）\n" + industry.exclusive_prompt.strip()
+                        print(f"[SSE Prompt] 已注入业态专属规则: {industry.name} ({len(industry.exclusive_prompt)}字符)", flush=True)
+                except Exception as e:
+                    print(f"[SSE Prompt] 业态专属规则注入失败: {e}", flush=True)
             prompt = system_prompt + "\n\n" + build_analysis_prompt(
                 req.address, req.location.lng, req.location.lat,
                 req.business_type or "", real_data,

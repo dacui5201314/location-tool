@@ -73,6 +73,9 @@ export default function HomePage() {
   const [toast, setToast] = useState('')
   const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(''), 2000) }
   const [loginModalOpen, setLoginModalOpen] = useState(false)
+  // ── 业态专属规则匹配 ──
+  const [activeIndustries, setActiveIndustries] = useState([])
+  const [matchedIndustryId, setMatchedIndustryId] = useState(null)
   const [announcement, setAnnouncement] = useState('')
   const announceRef = useRef(null)
 
@@ -277,6 +280,7 @@ export default function HomePage() {
           brand_name: brandName,
           store_size: parseInt(storeSize) || 0,
           real_data: null,
+          ...(matchedIndustryId ? { industry_id: matchedIndustryId } : {}),
         }),
       })
 
@@ -385,6 +389,18 @@ export default function HomePage() {
       setAnalyzing(false)
     }
   }, [selectedLocation, businessType, brandName, storeSize])
+
+  // ── 加载启用业态列表 ──
+  useEffect(() => { fetch('/api/industries/active').then(r => r.json()).then(d => setActiveIndustries(d.industries || [])).catch(() => {}) }, [])
+
+  // ── businessType 变更时匹配业态 ──
+  useEffect(() => {
+    if (!businessType || activeIndustries.length === 0) { setMatchedIndustryId(null); return }
+    const match = activeIndustries.find(item =>
+      businessType.includes(item.name) || item.name.includes(businessType)
+    )
+    setMatchedIndustryId(match ? match.id : null)
+  }, [businessType, activeIndustries])
 
   const canAnalyze = selectedLocation && !analyzing
 

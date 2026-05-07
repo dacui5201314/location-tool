@@ -17,6 +17,7 @@ class AnalyzeRequest(BaseModel):
     brand_name: str = ""  # 品牌名称或主营特色描述
     store_size: int = 0  # 门店预估面积（平方米）
     real_data: Optional[dict] = None  # 前端采集的高德数据
+    industry_id: Optional[int] = None  # 业态专属规则ID（business_industries表）
 
 
 class AnalyzeResponse(BaseModel):

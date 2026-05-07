@@ -233,3 +233,27 @@ class BillingRecord(Base):
             "reason": self.reason,
             "created_at": self.created_at.isoformat() if self.created_at else None,
         }
+
+
+class BusinessIndustry(Base):
+    """业态专属规则 — 每个业态可绑定独立 AI 提示词/测算规则"""
+    __tablename__ = "business_industries"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    name = Column(String(80), unique=True, default="", comment="业态名称")
+    exclusive_prompt = Column(Text, default="", comment="专属AI提示词/测算规则")
+    is_active = Column(Integer, default=1, comment="启用状态 1=启用 0=停用")
+    sort_order = Column(Integer, default=0, comment="排序权重")
+    created_at = Column(DateTime, default=func.now(), comment="创建时间")
+    updated_at = Column(DateTime, default=func.now(), onupdate=func.now(), comment="更新时间")
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "name": self.name or "",
+            "exclusive_prompt": self.exclusive_prompt or "",
+            "is_active": self.is_active if self.is_active is not None else 1,
+            "sort_order": self.sort_order if self.sort_order is not None else 0,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+            "updated_at": self.updated_at.isoformat() if self.updated_at else None,
+        }

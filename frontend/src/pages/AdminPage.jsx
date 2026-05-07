@@ -279,6 +279,7 @@ export default function AdminPage() {
     if (tab === 'users') loadUsers()
     if (tab === 'settings') loadSettingsData()
     if (tab === 'oplogs') loadOpLogs()
+    if (tab === 'industries') loadIndustries()
   }, [tab])
 
   const [stats, setStats] = useState(null)
@@ -307,6 +308,16 @@ export default function AdminPage() {
   const [dashTrends, setDashTrends] = useState({ dates: [], counts: [] })
   const [opLogs, setOpLogs] = useState([])
   const loadOpLogs = () => { adminFetch('/operation-logs').then(r => r.json()).then(d => setOpLogs(d.logs || [])).catch(() => showToast('操作记录加载失败')) }
+  // ── 业态规则管理 ──
+  const [industries, setIndustries] = useState([])
+  const [industryModal, setIndustryModal] = useState(null) // null | { id?, name, sort_order, is_active }
+  const [industrySaving, setIndustrySaving] = useState(false)
+  const [promptEditor, setPromptEditor] = useState(null) // null | industry object (full)
+  const [promptDraft, setPromptDraft] = useState('')
+  const [promptDirty, setPromptDirty] = useState(false)
+  const [promptSaving, setPromptSaving] = useState(false)
+  const [industryDeleteConfirm, setIndustryDeleteConfirm] = useState(null) // null | industry object
+  const loadIndustries = () => { adminFetch('/industries').then(r => r.json()).then(d => setIndustries(d.industries || [])).catch(() => showToast('业态列表加载失败')) }
   const [pdfConfig, setPdfConfig] = useState({ logo_url: '', footer_text: 'AI 选址分析 · 商业数据决策平台' })
   const [storageConfig, setStorageConfig] = useState({
     storage_mode: 'local',
@@ -586,6 +597,7 @@ export default function AdminPage() {
             { key: 'cdk', label: '兑换码管理', icon: '🎫' },
             { key: 'sysparams', label: '全局参数', icon: '🔧' },
             { key: 'oplogs', label: '操作记录', icon: '📝' },
+            { key: 'industries', label: '业态规则', icon: '🏭' },
           ].map(t => (
             <button key={t.key} onClick={() => {
               setTab(t.key);
@@ -595,6 +607,7 @@ export default function AdminPage() {
               if (t.key === 'cdk') loadCdk();
               if (t.key === 'sysparams') { fetchSystemSettings().then(d => setSystemParams(d.configs || {})).catch(() => showToast('加载全局参数失败')); }
               if (t.key === 'oplogs') loadOpLogs();
+              if (t.key === 'industries') loadIndustries();
             }}
               className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all text-left ${
                 tab === t.key ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/25' : 'text-slate-300 hover:bg-white/5 hover:text-white'
@@ -627,6 +640,7 @@ export default function AdminPage() {
                 { key: 'cdk', label: '兑换码管理', sub: 'CDK生成 | 激活记录' },
                 { key: 'sysparams', label: '全局参数', sub: '注册奖励 | 微信配置' },
                 { key: 'oplogs', label: '操作记录', sub: '管理员操作审计日志' },
+                { key: 'industries', label: '业态规则', sub: '业态专属提示词 | 测算规则' },
               ].find(t => t.key === tab)?.label || '仪表盘'}
             </span>
             <span className="text-slate-300">/</span>
@@ -638,6 +652,7 @@ export default function AdminPage() {
                 { key: 'logs', label: '系统日志', sub: '运行日志' },
                 { key: 'cdk', label: '兑换码管理', sub: 'CDK生成 | 激活记录' },
                 { key: 'sysparams', label: '全局参数', sub: '注册奖励 | 微信配置' },
+                { key: 'industries', label: '业态规则', sub: '业态专属提示词 | 测算规则' },
               ].find(t => t.key === tab)?.sub || ''}
             </span>
           </div>
@@ -1684,6 +1699,235 @@ export default function AdminPage() {
               {systemParamsSaving ? '保存中...' : '保存全局参数'}
             </button>
             <p className="text-[10px] text-slate-400 text-center -mt-2">修改立即生效，无需重启服务。新用户注册时将使用最新配置。</p>
+          </div>
+        )}
+        {/* ═══════════ 业态规则管理 ═══════════ */}
+        {tab === 'industries' && (
+          <div>
+            <div className="flex items-center justify-between mb-5">
+              <div>
+                <h2 className="text-lg font-bold text-slate-800">业态规则管理</h2>
+                <p className="text-xs text-slate-400 mt-1">为不同业态配置专属 AI 提示词与测算规则，拼接至分析请求</p>
+              </div>
+              <button onClick={() => setIndustryModal({ name: '', sort_order: 0, is_active: 1 })}
+                className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 transition-colors">
+                ＋ 新增业态
+              </button>
+            </div>
+
+            {industries.length === 0 ? (
+              <div className="rounded-xl bg-white p-12 text-center text-sm text-slate-400 shadow-sm border border-slate-100">
+                暂无业态规则，点击"新增业态"创建第一条。
+              </div>
+            ) : (
+              <div className="rounded-xl bg-white shadow-sm border border-slate-100 overflow-hidden">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="bg-slate-50">
+                        <th className="text-left px-4 py-4 text-[15px] font-semibold text-slate-600 w-16">排序</th>
+                        <th className="text-left px-4 py-4 text-[15px] font-semibold text-slate-600">业态名称</th>
+                        <th className="text-left px-4 py-4 text-[15px] font-semibold text-slate-600">专属规则</th>
+                        <th className="text-center px-4 py-4 text-[15px] font-semibold text-slate-600 w-20">状态</th>
+                        <th className="text-right px-4 py-4 text-[15px] font-semibold text-slate-600 w-56">操作</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {industries.map(item => (
+                        <tr key={item.id} className="hover:bg-slate-50 transition-colors">
+                          <td className="px-4 py-4 text-slate-500 font-mono">{item.sort_order}</td>
+                          <td className="px-4 py-4 font-medium text-slate-800">{item.name}</td>
+                          <td className="px-4 py-4 text-slate-500 max-w-xs truncate" title={item.exclusive_prompt}>
+                            {item.exclusive_prompt ? `${item.exclusive_prompt.slice(0, 40)}${item.exclusive_prompt.length > 40 ? '…' : ''}` : <span className="text-slate-300">未配置</span>}
+                          </td>
+                          <td className="px-4 py-4 text-center">
+                            <button onClick={async () => {
+                              const r = await adminFetch(`/industries/${item.id}`, {
+                                method: 'PUT', body: JSON.stringify({ is_active: item.is_active ? 0 : 1 })
+                              })
+                              if (r.ok) { loadIndustries(); showToast(item.is_active ? '已停用' : '已启用') }
+                              else { const d = await r.json().catch(() => ({})); showToast(d.detail || '操作失败') }
+                            }}
+                              className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold transition-colors ${item.is_active ? 'bg-green-50 text-green-700 hover:bg-green-100' : 'bg-slate-100 text-slate-400 hover:bg-slate-200'}`}>
+                              {item.is_active ? '✓ 启用' : '— 停用'}
+                            </button>
+                          </td>
+                          <td className="px-4 py-4 text-right">
+                            <div className="flex items-center justify-end gap-2">
+                              <button onClick={() => setIndustryModal({ id: item.id, name: item.name, sort_order: item.sort_order, is_active: item.is_active })}
+                                className="rounded-lg border border-slate-200 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-100 transition-colors">
+                                编辑
+                              </button>
+                              <button onClick={() => { setPromptEditor(item); setPromptDraft(item.exclusive_prompt || ''); setPromptDirty(false) }}
+                                className="rounded-lg border border-blue-200 px-2.5 py-1 text-xs font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 transition-colors">
+                                配置规则
+                              </button>
+                              <button onClick={() => setIndustryDeleteConfirm(item)}
+                                className="rounded-lg border border-red-100 px-2.5 py-1 text-xs font-medium text-red-500 hover:bg-red-50 transition-colors">
+                                删除
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ═══════════ 业态新增/编辑模态框 ═══════════ */}
+        {industryModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setIndustryModal(null)}>
+            <div className="bg-white rounded-xl p-6 shadow-2xl w-full max-w-md" onClick={e => e.stopPropagation()}>
+              <h3 className="text-sm font-bold text-slate-800 mb-4">{industryModal.id ? '编辑业态' : '新增业态'}</h3>
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-xs font-medium text-slate-500 mb-1">业态名称</label>
+                  <input value={industryModal.name} onChange={e => setIndustryModal({ ...industryModal, name: e.target.value })}
+                    placeholder="如：新茶饮、小吃快餐" className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-blue-400" />
+                </div>
+                <div className="flex gap-3">
+                  <div className="flex-1">
+                    <label className="block text-xs font-medium text-slate-500 mb-1">排序权重</label>
+                    <input type="number" value={industryModal.sort_order} onChange={e => setIndustryModal({ ...industryModal, sort_order: parseInt(e.target.value) || 0 })}
+                      className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-blue-400" />
+                  </div>
+                  <div className="flex-1">
+                    <label className="block text-xs font-medium text-slate-500 mb-1">启用状态</label>
+                    <button onClick={() => setIndustryModal({ ...industryModal, is_active: industryModal.is_active ? 0 : 1 })}
+                      className={`w-full rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${industryModal.is_active ? 'border-green-200 bg-green-50 text-green-700' : 'border-slate-200 bg-slate-50 text-slate-400'}`}>
+                      {industryModal.is_active ? '✓ 启用' : '— 停用'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+              <div className="flex gap-3 mt-5">
+                <button onClick={() => setIndustryModal(null)}
+                  className="flex-1 rounded-lg border border-slate-200 py-2 text-sm font-medium text-slate-500 hover:bg-slate-50 transition-colors">
+                  取消
+                </button>
+                <button onClick={async () => {
+                  if (!industryModal.name.trim()) { showToast('请输入业态名称'); return }
+                  setIndustrySaving(true)
+                  const url = industryModal.id ? `/industries/${industryModal.id}` : '/industries'
+                  const method = industryModal.id ? 'PUT' : 'POST'
+                  const body = { name: industryModal.name.trim(), sort_order: industryModal.sort_order, is_active: industryModal.is_active, reason: industryModal.id ? '编辑业态' : '新增业态' }
+                  const r = await adminFetch(url, { method, body: JSON.stringify(body) })
+                  setIndustrySaving(false)
+                  if (r.ok) { setIndustryModal(null); loadIndustries(); showToast(industryModal.id ? '业态已更新' : '业态已创建') }
+                  else { const d = await r.json().catch(() => ({})); showToast(d.detail || '保存失败') }
+                }} disabled={industrySaving}
+                  className="flex-1 rounded-lg bg-blue-600 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50 transition-colors">
+                  {industrySaving ? '保存中...' : '保存'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ═══════════ 业态专属规则编辑器（抽屉式） ═══════════ */}
+        {promptEditor && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => { if (promptDirty && !confirm('有未保存的修改，确定关闭？')) return; setPromptEditor(null); setPromptDirty(false) }}>
+            <div className="bg-white rounded-xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col" onClick={e => e.stopPropagation()}>
+              {/* 头部 */}
+              <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200">
+                <div>
+                  <h3 className="text-sm font-bold text-slate-800">业态专属规则编辑器</h3>
+                  <p className="text-xs text-slate-400 mt-0.5">
+                    业态：{promptEditor.name}
+                    {promptDirty && <span className="ml-2 text-amber-600 font-medium">● 未保存</span>}
+                  </p>
+                </div>
+                <button onClick={() => { if (promptDirty && !confirm('有未保存的修改，确定关闭？')) return; setPromptEditor(null); setPromptDirty(false) }}
+                  className="text-slate-400 hover:text-slate-600 text-xl leading-none">&times;</button>
+              </div>
+              {/* 内容 */}
+              <div className="flex-1 overflow-y-auto px-6 py-4">
+                <div className="flex items-center gap-2 mb-3">
+                  <span className="text-xs text-slate-400">专属 Prompt 规则编辑</span>
+                  <div className="flex-1" />
+                  <input type="file" accept=".txt,.md" className="hidden" id="promptFileInput"
+                    onChange={e => {
+                      const file = e.target.files?.[0]
+                      if (!file) return
+                      const reader = new FileReader()
+                      reader.onload = ev => { setPromptDraft(ev.target.result); setPromptDirty(true); showToast('文件已加载，请点击保存') }
+                      reader.readAsText(file)
+                    }} />
+                  <label htmlFor="promptFileInput"
+                    className="cursor-pointer rounded-lg border border-slate-200 px-2.5 py-1 text-xs font-medium text-slate-500 hover:bg-slate-50 transition-colors">
+                    导入文件
+                  </label>
+                  <button onClick={() => {
+                    const blob = new Blob([promptDraft], { type: 'text/plain' })
+                    const url = window.URL.createObjectURL(blob)
+                    const a = document.createElement('a'); a.href = url; a.download = `${promptEditor.name}_专属规则.txt`; a.click()
+                    window.URL.revokeObjectURL(url)
+                  }}
+                    className="rounded-lg border border-slate-200 px-2.5 py-1 text-xs font-medium text-slate-500 hover:bg-slate-50 transition-colors">
+                    导出
+                  </button>
+                </div>
+                <textarea value={promptDraft} onChange={e => { setPromptDraft(e.target.value); setPromptDirty(true) }}
+                  placeholder={`输入「${promptEditor.name}」业态的专属 AI 分析规则...
+
+例如：
+- 重点关注周边 200m 内同类竞品数量与人均消费
+- 年轻客群占比权重提升至 40%
+- 外卖配送覆盖范围需大于 3km
+- ...`}
+                  className="w-full rounded-xl border border-slate-200 p-4 text-sm font-mono focus:outline-none focus:border-blue-400 min-h-[400px] resize-y"
+                  spellCheck="false" />
+                <div className="text-right text-[10px] text-slate-400 mt-1">{promptDraft.length} 字符</div>
+              </div>
+              {/* 底部 */}
+              <div className="flex items-center justify-between px-6 py-4 border-t border-slate-200 bg-slate-50 rounded-b-xl">
+                <span className="text-[10px] text-slate-400">
+                  此规则将拼接在系统 Prompt 之后，以「## 业态专属测算规则」章节注入 AI 分析请求
+                </span>
+                <div className="flex gap-2">
+                  <button onClick={() => { setPromptEditor(null); setPromptDirty(false) }}
+                    className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-500 hover:bg-white transition-colors">
+                    关闭
+                  </button>
+                  <button onClick={async () => {
+                    setPromptSaving(true)
+                    const r = await adminFetch(`/industries/${promptEditor.id}`, {
+                      method: 'PUT', body: JSON.stringify({ exclusive_prompt: promptDraft, reason: '更新专属规则' })
+                    })
+                    setPromptSaving(false)
+                    if (r.ok) { setPromptDirty(false); loadIndustries(); showToast('专属规则已保存') }
+                    else { const d = await r.json().catch(() => ({})); showToast(d.detail || '保存失败') }
+                  }} disabled={!promptDirty || promptSaving}
+                    className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50 transition-colors">
+                    {promptSaving ? '保存中...' : '保存规则'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ═══════════ 删除确认弹窗 ═══════════ */}
+        {industryDeleteConfirm && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setIndustryDeleteConfirm(null)}>
+            <div className="bg-white rounded-xl p-6 shadow-2xl w-full max-w-sm" onClick={e => e.stopPropagation()}>
+              <h3 className="text-sm font-bold text-slate-800 mb-2">确认删除</h3>
+              <p className="text-sm text-slate-500 mb-5">确定要删除业态「{industryDeleteConfirm.name}」吗？此操作不可撤销。</p>
+              <div className="flex gap-3">
+                <button onClick={() => setIndustryDeleteConfirm(null)}
+                  className="flex-1 rounded-lg border border-slate-200 py-2 text-sm font-medium text-slate-500 hover:bg-slate-50 transition-colors">取消</button>
+                <button onClick={async () => {
+                  const r = await adminFetch(`/industries/${industryDeleteConfirm.id}`, { method: 'DELETE' })
+                  if (r.ok) { setIndustryDeleteConfirm(null); loadIndustries(); showToast(`已删除「${industryDeleteConfirm.name}」`) }
+                  else { const d = await r.json().catch(() => ({})); showToast(d.detail || '删除失败') }
+                }}
+                  className="flex-1 rounded-lg bg-red-600 py-2 text-sm font-semibold text-white hover:bg-red-700 transition-colors">确认删除</button>
+              </div>
+            </div>
           </div>
         )}
       </main>
