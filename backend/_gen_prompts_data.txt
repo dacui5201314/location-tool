@@ -1,7 +1,0 @@
-# backend/import_all_prompts.py
-import os, sys
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from database import SessionLocal
-from models.db_models import BusinessIndustry
-
-PROMPTS = {}
