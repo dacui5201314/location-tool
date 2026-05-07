@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback, memo } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { adminLogin, getAdminToken, clearAdminToken, fetchSystemSettings, saveSystemSettings, getAssetUrl } from '../services/api'
 import CorePromptEditor from '../components/CorePromptEditor'
@@ -339,60 +339,6 @@ export default function AdminPage() {
   const [userSkuLoading, setUserSkuLoading] = useState(false)
   const [userSkuSaving, setUserSkuSaving] = useState(false)
   const [userSkuApplyingId, setUserSkuApplyingId] = useState(null)
-
-  // ── 列表 Memo 缓存（组件顶层，Hook 规则合规）──
-  const memoizedOpLogs = useMemo(() => opLogs.map(log => (
-    <tr key={log.id} className="hover:bg-slate-50">
-      <td className="px-4 py-4 text-slate-500">{log.created_at?.slice(0, 16)?.replace('T', ' ')}</td>
-      <td className="px-4 py-4 text-slate-600 font-medium">#{log.admin_id}</td>
-      <td className="px-4 py-4 text-slate-600 font-medium">#{log.user_id}</td>
-      <td className="px-4 py-4">
-        <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${log.type === 'ADJUST_POINTS' ? 'bg-blue-50 text-blue-600' : log.type === 'ASSIGN_PACKAGE' ? 'bg-violet-50 text-violet-600' : log.type === 'PROMPT_UPDATE' ? 'bg-amber-50 text-amber-600' : 'bg-slate-100 text-slate-600'}`}>
-          {log.type === 'ADJUST_POINTS' ? '调整点数' : log.type === 'ASSIGN_PACKAGE' ? '分配套餐' : log.type === 'PROMPT_UPDATE' ? 'Prompt热更新' : log.type === 'SYSTEM_CONFIG' ? '系统配置' : log.type}
-        </span>
-      </td>
-      <td className="px-4 py-4 text-slate-700 font-medium">{log.change_amount}</td>
-      <td className="px-4 py-4 text-slate-500">{log.reason}</td>
-    </tr>
-  )), [opLogs])
-
-  const memoizedIndustries = useMemo(() => industries.map(item => (
-    <tr key={item.id} className="hover:bg-slate-50 transition-colors">
-      <td className="px-4 py-4 text-slate-500 font-mono">{item.sort_order}</td>
-      <td className="px-4 py-4 font-medium text-slate-800">{item.name}</td>
-      <td className="px-4 py-4 text-slate-500 max-w-xs truncate" title={item.exclusive_prompt}>
-        {item.exclusive_prompt ? `${item.exclusive_prompt.slice(0, 40)}${item.exclusive_prompt.length > 40 ? '…' : ''}` : <span className="text-slate-300">未配置</span>}
-      </td>
-      <td className="px-4 py-4 text-center">
-        <button onClick={async () => {
-          const r = await adminFetch(`/industries/${item.id}`, {
-            method: 'PUT', body: JSON.stringify({ is_active: item.is_active ? 0 : 1 })
-          })
-          if (r.ok) { loadIndustries(); showToast(item.is_active ? '已停用' : '已启用') }
-          else { const d = await r.json().catch(() => ({})); showToast(d.detail || '操作失败') }
-        }}
-          className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold transition-colors ${item.is_active ? 'bg-green-50 text-green-700 hover:bg-green-100' : 'bg-slate-100 text-slate-400 hover:bg-slate-200'}`}>
-          {item.is_active ? '✓ 启用' : '— 停用'}
-        </button>
-      </td>
-      <td className="px-4 py-4 text-right">
-        <div className="flex items-center justify-end gap-2">
-          <button onClick={() => setIndustryModal({ id: item.id, name: item.name, sort_order: item.sort_order, is_active: item.is_active })}
-            className="rounded-lg border border-slate-200 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-100 transition-colors">
-            编辑
-          </button>
-          <button onClick={() => { setPromptEditor(item) }}
-            className="rounded-lg border border-blue-200 px-2.5 py-1 text-xs font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 transition-colors">
-            配置规则
-          </button>
-          <button onClick={() => setIndustryDeleteConfirm(item)}
-            className="rounded-lg border border-red-100 px-2.5 py-1 text-xs font-medium text-red-500 hover:bg-red-50 transition-colors">
-            删除
-          </button>
-        </div>
-      </td>
-    </tr>
-  )), [industries, adminFetch, showToast, loadIndustries, setIndustryModal, setPromptEditor, setIndustryDeleteConfirm])
 
   const updateParam = (key, value) => {
     setSystemParams(prev => {
@@ -1545,7 +1491,20 @@ export default function AdminPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {memoizedOpLogs}
+                  {opLogs.map(log => (
+                    <tr key={log.id} className="hover:bg-slate-50">
+                      <td className="px-4 py-4 text-slate-500">{log.created_at?.slice(0, 16)?.replace('T', ' ')}</td>
+                      <td className="px-4 py-4 text-slate-600 font-medium">#{log.admin_id}</td>
+                      <td className="px-4 py-4 text-slate-600 font-medium">#{log.user_id}</td>
+                      <td className="px-4 py-4">
+                        <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${log.type === 'ADJUST_POINTS' ? 'bg-blue-50 text-blue-600' : log.type === 'ASSIGN_PACKAGE' ? 'bg-violet-50 text-violet-600' : log.type === 'PROMPT_UPDATE' ? 'bg-amber-50 text-amber-600' : 'bg-slate-100 text-slate-600'}`}>
+                          {log.type === 'ADJUST_POINTS' ? '调整点数' : log.type === 'ASSIGN_PACKAGE' ? '分配套餐' : log.type === 'PROMPT_UPDATE' ? 'Prompt热更新' : log.type === 'SYSTEM_CONFIG' ? '系统配置' : log.type}
+                        </span>
+                      </td>
+                      <td className="px-4 py-4 text-slate-700 font-medium">{log.change_amount}</td>
+                      <td className="px-4 py-4 text-slate-500">{log.reason}</td>
+                    </tr>
+                  ))}
                 </tbody>
               </table>
             </div>
@@ -1694,7 +1653,43 @@ export default function AdminPage() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
-                      {memoizedIndustries}
+                      {industries.map(item => (
+                        <tr key={item.id} className="hover:bg-slate-50 transition-colors">
+                          <td className="px-4 py-4 text-slate-500 font-mono">{item.sort_order}</td>
+                          <td className="px-4 py-4 font-medium text-slate-800">{item.name}</td>
+                          <td className="px-4 py-4 text-slate-500 max-w-xs truncate" title={item.exclusive_prompt}>
+                            {item.exclusive_prompt ? `${item.exclusive_prompt.slice(0, 40)}${item.exclusive_prompt.length > 40 ? '…' : ''}` : <span className="text-slate-300">未配置</span>}
+                          </td>
+                          <td className="px-4 py-4 text-center">
+                            <button onClick={async () => {
+                              const r = await adminFetch(`/industries/${item.id}`, {
+                                method: 'PUT', body: JSON.stringify({ is_active: item.is_active ? 0 : 1 })
+                              })
+                              if (r.ok) { loadIndustries(); showToast(item.is_active ? '已停用' : '已启用') }
+                              else { const d = await r.json().catch(() => ({})); showToast(d.detail || '操作失败') }
+                            }}
+                              className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold transition-colors ${item.is_active ? 'bg-green-50 text-green-700 hover:bg-green-100' : 'bg-slate-100 text-slate-400 hover:bg-slate-200'}`}>
+                              {item.is_active ? '启用' : '停用'}
+                            </button>
+                          </td>
+                          <td className="px-4 py-4 text-right">
+                            <div className="flex items-center justify-end gap-2">
+                              <button onClick={() => setIndustryModal({ id: item.id, name: item.name, sort_order: item.sort_order, is_active: item.is_active })}
+                                className="rounded-lg border border-slate-200 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-100 transition-colors">
+                                编辑
+                              </button>
+                              <button onClick={() => { setPromptEditor(item) }}
+                                className="rounded-lg border border-blue-200 px-2.5 py-1 text-xs font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 transition-colors">
+                                配置规则
+                              </button>
+                              <button onClick={() => setIndustryDeleteConfirm(item)}
+                                className="rounded-lg border border-red-100 px-2.5 py-1 text-xs font-medium text-red-500 hover:bg-red-50 transition-colors">
+                                删除
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
                     </tbody>
                   </table>
                 </div>
