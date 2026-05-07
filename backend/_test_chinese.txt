@@ -1,0 +1,1 @@
+小吃店: 测试中文 encoding test
