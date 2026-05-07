@@ -148,9 +148,20 @@ def delete_industry(
 
 # ── 前台公开接口 ──────────────────────────────────────────
 
+# config_key → 前端展示分类
+_KEY_TO_CATEGORY = {
+    "异国_中高端正餐": "餐饮", "火锅_烧烤": "餐饮", "刚需快餐小吃": "餐饮",
+    "中餐正餐": "餐饮", "烘焙甜品": "餐饮", "精品茶饮咖啡": "茶饮咖啡",
+    "商务酒店": "酒店住宿", "民宿青旅": "酒店住宿",
+    "高频刚需零售": "零售商业", "低频目的零售": "零售商业",
+    "专业生活服务": "生活服务", "社区基础服务": "生活服务",
+    "夜经济娱乐": "休闲娱乐", "沉浸式社交娱乐": "休闲娱乐",
+}
+
+
 @public_router.get("/active")
 def list_active_industries(db: Session = Depends(get_db)):
-    """前台获取启用业态列表（供匹配用）"""
+    """前台获取启用业态列表（数据驱动业态选择器）"""
     items = db.query(BusinessIndustry).filter(
         BusinessIndustry.is_active == 1
     ).order_by(
@@ -159,7 +170,13 @@ def list_active_industries(db: Session = Depends(get_db)):
     ).all()
     return {
         "industries": [
-            {"id": item.id, "name": item.name or "", "sort_order": item.sort_order}
+            {
+                "id": item.id,
+                "name": item.name or "",
+                "config_key": item.config_key or "",
+                "category": _KEY_TO_CATEGORY.get(item.config_key, "其他"),
+                "sort_order": item.sort_order,
+            }
             for item in items
         ]
     }

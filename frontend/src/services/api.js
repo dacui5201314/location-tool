@@ -150,35 +150,8 @@ async function authFetch(url, options = {}) {
 }
 
 // ── 业务 API ──────────────────────────────────────────────
-
-export async function analyzeLocation(address, location, provider, businessType = '', realData = null, brandName = '', storeSize = '', industryId = null) {
-  const body = {
-    address,
-    location: { lng: location.lng, lat: location.lat },
-    provider,
-    business_type: businessType,
-    brand_name: brandName,
-    store_size: parseInt(storeSize) || 0,
-    real_data: realData,
-  }
-  if (industryId) body.industry_id = industryId
-  const resp = await authFetch(`${API_BASE}/analyze`, {
-    method: 'POST',
-    body: JSON.stringify(body),
-  })
-
-  if (!resp.ok) {
-    const err = await resp.json().catch(() => ({}))
-    throw new Error(err.detail || `请求失败 (${resp.status})`)
-  }
-
-  return resp.json()
-}
-
-export async function fetchProviders() {
-  const resp = await fetch(`${API_BASE}/providers`)
-  return resp.json()
-}
+// ★ analyzeLocation / fetchProviders 已移除 — analyze 走 SSE 流（见 HomePage.jsx handleAnalyze），
+//    非流式调用会导致 JSON 解析崩溃。
 
 export async function fetchProfile() {
   const resp = await authFetch(`${API_BASE}/user/profile`)

@@ -303,4 +303,10 @@ DEFAULT_MASTER = {
 }
 
 def get_config(business_type: str) -> dict:
+    """通过 business_type（如 奶茶店）→ master_key → 返回配置"""
     return MASTER_TEMPLATES.get(BUSINESS_TYPE_TO_MASTER.get(business_type, ""), DEFAULT_MASTER)
+
+
+def get_config_by_key(config_key: str) -> dict:
+    """直接通过 MASTER_TEMPLATES 的 key 获取配置（数据驱动模式下使用）"""
+    return MASTER_TEMPLATES.get(config_key, DEFAULT_MASTER)

@@ -12,7 +12,7 @@ from fastapi.responses import StreamingResponse
 
 from models.schemas import AnalyzeRequest, AnalyzeResponse
 from prompts.location_analysis import build_system_prompt, build_analysis_prompt
-from prompts.industry_config import get_config
+from prompts.industry_config import get_config, get_config_by_key
 from services.amap_service import collect_location_data
 from ai_providers.unified import generate_llm_response
 from database import init_db, SessionLocal
@@ -202,7 +202,9 @@ async def analyze_location(req: AnalyzeRequest, user: dict = Depends(get_current
     async def event_stream():
         """SSE 事件生成器"""
         nonlocal billing
-        _stream_ok = False  # ★ 流完整结束时置 True，防止 finally 误退款
+        _stream_ok = False  # ★ 流完整成功时置 True
+        _refund_processed = False  # ★ 防双重退款
+        _client_disconnect = False  # ★ 客户端主动断开不退款
         try:
             # ═══════════════════════════════════════════
             # Step 1 — POI 数据采集
@@ -262,8 +264,9 @@ async def analyze_location(req: AnalyzeRequest, user: dict = Depends(get_current
 
             runtime_llm = get_llm_config()
             custom_system_prompt = get_runtime_config_value("system_prompt", "").strip()
-            system_prompt = custom_system_prompt or build_system_prompt(req.business_type)
-            # ★ 业态专属规则注入：叠加 industry 专属 Prompt 到 system_prompt 尾部
+            # ★ 数据驱动业态配置：industry_id → config_key → MASTER_TEMPLATES 配置
+            industry_config = None
+            industry_name = req.business_type or ""
             if req.industry_id:
                 try:
                     db_local = SessionLocal()
@@ -271,17 +274,35 @@ async def analyze_location(req: AnalyzeRequest, user: dict = Depends(get_current
                         BusinessIndustry.id == req.industry_id,
                         BusinessIndustry.is_active == 1
                     ).first()
+                    if industry:
+                        industry_name = industry.name
+                        if industry.config_key:
+                            industry_config = get_config_by_key(industry.config_key)
+                        # 专属 Prompt 注入
+                        if industry.exclusive_prompt and industry.exclusive_prompt.strip():
+                            print(f"[SSE Prompt] 已注入业态专属规则: {industry.name} ({len(industry.exclusive_prompt)}字符)", flush=True)
+                    db_local.close()
+                except Exception as e:
+                    print(f"[SSE Prompt] 业态查询失败: {e}", flush=True)
+            system_prompt = custom_system_prompt or build_system_prompt(industry_name, config=industry_config)
+            # 叠加专属规则
+            if req.industry_id and industry_config:
+                try:
+                    db_local = SessionLocal()
+                    industry = db_local.query(BusinessIndustry).filter(
+                        BusinessIndustry.id == req.industry_id
+                    ).first()
                     db_local.close()
                     if industry and industry.exclusive_prompt and industry.exclusive_prompt.strip():
                         system_prompt += "\n\n## 业态专属测算规则（优先于通用规则执行）\n" + industry.exclusive_prompt.strip()
-                        print(f"[SSE Prompt] 已注入业态专属规则: {industry.name} ({len(industry.exclusive_prompt)}字符)", flush=True)
-                except Exception as e:
-                    print(f"[SSE Prompt] 业态专属规则注入失败: {e}", flush=True)
+                except Exception:
+                    pass
             prompt = system_prompt + "\n\n" + build_analysis_prompt(
                 req.address, req.location.lng, req.location.lat,
-                req.business_type or "", real_data,
+                industry_name, real_data,
                 brand_name=req.brand_name or "",
                 store_size=req.store_size or 0,
+                config=industry_config,
             )
 
             raw_response = await generate_llm_response(prompt)
@@ -348,34 +369,28 @@ async def analyze_location(req: AnalyzeRequest, user: dict = Depends(get_current
             yield _sse(4, "✅ 报告生成完毕！", result=result)
             await asyncio.sleep(0)
 
+        except GeneratorExit:
+            # 客户端主动断开 — 不退款
+            _client_disconnect = True
+            print("[SSE Guard] 客户端主动断开，不执行退款", flush=True)
         except json.JSONDecodeError:
-            if billing and billing.source == "points":
-                try: refund_credits(current_user_id, 1)
-                except Exception:
-                    import traceback
-                    print("[CRITICAL] JSON解析失败后点数退还失败！", flush=True)
-                    traceback.print_exc()
-            yield _sse("error", "AI 引擎数据生成异常，已为您全额退还点数，请稍后重试")
+            yield _sse("error", "AI 引擎数据生成异常，请稍后重试")
             await asyncio.sleep(0)
         except Exception:
-            if billing and billing.source == "points":
-                try: refund_credits(current_user_id, 1)
-                except Exception:
-                    import traceback
-                    print("[CRITICAL] AI调用异常后点数退还失败！", flush=True)
-                    traceback.print_exc()
-            yield _sse("error", "分析服务异常，已为您退还点数，请稍后重试")
+            yield _sse("error", "分析服务异常，请稍后重试")
             await asyncio.sleep(0)
         finally:
-            # ★ 流异常中断兜底：客户端断连 / GeneratorExit / 任何未被上层捕获的退出
-            if not _stream_ok and billing and billing.source == "points":
-                try:
-                    refund_credits(current_user_id, 1)
-                    print("[SSE Guard] 流异常中断，已执行点数退款", flush=True)
-                except Exception:
-                    import traceback
-                    print("[CRITICAL] 流中断后点数退还失败！", flush=True)
-                    traceback.print_exc()
+            # ★ 统一退款收口：仅非成功、非客户端断开、扣点模式、未退过款时执行一次
+            if not _stream_ok and not _client_disconnect and not _refund_processed:
+                if billing and billing.source == "points":
+                    _refund_processed = True
+                    try:
+                        refund_credits(current_user_id, 1)
+                        print("[SSE Guard] 流异常中断，已执行点数退款", flush=True)
+                    except Exception:
+                        import traceback
+                        print("[CRITICAL] 点数退还失败！", flush=True)
+                        traceback.print_exc()
 
     return StreamingResponse(
         event_stream(),

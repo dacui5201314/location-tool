@@ -1,50 +1,38 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 
-const CATEGORIES = [
-  { label: '餐饮', icon: '♨', accent: 'blue', types: ['小餐饮', '大餐饮', '中餐', '日餐', '西餐', '火锅店', '烧烤店', '小吃店', '烘焙店', '快餐店'] },
-  { label: '茶饮咖啡', icon: '☕', accent: 'navy', types: ['奶茶店', '咖啡店', '甜品店', '饮品店'] },
-  { label: '零售商业', icon: '▣', accent: 'indigo', types: ['零售店', '便利店', '超市', '服装店', '数码店', '药店'] },
-  { label: '酒吧夜店', icon: '♢', accent: 'violet', types: ['酒吧', 'KTV'] },
-  { label: '生活服务', icon: '✂', accent: 'mint', types: ['美容美发', '健身房', '宠物店', '洗衣店'] },
-  { label: '休闲娱乐', icon: '🎮', accent: 'violet', types: ['剧本杀', '网吧', '台球厅'] },
-  { label: '酒店住宿', icon: '▦', accent: 'green', types: ['酒店', '民宿', '青年旅舍'] },
-  { label: '教育培训', icon: '◆', accent: 'blue', types: ['教育培训'] },
-  { label: '医疗健康', icon: '+', accent: 'cyan', types: ['诊所'] },
-]
+// category → display config
+const CAT_META = {
+  '餐饮': { icon: '♨', accent: 'blue' },
+  '茶饮咖啡': { icon: '☕', accent: 'navy' },
+  '零售商业': { icon: '▣', accent: 'indigo' },
+  '酒店住宿': { icon: '▦', accent: 'green' },
+  '生活服务': { icon: '✂', accent: 'mint' },
+  '休闲娱乐': { icon: '🎮', accent: 'violet' },
+}
 
 export default function BusinessTypeSelector({ selected, onChange, disabled, error, hideLabel = false }) {
-  // 展开的面板（独立于已选中的值）
-  const [expandedLabel, setExpandedLabel] = useState(null)
-  const expandedCat = CATEGORIES.find(c => c.label === expandedLabel)
+  const [industries, setIndustries] = useState([])
+  const [expandedCat, setExpandedCat] = useState(null)
 
-  const handleMainClick = (cat) => {
-    if (disabled) return
-    // 点击已激活项 → 反选收起
-    if (cat.types.includes(selected) || expandedLabel === cat.label) {
-      onChange('')
-      setExpandedLabel(null)
-      return
-    }
-    // 排他单选：切换主业态前，先清空旧选择
-    onChange('')
-    setExpandedLabel(null)
-    if (cat.types.length === 1) {
-      onChange(cat.types[0])
-      return
-    }
-    // 多子类 → 展开面板
-    setExpandedLabel(cat.label)
+  // 数据驱动：从 /api/industries/active 拉取业态列表
+  useEffect(() => {
+    fetch('/api/industries/active')
+      .then(r => r.json())
+      .then(d => setIndustries(d.industries || []))
+      .catch(() => {})
+  }, [])
+
+  // 按 category 分组
+  const grouped = {}
+  for (const item of industries) {
+    const cat = item.category || '其他'
+    if (!grouped[cat]) grouped[cat] = []
+    grouped[cat].push(item)
   }
 
-  const handleSubClick = (type) => {
-    if (disabled) return
-    if (selected === type) {
-      // 反选
-      onChange('')
-    } else {
-      onChange(type)
-    }
-  }
+  const expandedItems = expandedCat ? (grouped[expandedCat] || []) : []
+
+  const isSelected = (item) => selected && selected.id === item.id
 
   return (
     <div className="w-full">
@@ -56,29 +44,43 @@ export default function BusinessTypeSelector({ selected, onChange, disabled, err
       )}
 
       <div className="business-grid">
-        {CATEGORIES.map((cat) => {
-          // 仅当：该业态的子类被选中，或该业态面板正在展开（且没有其他业态的子类被选中）
-          const active = cat.types.includes(selected) || (expandedLabel === cat.label && !selected)
+        {Object.entries(grouped).map(([cat, items]) => {
+          const meta = CAT_META[cat] || { icon: '◆', accent: 'blue' }
+          const anySelected = items.some(isSelected)
+          const isExpanded = expandedCat === cat
+          const active = anySelected || isExpanded
           return (
-            <button key={cat.label} type="button" disabled={disabled}
-              onClick={() => handleMainClick(cat)}
+            <button key={cat} type="button" disabled={disabled}
+              onClick={() => {
+                if (disabled) return
+                // 切换展开/收起
+                setExpandedCat(isExpanded ? null : cat)
+                // 如果该分类只有1个业态，直接选中
+                if (items.length === 1 && !anySelected) {
+                  onChange(items[0])
+                  setExpandedCat(null)
+                }
+              }}
               className={`business-tile ${active ? 'is-active' : ''}`}>
-              <span className={`business-icon ${cat.accent}`}>{cat.icon}</span>
-              <span style={cat.label.length === 2 ? { letterSpacing: '0.5em', marginRight: '-0.5em' } : undefined}>{cat.label}</span>
+              <span className={`business-icon ${meta.accent}`}>{meta.icon}</span>
+              <span>{cat}</span>
             </button>
           )
         })}
       </div>
 
-      {expandedCat && expandedCat.types.length > 1 && (
+      {expandedItems.length > 1 && (
         <div className="business-subpanel">
-          <div className="business-subtitle">细分业态（请手动选择）</div>
+          <div className="business-subtitle">细分业态（请选择一项）</div>
           <div className="flex flex-wrap gap-2">
-            {expandedCat.types.map((type) => (
-              <button key={type} type="button" disabled={disabled}
-                onClick={() => handleSubClick(type)}
-                className={`chip-button ${selected === type ? 'is-active' : ''}`}>
-                {type}
+            {expandedItems.map((item) => (
+              <button key={item.id} type="button" disabled={disabled}
+                onClick={() => {
+                  if (disabled) return
+                  onChange(isSelected(item) ? null : item)
+                }}
+                className={`chip-button ${isSelected(item) ? 'is-active' : ''}`}>
+                {item.name}
               </button>
             ))}
           </div>

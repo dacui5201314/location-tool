@@ -6,9 +6,9 @@ import json
 from .industry_config import get_config, ENV_POI_MAP
 
 
-def build_system_prompt(business_type: str = "") -> str:
-    """构建带业态专属阈值的动态System Prompt"""
-    cfg = get_config(business_type)
+def build_system_prompt(business_type: str = "", config: dict = None) -> str:
+    """构建带业态专属阈值的动态System Prompt（config 由调用方通过 config_key 获取）"""
+    cfg = config or get_config(business_type)
     thresholds = cfg.get("thresholds", {})
     s_grade = thresholds.get("s_grade", {})
     red_flag = thresholds.get("red_flag", {})
@@ -208,13 +208,14 @@ def build_analysis_prompt(address: str, lng: float, lat: float,
                           business_type: str = "",
                           location_data: dict = None,
                           brand_name: str = "",
-                          store_size: int = 0) -> str:
-    """构建包含业态专属阈值和三层半径数据的分析提示词"""
+                          store_size: int = 0,
+                          config: dict = None) -> str:
+    """构建包含业态专属阈值和三层半径数据的分析提示词（config 由调用方通过 config_key 获取）"""
     def _int(v, default=0):
         try: return int(v)
         except: return default
 
-    cfg = get_config(business_type)
+    cfg = config or get_config(business_type)
     label = cfg.get("label", business_type or "通用商业")
 
     # 品牌描述和门店面积

@@ -59,7 +59,7 @@ function FeatureTile({ tone, title, desc, icon }) {
 export default function HomePage() {
   const navigate = useNavigate()
   const [selectedLocation, setSelectedLocation] = useState(null)
-  const [businessType, setBusinessType] = useState('')
+  const [selectedIndustry, setSelectedIndustry] = useState(null) // {id, name, config_key, category}
   const [brandName, setBrandName] = useState('')
   const [storeSize, setStoreSize] = useState('')
   const [analyzing, setAnalyzing] = useState(false)
@@ -73,8 +73,6 @@ export default function HomePage() {
   const [toast, setToast] = useState('')
   const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(''), 2000) }
   const [loginModalOpen, setLoginModalOpen] = useState(false)
-  // ── 业态专属规则匹配 ──
-  const [matchedIndustryId, setMatchedIndustryId] = useState(null)
   const [announcement, setAnnouncement] = useState('')
   const announceRef = useRef(null)
 
@@ -213,7 +211,7 @@ export default function HomePage() {
 
   const validateForm = () => {
     if (!selectedLocation?.location) { showToast('请先在地图上选择门店位置'); return false }
-    if (!businessType) { setBusinessError(true); showToast('请完整选择选址业态'); return false }
+    if (!selectedIndustry) { setBusinessError(true); showToast('请完整选择选址业态'); return false }
     if (!brandName.trim()) { setBrandError(true); showToast('请输入品牌名称或主营特色'); return false }
     if (!storeSize) { showToast('请输入门店预估面积，用于租金与人效精算'); return false }
     const areaNum = parseFloat(storeSize)
@@ -275,11 +273,11 @@ export default function HomePage() {
           address: selectedLocation.address || selectedLocation.name,
           location: { lng: selectedLocation.location.lng, lat: selectedLocation.location.lat },
           provider: 'deepseek',
-          business_type: businessType,
+          business_type: selectedIndustry?.name || '',
           brand_name: brandName,
           store_size: parseInt(storeSize) || 0,
           real_data: null,
-          ...(matchedIndustryId ? { industry_id: matchedIndustryId } : {}),
+          ...(selectedIndustry?.id ? { industry_id: selectedIndustry.id } : {}),
         }),
       })
 
@@ -387,18 +385,7 @@ export default function HomePage() {
       }
       setAnalyzing(false)
     }
-  }, [selectedLocation, businessType, brandName, storeSize])
-
-  // ── businessType 变更时调用后端匹配接口 ──
-  useEffect(() => {
-    if (!businessType) { setMatchedIndustryId(null); return }
-    const controller = new AbortController()
-    fetch(`/api/industries/match?business_type=${encodeURIComponent(businessType)}`, { signal: controller.signal })
-      .then(r => r.json())
-      .then(d => setMatchedIndustryId(d.matched ? d.industry_id : null))
-      .catch(() => setMatchedIndustryId(null))
-    return () => controller.abort()
-  }, [businessType])
+  }, [selectedLocation, selectedIndustry, brandName, storeSize])
 
   const canAnalyze = selectedLocation && !analyzing
 
@@ -547,7 +534,7 @@ export default function HomePage() {
             <strong>选择业态</strong>
             <span>全部业态 ›</span>
           </div>
-          <BusinessTypeSelector selected={businessType} onChange={(v) => { setBusinessType(v); if (v) setBusinessError(false) }} disabled={analyzing} error={businessError} hideLabel />
+          <BusinessTypeSelector selected={selectedIndustry} onChange={(v) => { setSelectedIndustry(v); if (v) setBusinessError(false) }} disabled={analyzing} error={businessError} hideLabel />
 
           <div className="panel-stats">
             {PANEL_STATS.map(stat => (
@@ -632,7 +619,7 @@ export default function HomePage() {
         {result && !analyzing && (
           <div className="space-y-3 animate-in">
             <AnalysisResult data={result} />
-            <PdfExport selectedLocation={selectedLocation} result={result} businessType={businessType} brandName={brandName} />
+            <PdfExport selectedLocation={selectedLocation} result={result} businessType={selectedIndustry?.name || ''} brandName={brandName} />
             <div className="h-28 w-full flex-shrink-0" />
           </div>
         )}

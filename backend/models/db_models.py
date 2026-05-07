@@ -241,6 +241,7 @@ class BusinessIndustry(Base):
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     name = Column(String(80), unique=True, default="", comment="业态名称")
+    config_key = Column(String(40), default="", comment="对应 MASTER_TEMPLATES 的 key")
     exclusive_prompt = Column(Text, default="", comment="专属AI提示词/测算规则")
     is_active = Column(Integer, default=1, comment="启用状态 1=启用 0=停用")
     sort_order = Column(Integer, default=0, comment="排序权重")
@@ -251,6 +252,7 @@ class BusinessIndustry(Base):
         return {
             "id": self.id,
             "name": self.name or "",
+            "config_key": self.config_key or "",
             "exclusive_prompt": self.exclusive_prompt or "",
             "is_active": self.is_active if self.is_active is not None else 1,
             "sort_order": self.sort_order if self.sort_order is not None else 0,
