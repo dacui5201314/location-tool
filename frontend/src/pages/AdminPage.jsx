@@ -1,6 +1,8 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo, useCallback, memo } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { adminLogin, getAdminToken, clearAdminToken, fetchSystemSettings, saveSystemSettings, getAssetUrl } from '../services/api'
+import CorePromptEditor from '../components/CorePromptEditor'
+import IndustryRuleDrawer from '../components/IndustryRuleDrawer'
 
 const PWD_KEY = 'admin_pwd'
 const QR_ACCEPT = 'image/png,image/jpeg,image/gif,image/webp'
@@ -302,9 +304,7 @@ export default function AdminPage() {
   const [cdkGen, setCdkGen] = useState({ prefix: 'AI', count: 10, credits: 1, days_valid: 90 })
   const [trends, setTrends] = useState(null)
   const [showAiKey, setShowAiKey] = useState(false)
-  const [showPrompt, setShowPrompt] = useState(false)    // 隐私保护：默认模糊
-  const [promptImported, setPromptImported] = useState(false) // 导入后才允许保存
-  const [promptConfirm, setPromptConfirm] = useState(false)  // 二次确认弹窗
+  // ★ CorePromptEditor 状态已移至独立组件，消除全局重渲染
   const [dashTrends, setDashTrends] = useState({ dates: [], counts: [] })
   const [opLogs, setOpLogs] = useState([])
   const loadOpLogs = () => { adminFetch('/operation-logs').then(r => r.json()).then(d => setOpLogs(d.logs || [])).catch(() => showToast('操作记录加载失败')) }
@@ -313,9 +313,7 @@ export default function AdminPage() {
   const [industryModal, setIndustryModal] = useState(null) // null | { id?, name, sort_order, is_active }
   const [industrySaving, setIndustrySaving] = useState(false)
   const [promptEditor, setPromptEditor] = useState(null) // null | industry object (full)
-  const [promptDraft, setPromptDraft] = useState('')
-  const [promptDirty, setPromptDirty] = useState(false)
-  const [promptSaving, setPromptSaving] = useState(false)
+  // ★ IndustryRuleDrawer 状态已移至独立组件，消除全局重渲染
   const [industryDeleteConfirm, setIndustryDeleteConfirm] = useState(null) // null | industry object
   const loadIndustries = () => { adminFetch('/industries').then(r => r.json()).then(d => setIndustries(d.industries || [])).catch(() => showToast('业态列表加载失败')) }
   const [pdfConfig, setPdfConfig] = useState({ logo_url: '', footer_text: 'AI 选址分析 · 商业数据决策平台' })
@@ -1134,92 +1132,14 @@ export default function AdminPage() {
               </div>
             </div>
 
-            {/* 核心 Prompt · 保险柜模式 */}
-            <div className="rounded-xl bg-white p-5 shadow-sm border border-slate-100">
-              <div className="flex items-center justify-between mb-4">
-                <div>
-                  <div className="text-sm font-bold text-slate-800">核心 Prompt 热更新 🔒</div>
-                  <div className="text-[11px] text-slate-400">保险柜模式：禁止手动编辑，仅支持 TXT 文件导入后覆盖更新</div>
-                </div>
-                <div className="flex items-center gap-2">
-                  {!settingsLoaded ? <span className="text-xs text-slate-400">配置加载中...</span> : <>
-                  <button onClick={() => setShowPrompt(!showPrompt)}
-                    className="flex items-center gap-1 rounded-lg border border-slate-200 px-3 py-2 text-xs font-medium text-slate-600 hover:bg-slate-50">
-                    {showPrompt ? '🙈 隐藏' : '👁 显示'}
-                  </button>
-                  <button onClick={() => {
-                    const el = document.getElementById('system-prompt-editor')
-                    const content = el ? el.value : settings.system_prompt
-                    if (!content || !content.trim()) { showToast('内容加载中，请稍后'); return }
-                    const blob = new Blob([content], { type: 'text/plain;charset=utf-8' })
-                    const url = window.URL.createObjectURL(blob)
-                    const a = document.createElement('a'); a.href = url; a.download = `core_prompt_${new Date().getTime()}.txt`
-                    document.body.appendChild(a); a.click(); document.body.removeChild(a)
-                    window.URL.revokeObjectURL(url); showToast(`已导出 ${content.length} 字符`)
-                  }} className="flex items-center gap-1 rounded-lg border border-slate-200 px-3 py-2 text-xs font-medium text-slate-600 hover:bg-slate-50">
-                    📥 导出 TXT
-                  </button>
-                  <label className="flex items-center gap-1 rounded-lg border border-slate-200 px-3 py-2 text-xs font-medium text-slate-600 hover:bg-slate-50 cursor-pointer">
-                    📤 导入 TXT
-                    <input type="file" accept=".txt" className="hidden" onChange={e => {
-                      const file = e.target.files?.[0]; if (!file) return
-                      const reader = new FileReader()
-                      reader.onload = ev => { updateSettings({ system_prompt: ev.target.result }); setPromptImported(true); showToast('检测到新提示词导入，请点击【保存更新】将修改应用到 AI 模型') }
-                      reader.readAsText(file)
-                      e.target.value = ''
-                    }} />
-                  </label>
-                  <button onClick={() => setPromptConfirm(true)}
-                    disabled={!promptImported}
-                    className="rounded-lg px-4 py-2 text-xs font-bold text-white transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-                    style={{ background: promptImported ? '#dc2626' : '#94a3b8' }}>
-                    保存更新
-                  </button>
-                  </>}
-                </div>
-              </div>
-              {promptImported && (
-                <div className="mb-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-2 text-xs font-semibold text-amber-700">
-                  ⚠️ 检测到新提示词导入，请点击【保存更新】将修改应用到 AI 模型
-                </div>
-              )}
-              {!showPrompt && settingsLoaded ? (
-                <div className="relative rounded-lg border border-slate-200 bg-slate-100 px-4 py-6 text-center cursor-pointer"
-                  onClick={() => setShowPrompt(true)}>
-                  <div className="text-slate-400 text-sm font-medium">🔒 提示词内容已隐藏（点击显示）</div>
-                  <div className="text-slate-300 text-xs mt-1">{settings.system_prompt?.length || 0} 字符</div>
-                </div>
-              ) : (
-                <textarea id="system-prompt-editor" value={settings.system_prompt}
-                  readOnly={true}
-                  rows={14}
-                  style={{ fontSize: 13, fontFamily: "'JetBrains Mono','Fira Code','Courier New',monospace", lineHeight: 1.7 }}
-                  className="w-full rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 resize-y focus:outline-none cursor-not-allowed text-slate-600" />
-              )}
-            </div>
-
-            {/* 保存确认弹窗 */}
-            {promptConfirm && (
-              <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setPromptConfirm(false)}>
-                <div className="mx-4 w-full max-w-sm rounded-xl bg-white p-6 shadow-2xl" onClick={e => e.stopPropagation()}>
-                  <div className="text-center text-2xl mb-3">⚠️</div>
-                  <h3 className="text-base font-bold text-slate-900 text-center">确认更新核心 Prompt？</h3>
-                  <p className="mt-2 text-sm text-slate-500 text-center leading-5">此操作将改变系统的 AI 核心逻辑，影响所有后续分析报告的质量和风格。是否确认更新？</p>
-                  <div className="mt-5 flex gap-3">
-                    <button onClick={() => setPromptConfirm(false)}
-                      className="flex-1 rounded-lg border border-slate-200 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-50">取消</button>
-                    <button onClick={async () => {
-                      setPromptConfirm(false)
-                      const promptValue = document.getElementById('system-prompt-editor')?.value || settings.system_prompt || ''
-                      const r = await adminFetch('/config/prompt', { method: 'POST', body: JSON.stringify({ system_prompt: promptValue }) })
-                      if (r.ok) { showToast('Prompt 已保存并生效'); setSettingsDirty(false); setPromptImported(false) }
-                      else { const d = await r.json().catch(() => ({})); showToast(d.detail || '保存失败') }
-                    }}
-                      className="flex-1 rounded-lg bg-red-600 py-2.5 text-sm font-bold text-white hover:bg-red-700">确认更新</button>
-                  </div>
-                </div>
-              </div>
-            )}
+            {/* 核心 Prompt — 独立组件，隔离状态防全局重渲染 */}
+            <CorePromptEditor
+              systemPrompt={settings.system_prompt || ''}
+              settingsLoaded={settingsLoaded}
+              adminFetch={adminFetch}
+              showToast={showToast}
+              onSaved={() => setSettingsDirty(false)}
+            />
 
             {/* 微信支付配置 */}
             <div className="rounded-xl bg-white p-5 shadow-sm border border-slate-100">
@@ -1571,7 +1491,7 @@ export default function AdminPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {opLogs.map(log => (
+                  {useMemo(() => opLogs.map(log => (
                     <tr key={log.id} className="hover:bg-slate-50">
                       <td className="px-4 py-4 text-slate-500">{log.created_at?.slice(0, 16)?.replace('T', ' ')}</td>
                       <td className="px-4 py-4 text-slate-600 font-medium">#{log.admin_id}</td>
@@ -1584,7 +1504,7 @@ export default function AdminPage() {
                       <td className="px-4 py-4 text-slate-700 font-medium">{log.change_amount}</td>
                       <td className="px-4 py-4 text-slate-500">{log.reason}</td>
                     </tr>
-                  ))}
+                  )), [opLogs])}
                 </tbody>
               </table>
             </div>
@@ -1733,7 +1653,7 @@ export default function AdminPage() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
-                      {industries.map(item => (
+                      {useMemo(() => industries.map(item => (
                         <tr key={item.id} className="hover:bg-slate-50 transition-colors">
                           <td className="px-4 py-4 text-slate-500 font-mono">{item.sort_order}</td>
                           <td className="px-4 py-4 font-medium text-slate-800">{item.name}</td>
@@ -1758,7 +1678,7 @@ export default function AdminPage() {
                                 className="rounded-lg border border-slate-200 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-100 transition-colors">
                                 编辑
                               </button>
-                              <button onClick={() => { setPromptEditor(item); setPromptDraft(item.exclusive_prompt || ''); setPromptDirty(false) }}
+                              <button onClick={() => { setPromptEditor(item) }}
                                 className="rounded-lg border border-blue-200 px-2.5 py-1 text-xs font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 transition-colors">
                                 配置规则
                               </button>
@@ -1769,7 +1689,7 @@ export default function AdminPage() {
                             </div>
                           </td>
                         </tr>
-                      ))}
+                      )), [industries, adminFetch, showToast, loadIndustries, setIndustryModal, setPromptEditor, setIndustryDeleteConfirm])}
                     </tbody>
                   </table>
                 </div>
@@ -1828,88 +1748,14 @@ export default function AdminPage() {
           </div>
         )}
 
-        {/* ═══════════ 业态专属规则编辑器（抽屉式） ═══════════ */}
-        {promptEditor && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => { if (promptDirty && !confirm('有未保存的修改，确定关闭？')) return; setPromptEditor(null); setPromptDirty(false) }}>
-            <div className="bg-white rounded-xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col" onClick={e => e.stopPropagation()}>
-              {/* 头部 */}
-              <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200">
-                <div>
-                  <h3 className="text-sm font-bold text-slate-800">业态专属规则编辑器</h3>
-                  <p className="text-xs text-slate-400 mt-0.5">
-                    业态：{promptEditor.name}
-                    {promptDirty && <span className="ml-2 text-amber-600 font-medium">● 未保存</span>}
-                  </p>
-                </div>
-                <button onClick={() => { if (promptDirty && !confirm('有未保存的修改，确定关闭？')) return; setPromptEditor(null); setPromptDirty(false) }}
-                  className="text-slate-400 hover:text-slate-600 text-xl leading-none">&times;</button>
-              </div>
-              {/* 内容 */}
-              <div className="flex-1 overflow-y-auto px-6 py-4">
-                <div className="flex items-center gap-2 mb-3">
-                  <span className="text-xs text-slate-400">专属 Prompt 规则编辑</span>
-                  <div className="flex-1" />
-                  <input type="file" accept=".txt,.md" className="hidden" id="promptFileInput"
-                    onChange={e => {
-                      const file = e.target.files?.[0]
-                      if (!file) return
-                      const reader = new FileReader()
-                      reader.onload = ev => { setPromptDraft(ev.target.result); setPromptDirty(true); showToast('文件已加载，请点击保存') }
-                      reader.readAsText(file)
-                    }} />
-                  <label htmlFor="promptFileInput"
-                    className="cursor-pointer rounded-lg border border-slate-200 px-2.5 py-1 text-xs font-medium text-slate-500 hover:bg-slate-50 transition-colors">
-                    导入文件
-                  </label>
-                  <button onClick={() => {
-                    const blob = new Blob([promptDraft], { type: 'text/plain' })
-                    const url = window.URL.createObjectURL(blob)
-                    const a = document.createElement('a'); a.href = url; a.download = `${promptEditor.name}_专属规则.txt`; a.click()
-                    window.URL.revokeObjectURL(url)
-                  }}
-                    className="rounded-lg border border-slate-200 px-2.5 py-1 text-xs font-medium text-slate-500 hover:bg-slate-50 transition-colors">
-                    导出
-                  </button>
-                </div>
-                <textarea value={promptDraft} onChange={e => { setPromptDraft(e.target.value); setPromptDirty(true) }}
-                  placeholder={`输入「${promptEditor.name}」业态的专属 AI 分析规则...
-
-例如：
-- 重点关注周边 200m 内同类竞品数量与人均消费
-- 年轻客群占比权重提升至 40%
-- 外卖配送覆盖范围需大于 3km
-- ...`}
-                  className="w-full rounded-xl border border-slate-200 p-4 text-sm font-mono focus:outline-none focus:border-blue-400 min-h-[400px] resize-y"
-                  spellCheck="false" />
-                <div className="text-right text-[10px] text-slate-400 mt-1">{promptDraft.length} 字符</div>
-              </div>
-              {/* 底部 */}
-              <div className="flex items-center justify-between px-6 py-4 border-t border-slate-200 bg-slate-50 rounded-b-xl">
-                <span className="text-[10px] text-slate-400">
-                  此规则将拼接在系统 Prompt 之后，以「## 业态专属测算规则」章节注入 AI 分析请求
-                </span>
-                <div className="flex gap-2">
-                  <button onClick={() => { setPromptEditor(null); setPromptDirty(false) }}
-                    className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-500 hover:bg-white transition-colors">
-                    关闭
-                  </button>
-                  <button onClick={async () => {
-                    setPromptSaving(true)
-                    const r = await adminFetch(`/industries/${promptEditor.id}`, {
-                      method: 'PUT', body: JSON.stringify({ exclusive_prompt: promptDraft, reason: '更新专属规则' })
-                    })
-                    setPromptSaving(false)
-                    if (r.ok) { setPromptDirty(false); loadIndustries(); showToast('专属规则已保存') }
-                    else { const d = await r.json().catch(() => ({})); showToast(d.detail || '保存失败') }
-                  }} disabled={!promptDirty || promptSaving}
-                    className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50 transition-colors">
-                    {promptSaving ? '保存中...' : '保存规则'}
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
+        {/* ═══════════ 业态专属规则编辑器（独立组件，隔离状态防全局重渲染） ═══════════ */}
+        <IndustryRuleDrawer
+          industry={promptEditor}
+          adminFetch={adminFetch}
+          showToast={showToast}
+          onSaved={loadIndustries}
+          onClose={() => setPromptEditor(null)}
+        />
 
         {/* ═══════════ 删除确认弹窗 ═══════════ */}
         {industryDeleteConfirm && (
