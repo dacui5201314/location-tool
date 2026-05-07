@@ -12,7 +12,8 @@
 - **品牌匹配**：品牌客单价与周边客群消费力交叉校验，品类锁定防策略偏离
 - **PDF 报告**：前端高保真渲染 + 评分环 + 雷达图 + POI 数据表格 + 引流 Footer
 - **用户系统**：JWT 鉴权 + 分析记录存档 + 地址收藏 + 双轨制计费（会员订阅 / 点数余额）+ 管理后台
-- **安全防护**：全站 JWT 鉴权 + Canvas 设备指纹 + 原子化计费防 TOCTOU + CDK 原子激活 + XSS 防御 + SQLite WAL 并发
+- **SSE 实时流**：StreamingResponse 四步进度推送 + 前端极客控制台逐帧动画，免疫代理缓冲
+- **PDF 导出引擎**：html2pdf.js 分页 + 零高度物理切断 + inline-block 原子防断 + 800px A4 黄金宽度
 
 ### 技术栈
 
@@ -23,7 +24,8 @@
 | 地图 | 高德 JS API 2.0 + Web API v3（环境变量注入 Key） |
 | AI | DeepSeek / OpenAI / Gemini / Kimi / MiniMax / 智谱（通过 .env 切换） |
 | 鉴权 | PyJWT (HS256, 72h expiry) + Bearer Token |
-| PDF | html2canvas + jsPDF（纯前端，Canvas/SVG 静态化 + RAF 轮询图表就绪） |
+| PDF | html2pdf.js（iframe 独立渲染上下文 + page-break CSS 智能分页 + .pdf-no-break 防断） |
+| 实时流 | FastAPI StreamingResponse + SSE + 前端 ReadableStream 逐帧动画回放 |
 | 安全 | JWT Bearer + Canvas 指纹 + 原子化 UPDATE 防 TOCTOU + html.escape 防 XSS |
 
 ---
@@ -54,7 +56,7 @@ location-tool/
 │   │
 │   ├── models/                        # 数据模型
 │   │   ├── schemas.py                 # Pydantic 请求/响应模型
-│   │   └── db_models.py              # SQLAlchemy ORM：User/AnalysisRecord/SavedLocation/RedeemCode/SystemConfig
+│   │   └── db_models.py              # SQLAlchemy ORM：User/AnalysisRecord/SavedLocation/RedeemCode/SystemConfig/OperationLog/BillingRecord
 │   │
 │   ├── prompts/                       # AI 提示词系统
 │   │   ├── industry_config.py         # ★ 14个业态母版配置（权重/阈值/关键词/策略）
@@ -254,6 +256,12 @@ npx vite --host
 | GET/PUT | `/api/admin/system-settings` | JWT Admin | ★ 全局参数配置（注册奖励 / 微信各端密钥） |
 | GET | `/api/admin/logs` | JWT Admin | 系统日志 |
 | GET | `/api/admin/trends` | JWT Admin | 搜索趋势看板 |
+| GET | `/api/admin/dashboard/stats` | JWT Admin | ★ 仪表盘聚合（15天趋势+业态/品牌TOP分布） |
+| POST | `/api/admin/users/{id}/package` | JWT Admin | ★ 为用户分配预设套餐（会员/点数包） |
+| POST | `/api/admin/users/{id}/points` | JWT Admin | ★ 独立调整用户点数（正负+审计备注） |
+| GET | `/api/admin/config/core-prompt` | JWT Admin | ★ 获取当前 System Prompt |
+| POST | `/api/admin/config/prompt` | JWT Admin | ★ 热更新 System Prompt |
+| GET | `/api/admin/operation-logs` | JWT Admin | ★ 管理员操作审计日志 |
 
 ---
 
@@ -371,6 +379,8 @@ npx vite --host
 | 私域充值闭环 | `ProfileView.jsx` | 模拟支付替换为客服二维码 + CDK 激活，后台动态配置客服信息 |
 | 幽灵 UI 裁剪 | `ProfileView.jsx` / `AdminPage.jsx` | 移除 10+ 占位按钮/菜单项（邀请好友/反馈/关于/消息/设置等） |
 | 管理后台用户充值 | `AdminPage.jsx` | 增强用户列表（手机号/会员到期/来源渠道）+ 加点数弹窗 |
+| 管理员操作审计 | `admin.py` + `db_models.py` | OperationLog 表 + 套餐分配/点数调整/Prompt热更新全量留痕 |
+| 管理后台用户筛选 | `admin.py` | 用户列表支持手机号/会员/渠道/注册日期多条件筛选 |
 | 系统配置真实持久化 | `admin.py` | `PUT /api/admin/config` 写入 `system_config` 表，刷新不丢 |
 | 客服二维码运营配置 | `admin.py` + `AdminPage.jsx` | 后台上传客服二维码 + 名称，前端充值弹窗动态渲染 |
 | .gitignore 全量覆盖 | 根/后端/前端 | 3 个 .gitignore，屏蔽 .env/.db/node_modules/chrome-profile 等 |
@@ -379,7 +389,8 @@ npx vite --host
 
 ## 版本历史
 
-- **v3.8** (2026-05-06) — 运行时配置引擎与后台增强：DB 持久化运行时配置中心（SKU/LLM/AI Key 动态切换）、报告结果归一化引擎、管理后台大重构（用户专属套餐、增强用户管理面板）、PDF 导出引擎优化、存储服务增强
+- **v4.0** (2026-05-07) — 全栈架构重构：SSE 实时分析流（四步进度推送+控制台UI+流中断自动退款）、PDF 引擎彻底重写（html2pdf.js+iframe独立渲染+物理分页+Table/float布局+零高度切断+inline-block防断）、安全防线全线加固（Phase 1-5 审计修复：弱密码拦截/OperationLog审计流水/CDK原子性/竞态修复/N+1性能/死代码清理）、管理员仪表盘（15天趋势+业态/品牌TOP分布+用户多条件筛选）、套餐分配+独立点数调整+Prompt热更新端点、数据精度锁定（后端强制维度平均接管LLM总分+维度固定顺序+Prompt去决策化+JSON尾逗号清洗）、前端三重算分+雷达图ORDER锁+UTC时区修正、综合评分环+高级商务排版
+- **v3.8** (2026-05-06) — 运行时配置引擎与后台增强
 - **v3.7** (2026-05-05) — 私域运营与账号体系：手机号+密码注册登录、强制登录门控、模拟支付替换为私域客服二维码+CDK、幽灵 UI 裁剪（移除 10+ 占位项）、管理后台用户充值面板、系统配置真实持久化、客服二维码运营配置、.gitignore 全量覆盖
 - **v3.6** (2026-05-04) — 商业化增长模块：公众号网页授权登录、用户多端兼容模型（wx_openid/phone/channel）、BillingRecord 点数流水审计、新用户注册奖励可视化后台配置、收藏/记录页面全新 UI 重构、JWT 弱密钥启动拦截
 - **v3.5** (2026-05-04) — 安全狙击清零：敏感配置 GET 端点 Admin 鉴权、下线前端 consume 端点、CDK IP 速率限制防暴力枚举、JWT 过期延长至 7 天、Token 抢跑门控消除 401

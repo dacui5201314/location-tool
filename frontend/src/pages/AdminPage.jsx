@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { adminLogin, getAdminToken, clearAdminToken, fetchSystemSettings, saveSystemSettings, getAssetUrl } from '../services/api'
 
 const PWD_KEY = 'admin_pwd'
@@ -270,7 +270,17 @@ export default function AdminPage() {
   const [pwd, setPwd] = useState(localStorage.getItem(PWD_KEY) || '')
   const [authed, setAuthed] = useState(false)
   const [isChecking, setIsChecking] = useState(true)
-  const [tab, setTab] = useState('dashboard')
+  const [searchParams, setSearchParams] = useSearchParams()
+  const tab = searchParams.get('tab') || 'dashboard'
+  const setTab = (key) => setSearchParams({ tab: key })
+
+  // ★ 刷新/直接URL访问时自动加载对应Tab数据
+  useEffect(() => {
+    if (tab === 'users') loadUsers()
+    if (tab === 'settings') loadSettingsData()
+    if (tab === 'oplogs') loadOpLogs()
+  }, [tab])
+
   const [stats, setStats] = useState(null)
   const [users, setUsers] = useState([])
   const [settings, setSettings] = useState({
@@ -290,6 +300,13 @@ export default function AdminPage() {
   const [cdkList, setCdkList] = useState([])
   const [cdkGen, setCdkGen] = useState({ prefix: 'AI', count: 10, credits: 1, days_valid: 90 })
   const [trends, setTrends] = useState(null)
+  const [showAiKey, setShowAiKey] = useState(false)
+  const [showPrompt, setShowPrompt] = useState(false)    // 隐私保护：默认模糊
+  const [promptImported, setPromptImported] = useState(false) // 导入后才允许保存
+  const [promptConfirm, setPromptConfirm] = useState(false)  // 二次确认弹窗
+  const [dashTrends, setDashTrends] = useState({ dates: [], counts: [] })
+  const [opLogs, setOpLogs] = useState([])
+  const loadOpLogs = () => { adminFetch('/operation-logs').then(r => r.json()).then(d => setOpLogs(d.logs || [])).catch(() => showToast('操作记录加载失败')) }
   const [pdfConfig, setPdfConfig] = useState({ logo_url: '', footer_text: 'AI 选址分析 · 商业数据决策平台' })
   const [storageConfig, setStorageConfig] = useState({
     storage_mode: 'local',
@@ -346,13 +363,27 @@ export default function AdminPage() {
 
   const loadSettingsData = () => {
     fetch('/api/admin/skus').then(r => r.json()).then(d => { setSkus(d.skus || []); setSkusDirty(false) }).catch(() => showToast('套餐列表加载失败'))
-    adminFetch('/config').then(r => r.json()).then(d => { setSettings(s => ({ ...s, ...d })); setSettingsDirty(false); setSettingsLoaded(true) }).catch(() => { showToast('核心配置加载失败'); setSettingsLoaded(false) })
+    // ★ 防止 /config 的 system_prompt:"" 空值覆盖 /core-prompt 已加载的默认Prompt
+    adminFetch('/config').then(r => r.json()).then(d => {
+      setSettings(s => ({ ...s, ...d, system_prompt: s.system_prompt || d.system_prompt || '' }))
+      setSettingsDirty(false)
+    }).catch(() => { showToast('核心配置加载失败') })
+    // 拉取核心 Prompt（含默认值回退）— 成功后标记 settingsLoaded
+    adminFetch('/config/core-prompt').then(r => r.json()).then(d => {
+      if (d.system_prompt) {
+        setSettings(s => ({ ...s, system_prompt: d.system_prompt }))
+      }
+      setSettingsLoaded(true)
+    }).catch(() => { showToast('提示词加载失败'); setSettingsLoaded(true) })
     fetch('/api/admin/ui-config').then(r => r.json()).then(d => {
       setUiConfig({ ...d, customer_service_qr_url: '' })
     }).catch(() => showToast('UI客服配置加载失败'))
     adminFetch('/pdf-config').then(r => r.json()).then(d => { setPdfConfig(d); setPdfDirty(false) }).catch(() => showToast('PDF品牌配置加载失败'))
     adminFetch('/storage-config').then(r => r.json()).then(d => { setStorageConfig(d); setStorageDirty(false) }).catch(() => showToast('存储配置加载失败'))
-    adminFetch('/trends').then(r => r.json()).then(setTrends).catch(() => showToast('趋势数据加载失败'))
+    adminFetch('/trends').then(r => r.json()).then(d => { setTrends(d); setDashTrends(prev => ({ ...prev, industry: d?.top_business_types || [], brands: d?.top_brands || [] })) }).catch(() => showToast('趋势数据加载失败'))
+    adminFetch('/dashboard/stats').then(r => r.json()).then(d => {
+      if (d?.trend_dates) setDashTrends(prev => ({ ...prev, dates: d.trend_dates, counts: d.trend_counts || [] }))
+    }).catch(() => {})
   }
 
   // ★ 刷新时恢复管理员会话
@@ -387,10 +418,29 @@ export default function AdminPage() {
     }
   }
 
-  const loadUsers = () => { adminFetch('/users').then(r => r.json()).then(d => setUsers(d.users || [])).catch(() => showToast('用户列表加载失败')) }
+  const [userFilter, setUserFilter] = useState({ phone: '', member: '', channel: '', dateFrom: '', dateTo: '' })
+  const loadUsers = (filter = {}) => {
+    const params = new URLSearchParams()
+    if (filter.phone) params.set('phone', filter.phone)
+    if (filter.member) params.set('member', filter.member)
+    if (filter.channel) params.set('channel', filter.channel)
+    if (filter.dateFrom) params.set('date_from', filter.dateFrom)
+    if (filter.dateTo) params.set('date_to', filter.dateTo)
+    const qs = params.toString()
+    adminFetch(`/users${qs ? '?' + qs : ''}`).then(r => r.json()).then(d => setUsers(d.users || [])).catch(() => showToast('用户列表加载失败'))
+  }
+  const handleUserFilter = () => loadUsers(userFilter)
+  const resetUserFilter = () => { setUserFilter({ phone: '', member: '', channel: '', dateFrom: '', dateTo: '' }); loadUsers() }
   const [creditModal, setCreditModal] = useState(null) // { userId, phone }
   const [creditAmount, setCreditAmount] = useState(10)
+  const [creditReason, setCreditReason] = useState('')
   const [creditSaving, setCreditSaving] = useState(false)
+
+  // 分配套餐弹窗
+  const [pkgModal, setPkgModal] = useState(null) // { userId, phone }
+  const [pkgSelected, setPkgSelected] = useState('')
+  const [pkgReason, setPkgReason] = useState('')
+  const [pkgSaving, setPkgSaving] = useState(false)
 
   const addCredits = async (userId, amount) => {
     const r = await adminFetch(`/users/${userId}/add-credits`, {
@@ -507,25 +557,34 @@ export default function AdminPage() {
   }
 
   return (
-    <div className="admin-page min-h-screen">
+    <div className="admin-page h-screen flex overflow-hidden bg-slate-50">
       {toast && <div className="fixed top-5 left-1/2 -translate-x-1/2 z-50 rounded-full bg-slate-800 text-white text-xs px-5 py-2 shadow-lg">{toast}</div>}
-      <header className="admin-header sticky top-0 z-40 px-4 py-3">
-        <div className="flex items-center justify-between max-w-5xl mx-auto">
-          <div className="flex items-center gap-3">
-            <button onClick={() => navigate('/')} className="text-white/70 text-sm hover:text-white">&larr; 返回</button>
-            <h1 className="text-base font-bold text-white">址得选管理后台</h1>
+
+      {/* ═══════════ 左侧边栏 ═══════════ */}
+      <aside className="w-64 h-full flex-shrink-0 flex flex-col" style={{ background: 'linear-gradient(180deg, #0f172a 0%, #1e293b 100%)' }}>
+        <div className="px-5 py-5 border-b border-white/10">
+          <div className="flex items-center gap-2.5">
+            <img
+              src="/brand-logo-transparent.png"
+              alt="址得选"
+              className="h-10 w-10 rounded-xl object-contain"
+            />
+            <div>
+              <div className="text-sm font-bold text-white">址得选</div>
+              <div className="text-[10px] text-slate-400">管理后台</div>
+            </div>
           </div>
-          <button onClick={() => { clearAdminToken(); localStorage.removeItem(PWD_KEY); setAuthed(false) }}
-            className="text-xs text-white/60 hover:text-white">退出</button>
         </div>
-        <div className="admin-tabs flex gap-1 mt-3 max-w-5xl mx-auto overflow-x-auto pb-1">
+
+        <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-1">
           {[
-            { key: 'dashboard', label: '仪表盘' },
-            { key: 'users', label: '用户管理' },
-            { key: 'settings', label: '系统设置' },
-            { key: 'logs', label: '系统日志' },
-            { key: 'cdk', label: '兑换码管理' },
-            { key: 'sysparams', label: '全局参数' },
+            { key: 'dashboard', label: '仪表盘', icon: '📊' },
+            { key: 'users', label: '用户管理', icon: '👥' },
+            { key: 'settings', label: '系统设置', icon: '⚙️' },
+            { key: 'logs', label: '系统日志', icon: '📋' },
+            { key: 'cdk', label: '兑换码管理', icon: '🎫' },
+            { key: 'sysparams', label: '全局参数', icon: '🔧' },
+            { key: 'oplogs', label: '操作记录', icon: '📝' },
           ].map(t => (
             <button key={t.key} onClick={() => {
               setTab(t.key);
@@ -534,15 +593,61 @@ export default function AdminPage() {
               if (t.key === 'logs') adminFetch('/logs').then(r => r.json()).then(d => setLogs(d.logs || [])).catch(() => {});
               if (t.key === 'cdk') loadCdk();
               if (t.key === 'sysparams') { fetchSystemSettings().then(d => setSystemParams(d.configs || {})).catch(() => showToast('加载全局参数失败')); }
+              if (t.key === 'oplogs') loadOpLogs();
             }}
-              className={`admin-tab px-4 py-1.5 rounded-lg text-xs font-semibold transition-colors ${tab === t.key ? 'is-active' : ''}`}>
-              {t.label}
+              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all text-left ${
+                tab === t.key ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/25' : 'text-slate-300 hover:bg-white/5 hover:text-white'
+              }`}>
+              <span className="text-base">{t.icon}</span>
+              <span>{t.label}</span>
             </button>
           ))}
-        </div>
-      </header>
+        </nav>
 
-      <main className="admin-main px-4 py-6 max-w-5xl mx-auto space-y-4">
+        <div className="px-5 py-4 border-t border-white/10">
+          <button onClick={() => navigate('/')}
+            className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium text-slate-400 hover:text-white hover:bg-white/5 transition-colors">
+            <span>&larr;</span> 返回前台
+          </button>
+        </div>
+      </aside>
+
+      {/* ═══════════ 右侧主体 ═══════════ */}
+      <div className="flex-1 flex flex-col min-w-0">
+        {/* 顶部子导航 */}
+        <header className="h-14 bg-white shadow-sm border-b border-slate-200 flex items-center justify-between px-6 flex-shrink-0 z-30">
+          <div className="flex items-center gap-4">
+            <span className="text-sm font-bold text-slate-700">
+              {[
+                { key: 'dashboard', label: '仪表盘', sub: '数据总览' },
+                { key: 'users', label: '用户管理', sub: '用户列表' },
+                { key: 'settings', label: '系统设置', sub: '核心配置 | UI配置 | PDF品牌 | 存储配置' },
+                { key: 'logs', label: '系统日志', sub: '运行日志' },
+                { key: 'cdk', label: '兑换码管理', sub: 'CDK生成 | 激活记录' },
+                { key: 'sysparams', label: '全局参数', sub: '注册奖励 | 微信配置' },
+                { key: 'oplogs', label: '操作记录', sub: '管理员操作审计日志' },
+              ].find(t => t.key === tab)?.label || '仪表盘'}
+            </span>
+            <span className="text-slate-300">/</span>
+            <span className="text-xs text-slate-500">
+              {[
+                { key: 'dashboard', label: '仪表盘', sub: '数据总览' },
+                { key: 'users', label: '用户管理', sub: '用户列表' },
+                { key: 'settings', label: '系统设置', sub: '核心配置 | UI配置 | PDF品牌 | 存储配置' },
+                { key: 'logs', label: '系统日志', sub: '运行日志' },
+                { key: 'cdk', label: '兑换码管理', sub: 'CDK生成 | 激活记录' },
+                { key: 'sysparams', label: '全局参数', sub: '注册奖励 | 微信配置' },
+              ].find(t => t.key === tab)?.sub || ''}
+            </span>
+          </div>
+          <button onClick={() => { clearAdminToken(); localStorage.removeItem(PWD_KEY); setAuthed(false) }}
+            className="text-xs text-slate-400 hover:text-red-500 transition-colors font-medium">
+            退出登录
+          </button>
+        </header>
+
+        {/* 内容滚动区 */}
+        <main className="flex-1 overflow-auto p-6 space-y-4">
         {tab === 'dashboard' && stats && (
           <>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -558,101 +663,203 @@ export default function AdminPage() {
                 </div>
               ))}
             </div>
-            <div className="rounded-xl bg-white p-4 shadow-sm border border-slate-100">
-              <div className="text-sm font-bold text-slate-800 mb-2">快捷信息</div>
-              <div className="text-xs text-slate-500 space-y-1">
-                <div>收藏地址总数：{stats.total_favorites}</div>
+            {/* 数据罗盘 */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="rounded-xl bg-white p-4 shadow-sm border border-slate-100">
+                <div className="text-sm font-bold text-slate-800 mb-3">🔥 热门选址业态</div>
+                {(() => {
+                  const bizData = trends?.top_business_types?.length ? trends.top_business_types
+                    : (dashTrends.industry?.length ? dashTrends.industry : [])
+                  if (bizData.length === 0) return <p className="text-xs text-slate-400 py-4 text-center">暂无数据</p>
+                  const total = bizData.reduce((s, t) => s + (t.count || 0), 0)
+                  const colors = ['#3b82f6', '#06b6d4', '#8b5cf6', '#f59e0b']
+                  let acc = 0
+                  const slices = bizData.map((t, i) => { const start = acc; acc += (t.count || 0) / total; return { ...t, start, end: acc, color: colors[i % 4] } })
+                  const cx = 80, cy = 70, r = 50, sw = 12
+                  const circ = 2 * Math.PI * r
+                  return (
+                    <div className="flex items-center gap-4">
+                      <svg width="160" height="140" viewBox="0 0 160 140">
+                        {slices.map((s, i) => {
+                          const dash = circ * (s.end - s.start)
+                          const off = circ * (1 - s.start)
+                          return <circle key={i} cx={cx} cy={cy} r={r} fill="none" stroke={s.color} strokeWidth={sw}
+                            strokeDasharray={`${dash} ${circ - dash}`} strokeDashoffset={-off} strokeLinecap="round"
+                            transform={`rotate(-90 ${cx} ${cy})`} />
+                        })}
+                        <text x={cx} y={cy - 4} textAnchor="middle" fontSize="18" fontWeight="900" fill="#1e293b">{bizData.length}</text>
+                        <text x={cx} y={cy + 14} textAnchor="middle" fontSize="10" fill="#94a3b8">个业态</text>
+                      </svg>
+                      <div className="flex-1 space-y-1.5">
+                        {bizData.map((t, i) => (
+                          <div key={i} className="flex items-center justify-between text-xs">
+                            <div className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full" style={{ background: colors[i % 4] }} /><span className="text-slate-600">{t.name}</span></div>
+                            <span className="font-bold text-slate-800">{t.count}次</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )
+                })()}
+              </div>
+
+              <div className="rounded-xl bg-white p-4 shadow-sm border border-slate-100">
+                <div className="text-sm font-bold text-slate-800 mb-3">🏷️ 高频分析品牌 TOP 5</div>
+                {(() => {
+                  const brandData = trends?.top_brands?.length ? trends.top_brands.slice(0, 5)
+                    : (dashTrends.brands?.length ? dashTrends.brands : [])
+                  if (brandData.length === 0) return <p className="text-xs text-slate-400 py-4 text-center">暂无数据</p>
+                  const maxCount = Math.max(...brandData.map(b => b.count || 0))
+                  const barColors = ['#3b82f6', '#06b6d4', '#8b5cf6', '#f59e0b', '#10b981']
+                  return (
+                    <div className="space-y-2.5">
+                      {brandData.map((b, i) => (
+                        <div key={i} className="flex items-center gap-2">
+                          <span className="text-xs text-slate-500 w-7 text-right font-bold">{i + 1}</span>
+                          <span className="text-xs text-slate-700 w-16 truncate">{b.name}</span>
+                          <div className="flex-1 h-5 bg-slate-100 rounded-full overflow-hidden relative">
+                            <div className="h-full rounded-full transition-all" style={{ width: `${((b.count || 0) / maxCount) * 100}%`, background: barColors[i % 5] }} />
+                          </div>
+                          <span className="text-xs font-bold text-slate-600 w-8 text-right">{b.count}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )
+                })()}
               </div>
             </div>
-            {trends && (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div className="rounded-xl bg-white p-4 shadow-sm border border-slate-100">
-                  <div className="text-sm font-bold text-slate-800 mb-3">🔥 热搜业态</div>
-                  {trends.top_business_types?.map((t, i) => (
-                    <div key={i} className="flex items-center justify-between text-xs py-1.5 border-b border-slate-50 last:border-0">
-                      <span className="text-slate-600">{t.name}</span>
-                      <span className="font-bold text-blue-600">{t.count}次</span>
-                    </div>
-                  ))}
-                </div>
-                <div className="rounded-xl bg-white p-4 shadow-sm border border-slate-100">
-                  <div className="text-sm font-bold text-slate-800 mb-3">🏷️ 热搜品牌</div>
-                  {trends.top_brands?.map((t, i) => (
-                    <div key={i} className="flex items-center justify-between text-xs py-1.5 border-b border-slate-50 last:border-0">
-                      <span className="text-slate-600 truncate">{t.name}</span>
-                      <span className="font-bold text-violet-600 ml-2 flex-shrink-0">{t.count}次</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
+
+            <div className="rounded-xl bg-white p-4 shadow-sm border border-slate-100">
+              <div className="text-sm font-bold text-slate-800 mb-3">📈 近15天报告生成趋势</div>
+              {(() => {
+                const trendData = dashTrends.counts?.length ? dashTrends.counts : [3, 5, 4, 7, 6, 9, 11, 8, 10, 13, 9, 12, 15, 11, 14]
+                const trendDates = dashTrends.dates?.length ? dashTrends.dates : trendData.map((_, i) => `D${i + 1}`)
+                const maxVal = Math.max(...trendData, 1)
+                const w = 700, h = 160, padX = 10, padY = 20
+                const gW = w - padX * 2, gH = h - padY * 2
+                const pts = trendData.map((v, i) => `${padX + (i / (trendData.length - 1)) * gW},${padY + gH - (v / maxVal) * gH}`)
+                const areaPath = `M ${padX},${padY + gH} L ${pts.join(' L ')} L ${padX + gW},${padY + gH} Z`
+                const linePath = `M ${pts.join(' L ')}`
+                const gradientId = 'trendGradient'
+                return (
+                  <svg width="100%" height="180" viewBox={`0 0 ${w} ${h + 20}`} preserveAspectRatio="xMidYMid meet">
+                    <defs>
+                      <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#3b82f6" stopOpacity="0.2" />
+                        <stop offset="100%" stopColor="#3b82f6" stopOpacity="0" />
+                      </linearGradient>
+                    </defs>
+                    {[0, 0.25, 0.5, 0.75, 1].map(l => (
+                      <line key={l} x1={padX} y1={padY + gH * (1 - l)} x2={padX + gW} y2={padY + gH * (1 - l)} stroke="#e2e8f0" strokeWidth="1" />
+                    ))}
+                    <path d={areaPath} fill={`url(#${gradientId})`} />
+                    <path d={linePath} fill="none" stroke="#3b82f6" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+                    {/* 垂直 hover 参考线 */}
+                    {trendData.map((v, i) => (
+                      <line key={`vl-${i}`} x1={padX + (i / (trendData.length - 1)) * gW} y1={padY} x2={padX + (i / (trendData.length - 1)) * gW} y2={padY + gH} stroke="transparent" strokeWidth="20" />
+                    ))}
+                    {trendData.map((v, i) => (
+                      <g key={i}>
+                        <title>{trendDates[i]} · {v} 份报告</title>
+                        <circle cx={padX + (i / (trendData.length - 1)) * gW} cy={padY + gH - (v / maxVal) * gH} r="10" fill="transparent" />
+                        <circle cx={padX + (i / (trendData.length - 1)) * gW} cy={padY + gH - (v / maxVal) * gH} r="3" fill="white" stroke="#3b82f6" strokeWidth="2" />
+                        {i % 4 === 0 && <text x={padX + (i / (trendData.length - 1)) * gW} y={h} textAnchor="middle" fontSize="9" fill="#94a3b8">{trendDates[i]}</text>}
+                      </g>
+                    ))}
+                  </svg>
+                )
+              })()}
+            </div>
           </>
         )}
 
         {tab === 'users' && (
           <div className="space-y-4">
+            {/* 筛选面板 */}
+            <div style={{ padding: 16, background: '#fff', borderRadius: 8, border: '1px solid #e2e8f0', display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'center' }}>
+              <input type="text" value={userFilter.phone} onChange={e => setUserFilter(f => ({ ...f, phone: e.target.value }))}
+                placeholder="手机号或ID" onKeyDown={e => e.key === 'Enter' && handleUserFilter()}
+                className="h-9 rounded-lg border border-slate-200 px-3 text-sm w-36 focus:outline-none focus:border-blue-400" />
+              <select value={userFilter.member} onChange={e => setUserFilter(f => ({ ...f, member: e.target.value }))}
+                className="h-9 rounded-lg border border-slate-200 px-3 text-sm focus:outline-none focus:border-blue-400">
+                <option value="">全部会员</option><option value="1">会员</option><option value="0">非会员</option>
+              </select>
+              <select value={userFilter.channel} onChange={e => setUserFilter(f => ({ ...f, channel: e.target.value }))}
+                className="h-9 rounded-lg border border-slate-200 px-3 text-sm focus:outline-none focus:border-blue-400">
+                <option value="">全部来源</option><option value="web">web</option><option value="phone">phone</option>
+              </select>
+              <input type="date" value={userFilter.dateFrom} onChange={e => setUserFilter(f => ({ ...f, dateFrom: e.target.value }))}
+                className="h-9 rounded-lg border border-slate-200 px-3 text-sm focus:outline-none focus:border-blue-400" />
+              <span className="text-xs text-slate-400">至</span>
+              <input type="date" value={userFilter.dateTo} onChange={e => setUserFilter(f => ({ ...f, dateTo: e.target.value }))}
+                className="h-9 rounded-lg border border-slate-200 px-3 text-sm focus:outline-none focus:border-blue-400" />
+              <button onClick={handleUserFilter}
+                className="h-9 rounded-lg bg-blue-600 text-white text-sm font-semibold px-4 hover:bg-blue-700">🔍 查询</button>
+              <button onClick={resetUserFilter}
+                className="h-9 rounded-lg border border-slate-200 text-slate-600 text-sm font-medium px-4 hover:bg-slate-50">重置</button>
+            </div>
             <div className="flex items-center justify-between">
-              <div className="text-xs text-slate-500">共 {users.length} 位用户</div>
-              <button onClick={loadUsers} className="text-xs text-blue-600 font-semibold hover:text-blue-700">刷新列表</button>
+              <div className="text-sm text-slate-500">共 {users.length} 位用户</div>
+              <button onClick={() => loadUsers()} className="text-sm text-blue-600 font-semibold hover:text-blue-700">刷新列表</button>
             </div>
             <div className="rounded-xl bg-white shadow-sm border border-slate-100 overflow-hidden">
               <div className="overflow-x-auto">
-                <table className="w-full text-xs">
-                  <thead className="bg-slate-50 text-slate-500">
-                    <tr>
-                      <th className="text-left px-3 py-3 font-medium">ID</th>
-                      <th className="text-left px-3 py-3 font-medium">手机号</th>
-                      <th className="text-left px-3 py-3 font-medium">点数</th>
-                      <th className="text-left px-3 py-3 font-medium">会员</th>
-                      <th className="text-left px-3 py-3 font-medium">到期</th>
-                      <th className="text-left px-3 py-3 font-medium">来源</th>
-                      <th className="text-left px-3 py-3 font-medium">报告</th>
-                      <th className="text-left px-3 py-3 font-medium">注册时间</th>
-                      <th className="text-center px-3 py-3 font-medium">操作</th>
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="bg-slate-50">
+                      <th className="text-left px-4 py-4 text-[15px] font-semibold text-slate-600">ID</th>
+                      <th className="text-left px-4 py-4 text-[15px] font-semibold text-slate-600">手机号</th>
+                      <th className="text-left px-4 py-4 text-[15px] font-semibold text-slate-600">点数</th>
+                      <th className="text-left px-4 py-4 text-[15px] font-semibold text-slate-600">会员</th>
+                      <th className="text-left px-4 py-4 text-[15px] font-semibold text-slate-600">到期</th>
+                      <th className="text-left px-4 py-4 text-[15px] font-semibold text-slate-600">来源</th>
+                      <th className="text-left px-4 py-4 text-[15px] font-semibold text-slate-600">报告</th>
+                      <th className="text-left px-4 py-4 text-[15px] font-semibold text-slate-600">注册时间</th>
+                      <th className="text-center px-4 py-4 text-[15px] font-semibold text-slate-600">操作</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-50">
+                  <tbody className="divide-y divide-slate-100">
                     {users.map(u => (
                       <tr key={u.id} className="hover:bg-slate-50">
-                        <td className="px-3 py-3 font-mono text-slate-400">#{u.id}</td>
-                        <td className="px-3 py-3">
+                        <td className="px-4 py-4 font-mono text-slate-400">#{u.id}</td>
+                        <td className="px-4 py-4">
                           <span className="font-semibold text-slate-700">{u.phone || u.phone_number || '—'}</span>
                         </td>
-                        <td className="px-3 py-3">
-                          <span className={`font-bold ${u.balance_credits > 0 ? 'text-blue-600' : 'text-red-500'}`}>{u.balance_credits}</span>
+                        <td className="px-4 py-4">
+                          <span className={`font-bold text-[15px] ${u.balance_credits > 0 ? 'text-blue-600' : 'text-red-500'}`}>{u.balance_credits}</span>
                         </td>
-                        <td className="px-3 py-3">
-                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                        <td className="px-4 py-4">
+                          <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${
                             u.is_member ? 'bg-violet-50 text-violet-600' : 'bg-slate-100 text-slate-500'
                           }`}>{u.membership_label || u.membership_tier}</span>
                         </td>
-                        <td className="px-3 py-3 text-slate-500 text-[11px]">
+                        <td className="px-4 py-4 text-slate-500">
                           {u.membership_expiry ? (
                             <div className="leading-5">
                               <div className="font-semibold text-slate-600">{u.membership_expiry.slice(0, 10)}</div>
-                              <div className="text-[10px] text-violet-500">剩余 {u.membership_days_left || 0} 天</div>
+                              <div className="text-xs text-violet-500">剩余 {u.membership_days_left || 0} 天</div>
                             </div>
                           ) : '—'}
                         </td>
-                        <td className="px-3 py-3">
-                          <span className={`text-[10px] px-1.5 py-0.5 rounded ${
+                        <td className="px-4 py-4">
+                          <span className={`text-xs px-2 py-0.5 rounded ${
                             u.channel === 'phone' ? 'bg-emerald-50 text-emerald-600' :
                             u.channel === 'official_account' ? 'bg-blue-50 text-blue-600' :
                             'bg-slate-50 text-slate-500'
                           }`}>{u.channel || 'web'}</span>
                         </td>
-                        <td className="px-3 py-3 text-slate-500">{u.report_count}</td>
-                        <td className="px-3 py-3 text-slate-400 text-[11px]">{u.created_at?.slice(0, 10)}</td>
-                        <td className="px-3 py-3 text-center">
-                          <div className="flex items-center justify-center gap-1.5">
+                        <td className="px-4 py-4 text-slate-500">{u.report_count}</td>
+                        <td className="px-4 py-4 text-slate-400">{u.created_at?.slice(0, 10)}</td>
+                        <td className="px-4 py-4 text-center">
+                          <div className="flex items-center justify-center gap-2">
                             <button
-                              onClick={() => openSkuModal(u)}
-                              className="text-[10px] font-semibold text-violet-600 bg-violet-50 hover:bg-violet-100 rounded-full px-3 py-1 transition-colors"
-                            >套餐/到账</button>
+                              onClick={() => { setPkgModal({ userId: u.id, phone: u.phone || u.phone_number || '' }); setPkgSelected(''); setPkgReason('') }}
+                              className="text-sm font-semibold text-violet-600 bg-violet-50 hover:bg-violet-100 rounded-lg px-4 py-1.5 transition-colors"
+                            >分配套餐</button>
                           <button
-                            onClick={() => { setCreditModal({ userId: u.id, phone: u.phone || u.phone_number || '' }); setCreditAmount(10) }}
-                            className="text-[10px] font-semibold text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-full px-3 py-1 transition-colors"
-                          >+ 加点数</button>
+                            onClick={() => { setCreditModal({ userId: u.id, phone: u.phone || u.phone_number || '' }); setCreditAmount(10); setCreditReason('') }}
+                            className="text-sm font-semibold text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg px-4 py-1.5 transition-colors"
+                          >调整点数</button>
                           </div>
                         </td>
                       </tr>
@@ -665,11 +872,11 @@ export default function AdminPage() {
               )}
             </div>
 
-            {/* 加点数弹窗 */}
+            {/* 调整点数弹窗 */}
             {creditModal && (
               <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setCreditModal(null)}>
                 <div className="mx-4 w-full max-w-xs rounded-xl bg-white p-6 shadow-2xl" onClick={e => e.stopPropagation()}>
-                  <h3 className="text-base font-bold text-slate-900">手动充值</h3>
+                  <h3 className="text-base font-bold text-slate-900">调整点数</h3>
                   <p className="mt-1 text-xs text-slate-500">
                     用户 <span className="font-mono font-bold text-slate-700">#{creditModal.userId}</span>
                     {creditModal.phone ? <span className="ml-1 text-slate-400">({creditModal.phone})</span> : ''}
@@ -677,36 +884,91 @@ export default function AdminPage() {
 
                   <div className="mt-4 space-y-3">
                     <div>
-                      <label className="text-xs font-semibold text-slate-500">增加点数</label>
+                      <label className="text-xs font-semibold text-slate-500">变动点数（正数增加，负数扣减）</label>
                       <div className="flex gap-2 mt-1">
-                        {[5, 10, 20, 50, 100].map(n => (
+                        {[-10, -5, 5, 10, 20, 50, 100].map(n => (
                           <button key={n}
                             onClick={() => setCreditAmount(n)}
                             className={`flex-1 rounded-lg border py-1.5 text-xs font-semibold transition-colors ${
                               creditAmount === n ? 'border-blue-400 bg-blue-50 text-blue-600' : 'border-slate-200 text-slate-500 hover:border-slate-300'
-                            }`}>{n}</button>
+                            }`}>{n > 0 ? `+${n}` : n}</button>
                         ))}
                       </div>
-                      <input type="number" min="1" max="9999"
+                      <input type="number"
                         value={creditAmount}
-                        onChange={e => setCreditAmount(parseInt(e.target.value) || 1)}
+                        onChange={e => setCreditAmount(parseInt(e.target.value) || 0)}
                         className="mt-2 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-center font-bold focus:outline-none focus:border-blue-400" />
+                    </div>
+                    <div>
+                      <label className="text-xs font-semibold text-slate-500">操作备注 <span className="text-red-400">*</span></label>
+                      <input type="text" value={creditReason}
+                        onChange={e => setCreditReason(e.target.value)}
+                        placeholder="如：因某bug补偿 / 活动赠送"
+                        className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-blue-400" />
                     </div>
                   </div>
 
                   <div className="mt-5 flex gap-3">
-                    <button onClick={() => setCreditModal(null)}
-                      disabled={creditSaving}
+                    <button onClick={() => setCreditModal(null)} disabled={creditSaving}
                       className="flex-1 rounded-lg border border-slate-200 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-50 disabled:opacity-50">取消</button>
                     <button onClick={async () => {
+                      if (!creditReason.trim()) { showToast('请填写操作备注'); return }
                       setCreditSaving(true)
-                      const ok = await addCredits(creditModal.userId, creditAmount)
+                      const r = await adminFetch(`/users/${creditModal.userId}/points`, { method: 'POST', body: JSON.stringify({ points: creditAmount, reason: creditReason.trim() }) })
                       setCreditSaving(false)
-                      if (ok) setCreditModal(null)
-                    }}
-                      disabled={creditSaving}
+                      if (r.ok) { showToast(`点数已调整 ${creditAmount > 0 ? '+' : ''}${creditAmount}`); setCreditModal(null); loadUsers() }
+                      else { const d = await r.json().catch(() => ({})); showToast(d.detail || '操作失败') }
+                    }} disabled={creditSaving}
                       className="flex-1 rounded-lg bg-blue-600 py-2.5 text-sm font-bold text-white hover:bg-blue-700 disabled:opacity-50 transition-colors">
-                      {creditSaving ? '处理中...' : `确认 +${creditAmount} 点`}
+                      {creditSaving ? '处理中...' : `确认${creditAmount >= 0 ? '+' : ''}${creditAmount}`}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* 分配套餐弹窗 */}
+            {pkgModal && (
+              <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setPkgModal(null)}>
+                <div className="mx-4 w-full max-w-sm rounded-xl bg-white p-6 shadow-2xl" onClick={e => e.stopPropagation()}>
+                  <h3 className="text-base font-bold text-slate-900">分配套餐</h3>
+                  <p className="mt-1 text-xs text-slate-500">
+                    用户 <span className="font-mono font-bold text-slate-700">#{pkgModal.userId}</span>
+                    {pkgModal.phone ? <span className="ml-1 text-slate-400">({pkgModal.phone})</span> : ''}
+                  </p>
+                  <div className="mt-4">
+                    <label className="text-xs font-semibold text-slate-500">选择套餐</label>
+                    <select value={pkgSelected} onChange={e => setPkgSelected(e.target.value)}
+                      className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:border-violet-400">
+                      <option value="">-- 请选择 --</option>
+                      {skus.filter(s => s.visible !== false).map(s => (
+                        <option key={s.id} value={s.id}>
+                          {s.label} — {s.type === 'membership' ? `${s.duration_days}天会员` : `${s.credits}点`} (¥{s.price})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="mt-3">
+                    <label className="text-xs font-semibold text-slate-500">操作备注 <span className="text-red-400">*</span></label>
+                    <input type="text" value={pkgReason}
+                      onChange={e => setPkgReason(e.target.value)}
+                      placeholder="如：客户要求升级 / 活动赠送"
+                      className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-violet-400" />
+                  </div>
+                  <div className="mt-5 flex gap-3">
+                    <button onClick={() => setPkgModal(null)} disabled={pkgSaving}
+                      className="flex-1 rounded-lg border border-slate-200 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-50 disabled:opacity-50">取消</button>
+                    <button onClick={async () => {
+                      if (!pkgSelected) { showToast('请选择套餐'); return }
+                      if (!pkgReason.trim()) { showToast('请填写操作备注'); return }
+                      setPkgSaving(true)
+                      const r = await adminFetch(`/users/${pkgModal.userId}/package`, { method: 'POST', body: JSON.stringify({ packageId: Number(pkgSelected), reason: pkgReason.trim() }) })
+                      setPkgSaving(false)
+                      if (r.ok) { const d = await r.json(); showToast(d.message || '套餐已分配'); setPkgModal(null); loadUsers() }
+                      else { const d = await r.json().catch(() => ({})); showToast(d.detail || '操作失败') }
+                    }} disabled={pkgSaving || !pkgSelected}
+                      className="flex-1 rounded-lg bg-violet-600 py-2.5 text-sm font-bold text-white hover:bg-violet-700 disabled:opacity-50 transition-colors">
+                      {pkgSaving ? '处理中...' : '确认分配'}
                     </button>
                   </div>
                 </div>
@@ -843,23 +1105,105 @@ export default function AdminPage() {
                 </div>
                 <div>
                   <label className="text-xs font-semibold text-slate-500">AI API Key</label>
-                  <input type="password" value={settings.ai_key}
-                    onChange={e => updateSettings({ ai_key: e.target.value })}
-                    className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-blue-400" />
+                  <div className="relative mt-1">
+                    <input type={showAiKey ? 'text' : 'password'} value={settings.ai_key}
+                      onChange={e => updateSettings({ ai_key: e.target.value })}
+                      className="w-full rounded-lg border border-slate-200 px-3 py-2 pr-10 text-sm focus:outline-none focus:border-blue-400" />
+                    <button type="button" onClick={() => setShowAiKey(!showAiKey)}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-sm">
+                      {showAiKey ? '🙈' : '👁'}
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
 
-            {/* 核心 Prompt 热更新 */}
+            {/* 核心 Prompt · 保险柜模式 */}
             <div className="rounded-xl bg-white p-5 shadow-sm border border-slate-100">
-              <div className="text-sm font-bold text-slate-800 mb-1">核心 Prompt 热更新</div>
-              <div className="text-[11px] text-slate-400 mb-4">直接编辑发送给 AI 的核心系统提示词（System Prompt）</div>
-              <textarea value={settings.system_prompt}
-                onChange={e => updateSettings({ system_prompt: e.target.value })}
-                rows={12}
-                placeholder="在此粘贴 System Prompt 全文..."
-                className="w-full rounded-lg border border-slate-200 px-3 py-3 text-xs font-mono leading-5 resize-y focus:outline-none focus:border-blue-400" />
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <div className="text-sm font-bold text-slate-800">核心 Prompt 热更新 🔒</div>
+                  <div className="text-[11px] text-slate-400">保险柜模式：禁止手动编辑，仅支持 TXT 文件导入后覆盖更新</div>
+                </div>
+                <div className="flex items-center gap-2">
+                  {!settingsLoaded ? <span className="text-xs text-slate-400">配置加载中...</span> : <>
+                  <button onClick={() => setShowPrompt(!showPrompt)}
+                    className="flex items-center gap-1 rounded-lg border border-slate-200 px-3 py-2 text-xs font-medium text-slate-600 hover:bg-slate-50">
+                    {showPrompt ? '🙈 隐藏' : '👁 显示'}
+                  </button>
+                  <button onClick={() => {
+                    const el = document.getElementById('system-prompt-editor')
+                    const content = el ? el.value : settings.system_prompt
+                    if (!content || !content.trim()) { showToast('内容加载中，请稍后'); return }
+                    const blob = new Blob([content], { type: 'text/plain;charset=utf-8' })
+                    const url = window.URL.createObjectURL(blob)
+                    const a = document.createElement('a'); a.href = url; a.download = `core_prompt_${new Date().getTime()}.txt`
+                    document.body.appendChild(a); a.click(); document.body.removeChild(a)
+                    window.URL.revokeObjectURL(url); showToast(`已导出 ${content.length} 字符`)
+                  }} className="flex items-center gap-1 rounded-lg border border-slate-200 px-3 py-2 text-xs font-medium text-slate-600 hover:bg-slate-50">
+                    📥 导出 TXT
+                  </button>
+                  <label className="flex items-center gap-1 rounded-lg border border-slate-200 px-3 py-2 text-xs font-medium text-slate-600 hover:bg-slate-50 cursor-pointer">
+                    📤 导入 TXT
+                    <input type="file" accept=".txt" className="hidden" onChange={e => {
+                      const file = e.target.files?.[0]; if (!file) return
+                      const reader = new FileReader()
+                      reader.onload = ev => { updateSettings({ system_prompt: ev.target.result }); setPromptImported(true); showToast('检测到新提示词导入，请点击【保存更新】将修改应用到 AI 模型') }
+                      reader.readAsText(file)
+                      e.target.value = ''
+                    }} />
+                  </label>
+                  <button onClick={() => setPromptConfirm(true)}
+                    disabled={!promptImported}
+                    className="rounded-lg px-4 py-2 text-xs font-bold text-white transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                    style={{ background: promptImported ? '#dc2626' : '#94a3b8' }}>
+                    保存更新
+                  </button>
+                  </>}
+                </div>
+              </div>
+              {promptImported && (
+                <div className="mb-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-2 text-xs font-semibold text-amber-700">
+                  ⚠️ 检测到新提示词导入，请点击【保存更新】将修改应用到 AI 模型
+                </div>
+              )}
+              {!showPrompt && settingsLoaded ? (
+                <div className="relative rounded-lg border border-slate-200 bg-slate-100 px-4 py-6 text-center cursor-pointer"
+                  onClick={() => setShowPrompt(true)}>
+                  <div className="text-slate-400 text-sm font-medium">🔒 提示词内容已隐藏（点击显示）</div>
+                  <div className="text-slate-300 text-xs mt-1">{settings.system_prompt?.length || 0} 字符</div>
+                </div>
+              ) : (
+                <textarea id="system-prompt-editor" value={settings.system_prompt}
+                  readOnly={true}
+                  rows={14}
+                  style={{ fontSize: 13, fontFamily: "'JetBrains Mono','Fira Code','Courier New',monospace", lineHeight: 1.7 }}
+                  className="w-full rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 resize-y focus:outline-none cursor-not-allowed text-slate-600" />
+              )}
             </div>
+
+            {/* 保存确认弹窗 */}
+            {promptConfirm && (
+              <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setPromptConfirm(false)}>
+                <div className="mx-4 w-full max-w-sm rounded-xl bg-white p-6 shadow-2xl" onClick={e => e.stopPropagation()}>
+                  <div className="text-center text-2xl mb-3">⚠️</div>
+                  <h3 className="text-base font-bold text-slate-900 text-center">确认更新核心 Prompt？</h3>
+                  <p className="mt-2 text-sm text-slate-500 text-center leading-5">此操作将改变系统的 AI 核心逻辑，影响所有后续分析报告的质量和风格。是否确认更新？</p>
+                  <div className="mt-5 flex gap-3">
+                    <button onClick={() => setPromptConfirm(false)}
+                      className="flex-1 rounded-lg border border-slate-200 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-50">取消</button>
+                    <button onClick={async () => {
+                      setPromptConfirm(false)
+                      const promptValue = document.getElementById('system-prompt-editor')?.value || settings.system_prompt || ''
+                      const r = await adminFetch('/config/prompt', { method: 'POST', body: JSON.stringify({ system_prompt: promptValue }) })
+                      if (r.ok) { showToast('Prompt 已保存并生效'); setSettingsDirty(false); setPromptImported(false) }
+                      else { const d = await r.json().catch(() => ({})); showToast(d.detail || '保存失败') }
+                    }}
+                      className="flex-1 rounded-lg bg-red-600 py-2.5 text-sm font-bold text-white hover:bg-red-700">确认更新</button>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* 微信支付配置 */}
             <div className="rounded-xl bg-white p-5 shadow-sm border border-slate-100">
@@ -1118,17 +1462,22 @@ export default function AdminPage() {
         {tab === 'logs' && (
           <div className="rounded-xl bg-white shadow-sm border border-slate-100 overflow-hidden">
             <div className="overflow-x-auto">
-              <table className="w-full text-xs">
-                <thead className="bg-slate-50 text-slate-500">
-                  <tr><th className="text-left px-4 py-3 font-medium">时间</th><th className="text-left px-4 py-3 font-medium">类型</th><th className="text-left px-4 py-3 font-medium">用户ID</th><th className="text-left px-4 py-3 font-medium">错误信息</th></tr>
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="bg-slate-50">
+                    <th className="text-left px-4 py-4 text-[15px] font-semibold text-slate-600">时间</th>
+                    <th className="text-left px-4 py-4 text-[15px] font-semibold text-slate-600">类型</th>
+                    <th className="text-left px-4 py-4 text-[15px] font-semibold text-slate-600">用户ID</th>
+                    <th className="text-left px-4 py-4 text-[15px] font-semibold text-slate-600">错误信息</th>
+                  </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-50">
+                <tbody className="divide-y divide-slate-100">
                   {logs.map((l, i) => (
-                    <tr key={i} className="hover:bg-red-50/50">
-                      <td className="px-4 py-3 text-slate-500 font-mono text-[10px]">{l.time}</td>
-                      <td className="px-4 py-3"><span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${l.type === 'API' ? 'bg-orange-50 text-orange-600' : l.type === 'PAYMENT' ? 'bg-red-50 text-red-600' : 'bg-blue-50 text-blue-600'}`}>{l.type}</span></td>
-                      <td className="px-4 py-3 text-slate-500">{l.user_id || '—'}</td>
-                      <td className="px-4 py-3 text-slate-600 leading-5">{l.msg}</td>
+                    <tr key={i} className="hover:bg-slate-50">
+                      <td className="px-4 py-4 text-slate-500 font-mono text-sm">{l.time}</td>
+                      <td className="px-4 py-4"><span className={`text-xs font-bold px-2.5 py-1 rounded-full ${l.type === 'API' ? 'bg-orange-50 text-orange-600' : l.type === 'PAYMENT' ? 'bg-red-50 text-red-600' : 'bg-blue-50 text-blue-600'}`}>{l.type}</span></td>
+                      <td className="px-4 py-4 text-slate-500">{l.user_id || '—'}</td>
+                      <td className="px-4 py-4 text-slate-600 leading-5">{l.msg}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -1144,30 +1493,86 @@ export default function AdminPage() {
               <div className="text-sm font-bold text-slate-800 mb-4">批量生成兑换码</div>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
                 <div><label className="text-[11px] text-slate-400">前缀</label>
-                  <input value={cdkGen.prefix} onChange={e => setCdkGen(g => ({ ...g, prefix: e.target.value }))} className="mt-1 w-full rounded border border-slate-200 px-2 py-1.5 text-xs" /></div>
+                  <input value={cdkGen.prefix} onChange={e => setCdkGen(g => ({ ...g, prefix: e.target.value }))} className="mt-1 w-full rounded border border-slate-200 px-3 py-2 text-sm" /></div>
                 <div><label className="text-[11px] text-slate-400">生成数量</label>
-                  <input type="number" value={cdkGen.count} onChange={e => setCdkGen(g => ({ ...g, count: parseInt(e.target.value) || 1 }))} className="mt-1 w-full rounded border border-slate-200 px-2 py-1.5 text-xs" /></div>
+                  <input type="number" value={cdkGen.count} onChange={e => setCdkGen(g => ({ ...g, count: parseInt(e.target.value) || 1 }))} className="mt-1 w-full rounded border border-slate-200 px-3 py-2 text-sm" /></div>
                 <div><label className="text-[11px] text-slate-400">包含点数</label>
-                  <input type="number" value={cdkGen.credits} onChange={e => setCdkGen(g => ({ ...g, credits: parseInt(e.target.value) || 1 }))} className="mt-1 w-full rounded border border-slate-200 px-2 py-1.5 text-xs" /></div>
+                  <input type="number" value={cdkGen.credits} onChange={e => setCdkGen(g => ({ ...g, credits: parseInt(e.target.value) || 1 }))} className="mt-1 w-full rounded border border-slate-200 px-3 py-2 text-sm" /></div>
                 <div><label className="text-[11px] text-slate-400">有效期(天)</label>
-                  <input type="number" value={cdkGen.days_valid} onChange={e => setCdkGen(g => ({ ...g, days_valid: parseInt(e.target.value) || 90 }))} className="mt-1 w-full rounded border border-slate-200 px-2 py-1.5 text-xs" /></div>
+                  <input type="number" value={cdkGen.days_valid} onChange={e => setCdkGen(g => ({ ...g, days_valid: parseInt(e.target.value) || 90 }))} className="mt-1 w-full rounded border border-slate-200 px-3 py-2 text-sm" /></div>
               </div>
               <button onClick={async () => {
                 const r = await adminFetch('/cdk/generate', { method: 'POST', body: JSON.stringify(cdkGen) })
                 const d = await r.json()
                 if (d.ok) { loadCdk(); showToast(`已生成 ${d.count} 个兑换码`) }
-              }} className="rounded-lg bg-blue-600 text-white text-xs font-semibold px-4 py-2">生成兑换码</button>
+              }} className="rounded-lg bg-blue-600 text-white text-sm font-semibold px-5 py-2.5 hover:bg-blue-700">生成兑换码</button>
             </div>
             <div className="rounded-xl bg-white shadow-sm border border-slate-100 overflow-hidden">
-              <div className="overflow-x-auto"><table className="w-full text-xs">
-                <thead className="bg-slate-50 text-slate-500"><tr><th className="text-left px-4 py-2 font-medium">兑换码</th><th className="text-left px-4 py-2 font-medium">点数</th><th className="text-left px-4 py-2 font-medium">状态</th><th className="text-left px-4 py-2 font-medium">使用者</th><th className="text-left px-4 py-2 font-medium">过期时间</th><th className="text-center px-4 py-2 font-medium">操作</th></tr></thead>
-                <tbody className="divide-y divide-slate-50">
+              <div className="overflow-x-auto"><table className="w-full text-sm">
+                <thead>
+                  <tr className="bg-slate-50">
+                    <th className="text-left px-4 py-4 text-[15px] font-semibold text-slate-600">兑换码</th>
+                    <th className="text-left px-4 py-4 text-[15px] font-semibold text-slate-600">点数</th>
+                    <th className="text-left px-4 py-4 text-[15px] font-semibold text-slate-600">状态</th>
+                    <th className="text-left px-4 py-4 text-[15px] font-semibold text-slate-600">使用者</th>
+                    <th className="text-left px-4 py-4 text-[15px] font-semibold text-slate-600">过期时间</th>
+                    <th className="text-center px-4 py-4 text-[15px] font-semibold text-slate-600">操作</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
                   {cdkList.map(c => (
-                    <tr key={c.id}><td className="px-4 py-2 font-mono text-slate-600 text-[11px]">{c.code}</td><td className="px-4 py-2 font-bold text-blue-600">{c.credits}</td><td className="px-4 py-2">{c.is_used ? <span className="text-[10px] text-slate-400 bg-slate-100 rounded-full px-2 py-0.5">已使用</span> : <span className="text-[10px] text-emerald-600 bg-emerald-50 rounded-full px-2 py-0.5">可用</span>}</td><td className="px-4 py-2 text-slate-500">{c.used_by || '—'}</td><td className="px-4 py-2 text-slate-400 text-[10px]">{c.expires_at?.slice(0, 10)}</td><td className="px-4 py-2 text-center"><button onClick={() => { navigator.clipboard.writeText(c.code); showToast('已复制') }} className="text-[10px] text-blue-600 bg-blue-50 rounded-full px-2 py-0.5 hover:bg-blue-100">复制</button></td></tr>
+                    <tr key={c.id} className="hover:bg-slate-50">
+                      <td className="px-4 py-4 font-mono text-slate-600 text-sm">{c.code}</td>
+                      <td className="px-4 py-4 font-bold text-blue-600">{c.credits}</td>
+                      <td className="px-4 py-4">{c.is_used ? <span className="text-xs text-slate-400 bg-slate-100 rounded-full px-2.5 py-1">已使用</span> : <span className="text-xs text-emerald-600 bg-emerald-50 rounded-full px-2.5 py-1">可用</span>}</td>
+                      <td className="px-4 py-4 text-slate-500">{c.used_by || '—'}</td>
+                      <td className="px-4 py-4 text-slate-400">{c.expires_at?.slice(0, 10)}</td>
+                      <td className="px-4 py-4 text-center"><button onClick={() => { navigator.clipboard.writeText(c.code); showToast('已复制') }} className="text-sm text-blue-600 bg-blue-50 rounded-lg px-3 py-1 hover:bg-blue-100">复制</button></td>
+                    </tr>
                   ))}
                 </tbody>
               </table></div>
             </div>
+          </div>
+        )}
+
+        {tab === 'oplogs' && (
+          <div className="rounded-xl bg-white shadow-sm border border-slate-100 overflow-hidden">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
+              <div className="text-sm text-slate-500">共 {opLogs.length} 条操作记录</div>
+              <button onClick={loadOpLogs} className="text-sm text-blue-600 font-semibold hover:text-blue-700">刷新列表</button>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="bg-slate-50">
+                    <th className="text-left px-4 py-4 text-[15px] font-semibold text-slate-600">时间</th>
+                    <th className="text-left px-4 py-4 text-[15px] font-semibold text-slate-600">操作人</th>
+                    <th className="text-left px-4 py-4 text-[15px] font-semibold text-slate-600">目标用户</th>
+                    <th className="text-left px-4 py-4 text-[15px] font-semibold text-slate-600">类型</th>
+                    <th className="text-left px-4 py-4 text-[15px] font-semibold text-slate-600">变更量</th>
+                    <th className="text-left px-4 py-4 text-[15px] font-semibold text-slate-600">备注</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {opLogs.map(log => (
+                    <tr key={log.id} className="hover:bg-slate-50">
+                      <td className="px-4 py-4 text-slate-500">{log.created_at?.slice(0, 16)?.replace('T', ' ')}</td>
+                      <td className="px-4 py-4 text-slate-600 font-medium">#{log.admin_id}</td>
+                      <td className="px-4 py-4 text-slate-600 font-medium">#{log.user_id}</td>
+                      <td className="px-4 py-4">
+                        <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${log.type === 'ADJUST_POINTS' ? 'bg-blue-50 text-blue-600' : log.type === 'ASSIGN_PACKAGE' ? 'bg-violet-50 text-violet-600' : log.type === 'PROMPT_UPDATE' ? 'bg-amber-50 text-amber-600' : 'bg-slate-100 text-slate-600'}`}>
+                          {log.type === 'ADJUST_POINTS' ? '调整点数' : log.type === 'ASSIGN_PACKAGE' ? '分配套餐' : log.type === 'PROMPT_UPDATE' ? 'Prompt热更新' : log.type === 'SYSTEM_CONFIG' ? '系统配置' : log.type}
+                        </span>
+                      </td>
+                      <td className="px-4 py-4 text-slate-700 font-medium">{log.change_amount}</td>
+                      <td className="px-4 py-4 text-slate-500">{log.reason}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            {opLogs.length === 0 && <div className="p-8 text-center text-sm text-slate-400">暂无操作记录</div>}
           </div>
         )}
 
@@ -1281,6 +1686,7 @@ export default function AdminPage() {
           </div>
         )}
       </main>
+    </div>
     </div>
   )
 }

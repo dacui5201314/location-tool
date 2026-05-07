@@ -130,30 +130,34 @@ BUSINESS_TYPE_TO_AMAP = {
 
 
 def _extract_json(text: str) -> str:
-    """从 LLM 原始响应中强力提取 JSON — 处理 Markdown 代码块、截断修复"""
+    """从 LLM 原始响应中强力提取 JSON — Markdown 清洗 + 截断修复 + 尾逗号清理"""
     text = text.strip()
-    # 去掉 ```json ... ``` 或 ``` ... ``` 等 Markdown 代码块标记
+    # 1. 去掉 Markdown 代码块标记
     text = re.sub(r'```(?:json)?\s*\n?', '', text)
     text = re.sub(r'```\s*', '', text)
-    # 定位最外层 JSON 对象
+    # 2. 定位最外层 JSON 对象
     first = text.find('{')
     last = text.rfind('}')
     if first != -1 and last != -1 and last > first:
         text = text[first:last + 1]
-    # ★ 截断修复：LLM 输出超出 max_tokens 时 JSON 会被腰斩
-    # 补全缺失的 } 和 ] 使 JSON 尽可能可解析
+    # 3. 清洗 JSON 中常见非法内容
+    text = re.sub(r',\s*}', '}', text)   # 尾逗号 → }（对象）
+    text = re.sub(r',\s*]', ']', text)   # 尾逗号 → ]（数组）
+    # 4. 截断修复：补全缺失的括号
     if text and text[0] == '{':
         open_braces = text.count('{') - text.count('}')
         open_brackets = text.count('[') - text.count(']')
         if open_braces > 0 or open_brackets > 0:
-            # 检查是否在字符串中间被截断（未闭合的引号）
+            # 截断在字符串中 → 先闭合引号
             in_string = False
-            for i, ch in enumerate(text):
-                if ch == '"' and (i == 0 or text[i-1] != '\\\\'):
+            prev = ''
+            for ch in text:
+                if ch == '"' and prev != '\\':
                     in_string = not in_string
+                prev = ch
             if in_string:
                 text += '"'
-            text += ']' * open_brackets + '}' * open_braces
+            text += ']' * max(0, open_brackets) + '}' * max(0, open_braces)
     return text.strip()
 
 
@@ -196,6 +200,7 @@ async def analyze_location(req: AnalyzeRequest, user: dict = Depends(get_current
     async def event_stream():
         """SSE 事件生成器"""
         nonlocal billing
+        _stream_ok = False  # ★ 流完整结束时置 True，防止 finally 误退款
         try:
             # ═══════════════════════════════════════════
             # Step 1 — POI 数据采集
@@ -323,6 +328,7 @@ async def analyze_location(req: AnalyzeRequest, user: dict = Depends(get_current
                 result["overall_score"] = locked_score
                 result["total_score"] = locked_score
                 print(f"[SSE Intercept] Step4 前最终锁定: 维度分={final_scores}, 总分={locked_score}", flush=True)
+            _stream_ok = True  # ★ 标记流完整成功，finally 块不退款
             yield _sse(4, "✅ 报告生成完毕！", result=result)
             await asyncio.sleep(0)
 
@@ -335,15 +341,25 @@ async def analyze_location(req: AnalyzeRequest, user: dict = Depends(get_current
                     traceback.print_exc()
             yield _sse("error", "AI 引擎数据生成异常，已为您全额退还点数，请稍后重试")
             await asyncio.sleep(0)
-        except Exception as e:
+        except Exception:
             if billing and billing.source == "points":
                 try: refund_credits(current_user_id, 1)
                 except Exception:
                     import traceback
                     print("[CRITICAL] AI调用异常后点数退还失败！", flush=True)
                     traceback.print_exc()
-            yield _sse("error", str(e) or "AI 服务异常，请稍后重试")
+            yield _sse("error", "分析服务异常，已为您退还点数，请稍后重试")
             await asyncio.sleep(0)
+        finally:
+            # ★ 流异常中断兜底：客户端断连 / GeneratorExit / 任何未被上层捕获的退出
+            if not _stream_ok and billing and billing.source == "points":
+                try:
+                    refund_credits(current_user_id, 1)
+                    print("[SSE Guard] 流异常中断，已执行点数退款", flush=True)
+                except Exception:
+                    import traceback
+                    print("[CRITICAL] 流中断后点数退还失败！", flush=True)
+                    traceback.print_exc()
 
     return StreamingResponse(
         event_stream(),

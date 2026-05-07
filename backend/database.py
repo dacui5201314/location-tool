@@ -24,7 +24,7 @@ class Base(DeclarativeBase):
 
 def init_db():
     """创建所有表"""
-    from models.db_models import User, AnalysisRecord, SavedLocation, RedeemCode, SystemConfig, BillingRecord  # noqa: F401
+    from models.db_models import User, AnalysisRecord, SavedLocation, RedeemCode, SystemConfig, BillingRecord, OperationLog  # noqa: F401
     Base.metadata.create_all(bind=engine)
 
 

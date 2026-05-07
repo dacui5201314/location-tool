@@ -61,7 +61,7 @@ function formatCount(num) {
 }
 
 function ScoreRing({ score }) {
-  const scoreColor = score >= 75 ? '#0f8a5f' : score >= 60 ? '#d79c31' : '#dc2626'
+  const scoreColor = score >= 70 ? '#10b981' : score >= 60 ? '#f59e0b' : '#ef4444'
   const ringSize = 112
   const strokeW = 10
   const radius = (ringSize - strokeW) / 2
@@ -71,7 +71,6 @@ function ScoreRing({ score }) {
   const cy = ringSize / 2
   return (
     <div className="mb-4 flex flex-col items-center">
-      <div className="mb-2 text-xs font-medium text-slate-400">综合评分</div>
       <svg width={ringSize} height={ringSize} viewBox={`0 0 ${ringSize} ${ringSize}`}>
         <circle cx={cx} cy={cy} r={radius} fill="none" stroke="#e7ece8" strokeWidth={strokeW} />
         <circle cx={cx} cy={cy} r={radius} fill="none" stroke={scoreColor} strokeWidth={strokeW}
@@ -137,6 +136,8 @@ function MetricBadge({ icon, label, val, sub, highlight, raw }) {
 export default function AnalysisResult({ data }) {
   if (!data) return null
 
+  const _stripScore = (v) => String(v || '').replace(/[，,]?\s*评分[：:]\s*\d{1,3}\s*分?\s*$/, '').trim()
+
   const { advantages, disadvantages, summary, details, warning, real_data, executive_summary = {}, dimension_scores = [], action_plan = [] } = data
 
   if (data.error) {
@@ -178,98 +179,112 @@ export default function AnalysisResult({ data }) {
   const totalScore = REBUILT_SCORE
 
   const summaryText = generateRadarSummary(radarScores, totalScore)
-  const topStrengths = executive_summary?.top_strengths?.length ? executive_summary.top_strengths : (advantages || []).slice(0, 3)
-  const topRisks = executive_summary?.top_risks?.length ? executive_summary.top_risks : (disadvantages || []).slice(0, 3)
-  const scoreColor = totalScore >= 75 ? '#16a34a' : totalScore >= 60 ? '#ca8a04' : '#dc2626'
+  const topStrengths = (advantages && advantages.length > 0) ? advantages.filter(Boolean) : (executive_summary?.top_strengths || [])
+  const topRisks = (disadvantages && disadvantages.length > 0) ? disadvantages.filter(Boolean) : (executive_summary?.top_risks || [])
+  const scoreColor = totalScore >= 70 ? '#10b981' : totalScore >= 60 ? '#f59e0b' : '#ef4444'
   const primaryDims = (dimension_scores?.length ? dimension_scores : Object.keys(dimLabel).map(key => ({ key, label: dimLabel[key], score: radarScores[key] || 0 }))).slice(0, 8)
 
+  const dimEmoji = { population_density: '🏘️', traffic_accessibility: '🚇', traffic_flow: '🚶', consumer_profile: '🛍️', competition: '⚔️', complementary_businesses: '🤝', category_advantage: '🌟', cost_estimate: '💰', revenue_estimation: '💵', site_suggestion: '📋' }
+
   return (
-    <div className="space-y-3 animate-in">
-      {/* Disclaimer */}
-      <div className="rounded-lg border border-amber-100 bg-amber-50 p-3 text-center">
-        <p className="text-xs font-medium leading-5 text-amber-700">
-          本工具不提供"推荐/不推荐"结论，各维度评分仅供参考，最终决策请结合实地考察
-        </p>
+    <div style={{ maxWidth: 800, margin: '0 auto', background: '#f8fafc', padding: '16px 0' }}>
+
+      {/* ═══════════ 免责声明 ═══════════ */}
+      <div style={{ background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 6, padding: '8px 14px', marginBottom: 16, fontSize: 10, color: '#92400e', fontWeight: 600, textAlign: 'center' }}>
+        ⚠️ 本工具不提供"推荐/不推荐"结论，各维度评分仅供参考，最终决策请结合实地考察
       </div>
 
-      {/* Executive Summary — 纯客观数据展示 */}
-      <div className="report-card overflow-hidden p-0">
-        <div className="bg-slate-950 p-5 text-white">
-          <div className="flex flex-col items-center gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex-1 text-center sm:text-left">
-              <div className="text-[11px] font-semibold uppercase tracking-[0.28em] text-blue-200">Analysis Overview</div>
-              <p className="mt-3 max-w-xl text-sm leading-relaxed text-slate-200">
-                {summary || executive_summary?.summary || summaryText}
-              </p>
-            </div>
-            {totalScore > 0 && (
-              <div className="flex-shrink-0 rounded-xl bg-white px-6 py-5 text-center text-slate-950">
-                <div className="text-[11px] font-semibold tracking-wider text-slate-400 uppercase">综合评分</div>
-                <div className="text-5xl font-black leading-none" style={{ color: scoreColor }}>{totalScore}</div>
-                <div className="mt-1 text-[10px] font-medium text-slate-400">/ 100 · 8 维度平均</div>
-              </div>
-            )}
-          </div>
+      {/* ═══════════ 风险提示 ═══════════ */}
+      {warning && (
+        <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 6, padding: '10px 14px', marginBottom: 16, fontSize: 12, color: '#dc2626', fontWeight: 700, textAlign: 'center' }}>
+          🚨 风险提示：{warning}
         </div>
-        {warning && (
-          <div className="mx-4 mt-4 rounded-lg border border-red-100 bg-red-50 p-3 text-xs font-semibold leading-5 text-red-700">
-            风险提示：{warning}
+      )}
+
+      {/* ═══════════ 第一块：综合评分 + 分析摘要 ═══════════ */}
+      <div style={{ background: '#fff', borderRadius: 6, border: '1px solid #e2e8f0', padding: 24, marginBottom: 16, boxShadow: '0 1px 2px rgba(0,0,0,0.04)' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: 20 }}>
+          <div style={{ fontSize: 14, fontWeight: 700, color: '#1e293b', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
+            📊 综合评分
           </div>
-        )}
-        <div className="grid gap-3 p-4 sm:grid-cols-2">
-          <div className="rounded-lg border border-emerald-100 bg-emerald-50 p-3">
-            <div className="mb-2 text-sm font-bold text-emerald-800">关键机会</div>
-            <ul className="space-y-1.5 text-sm leading-6 text-slate-700">
-              {topStrengths.map((item, i) => <li key={i}>· {item}</li>)}
-            </ul>
-          </div>
-          <div className="rounded-lg border border-red-100 bg-red-50 p-3">
-            <div className="mb-2 text-sm font-bold text-red-800">主要风险</div>
-            <ul className="space-y-1.5 text-sm leading-6 text-slate-700">
-              {topRisks.map((item, i) => <li key={i}>· {item}</li>)}
-            </ul>
-          </div>
+          <ScoreRing score={totalScore} />
+          <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 4 }}>8 维度平均</div>
         </div>
-        <div className="grid gap-2 px-4 pb-4 sm:grid-cols-4">
-          {primaryDims.map((d) => (
-            <div key={d.key} className="rounded-lg border border-slate-100 bg-slate-50 p-3">
-              <div className="flex items-center justify-between gap-2">
-                <span className="text-xs font-semibold text-slate-500">{d.label || dimLabel[d.key]}</span>
-                <strong className={(d.score || 0) >= 75 ? 'text-emerald-700' : (d.score || 0) >= 60 ? 'text-amber-700' : 'text-red-600'}>{d.score || '-'}</strong>
-              </div>
-              <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-200">
-                <i className="block h-full rounded-full bg-blue-600" style={{ width: `${Math.max(0, Math.min(100, d.score || 0))}%` }} />
-              </div>
-            </div>
-          ))}
+        <div>
+          <div style={{ fontSize: 14, fontWeight: 900, color: '#1e293b', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
+            📋 分析摘要
+          </div>
+          <p style={{ fontSize: 13, color: '#475569', lineHeight: 1.6, margin: 0 }}>
+            {summary || executive_summary?.summary || summaryText}
+          </p>
         </div>
-        <div className="border-t border-slate-100 p-4">
+      </div>
+
+      {/* ═══════════ 第二块：关键优势 + 主要风险（上下排列）═══════════ */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 16 }}>
+        <section style={{ border: '1px solid #bbf7d0', borderRadius: 6, padding: '16px 20px', background: '#f0fdf4' }}>
+          <h2 style={{ fontSize: 16, fontWeight: 900, margin: '0 0 12px', color: '#047857' }}>✅ 关键优势</h2>
+          <ul style={{ margin: 0, paddingLeft: 20, fontSize: 12, fontWeight: 400, color: '#475569', lineHeight: 1.6, textAlign: 'justify' }}>
+            {topStrengths.map((item, i) => <li key={i} style={{ marginBottom: i === topStrengths.length - 1 ? 0 : 6 }}>{item}</li>)}
+          </ul>
+        </section>
+        <section style={{ border: '1px solid #fecaca', borderRadius: 6, padding: '16px 20px', background: '#fff5f5' }}>
+          <h2 style={{ fontSize: 16, fontWeight: 900, margin: '0 0 12px', color: '#b91c1c' }}>⚠️ 主要风险</h2>
+          <ul style={{ margin: 0, paddingLeft: 20, fontSize: 12, fontWeight: 400, color: '#475569', lineHeight: 1.6, textAlign: 'justify' }}>
+            {topRisks.map((item, i) => <li key={i} style={{ marginBottom: i === topRisks.length - 1 ? 0 : 6 }}>{item}</li>)}
+          </ul>
+        </section>
+      </div>
+
+      {/* ═══════════ 第三块：指标雷达图 ═══════════ */}
+      <div style={{ background: '#fff', borderRadius: 6, border: '1px solid #e2e8f0', padding: 24, marginBottom: 16, boxShadow: '0 1px 2px rgba(0,0,0,0.04)' }}>
+        <h2 style={{ fontSize: 16, fontWeight: 900, margin: '0 0 16px', color: '#0f172a', textAlign: 'center' }}>📊 指标雷达图</h2>
+        <div style={{ display: 'flex', justifyContent: 'center' }}>
           <RadarChart scores={(() => {
-            // ★ 雷达图 ORDER 锁：强制按固定维度顺序组装修正值对象
-            const RADAR_ORDER = ['人口密集度', '交通可达性', '客流特征', '消费人群', '竞争环境', '互补业态', '品类优势', '成本压力']
+            const ORDER = ['人口密集度', '交通可达性', '客流特征', '消费人群', '竞争环境', '互补业态', '品类优势', '成本压力']
             const KEY_MAP = { '人口密集度': 'population_density', '交通可达性': 'traffic_accessibility', '客流特征': 'traffic_flow', '消费人群': 'consumer_profile', '竞争环境': 'competition', '互补业态': 'complementary_businesses', '品类优势': 'category_advantage', '成本压力': 'cost_estimate' }
             const locked = {}
-            RADAR_ORDER.forEach(label => { locked[KEY_MAP[label]] = radarScores[KEY_MAP[label]] || 0 })
+            ORDER.forEach(label => { locked[KEY_MAP[label]] = radarScores[KEY_MAP[label]] || 0 })
             return locked
           })()} />
         </div>
       </div>
 
-      {/* Real Data Card */}
-      {real_data && (
-        <div className="report-card p-4">
-          <SectionHeader title="周边真实数据" color="blue" />
-          <p className="-mt-1 mb-3 text-xs text-slate-400">200m / 500m / 1000m 三层半径实时采集</p>
+      {/* ═══════════ 第四块：维度评分卡片 ═══════════ */}
+      <div style={{ background: '#fff', borderRadius: 6, border: '1px solid #e2e8f0', padding: 24, marginBottom: 16 }}>
+        <h2 style={{ fontSize: 16, fontWeight: 900, margin: '0 0 12px', color: '#0f172a' }}>📈 维度评分</h2>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+          {primaryDims.map((d) => {
+            const s = Number(d.score || 0)
+            const sc = s >= 70 ? '#10b981' : s >= 60 ? '#f59e0b' : '#ef4444'
+            return (
+              <div key={d.key} style={{ padding: '8px 10px', border: '1px solid #e2e8f0', borderRadius: 6, background: '#fff' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                  <strong style={{ fontSize: 12, color: '#334155' }}>{d.label || dimLabel[d.key]}</strong>
+                  <span style={{ fontSize: 14, fontWeight: 900, color: sc }}>{s || '-'}</span>
+                </div>
+                <div style={{ height: 5, background: '#e5e7eb', borderRadius: 99, overflow: 'hidden' }}>
+                  <div style={{ height: '100%', width: `${Math.max(0, Math.min(100, s))}%`, background: sc }} />
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      </div>
 
-          <div className="mb-4 grid grid-cols-2 gap-2 sm:grid-cols-3">
+      {/* ═══════════ 第五块：周边真实数据 ═══════════ */}
+      {real_data && (
+        <div style={{ background: '#fff', borderRadius: 6, border: '1px solid #e2e8f0', padding: 24, marginBottom: 16 }}>
+          <h2 style={{ fontSize: 16, fontWeight: 900, margin: '0 0 4px', color: '#0f172a' }}>📊 周边真实数据</h2>
+          <p style={{ fontSize: 10, color: '#94a3b8', margin: '0 0 12px' }}>200m / 500m / 1000m 三层半径实时采集</p>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6, marginBottom: 12 }}>
             <MetricBadge icon="🏘️" label="住宅小区"
               val={`${formatCount(real_data.stats_200m?.residential)} / ${formatCount(real_data.stats_500m?.residential)} / ${formatCount(real_data.stats_1000m?.residential)}`}
-              sub="200m/500m/1000m" highlight="info"
-              raw={real_data.raw_stats_1000m?.residential} />
+              sub="200m/500m/1000m" highlight="info" raw={real_data.raw_stats_1000m?.residential} />
             <MetricBadge icon="🏢" label="写字楼"
               val={`${formatCount(real_data.stats_200m?.office)} / ${formatCount(real_data.stats_500m?.office)} / ${formatCount(real_data.stats_1000m?.office)}`}
-              sub="200m/500m/1000m" highlight="info"
-              raw={real_data.raw_stats_1000m?.office} />
+              sub="200m/500m/1000m" highlight="info" raw={real_data.raw_stats_1000m?.office} />
             <MetricBadge icon="🍽️" label="餐饮门店"
               val={`${formatCount(real_data.stats_200m?.restaurants)} / ${formatCount(real_data.stats_500m?.restaurants)} / ${formatCount(real_data.stats_1000m?.restaurants)}`}
               sub="200m/500m/1000m" highlight={real_data.stats_1000m?.restaurants > 100 ? 'high' : 'info'} />
@@ -278,166 +293,90 @@ export default function AnalysisResult({ data }) {
               sub="200m/500m/1000m" />
             <MetricBadge icon="🛍️" label="购物商场"
               val={`${formatCount(real_data.stats_200m?.shopping)} / ${formatCount(real_data.stats_500m?.shopping)} / ${formatCount(real_data.stats_1000m?.shopping)}`}
-              sub="200m/500m/1000m"
-              raw={real_data.raw_stats_1000m?.shopping} />
+              sub="200m/500m/1000m" raw={real_data.raw_stats_1000m?.shopping} />
             <MetricBadge icon="🏫" label="学校"
               val={`${formatCount(real_data.stats_200m?.schools)} / ${formatCount(real_data.stats_500m?.schools)} / ${formatCount(real_data.stats_1000m?.schools)}`}
-              sub="200m/500m/1000m"
-              highlight={real_data.poi_counts?.schools > 5 ? 'good' : undefined}
-              raw={real_data.raw_stats_1000m?.schools} />
+              sub="200m/500m/1000m" highlight={real_data.poi_counts?.schools > 5 ? 'good' : undefined} raw={real_data.raw_stats_1000m?.schools} />
             <MetricBadge icon="🏥" label="医院/诊所"
               val={`${formatCount(real_data.stats_200m?.hospitals)} / ${formatCount(real_data.stats_500m?.hospitals)} / ${formatCount(real_data.stats_1000m?.hospitals)}`}
-              sub="200m/500m/1000m"
-              highlight={real_data.poi_counts?.hospitals > 10 ? 'good' : 'info'}
-              raw={real_data.raw_stats_1000m?.hospitals} />
+              sub="200m/500m/1000m" highlight={real_data.poi_counts?.hospitals > 10 ? 'good' : 'info'} raw={real_data.raw_stats_1000m?.hospitals} />
             <MetricBadge icon="🚇" label="地铁站"
               val={`${formatCount(real_data.stats_200m?.subway)} / ${formatCount(real_data.stats_500m?.subway)} / ${formatCount(real_data.stats_1000m?.subway)}`}
-              sub="200m/500m/1000m"
-              highlight={!real_data.poi_counts?.subway ? 'high' : 'good'}
-              raw={real_data.raw_stats_1000m?.subway} />
+              sub="200m/500m/1000m" highlight={!real_data.poi_counts?.subway ? 'high' : 'good'} raw={real_data.raw_stats_1000m?.subway} />
             <MetricBadge icon="🚌" label="公交站"
               val={`${formatCount(real_data.stats_200m?.bus)} / ${formatCount(real_data.stats_500m?.bus)} / ${formatCount(real_data.stats_1000m?.bus)}`}
-              sub="200m/500m/1000m"
-              highlight={real_data.poi_counts?.bus > 10 ? 'good' : undefined}
-              raw={real_data.raw_stats_1000m?.bus} />
+              sub="200m/500m/1000m" highlight={real_data.poi_counts?.bus > 10 ? 'good' : undefined} raw={real_data.raw_stats_1000m?.bus} />
             <MetricBadge icon="🏨" label="酒店住宿"
               val={`${formatCount(real_data.stats_200m?.hotels)} / ${formatCount(real_data.stats_500m?.hotels)} / ${formatCount(real_data.stats_1000m?.hotels)}`}
-              sub="200m/500m/1000m"
-              raw={real_data.raw_stats_1000m?.hotels} />
+              sub="200m/500m/1000m" raw={real_data.raw_stats_1000m?.hotels} />
             <MetricBadge icon="🏦" label="银行"
-              val={`${formatCount(real_data.poi_counts?.banks)} 个`}
-              raw={real_data.raw_poi_counts?.banks} />
+              val={`${formatCount(real_data.poi_counts?.banks)} 个`} raw={real_data.raw_poi_counts?.banks} />
             <MetricBadge icon="🅿️" label="停车场"
-              val={`${formatCount(real_data.poi_counts?.parking)} 个`}
-              raw={real_data.raw_poi_counts?.parking} />
+              val={`${formatCount(real_data.poi_counts?.parking)} 个`} raw={real_data.raw_poi_counts?.parking} />
           </div>
-          <p className="mb-4 text-[10px] leading-4 text-slate-400">注：括号外为系统判定的有效商机数，已自动过滤诊所、培训机构、公司厂房等低关联干扰项</p>
+          <p style={{ fontSize: 9, color: '#94a3b8', marginBottom: 12, lineHeight: 1.4 }}>注：括号外为系统判定的有效商机数，已自动过滤诊所、培训机构、公司厂房等低关联干扰项</p>
 
-          {/* Competitors */}
           {real_data.competitors_1000m > 0 && (
-            <div className="mb-4 rounded-lg border border-orange-100 bg-orange-50 p-3">
-              <p className="mb-1 text-sm font-bold text-orange-700">同类店铺密度</p>
-              <div className="mb-2 space-y-0.5 text-xs leading-5 text-orange-600">
-                <div>· 周边 200m 共 <strong className="text-base">{formatCount(real_data.competitors_200m)}</strong> 家</div>
-                <div>· 周边 500m 共 <strong className="text-base">{formatCount(real_data.competitors_500m)}</strong> 家</div>
-                <div>· 周边 1km 共 <strong className="text-base">{formatCount(real_data.competitors_1000m)}</strong> 家</div>
+            <div style={{ background: '#fff7ed', borderRadius: 6, padding: '10px 14px', marginBottom: 8, border: '1px solid #fed7aa' }}>
+              <p style={{ fontSize: 13, fontWeight: 700, color: '#dc2626', margin: '0 0 6px', textAlign: 'center' }}>⚔️ 同类店铺密度</p>
+              <div style={{ fontSize: 11, color: '#9a3412', lineHeight: 2, textAlign: 'center', marginBottom: 4 }}>
+                200m 共 <strong style={{ fontSize: 15, color: '#dc2626' }}>{formatCount(real_data.competitors_200m)}</strong> 家 · 500m 共 <strong style={{ fontSize: 15, color: '#dc2626' }}>{formatCount(real_data.competitors_500m)}</strong> 家 · 1km 共 <strong style={{ fontSize: 15, color: '#dc2626' }}>{formatCount(real_data.competitors_1000m)}</strong> 家
               </div>
               {real_data.competitor_list?.length > 0 && (
-                <div className="mt-1 space-y-0.5 border-t border-orange-200 pt-2 text-xs leading-5 text-orange-600">
-                  {real_data.competitor_list.slice(0, 10).map((c, i) => (
-                    <div key={i}>· {c.name}（{c.distance}m）</div>
-                  ))}
+                <div style={{ fontSize: 10, color: '#9a3412', lineHeight: 1.8, borderTop: '1px solid #fed7aa', paddingTop: 6, textAlign: 'center' }}>
+                  {real_data.competitor_list.slice(0, 10).map((c, i) => <span key={i} style={{ marginRight: 10 }}>· {c.name}（{c.distance}m）</span>)}
                 </div>
               )}
             </div>
           )}
 
-          {/* Hot Brands */}
           {real_data.hot_brands?.length > 0 && (
-            <div className="mb-4 rounded-lg border border-emerald-100 bg-emerald-50 p-3">
-              <p className="mb-2 text-sm font-semibold text-emerald-700">周边连锁品牌</p>
-              <div className="flex flex-wrap gap-1.5">
+            <div style={{ background: '#f0fdf4', borderRadius: 6, padding: '10px 14px', marginBottom: 8, border: '1px solid #bbf7d0' }}>
+              <p style={{ fontSize: 13, fontWeight: 700, color: '#15803d', margin: '0 0 6px', textAlign: 'center' }}>🏪 周边连锁品牌</p>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, justifyContent: 'center' }}>
                 {real_data.hot_brands.map((b, i) => (
-                  <span key={i} className="inline-flex items-center gap-1 rounded-full border border-emerald-100 bg-white px-2 py-1 text-xs text-slate-600">
-                    {b.name}
-                    <span className="text-slate-400">x{b.count}</span>
+                  <span key={i} style={{ background: '#fff', borderRadius: 4, padding: '3px 10px', fontSize: 11, color: '#334155', border: '1px solid #bbf7d0' }}>
+                    <strong>{b.name}</strong> <span style={{ color: '#94a3b8' }}>×{b.count}</span>
                   </span>
                 ))}
               </div>
             </div>
           )}
 
-          {/* Location Info */}
-          <div className="space-y-1 text-xs leading-5 text-slate-400">
-            {real_data.city && real_data.district && (
-              <div>{real_data.city} {real_data.district} {real_data.township || ''}</div>
-            )}
-            {real_data.business_areas?.length > 0 && (
-              <div>商圈：{real_data.business_areas.join('、')}</div>
-            )}
-            {real_data.nearby_roads?.length > 0 && (
-              <div>道路：{real_data.nearby_roads.join('、')}</div>
-            )}
+          <div style={{ fontSize: 11, color: '#94a3b8', lineHeight: 1.6, textAlign: 'center' }}>
+            {real_data.city && real_data.district && <span>{real_data.city} {real_data.district} {real_data.township || ''}</span>}
+            {real_data.business_areas?.length > 0 && <span style={{ marginLeft: 12 }}>商圈：{real_data.business_areas.join('、')}</span>}
+            {real_data.nearby_roads?.length > 0 && <span style={{ marginLeft: 12 }}>道路：{real_data.nearby_roads.join('、')}</span>}
           </div>
         </div>
       )}
 
-      {/* Adv/Disadv */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div className="report-card border-emerald-100 p-4">
-          <SectionHeader title="优势" color="green" />
-          {advantages && advantages.length > 0 ? (
-            <ul className="space-y-2">
-              {advantages.map((item, i) => (
-                <li key={i} className="flex items-start text-sm leading-6 text-slate-700">
-                  <span className="mr-2 mt-2 h-1.5 w-1.5 flex-shrink-0 rounded-full bg-emerald-500" />
-                  {item}
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="text-sm text-slate-400">暂无数据</p>
-          )}
-        </div>
-
-        <div className="report-card border-red-100 p-4">
-          <SectionHeader title="劣势与风险" color="red" />
-          {disadvantages && disadvantages.length > 0 ? (
-            <ul className="space-y-2">
-              {disadvantages.map((item, i) => (
-                <li key={i} className="flex items-start text-sm leading-6 text-slate-700">
-                  <span className="mr-2 mt-2 h-1.5 w-1.5 flex-shrink-0 rounded-full bg-red-500" />
-                  {item}
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="text-sm text-slate-400">暂无数据</p>
-          )}
-        </div>
-      </div>
-
-      {action_plan?.length > 0 && (
-        <div className="report-card p-4">
-          <SectionHeader title="落地行动清单" color="blue" />
-          <div className="grid gap-2 sm:grid-cols-3">
-            {action_plan.slice(0, 6).map((item, i) => (
-              <div key={i} className="rounded-lg border border-blue-100 bg-blue-50 p-3 text-sm leading-6 text-slate-700">
-                <span className="mb-2 inline-flex h-6 w-6 items-center justify-center rounded-full bg-blue-600 text-xs font-bold text-white">{i + 1}</span>
-                <p>{item}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Detail Analysis */}
+      {/* ═══════════ 第六块：各维度详细分析 ═══════════ */}
       {details && Object.keys(details).length > 0 && (
-        <div className="report-card p-4">
-          <SectionHeader title="各维度详细分析" color="gray" />
-          <p className="-mt-1 mb-4 text-xs text-slate-400">各维度独立分析，综合评分展示于上方雷达图</p>
-          <div className="space-y-3">
-            {Object.entries(detailLabels).map(([key, label]) => {
-              if (!details[key]) return null
-              const pd = parsedDetails[key] || { score: 0, text: String(details[key]) }
-              return (
-                <div key={key} className="border-b border-slate-100 pb-3 last:border-b-0">
-                  <h4 className="mb-1 text-sm font-semibold text-slate-800">
-                    {label}
-                  </h4>
-                  <p className="whitespace-pre-wrap text-sm leading-6 text-slate-600">{pd.text}</p>
+        <div style={{ background: '#fff', borderRadius: 6, border: '1px solid #e2e8f0', padding: 24, marginBottom: 16 }}>
+          <h2 style={{ fontSize: 16, fontWeight: 900, margin: '0 0 12px', color: '#0f172a' }}>📝 各维度详细分析</h2>
+          {Object.entries(detailLabels).map(([key, label]) => {
+            if (!details[key]) return null
+            const ds = dimension_scores?.find(d => d.key === key)
+            const dimScore = ds ? Number(ds.score || 0) : 0
+            const sc = dimScore >= 70 ? '#10b981' : dimScore >= 60 ? '#f59e0b' : '#ef4444'
+            return (
+              <div key={key} style={{ padding: '14px 16px', background: '#f8fafc', borderRadius: 8, borderLeft: `4px solid ${sc}`, marginBottom: 12 }}>
+                <div style={{ marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span style={{ fontSize: 16 }}>{dimEmoji[key] || ''}</span>
+                  <strong style={{ fontSize: 15, color: '#0f172a' }}>{label}</strong>
+                  {dimScore > 0 && <span style={{ fontSize: 14, fontWeight: 900, color: sc, marginLeft: 12 }}>{dimScore} 分</span>}
                 </div>
-              )
-            })}
-          </div>
+                <p style={{ fontSize: 13, color: '#475569', lineHeight: 1.6, textAlign: 'justify', whiteSpace: 'pre-wrap', margin: 0 }}>{_stripScore(details[key])}</p>
+              </div>
+            )
+          })}
         </div>
       )}
 
-      {/* Footer Disclaimer */}
-      <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-center">
-        <p className="text-xs leading-5 text-slate-500">
-          以上分析仅供参考，不构成投资建议。最终选址决策请结合实地考察、商务谈判等多方面因素综合判断。
-        </p>
+      {/* ═══════════ 页脚 ═══════════ */}
+      <div style={{ textAlign: 'center', padding: '12px 16px', background: '#fff', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 11, color: '#94a3b8' }}>
+        以上分析仅供参考，不构成投资建议。最终选址决策请结合实地考察、商务谈判等多方面因素综合判断。
       </div>
     </div>
   )

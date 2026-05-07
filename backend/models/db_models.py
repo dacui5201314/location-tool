@@ -187,6 +187,30 @@ class RedeemCode(Base):
         }
 
 
+class OperationLog(Base):
+    """管理员操作审计日志 — 点数/套餐变更强制留痕"""
+    __tablename__ = "operation_logs"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    admin_id = Column(Integer, default=0, comment="操作者ID")
+    user_id = Column(Integer, index=True, nullable=False, comment="目标用户ID")
+    type = Column(String(30), default="", comment="变更类型")
+    before_value = Column(String(200), default="")
+    after_value = Column(String(200), default="")
+    change_amount = Column(String(50), default="")
+    reason = Column(String(300), default="")
+    created_at = Column(DateTime, default=func.now())
+
+    def to_dict(self):
+        return {
+            "id": self.id, "admin_id": self.admin_id, "user_id": self.user_id,
+            "type": self.type or "", "before_value": self.before_value or "",
+            "after_value": self.after_value or "", "change_amount": self.change_amount or "",
+            "reason": self.reason or "",
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+        }
+
+
 class BillingRecord(Base):
     """点数流水表 — 记录每一笔点数变动"""
     __tablename__ = "billing_records"

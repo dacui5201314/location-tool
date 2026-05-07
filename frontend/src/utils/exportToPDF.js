@@ -20,9 +20,9 @@ function stripScore(value = '') {
 }
 
 function scoreColor(score = 0) {
-  if (score >= 75) return '#0f8a5f'
-  if (score >= 60) return '#b7791f'
-  return '#dc2626'
+  if (score >= 70) return '#10b981'
+  if (score >= 60) return '#f59e0b'
+  return '#ef4444'
 }
 
 function _fmt(n) { return n === undefined || n === null ? '-' : n }
@@ -131,7 +131,7 @@ function buildFullReportHTML(data, meta, qrcodeUrl = '', pdfConfig = {}) {
     consumer_profile: '🛍️', competition: '⚔️', complementary_businesses: '🤝',
     category_advantage: '🌟', cost_estimate: '💰', revenue_estimation: '💵', site_suggestion: '📋',
   }
-  const dimScoreColor = (s) => s >= 80 ? '#16a34a' : s >= 60 ? '#ca8a04' : '#dc2626'
+  const dimScoreColor = (s) => s >= 70 ? '#10b981' : s >= 60 ? '#f59e0b' : '#ef4444'
 
   let metricCards = '<table style="width:100%;border-collapse:separate;border-spacing:6px;margin:-6px;">'
   const safeDims = dims.slice(0, 8)
@@ -162,7 +162,7 @@ function buildFullReportHTML(data, meta, qrcodeUrl = '', pdfConfig = {}) {
     const sc = dimScoreColor(dimScore)
     return `<div class="pdf-no-break detail-card" style="display:block;width:100%;box-sizing:border-box;margin-bottom:16px;padding:14px 16px;background:#f8fafc;border-radius:8px;border-left:3px solid ${sc};">
       <div style="margin-bottom:8px;"><span style="font-size:16px;vertical-align:middle;">${dimEmoji[k] || ''}</span><strong style="font-size:15px;color:#0f172a;vertical-align:middle;margin-left:6px;">${escapeHtml(label)}</strong>${dimScore > 0 ? `<span style="font-size:15px;font-weight:900;color:${sc};margin-left:12px;vertical-align:middle;">${dimScore} 分</span>` : ''}</div>
-      <div style="font-size:13px;color:#475569;line-height:1.6;text-align:justify;white-space:pre-wrap;word-wrap:break-word;">${escapeHtml(stripScore(details[k]))}</div>
+      <div style="font-size:13px;color:#475569;line-height:1.6;text-align:justify;white-space:pre-wrap;word-wrap:break-word;margin:0!important;padding:0 0 2px 0;">${escapeHtml(stripScore(details[k]))}</div>
     </div>`
   })
   const detailPageOne = detailBlockItems.slice(0, 6).join('')
@@ -198,9 +198,9 @@ function buildFullReportHTML(data, meta, qrcodeUrl = '', pdfConfig = {}) {
   reportHtml += '</div><div style="padding:8px 14px;margin-bottom:24px;background:#fffbeb;border:1px solid #fde68a;border-radius:6px;font-size:10px;color:#92400e;font-weight:600;text-align:center">⚠️ 本工具不提供&quot;推荐/不推荐&quot;结论，各维度评分仅供参考，最终决策请结合实地考察</div>'
   if (warning) reportHtml += '<div style="padding:8px 14px;margin-bottom:24px;background:#fef2f2;border:1px solid #fecaca;border-radius:6px;font-size:11px;color:#991b1b;font-weight:700;text-align:center">🚨 风险提示：' + escapeHtml(warning) + '</div>'
   reportHtml += '<div class="pdf-no-break" style="margin-bottom:28px;"><div style="display:flex;gap:20px;background:#f8fafc;border-radius:10px;padding:16px 20px;border:1px solid #e2e8f0;box-shadow:0 2px 4px rgba(0,0,0,0.04);"><div style="display:flex;flex-direction:column;align-items:center;min-width:120px;border-right:1px dashed #cbd5e1;padding-right:20px;"><div style="font-size:14px;font-weight:900;color:#1e293b;margin-bottom:10px;">📊 综合评分</div>' + ringSvg + '</div><div style="flex:1;display:flex;flex-direction:column;justify-content:center;"><div style="font-size:12px;color:#475569;line-height:1.5;margin-bottom:10px;padding-bottom:10px;border-bottom:1px dashed #cbd5e1;">' + escapeHtml(shortSummary) + '</div><div><div style="font-size:14px;font-weight:900;color:#1e293b;margin-bottom:6px;">📋 分析摘要</div><div style="font-size:12px;font-weight:400;color:#475569;line-height:1.6;text-align:justify;">' + escapeHtml(summary || exec.summary || shortSummary) + '</div></div></div></div></div>'
-  reportHtml += '<div class="pdf-no-break" style="margin-bottom:24px;"><div style="display:flex;gap:16px;align-items:stretch;"><section style="flex:1;border:1px solid #bbf7d0;border-radius:12px;padding:16px 20px;background:#f0fdf4;"><h2 style="font-size:16px;font-weight:900;margin:0 0 12px;color:#047857;">✅ 关键优势</h2><ul style="margin:0;padding-left:20px;font-size:12px;font-weight:400;color:#475569;line-height:1.7;">' + (strengths.length > 0 ? strengths.map(x => '<li style="margin-bottom:6px">' + escapeHtml(x) + '</li>').join('') : '<li style="margin-bottom:6px">暂无明显优势数据</li>') + '</ul></section><section style="flex:1;border:1px solid #fecaca;border-radius:12px;padding:16px 20px;background:#fff5f5;"><h2 style="font-size:16px;font-weight:900;margin:0 0 12px;color:#b91c1c;">⚠️ 主要风险</h2><ul style="margin:0;padding-left:20px;font-size:12px;font-weight:400;color:#475569;line-height:1.7;">' + (risks.length > 0 ? risks.map(x => '<li style="margin-bottom:6px">' + escapeHtml(x) + '</li>').join('') : '<li style="margin-bottom:6px">暂无明显风险数据</li>') + '</ul></section></div></div></div>' + pageClose + '</div>'
+  reportHtml += '<div class="pdf-no-break" style="margin-bottom:24px;"><div style="display:flex;gap:16px;align-items:stretch;"><section style="flex:1;border:1px solid #bbf7d0;border-radius:12px;padding:16px 20px;background:#f0fdf4;"><h2 style="font-size:16px;font-weight:900;margin:0 0 8px;color:#047857;">✅ 关键优势</h2><ul style="margin:0;padding-left:20px;font-size:12px;font-weight:400;color:#475569;line-height:1.7;">' + (strengths.length > 0 ? strengths.map((x, idx, arr) => '<li style="margin-bottom:' + (idx === arr.length - 1 ? '0' : '6px') + '">' + escapeHtml(x) + '</li>').join('') : '<li style="margin-bottom:0">暂无明显优势数据</li>') + '</ul></section><section style="flex:1;border:1px solid #fecaca;border-radius:12px;padding:16px 20px;background:#fff5f5;"><h2 style="font-size:16px;font-weight:900;margin:0 0 8px;color:#b91c1c;">⚠️ 主要风险</h2><ul style="margin:0;padding-left:20px;font-size:12px;font-weight:400;color:#475569;line-height:1.7;">' + (risks.length > 0 ? risks.map((x, idx, arr) => '<li style="margin-bottom:' + (idx === arr.length - 1 ? '0' : '6px') + '">' + escapeHtml(x) + '</li>').join('') : '<li style="margin-bottom:0">暂无明显风险数据</li>') + '</ul></section></div></div></div>' + pageClose + '</div>'
 
-  reportHtml += '<div style="width:100%;box-sizing:border-box;">' + pageOpen + '<h2 style="font-size:16px;font-weight:900;margin:0 0 16px;color:#0f172a;padding-top:34px;">📊 指标雷达与维度评分</h2><div style="display:table;width:100%;table-layout:fixed;margin-bottom:24px;"><div style="display:table-cell;width:330px;vertical-align:top;text-align:center;">' + radarSvg.replace('<svg width="360" height="360"', '<svg width="330" height="330" style="display:block;margin:0 auto"') + '</div><div style="display:table-cell;vertical-align:middle;padding-left:18px;">' + metricCards + '</div></div><div style="margin-bottom:0;">' + (hasRealData ? _buildRealDataHTML(real_data) : '') + '</div>' + pageClose + '</div>'
+  reportHtml += '<div style="width:100%;box-sizing:border-box;">' + pageOpen + '<h2 style="font-size:16px;font-weight:900;margin:0 0 16px;color:#0f172a;padding-top:34px;">📊 指标雷达与维度评分</h2><div style="display:table;width:100%;table-layout:fixed;margin-bottom:24px;"><div style="display:table-cell;width:340px;vertical-align:top;text-align:center;padding-right:24px;">' + radarSvg.replace('<svg width="360" height="360"', '<svg width="330" height="330" style="display:block;margin:0 auto"') + '</div><div style="display:table-cell;vertical-align:middle;padding-left:18px;">' + metricCards + '</div></div><div style="margin-bottom:0;">' + (hasRealData ? _buildRealDataHTML(real_data) : '') + '</div>' + pageClose + '</div>'
   reportHtml += '<div style="width:100%;box-sizing:border-box;">' + pageOpen + '<h2 style="font-size:16px;font-weight:900;margin:0 0 16px;color:#0f172a;padding-top:34px;">📝 各维度详细分析</h2>' + detailPageOne + pageClose + '</div>'
   reportHtml += '<div style="width:100%;box-sizing:border-box;">' + pageOpen + '<div style="padding-top:34px;">' + detailPageTwo + '</div><section style="clear:both;margin-top:24px;display:flex;align-items:center;gap:20px;border-top:1px solid #e2e8f0;background:#fff;border-radius:8px;padding:14px 18px;"><div style="flex:1"><div style="font-size:15px;font-weight:900;color:#1e40af;margin-bottom:6px">址得选 · AI 选址分析报告</div><div style="font-size:11px;color:#64748b;line-height:1.8">' + escapeHtml(footerText) + '</div><div style="font-size:10px;color:#94a3b8;margin-top:6px">本报告由系统自动生成，仅供商业决策参考，不构成投资建议。</div></div><div style="width:112px;text-align:center;flex-shrink:0">' + (qrcodeUrl ? '<img src="' + escapeHtml(qrcodeUrl) + '" width="112" height="112" style="display:block;border-radius:8px;object-fit:contain;background:white;border:1px solid #e2e8f0"/>' : '<div style="width:112px;height:112px;border:1px dashed #cbd5e1;border-radius:8px;background:white"></div>') + '<div style="font-size:10px;font-weight:800;color:#1d4ed8;margin-top:7px;line-height:1.4">扫码获取更多测算</div></div></section>' + pageClose + '</div>'
   reportHtml += '</body></html>'
@@ -244,7 +244,7 @@ function _buildRealDataHTML(rd) {
 }
 
 function buildInlineRadarSVG(dims) {
-  const cx = 180, cy = 180, r = 140, levels = 5
+  const cx = 180, cy = 180, r = 110, levels = 5
   const total = dims.length
   const getPoint = (value, index, radius) => {
     const angle = (Math.PI * 2 * index) / total - Math.PI / 2
@@ -267,16 +267,14 @@ function buildInlineRadarSVG(dims) {
     const color = (d.score || 0) < 50 ? '#ef4444' : '#3b82f6'
     return `<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="4" fill="${color}" stroke="white" stroke-width="2"/>`
   }).join('')
+  // 标签：名称上行 + 分数下行，用 tspan 强制换行，绝不重叠
   const labelTexts = dims.map((d, i) => {
-    const p = getPoint(100, i, r + 24)
-    return `<text x="${p.x.toFixed(1)}" y="${p.y.toFixed(1)}" text-anchor="middle" dominant-baseline="middle" font-size="12" fill="#475569" font-weight="500">${escapeHtml(d.label)}</text>`
+    const p = getPoint(100, i, r + 42)
+    const sc = (d.score || 0) >= 70 ? '#10b981' : (d.score || 0) >= 60 ? '#f59e0b' : '#ef4444'
+    return `<text x="${p.x.toFixed(1)}" y="${p.y.toFixed(1)}" text-anchor="middle" dominant-baseline="middle" font-size="11" fill="#475569" font-weight="500">
+      <tspan x="${p.x.toFixed(1)}" dy="-0.5em">${escapeHtml(d.label)}</tspan>
+      <tspan x="${p.x.toFixed(1)}" dy="1.3em" font-size="10" font-weight="700" fill="${sc}">${d.score || '-'}</tspan>
+    </text>`
   }).join('')
-  const scoreLabels = dims.map((d, i) => {
-    if (!d.score) return ''
-    const offsetR = (d.score / 100) * r + 18
-    const sp = getPoint(100, i, offsetR)
-    const color = d.score < 50 ? '#ef4444' : '#1e40af'
-    return `<g><rect x="${sp.x.toFixed(1)-14}" y="${sp.y.toFixed(1)-9}" width="28" height="18" rx="3" fill="white" fill-opacity="0.85"/><text x="${sp.x.toFixed(1)}" y="${sp.y.toFixed(1)+4}" text-anchor="middle" font-size="12" font-weight="700" fill="${color}">${d.score}</text></g>`
-  }).join('')
-  return `<svg width="360" height="360" viewBox="0 0 360 360" xmlns="http://www.w3.org/2000/svg">${gridPaths}${axisLines}<path d="${dataPath}" fill="rgba(59,130,246,0.15)" stroke="#3b82f6" stroke-width="2"/>${dataDots}${scoreLabels}${labelTexts}</svg>`
+  return `<svg width="360" height="360" viewBox="0 0 360 360" xmlns="http://www.w3.org/2000/svg">${gridPaths}${axisLines}<path d="${dataPath}" fill="rgba(59,130,246,0.15)" stroke="#3b82f6" stroke-width="2"/>${dataDots}${labelTexts}</svg>`
 }

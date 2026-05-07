@@ -275,8 +275,7 @@ export default function ProfileView() {
                           {item.badge && <em className="absolute -top-2 right-2 rounded-full bg-amber-500 px-1.5 py-0.5 text-[9px] not-italic font-bold text-white">{item.badge}</em>}
                           <strong className="block text-xs text-slate-800">{item.label}</strong>
                           <span className="mt-1 block text-sm font-black text-amber-600">¥{item.price}</span>
-                          <em className="mt-0.5 block not-italic text-[10px] text-slate-400">{item.duration_days || 0}天</em>
-                          {item.desc && <small className="mt-1 block text-[10px] leading-4 text-slate-500">{item.desc}</small>}
+                          <em className="mt-0.5 block not-italic text-[10px] text-slate-400">{item.duration_days || 0}天不限次分析和导出</em>
                         </button>
                       ))}
                     </div>
@@ -294,7 +293,6 @@ export default function ProfileView() {
                           {item.badge && <em className="absolute -top-2 right-2 rounded-full bg-blue-600 px-1.5 py-0.5 text-[9px] not-italic font-bold text-white">{item.badge}</em>}
                           <span className="block text-xs font-bold text-slate-800">{item.label}</span>
                           <span className="mt-0.5 block text-[11px] text-slate-500">{item.credits || 0} 次分析</span>
-                          {item.desc && <small className="mt-0.5 block text-[10px] leading-4 text-slate-500">{item.desc}</small>}
                           <strong className="mt-1 block text-sm text-blue-600">¥{item.price}</strong>
                         </button>
                       ))}

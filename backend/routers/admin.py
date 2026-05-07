@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func, update
 from pydantic import BaseModel, ConfigDict
 from database import get_db
-from models.db_models import User, AnalysisRecord, SavedLocation, RedeemCode, SystemConfig
+from models.db_models import User, AnalysisRecord, SavedLocation, RedeemCode, SystemConfig, OperationLog, BillingRecord
 from auth import get_current_admin, get_current_user, create_token
 from services.runtime_config import (
     CORE_CONFIG_DEFAULTS,
@@ -105,11 +105,42 @@ def list_users(
     admin: dict = Depends(get_current_admin),
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
+    phone: str = Query("", description="手机号或ID筛选"),
+    member: str = Query("", description="会员筛选: 1=会员, 0=非会员"),
+    channel: str = Query("", description="注册来源筛选"),
+    date_from: str = Query("", description="注册起始日期 YYYY-MM-DD"),
+    date_to: str = Query("", description="注册截止日期 YYYY-MM-DD"),
     db: Session = Depends(get_db),
 ):
-    """用户列表（需管理员权限）"""
+    """用户列表（需管理员权限）— 支持多条件筛选"""
 
-    query = db.query(User).order_by(User.created_at.desc())
+    query = db.query(User)
+    # 筛选条件
+    if phone:
+        if phone.isdigit():
+            query = query.filter(User.id == int(phone))
+        else:
+            query = query.filter(User.phone.contains(phone))
+    if member == "1":
+        query = query.filter(User.membership_expiry != None, User.membership_expiry > datetime.now())
+    elif member == "0":
+        query = query.filter((User.membership_expiry == None) | (User.membership_expiry <= datetime.now()))
+    if channel:
+        query = query.filter(User.channel == channel)
+    if date_from:
+        try:
+            d = datetime.strptime(date_from, "%Y-%m-%d")
+            query = query.filter(User.created_at >= d)
+        except ValueError:
+            pass
+    if date_to:
+        try:
+            d = datetime.strptime(date_to, "%Y-%m-%d")
+            query = query.filter(User.created_at < func.date(d, '+1 day'))
+        except ValueError:
+            pass
+
+    query = query.order_by(User.created_at.desc())
     total = query.count()
     users = query.offset((page - 1) * page_size).limit(page_size).all()
 
@@ -217,10 +248,18 @@ def save_config(body: ConfigBody, admin: dict = Depends(get_current_admin), db: 
             skipped.append(key)
     if filtered_map:
         set_config_values(filtered_map, {key: f"系统设置-{key}" for key in CORE_CONFIG_DEFAULTS}, db)
+    # ★ 操作审计日志
+    admin_id = admin.get("user_id", 0)
+    db.add(OperationLog(
+        admin_id=admin_id, user_id=0, type="SYSTEM_CONFIG",
+        change_amount=", ".join(filtered_map.keys()) if filtered_map else "无变更",
+        reason=f"系统配置变更 (跳过: {', '.join(skipped) if skipped else '无'})",
+    ))
+    db.commit()
     return {
         "ok": True,
         "message": "配置已保存",
-        "saved_fields": list(filtered_map.keys()),
+        "saved_fields": list(filtered_map.keys()) if filtered_map else [],
         "skipped_fields": skipped,
         "config": load_core_config(db),
     }
@@ -358,6 +397,159 @@ def apply_user_sku(
             "membership_expiry": db_user.membership_expiry.isoformat() if db_user.membership_expiry else None,
         },
     }
+
+
+# ============================================================
+# 分配套餐（按 packageId 查 SKU 配置自动叠加点数/会员）
+# ============================================================
+class AssignPackageBody(BaseModel):
+    packageId: int
+    reason: str = ""
+
+
+@router.post("/users/{user_id}/package")
+def assign_package(
+    user_id: int,
+    body: AssignPackageBody,
+    admin: dict = Depends(get_current_admin),
+    db: Session = Depends(get_db),
+):
+    """分配预设套餐：按 packageId 查找 SKU 配置，自动叠加点数或延长会员"""
+    if not body.reason or not body.reason.strip():
+        raise HTTPException(status_code=400, detail="操作备注不能为空")
+    db_user = db.query(User).filter(User.id == user_id).first()
+    if not db_user:
+        raise HTTPException(status_code=404, detail="用户不存在")
+
+    # 从 SKU 配置中查找套餐
+    skus = load_skus(db)
+    pkg = next((s for s in skus if s.get("id") == body.packageId), None)
+    if not pkg:
+        raise HTTPException(status_code=404, detail="套餐不存在")
+    if not pkg.get("visible", True):
+        raise HTTPException(status_code=400, detail="该套餐已下架")
+
+    now = datetime.now()
+    if pkg["type"] == "membership":
+        days = pkg.get("duration_days", 30)
+        tier = pkg.get("tier", "monthly")
+        base = db_user.membership_expiry if db_user.membership_expiry and db_user.membership_expiry > now else now
+        db_user.membership_tier = tier
+        db_user.membership_expiry = base + timedelta(days=days)
+        message = f"已开通 {pkg['label']}（{days}天）"
+    else:
+        credits = pkg.get("credits", 0)
+        if credits <= 0:
+            raise HTTPException(status_code=400, detail="点数包必须包含大于0的点数")
+        db.execute(update(User).where(User.id == user_id).values(balance_credits=User.balance_credits + credits))
+        message = f"已分配 {pkg['label']}（+{credits}点）"
+
+    # ★ 操作审计日志
+    admin_id = admin.get("user_id", 0)
+    db.add(OperationLog(
+        admin_id=admin_id, user_id=user_id, type="ASSIGN_PACKAGE",
+        before_value=f"点数:{db_user.balance_credits},会员:{db_user.membership_tier}",
+        after_value=pkg['label'],
+        change_amount=message, reason=body.reason.strip(),
+    ))
+    db.commit()
+    db.refresh(db_user)
+    print(f"[AUDIT] ASSIGN_PACKAGE admin={admin_id} user={user_id} pkg={body.packageId} reason={body.reason}", flush=True)
+    return {"ok": True, "message": message, "balance_credits": db_user.balance_credits}
+
+
+# ============================================================
+# 调整点数（独立加减，不影响会员状态）
+# ============================================================
+class AdjustPointsBody(BaseModel):
+    points: int
+    reason: str = ""
+
+
+@router.post("/users/{user_id}/points")
+def adjust_points(
+    user_id: int,
+    body: AdjustPointsBody,
+    admin: dict = Depends(get_current_admin),
+    db: Session = Depends(get_db),
+):
+    """独立调整点数（支持正负数），需填写操作备注"""
+    db_user = db.query(User).filter(User.id == user_id).first()
+    if not db_user:
+        raise HTTPException(status_code=404, detail="用户不存在")
+    if body.points == 0:
+        raise HTTPException(status_code=400, detail="点数不能为0")
+    if not body.reason or not body.reason.strip():
+        raise HTTPException(status_code=400, detail="操作备注不能为空")
+
+    db.execute(
+        update(User).where(User.id == user_id)
+        .values(balance_credits=User.balance_credits + body.points)
+    )
+    # ★ 操作审计日志
+    admin_id = admin.get("user_id", 0)
+    db.add(OperationLog(
+        admin_id=admin_id, user_id=user_id, type="ADJUST_POINTS",
+        before_value=f"点数:{db_user.balance_credits}",
+        after_value=str(db_user.balance_credits + body.points),
+        change_amount=f"{'+' if body.points > 0 else ''}{body.points}点",
+        reason=body.reason.strip(),
+    ))
+    db.commit()
+    db.refresh(db_user)
+    print(f"[AUDIT] ADJUST_POINTS admin={admin_id} user={user_id} points={body.points} reason={body.reason}", flush=True)
+    return {"ok": True, "points_changed": body.points, "balance_credits": db_user.balance_credits, "reason": body.reason}
+
+
+# ============================================================
+# 核心 Prompt — 读取/热更新
+# ============================================================
+@router.get("/config/core-prompt")
+@router.get("/config/get-core-prompt")  # 别名兼容
+def get_core_prompt(admin: dict = Depends(get_current_admin), db: Session = Depends(get_db)):
+    """获取当前 System Prompt（需管理员权限）— 若无自定义则返回默认Prompt"""
+    prompt = _get_config_value(db, "system_prompt", "")
+    if not prompt:
+        from prompts.location_analysis import build_system_prompt
+        prompt = build_system_prompt("")
+    return {"system_prompt": prompt, "length": len(prompt), "is_default": not bool(_get_config_value(db, "system_prompt", ""))}
+
+
+class PromptBody(BaseModel):
+    system_prompt: str = ""
+
+
+@router.post("/config/prompt")
+def save_prompt(body: PromptBody, admin: dict = Depends(get_current_admin), db: Session = Depends(get_db)):
+    """热更新 System Prompt 并记录审计日志"""
+    set_config_values({"system_prompt": body.system_prompt}, {"system_prompt": "System Prompt 热更新"}, db)
+
+    admin_id = admin.get("user_id", 0)
+    db.add(OperationLog(
+        admin_id=admin_id, user_id=0, type="PROMPT_UPDATE",
+        change_amount=f"Prompt长度:{len(body.system_prompt)}字符",
+        reason="Prompt热更新",
+    ))
+    db.commit()
+    print(f"[AUDIT] PROMPT_UPDATE admin={admin_id} len={len(body.system_prompt)}", flush=True)
+    return {"ok": True, "message": "Prompt 已保存并立即生效"}
+
+
+# ============================================================
+# 操作记录
+# ============================================================
+@router.get("/operation-logs")
+def list_operation_logs(
+    admin: dict = Depends(get_current_admin),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100),
+    db: Session = Depends(get_db),
+):
+    """操作审计日志列表（需管理员权限）"""
+    query = db.query(OperationLog).order_by(OperationLog.created_at.desc())
+    total = query.count()
+    logs = query.offset((page - 1) * page_size).limit(page_size).all()
+    return {"total": total, "page": page, "logs": [log.to_dict() for log in logs]}
 
 
 # ============================================================
@@ -553,7 +745,6 @@ def activate_cdk(
         raise HTTPException(status_code=400, detail="该兑换码已被使用")
 
     # ── 4. 写入审计流水 ──
-    from models.db_models import BillingRecord
     db.add(BillingRecord(
         user_id=user_id,
         amount=c.credits,
@@ -591,6 +782,46 @@ def get_trends(admin: dict = Depends(get_current_admin), db: Session = Depends(g
         .all()
     )
     return {
+        "top_business_types": [{"name": r[0], "count": r[1]} for r in biz_rows],
+        "top_brands": [{"name": r[0], "count": r[1]} for r in brand_rows],
+    }
+
+
+# ============================================================
+# 仪表盘综合统计
+# ============================================================
+@router.get("/dashboard/stats")
+def get_dashboard_stats(admin: dict = Depends(get_current_admin), db: Session = Depends(get_db)):
+    """仪表盘聚合数据（需管理员权限）— 15天趋势 + 业态/品牌分布"""
+    today = date.today()
+    dates, counts = [], []
+    for i in range(14, -1, -1):
+        d = today - timedelta(days=i)
+        dates.append(d.strftime("%m-%d"))
+        cnt = db.query(func.count(AnalysisRecord.id)).filter(
+            func.date(AnalysisRecord.created_at) == d
+        ).scalar() or 0
+        counts.append(cnt)
+
+    biz_rows = (
+        db.query(AnalysisRecord.business_type, func.count(AnalysisRecord.id).label("cnt"))
+        .filter(AnalysisRecord.business_type != "", AnalysisRecord.business_type != None)
+        .group_by(AnalysisRecord.business_type)
+        .order_by(func.count(AnalysisRecord.id).desc())
+        .limit(10)
+        .all()
+    )
+    brand_rows = (
+        db.query(AnalysisRecord.brand_desc, func.count(AnalysisRecord.id).label("cnt"))
+        .filter(AnalysisRecord.brand_desc != "", AnalysisRecord.brand_desc != None)
+        .group_by(AnalysisRecord.brand_desc)
+        .order_by(func.count(AnalysisRecord.id).desc())
+        .limit(5)
+        .all()
+    )
+    return {
+        "trend_dates": dates,
+        "trend_counts": counts,
         "top_business_types": [{"name": r[0], "count": r[1]} for r in biz_rows],
         "top_brands": [{"name": r[0], "count": r[1]} for r in brand_rows],
     }

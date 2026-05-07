@@ -619,6 +619,7 @@ export default function HomePage() {
           <div className="space-y-3 animate-in">
             <AnalysisResult data={result} />
             <PdfExport selectedLocation={selectedLocation} result={result} businessType={businessType} brandName={brandName} />
+            <div className="h-28 w-full flex-shrink-0" />
           </div>
         )}
 

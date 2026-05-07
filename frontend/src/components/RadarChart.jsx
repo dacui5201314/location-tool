@@ -10,27 +10,18 @@ export default function RadarChart({ scores }) {
     { key: 'cost_estimate', label: '成本预估' },
   ]
 
-  const cx = 180
-  const cy = 180
-  const r = 140
-  const levels = 5
+  const cx = 180, cy = 180, r = 110, levels = 5
 
   const getPoint = (value, index, total, radius) => {
     const angle = (Math.PI * 2 * index) / total - Math.PI / 2
     const r2 = (value / 100) * radius
-    return {
-      x: cx + r2 * Math.cos(angle),
-      y: cy + r2 * Math.sin(angle),
-    }
+    return { x: cx + r2 * Math.cos(angle), y: cy + r2 * Math.sin(angle) }
   }
 
   const getGridPoint = (level, index, total) => {
     const angle = (Math.PI * 2 * index) / total - Math.PI / 2
     const r2 = (level / levels) * r
-    return {
-      x: cx + r2 * Math.cos(angle),
-      y: cy + r2 * Math.sin(angle),
-    }
+    return { x: cx + r2 * Math.cos(angle), y: cy + r2 * Math.sin(angle) }
   }
 
   const dataPoints = dims.map((d, i) => {
@@ -39,35 +30,24 @@ export default function RadarChart({ scores }) {
   })
   const dataPath = dataPoints.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x.toFixed(2)} ${p.y.toFixed(2)}`).join(' ') + ' Z'
 
+  // Grid
   const gridLines = []
   for (let l = 1; l <= levels; l++) {
     const pts = dims.map((_, i) => getGridPoint(l, i, dims.length))
     gridLines.push(pts.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x.toFixed(2)} ${p.y.toFixed(2)}`).join(' ') + ' Z')
   }
 
+  // Axis
   const axisLines = dims.map((_, i) => {
     const p = getGridPoint(levels, i, dims.length)
     return `M ${cx} ${cy} L ${p.x.toFixed(2)} ${p.y.toFixed(2)}`
   })
 
+  // Dimension labels — pushed further out
+  const labelGap = r + 40
   const labels = dims.map((d, i) => {
-    const p = getGridPoint(levels + 0.25, i, dims.length)
-    return { ...p, label: d.label, key: d.key }
-  })
-
-  // Score label positions - pushed further out from data point
-  const scoreLabels = dims.map((d, i) => {
-    const score = scores?.[d.key] || 0
-    // Place score label further from the data point
     const angle = (Math.PI * 2 * i) / dims.length - Math.PI / 2
-    const labelR = (score / 100) * r
-    const offsetR = labelR + 16
-    return {
-      x: cx + offsetR * Math.cos(angle),
-      y: cy + offsetR * Math.sin(angle),
-      score,
-      key: d.key,
-    }
+    return { x: cx + labelGap * Math.cos(angle), y: cy + labelGap * Math.sin(angle), label: d.label, key: d.key }
   })
 
   return (
@@ -93,34 +73,21 @@ export default function RadarChart({ scores }) {
           return (
             <g key={`pt-${i}`}>
               <circle cx={p.x.toFixed(2)} cy={p.y.toFixed(2)} r="4"
-                fill={isWeak ? '#ef4444' : '#3b82f6'}
-                stroke="white" strokeWidth="2" />
+                fill={isWeak ? '#ef4444' : '#3b82f6'} stroke="white" strokeWidth="2" />
             </g>
           )
         })}
-        {/* Score labels with white background to avoid grid line overlap */}
-        {scoreLabels.map((sl) => {
-          if (!sl.score) return null
+        {/* Dimension labels — name + score 分两行, 绝不重叠 */}
+        {labels.map((l) => {
+          const s = scores?.[l.key] || 0
+          const scoreColor = s >= 70 ? '#10b981' : s >= 60 ? '#f59e0b' : '#ef4444'
           return (
-            <g key={`score-${sl.key}`}>
-              <rect x={sl.x.toFixed(2) - 14} y={sl.y.toFixed(2) - 9} width="28" height="18"
-                rx="3" fill="white" fillOpacity="0.85" />
-              <text x={sl.x.toFixed(2)} y={sl.y.toFixed(2) + 4}
-                textAnchor="middle" fontSize="12" fontWeight="700"
-                fill={sl.score < 50 ? '#ef4444' : '#1e40af'}>
-                {sl.score}
-              </text>
-            </g>
+            <text key={`label-${l.key}`} x={l.x.toFixed(2)} y={l.y.toFixed(2)} textAnchor="middle" dominantBaseline="middle" fontSize="11" fill="#475569" fontWeight="500">
+              <tspan x={l.x.toFixed(2)} dy="-0.6em">{l.label}</tspan>
+              <tspan x={l.x.toFixed(2)} dy="1.4em" fontSize="10" fontWeight="700" fill={scoreColor}>{s || '-'}</tspan>
+            </text>
           )
         })}
-        {/* Dimension labels */}
-        {labels.map((l) => (
-          <text key={`label-${l.key}`} x={l.x.toFixed(2)} y={l.y.toFixed(2)}
-            textAnchor="middle" dominantBaseline="middle"
-            fontSize="12" fill="#475569" fontWeight="500">
-            {l.label}
-          </text>
-        ))}
       </svg>
     </div>
   )
