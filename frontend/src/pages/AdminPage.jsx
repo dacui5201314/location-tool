@@ -539,6 +539,7 @@ export default function AdminPage() {
   if (!authed) {
     return (
       <div className="admin-page min-h-screen flex items-center justify-center px-4">
+        {toast && <div className="fixed top-5 left-1/2 -translate-x-1/2 z-50 rounded-full bg-red-600 text-white text-xs px-5 py-2 shadow-lg">{toast}</div>}
         <div className="admin-login-card w-full max-w-sm p-8">
           <div className="text-center mb-6">
             <img src="/brand-logo-transparent.png" alt="址得选" className="mx-auto h-14 w-14 object-contain" />
