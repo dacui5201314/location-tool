@@ -14,6 +14,7 @@
 - **用户系统**：JWT 鉴权 + 分析记录存档 + 地址收藏 + 双轨制计费（会员订阅 / 点数余额）+ 管理后台
 - **SSE 实时流**：StreamingResponse 四步进度推送 + 前端极客控制台逐帧动画，免疫代理缓冲
 - **PDF 导出引擎**：html2pdf.js 分页 + 零高度物理切断 + inline-block 原子防断 + 800px A4 黄金宽度
+- **业态专属规则引擎**：数据库驱动业态配置 + Admin 可视化管理 + 专属 Prompt 动态拼接注入 LLM
 
 ### 技术栈
 
@@ -69,7 +70,8 @@ location-tool/
 │   │   ├── records.py                 # 分析记录 CRUD + PDF解锁（原子化） + 报告下载
 │   │   ├── favorites.py               # 收藏地址 CRUD + 跨表校验 is_analyzed
 │   │   ├── user.py                    # 用户中心（profile/consume/设备防刷/免费点数限时）
-│   │   └── admin.py                   # 管理后台（JWT Admin 鉴权 / 仪表盘 / 用户 / CDK / 配置）
+│   │   ├── admin.py                   # 管理后台（JWT Admin 鉴权 / 仪表盘 / 用户 / CDK / 配置）
+│   │   └── industries.py              # ★ 业态专属规则引擎（CRUD + 公开匹配 + OperationLog 审计）
 │   │
 │   ├── services/                      # 业务服务
 │   │   ├── __init__.py
@@ -262,6 +264,11 @@ npx vite --host
 | GET | `/api/admin/config/core-prompt` | JWT Admin | ★ 获取当前 System Prompt |
 | POST | `/api/admin/config/prompt` | JWT Admin | ★ 热更新 System Prompt |
 | GET | `/api/admin/operation-logs` | JWT Admin | ★ 管理员操作审计日志 |
+| GET | `/api/admin/industries` | JWT Admin | ★ 业态规则列表 |
+| POST | `/api/admin/industries` | JWT Admin | ★ 新增业态 |
+| PUT | `/api/admin/industries/{id}` | JWT Admin | ★ 更新业态（含专属 Prompt） |
+| DELETE | `/api/admin/industries/{id}` | JWT Admin | ★ 删除业态 |
+| GET | `/api/industries/active` | 无 | ★ 前台获取启用业态列表 |
 
 ---
 
@@ -389,6 +396,7 @@ npx vite --host
 
 ## 版本历史
 
+- **v4.1** (2026-05-07) — 业态专属规则引擎：数据库驱动业态配置（business_industries 表）、Admin 可视化管理界面（列表/新增/编辑/规则编辑器抽屉/删除）、专属 Prompt 动态拼接注入 LLM、前台自动匹配 industry_id、OperationLog 全量审计
 - **v4.0** (2026-05-07) — 全栈架构重构：SSE 实时分析流（四步进度推送+控制台UI+流中断自动退款）、PDF 引擎彻底重写（html2pdf.js+iframe独立渲染+物理分页+Table/float布局+零高度切断+inline-block防断）、安全防线全线加固（Phase 1-5 审计修复：弱密码拦截/OperationLog审计流水/CDK原子性/竞态修复/N+1性能/死代码清理）、管理员仪表盘（15天趋势+业态/品牌TOP分布+用户多条件筛选）、套餐分配+独立点数调整+Prompt热更新端点、数据精度锁定（后端强制维度平均接管LLM总分+维度固定顺序+Prompt去决策化+JSON尾逗号清洗）、前端三重算分+雷达图ORDER锁+UTC时区修正、综合评分环+高级商务排版
 - **v3.8** (2026-05-06) — 运行时配置引擎与后台增强
 - **v3.7** (2026-05-05) — 私域运营与账号体系：手机号+密码注册登录、强制登录门控、模拟支付替换为私域客服二维码+CDK、幽灵 UI 裁剪（移除 10+ 占位项）、管理后台用户充值面板、系统配置真实持久化、客服二维码运营配置、.gitignore 全量覆盖
