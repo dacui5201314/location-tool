@@ -170,16 +170,17 @@ export default function AnalysisResult({ data }) {
     })
   }
 
-  const weightedScore = Math.round(Object.keys(WEIGHTS).reduce((sum, key) => {
-    return sum + (radarScores[key] || 0) * WEIGHTS[key]
-  }, 0))
-  const totalScore = Number(data.score || 0) || weightedScore
+  // ★ 前端强制重算：彻底抛弃后端/大模型的 score，只认 dimension_scores 8 维算术平均
+  // 后端已保证 dimension_scores 顺序固定，直接用 reduce 取平均值
+  const REBUILT_SCORE = dimension_scores.length >= 8
+    ? Math.round(dimension_scores.slice(0, 8).reduce((acc, d) => acc + (Number(d.score) || 0), 0) / 8)
+    : Math.round(Object.keys(WEIGHTS).reduce((sum, key) => sum + (radarScores[key] || 0), 0) / 8)
+  const totalScore = REBUILT_SCORE
 
   const summaryText = generateRadarSummary(radarScores, totalScore)
-  const verdict = executive_summary?.verdict || (totalScore >= 75 ? '建议推进' : totalScore >= 60 ? '谨慎推进' : '不建议贸然推进')
   const topStrengths = executive_summary?.top_strengths?.length ? executive_summary.top_strengths : (advantages || []).slice(0, 3)
   const topRisks = executive_summary?.top_risks?.length ? executive_summary.top_risks : (disadvantages || []).slice(0, 3)
-  const scoreTone = totalScore >= 75 ? 'text-emerald-700 bg-emerald-50 border-emerald-100' : totalScore >= 60 ? 'text-amber-700 bg-amber-50 border-amber-100' : 'text-red-700 bg-red-50 border-red-100'
+  const scoreColor = totalScore >= 75 ? '#16a34a' : totalScore >= 60 ? '#ca8a04' : '#dc2626'
   const primaryDims = (dimension_scores?.length ? dimension_scores : Object.keys(dimLabel).map(key => ({ key, label: dimLabel[key], score: radarScores[key] || 0 }))).slice(0, 8)
 
   return (
@@ -191,22 +192,21 @@ export default function AnalysisResult({ data }) {
         </p>
       </div>
 
-      {/* Executive Summary */}
+      {/* Executive Summary — 纯客观数据展示 */}
       <div className="report-card overflow-hidden p-0">
         <div className="bg-slate-950 p-5 text-white">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-            <div>
-              <div className="text-[11px] font-semibold uppercase tracking-[0.28em] text-blue-200">Executive Summary</div>
-              <h2 className="mt-2 text-xl font-black leading-tight">{verdict}</h2>
-              <p className="mt-2 max-w-xl text-sm leading-6 text-slate-300">
-                {executive_summary?.summary || summary || summaryText}
+          <div className="flex flex-col items-center gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex-1 text-center sm:text-left">
+              <div className="text-[11px] font-semibold uppercase tracking-[0.28em] text-blue-200">Analysis Overview</div>
+              <p className="mt-3 max-w-xl text-sm leading-relaxed text-slate-200">
+                {summary || executive_summary?.summary || summaryText}
               </p>
             </div>
             {totalScore > 0 && (
-              <div className="flex-shrink-0 rounded-xl bg-white px-5 py-4 text-center text-slate-950">
-                <div className="text-[11px] font-semibold text-slate-400">综合评分</div>
-                <div className="text-4xl font-black leading-none">{totalScore}</div>
-                <div className={`mt-2 rounded-full border px-2.5 py-1 text-[11px] font-bold ${scoreTone}`}>{verdict}</div>
+              <div className="flex-shrink-0 rounded-xl bg-white px-6 py-5 text-center text-slate-950">
+                <div className="text-[11px] font-semibold tracking-wider text-slate-400 uppercase">综合评分</div>
+                <div className="text-5xl font-black leading-none" style={{ color: scoreColor }}>{totalScore}</div>
+                <div className="mt-1 text-[10px] font-medium text-slate-400">/ 100 · 8 维度平均</div>
               </div>
             )}
           </div>
@@ -244,7 +244,14 @@ export default function AnalysisResult({ data }) {
           ))}
         </div>
         <div className="border-t border-slate-100 p-4">
-          <RadarChart scores={radarScores} />
+          <RadarChart scores={(() => {
+            // ★ 雷达图 ORDER 锁：强制按固定维度顺序组装修正值对象
+            const RADAR_ORDER = ['人口密集度', '交通可达性', '客流特征', '消费人群', '竞争环境', '互补业态', '品类优势', '成本压力']
+            const KEY_MAP = { '人口密集度': 'population_density', '交通可达性': 'traffic_accessibility', '客流特征': 'traffic_flow', '消费人群': 'consumer_profile', '竞争环境': 'competition', '互补业态': 'complementary_businesses', '品类优势': 'category_advantage', '成本压力': 'cost_estimate' }
+            const locked = {}
+            RADAR_ORDER.forEach(label => { locked[KEY_MAP[label]] = radarScores[KEY_MAP[label]] || 0 })
+            return locked
+          })()} />
         </div>
       </div>
 

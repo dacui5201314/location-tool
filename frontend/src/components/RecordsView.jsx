@@ -59,7 +59,7 @@ function stars(score = 0) {
 
 function formatDate(value) {
   if (!value) return '未知时间'
-  return value.slice(0, 16).replace('T', ' ')
+  try { return new Date(value + 'Z').toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }) } catch { return value.slice(0, 16).replace('T', ' ') }
 }
 
 function RecordCard({ record, exportingId, onDownload, onDelete, onOpen }) {

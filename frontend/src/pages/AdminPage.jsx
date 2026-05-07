@@ -303,6 +303,7 @@ export default function AdminPage() {
   const [systemParamsSaving, setSystemParamsSaving] = useState(false)
   const [settingsDirty, setSettingsDirty] = useState(false)
   const [settingsSaving, setSettingsSaving] = useState(false)
+  const [settingsLoaded, setSettingsLoaded] = useState(false)  // ★ 防误清空：配置从 DB 加载完成前禁止保存
   const [skusDirty, setSkusDirty] = useState(false)
   const [pdfDirty, setPdfDirty] = useState(false)
   const [storageDirty, setStorageDirty] = useState(false)
@@ -311,6 +312,7 @@ export default function AdminPage() {
   const [userSkuInherited, setUserSkuInherited] = useState(true)
   const [userSkuLoading, setUserSkuLoading] = useState(false)
   const [userSkuSaving, setUserSkuSaving] = useState(false)
+  const [userSkuApplyingId, setUserSkuApplyingId] = useState(null)
 
   const updateParam = (key, value) => {
     setSystemParams(prev => {
@@ -319,7 +321,7 @@ export default function AdminPage() {
     })
   }
   const [toast, setToast] = useState('')
-  const loadCdk = () => { adminFetch('/cdk/list').then(r => r.json()).then(d => setCdkList(d.codes || [])).catch(() => {}) }
+  const loadCdk = () => { adminFetch('/cdk/list').then(r => r.json()).then(d => setCdkList(d.codes || [])).catch(() => showToast('CDK列表加载失败')) }
   const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(''), 2000) }
   const updateSettings = (patch) => { setSettings(s => ({ ...s, ...patch })); setSettingsDirty(true) }
   const updatePdfConfig = (patch) => { setPdfConfig(c => ({ ...c, ...patch })); setPdfDirty(true) }
@@ -343,14 +345,14 @@ export default function AdminPage() {
   }
 
   const loadSettingsData = () => {
-    fetch('/api/admin/skus').then(r => r.json()).then(d => { setSkus(d.skus || []); setSkusDirty(false) }).catch(() => {})
-    adminFetch('/config').then(r => r.json()).then(d => { setSettings(s => ({ ...s, ...d })); setSettingsDirty(false) }).catch(() => showToast('核心配置加载失败'))
+    fetch('/api/admin/skus').then(r => r.json()).then(d => { setSkus(d.skus || []); setSkusDirty(false) }).catch(() => showToast('套餐列表加载失败'))
+    adminFetch('/config').then(r => r.json()).then(d => { setSettings(s => ({ ...s, ...d })); setSettingsDirty(false); setSettingsLoaded(true) }).catch(() => { showToast('核心配置加载失败'); setSettingsLoaded(false) })
     fetch('/api/admin/ui-config').then(r => r.json()).then(d => {
       setUiConfig({ ...d, customer_service_qr_url: '' })
-    }).catch(() => {})
-    adminFetch('/pdf-config').then(r => r.json()).then(d => { setPdfConfig(d); setPdfDirty(false) }).catch(() => {})
-    adminFetch('/storage-config').then(r => r.json()).then(d => { setStorageConfig(d); setStorageDirty(false) }).catch(() => {})
-    adminFetch('/trends').then(r => r.json()).then(setTrends).catch(() => {})
+    }).catch(() => showToast('UI客服配置加载失败'))
+    adminFetch('/pdf-config').then(r => r.json()).then(d => { setPdfConfig(d); setPdfDirty(false) }).catch(() => showToast('PDF品牌配置加载失败'))
+    adminFetch('/storage-config').then(r => r.json()).then(d => { setStorageConfig(d); setStorageDirty(false) }).catch(() => showToast('存储配置加载失败'))
+    adminFetch('/trends').then(r => r.json()).then(setTrends).catch(() => showToast('趋势数据加载失败'))
   }
 
   // ★ 刷新时恢复管理员会话
@@ -370,17 +372,22 @@ export default function AdminPage() {
     })
   }, [authed])
 
+  const [loginLoading, setLoginLoading] = useState(false)
+
   const handleLogin = async () => {
+    setLoginLoading(true)
     try {
       await adminLogin(pwd)
       localStorage.setItem(PWD_KEY, pwd)
       setAuthed(true)
     } catch {
       showToast('密码错误')
+    } finally {
+      setLoginLoading(false)
     }
   }
 
-  const loadUsers = () => { adminFetch('/users').then(r => r.json()).then(d => setUsers(d.users || [])).catch(() => {}) }
+  const loadUsers = () => { adminFetch('/users').then(r => r.json()).then(d => setUsers(d.users || [])).catch(() => showToast('用户列表加载失败')) }
   const [creditModal, setCreditModal] = useState(null) // { userId, phone }
   const [creditAmount, setCreditAmount] = useState(10)
   const [creditSaving, setCreditSaving] = useState(false)
@@ -448,6 +455,29 @@ export default function AdminPage() {
     }
   }
 
+  const applyUserSku = async (item) => {
+    if (!skuModal) return
+    setUserSkuApplyingId(item.id)
+    try {
+      const r = await adminFetch(`/users/${skuModal.userId}/apply-sku`, {
+        method: 'POST',
+        body: JSON.stringify({ item }),
+      })
+      const d = await r.json().catch(() => ({}))
+      if (!r.ok || !d.ok) throw new Error(d.detail || '应用失败')
+      setUsers(prev => prev.map(u => (
+        u.id === skuModal.userId
+          ? { ...u, ...d.user }
+          : u
+      )))
+      showToast(d.message || '套餐已应用到账户')
+    } catch (err) {
+      showToast(err?.message || '应用失败')
+    } finally {
+      setUserSkuApplyingId(null)
+    }
+  }
+
   if (isChecking) {
     return (
       <div className="admin-page min-h-screen flex items-center justify-center px-4">
@@ -467,7 +497,10 @@ export default function AdminPage() {
           <input type="password" value={pwd} onChange={e => setPwd(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && handleLogin()}
             placeholder="请输入管理员密码" className="w-full rounded-lg border border-slate-200 px-4 py-3 text-sm focus:outline-none focus:border-blue-400" />
-          <button onClick={handleLogin} className="w-full mt-4 rounded-lg bg-blue-600 py-3 text-sm font-bold text-white">登 录</button>
+          <button onClick={handleLogin} disabled={loginLoading}
+            className="w-full mt-4 rounded-lg bg-blue-600 py-3 text-sm font-bold text-white disabled:opacity-50 disabled:cursor-not-allowed">
+            {loginLoading ? '验证中...' : '登 录'}
+          </button>
         </div>
       </div>
     )
@@ -594,7 +627,12 @@ export default function AdminPage() {
                           }`}>{u.membership_label || u.membership_tier}</span>
                         </td>
                         <td className="px-3 py-3 text-slate-500 text-[11px]">
-                          {u.membership_expiry ? u.membership_expiry.slice(0, 10) : '—'}
+                          {u.membership_expiry ? (
+                            <div className="leading-5">
+                              <div className="font-semibold text-slate-600">{u.membership_expiry.slice(0, 10)}</div>
+                              <div className="text-[10px] text-violet-500">剩余 {u.membership_days_left || 0} 天</div>
+                            </div>
+                          ) : '—'}
                         </td>
                         <td className="px-3 py-3">
                           <span className={`text-[10px] px-1.5 py-0.5 rounded ${
@@ -610,7 +648,7 @@ export default function AdminPage() {
                             <button
                               onClick={() => openSkuModal(u)}
                               className="text-[10px] font-semibold text-violet-600 bg-violet-50 hover:bg-violet-100 rounded-full px-3 py-1 transition-colors"
-                            >套餐</button>
+                            >套餐/到账</button>
                           <button
                             onClick={() => { setCreditModal({ userId: u.id, phone: u.phone || u.phone_number || '' }); setCreditAmount(10) }}
                             className="text-[10px] font-semibold text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-full px-3 py-1 transition-colors"
@@ -681,7 +719,7 @@ export default function AdminPage() {
                 <div className="w-full max-w-4xl max-h-[86vh] overflow-hidden rounded-xl bg-white shadow-2xl" onClick={e => e.stopPropagation()}>
                   <div className="flex items-start justify-between gap-4 border-b border-slate-100 px-5 py-4">
                     <div>
-                      <h3 className="text-base font-bold text-slate-900">用户专属套餐配置</h3>
+                      <h3 className="text-base font-bold text-slate-900">用户套餐配置与到账</h3>
                       <p className="mt-1 text-xs text-slate-500">
                         用户 <span className="font-mono font-bold text-slate-700">#{skuModal.userId}</span>
                         {skuModal.phone ? <span className="ml-1 text-slate-400">({skuModal.phone})</span> : ''}
@@ -689,6 +727,7 @@ export default function AdminPage() {
                           {userSkuInherited ? '当前继承全局套餐' : '当前使用专属套餐'}
                         </span>
                       </p>
+                      <p className="mt-1 text-[11px] text-amber-600">保存配置只影响客户可见套餐；点击“应用到账户”才会实际增加点数或开通会员。</p>
                     </div>
                     <button onClick={() => setSkuModal(null)} className="rounded-lg px-2 py-1 text-sm text-slate-400 hover:bg-slate-100">关闭</button>
                   </div>
@@ -728,6 +767,20 @@ export default function AdminPage() {
                               <button onClick={() => updateUserSkuAt(i, { visible: s.visible === false })}
                                 className={`col-span-1 rounded px-2 py-1.5 text-[10px] font-bold ${s.visible === false ? 'bg-slate-200 text-slate-500' : 'bg-emerald-50 text-emerald-600'}`}>
                                 {s.visible === false ? '隐藏' : '显示'}
+                              </button>
+                            </div>
+                            <div className="mt-2 flex items-center justify-between gap-3">
+                              <div className="text-[11px] text-slate-400">
+                                {s.type === 'membership'
+                                  ? `应用后：为用户开通/延长 ${s.duration_days || 30} 天会员，到期日会显示在用户列表`
+                                  : `应用后：为用户增加 ${s.credits || 0} 点`}
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => applyUserSku(s)}
+                                disabled={userSkuApplyingId === s.id || userSkuSaving || userSkuLoading}
+                                className="rounded-lg bg-emerald-600 px-3 py-1.5 text-[11px] font-bold text-white hover:bg-emerald-700 disabled:opacity-50">
+                                {userSkuApplyingId === s.id ? '应用中...' : '应用到账户'}
                               </button>
                             </div>
                           </div>
@@ -1026,9 +1079,9 @@ export default function AdminPage() {
 
             {/* 保存按钮 → 二次确认 */}
             <button onClick={() => setConfirmSave(true)}
-              disabled={!settingsDirty || settingsSaving}
-              className="w-full rounded-xl bg-blue-600 py-3 text-sm font-bold text-white hover:bg-blue-700 transition-colors">
-              {settingsDirty ? '保存核心系统配置' : '核心系统配置已保存'}
+              disabled={!settingsDirty || settingsSaving || !settingsLoaded}
+              className="w-full rounded-xl bg-blue-600 py-3 text-sm font-bold text-white hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+              {!settingsLoaded ? '配置加载中...' : settingsDirty ? '保存核心系统配置' : '核心系统配置已保存'}
             </button>
             {settingsDirty && <p className="-mt-2 text-center text-[10px] font-semibold text-amber-600">核心系统配置有未保存更改</p>}
 

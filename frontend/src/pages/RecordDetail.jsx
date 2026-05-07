@@ -160,7 +160,7 @@ export default function RecordDetail() {
             <div><div className="text-[10px] text-slate-400">地址</div><div className="text-xs font-semibold text-slate-900 mt-0.5">{data.address || '-'}</div></div>
             <div><div className="text-[10px] text-slate-400">品牌/业态</div><div className="text-xs font-semibold text-slate-900 mt-0.5">{data.brand_desc || data.business_type || '-'}</div></div>
             <div><div className="text-[10px] text-slate-400">门店面积</div><div className="text-xs font-semibold text-slate-900 mt-0.5">{data.store_size > 0 ? `${data.store_size}㎡` : '-'}</div></div>
-            <div><div className="text-[10px] text-slate-400">分析时间</div><div className="text-xs text-slate-500 mt-0.5">{data.created_at?.slice(0, 16)?.replace('T', ' ')}</div></div>
+            <div><div className="text-[10px] text-slate-400">分析时间</div><div className="text-xs text-slate-500 mt-0.5">{data.created_at ? new Date(data.created_at + 'Z').toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }) : '-'}</div></div>
           </div>
           {data.overall_score > 0 && (
             <div className="mt-3 pt-3 border-t border-slate-50 flex items-center gap-3">

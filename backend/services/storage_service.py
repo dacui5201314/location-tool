@@ -257,7 +257,9 @@ def _upload_to_cloud(cfg: dict, filename: str, content: str) -> str:
         if r.status_code in (200, 201):
             return url
     except Exception:
-        pass
+        import traceback
+        print(f"[CRITICAL] 云端 OSS 上传失败: {filename}", flush=True)
+        traceback.print_exc()
     return ""
 
 
@@ -269,5 +271,7 @@ def _download_from_cloud(url: str) -> bytes:
         if r.status_code == 200:
             return r.content
     except Exception:
-        pass
+        import traceback
+        print(f"[CRITICAL] 云端 OSS 下载失败: {url}", flush=True)
+        traceback.print_exc()
     return b""

@@ -6,13 +6,10 @@ import AnalysisResult from '../components/AnalysisResult'
 import BusinessTypeSelector from '../components/BusinessTypeSelector'
 import BrandInput from '../components/BrandInput'
 import StoreSizeInput from '../components/StoreSizeInput'
-import LoadingSpinner from '../components/LoadingSpinner'
 import PdfExport from '../components/PdfExport'
 import useAMap from '../hooks/useAMap'
-import { analyzeLocation, ensureToken, fetchProfile, checkFavorite, addFavorite, deleteFavorite, getToken } from '../services/api'
+import { ensureToken, fetchProfile, checkFavorite, addFavorite, deleteFavorite, getToken } from '../services/api'
 import LoginModal from '../components/LoginModal'
-import { collectLocationData } from '../services/amapData'
-import { BUSINESS_TYPE_TO_AMAP } from '../utils/constants'
 
 const HERO_POINTS = [
   { title: '数据驱动决策', desc: '多源数据融合' },
@@ -223,10 +220,32 @@ export default function HomePage() {
     return true
   }
 
+  const [analyzeSteps, setAnalyzeSteps] = useState([])
+  const [currentStep, setCurrentStep] = useState(0)
+
+  /**
+   * 安全解析 SSE data 行中的 JSON 事件。
+   * 返回 null 表示该 segment 不含有效 data 行或 JSON 未完整到达。
+   * JSON 解析异常时打印警告便于排查。
+   */
+  const _parseSseEvent = (segment) => {
+    const dataLine = segment.split('\n').find(l => l.startsWith('data: '))
+    if (!dataLine) return null
+    const jsonStr = dataLine.slice(6)
+    try {
+      return JSON.parse(jsonStr)
+    } catch {
+      // JSON 超长跨 chunk → 等待更多数据；纯格式异常 → 记日志
+      if (jsonStr.length > 500) {
+        console.warn('[SSE] JSON parse failed, likely incomplete chunk, len:', jsonStr.length)
+      }
+      return null
+    }
+  }
+
   const handleAnalyze = useCallback(async () => {
     if (!validateForm()) return
 
-    // ★ 强制登录门控：无 Token 或未绑定手机号 → 弹出登录/注册
     const token = getToken()
     if (!token) {
       setLoginModalOpen(true)
@@ -235,14 +254,134 @@ export default function HomePage() {
     }
 
     setAnalyzing(true); setError(null); setResult(null)
+    setAnalyzeSteps([]); setCurrentStep(0)
+
+    let reader = null
     try {
-      const amapType = BUSINESS_TYPE_TO_AMAP[businessType] || ''
-      const realData = await collectLocationData(selectedLocation.location.lng, selectedLocation.location.lat, amapType)
-      const data = await analyzeLocation(selectedLocation.address || selectedLocation.name, selectedLocation.location, 'deepseek', businessType, realData, brandName, storeSize)
-      setResult(data)
+      // ═══════════════════════════════════════════
+      // ★ 纯血原生 fetch — 彻底绕开任何 XHR/axios 拦截器
+      // ═══════════════════════════════════════════
+      const resp = await window.fetch('/api/analyze', {
+        method: 'POST',
+        cache: 'no-store',
+        headers: {
+          'Accept': 'text/event-stream',
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          address: selectedLocation.address || selectedLocation.name,
+          location: { lng: selectedLocation.location.lng, lat: selectedLocation.location.lat },
+          provider: 'deepseek',
+          business_type: businessType,
+          brand_name: brandName,
+          store_size: parseInt(storeSize) || 0,
+          real_data: null,
+        }),
+      })
+
+      if (!resp.ok) {
+        let errMsg = `请求失败 (${resp.status})`
+        try {
+          const errBody = await resp.text()
+          if (errBody) {
+            const parsed = JSON.parse(errBody)
+            errMsg = parsed.detail || parsed.message || errBody.slice(0, 120)
+          }
+        } catch {}
+        throw new Error(errMsg)
+      }
+
+      // ═══════════════════════════════════════════
+      // ★ 全缓冲读取 — 免疫 Vite 代理 / Nginx / uvicorn 缓冲层
+      // 不依赖流式 chunk：把全部数据读完再解析，然后逐行动画播放
+      // ═══════════════════════════════════════════
+      reader = resp.body.getReader()
+      const decoder = new TextDecoder('utf-8')
+      let rawBody = ''
+
+      while (true) {
+        const { done, value } = await reader.read()
+        if (value) {
+          rawBody += decoder.decode(value, { stream: true })
+        }
+        if (done) break
+      }
+
+      // ── 一次性切割全部 SSE 事件 ──
+      console.log('[SSE DEBUG] rawBody length:', rawBody.length, 'preview:', rawBody.slice(0, 300))
+      const allEvents = []
+      const segments = rawBody.split('\n\n')
+      console.log('[SSE DEBUG] segments after split:', segments.length)
+      for (const seg of segments) {
+        const event = _parseSseEvent(seg)
+        if (event) allEvents.push(event)
+      }
+
+      if (allEvents.length === 0) {
+        // ★ 纯 JSON 兜底：后端在流启动前抛了异常（如 LLM JSON 解析失败），
+        // FastAPI 拦截异常并返回了普通 JSON 错误响应（而非 SSE 格式）。
+        const trimmed = rawBody.trim()
+        if (trimmed.startsWith('{')) {
+          try {
+            const jsonResult = JSON.parse(trimmed)
+            // 明确携带 error 字段 → 不是正常报告，是后端异常
+            if (jsonResult.error) {
+              throw new Error(jsonResult.error + (jsonResult.summary ? ' — ' + jsonResult.summary : ''))
+            }
+            // 不含 error 且包含评分/详情 → 正常的纯 JSON 报告
+            if (jsonResult.score !== undefined || jsonResult.details) {
+              setResult(jsonResult)
+              setCurrentStep(4)
+              setAnalyzeSteps([
+                { step: 1, msg: 'POI 数据采集完成' },
+                { step: 2, msg: '数据脱水与交叉比对完成' },
+                { step: 3, msg: 'AI 商业评估完成' },
+                { step: 4, msg: '✅ 报告生成完毕！' },
+              ])
+              await new Promise(r => setTimeout(r, 500))
+              reader?.cancel()
+              setAnalyzing(false)
+              return
+            }
+          } catch (parseErr) {
+            // JSON 解析出来但 check 失败 → 抛出原始错误
+            if (parseErr.message && !parseErr.message.startsWith('Unexpected')) {
+              throw parseErr
+            }
+          }
+        }
+        throw new Error(`分析服务返回异常 (${rawBody.length}字节)，请检查后端日志`)
+      }
+
+      // ── 逐步骤动画播放（仿流式效果，每步延迟 300ms）──
+      let finalResult = null
+      for (const event of allEvents) {
+        if (event.step === 'error') {
+          throw new Error(event.msg || '分析失败')
+        }
+        setCurrentStep(event.step)
+        setAnalyzeSteps(prev => [...prev, event])
+        if (event.step === 4) {
+          finalResult = event.result || null
+        }
+        await new Promise(r => setTimeout(r, 300))
+      }
+
+      // ── 平滑收尾 ──
+      if (finalResult) {
+        setResult(finalResult)
+        await new Promise(r => setTimeout(r, 500))
+      } else {
+        throw new Error('分析未生成有效报告，请重试')
+      }
     } catch (err) {
       setError(err.message || '分析失败，请重试')
     } finally {
+      // ★ 确保 reader 释放，避免锁死 TCP 连接
+      if (reader) {
+        try { reader.cancel() } catch {}
+      }
       setAnalyzing(false)
     }
   }, [selectedLocation, businessType, brandName, storeSize])
@@ -434,7 +573,47 @@ export default function HomePage() {
           </div>
         </section>
 
-        {analyzing && <LoadingSpinner />}
+        {/* ── SSE 实时分析控制台 ── */}
+        {analyzing && (
+          <div className="analyze-console">
+            <div className="console-header">
+              <span className="console-dot" />
+              <span className="console-title">AI 选址分析引擎 v4.0</span>
+              <span className="console-pulse" />
+            </div>
+            <div className="console-body">
+              {[1, 2, 3, 4].map(step => {
+                const evt = analyzeSteps.find(s => s.step === step)
+                const isDone = !!evt
+                const isCurrent = currentStep === step
+                const stepLabels = {
+                  1: 'POI 数据采集',
+                  2: '数据脱水 & 竞品交叉比对',
+                  3: 'AI 商业评估模型',
+                  4: '生成选址报告',
+                }
+                return (
+                  <div key={step} className={`console-line ${isDone ? 'done' : ''} ${isCurrent ? 'active' : ''}`}>
+                    <span className="console-caret">
+                      {isDone ? '✅' : isCurrent ? '▸' : '·'}
+                    </span>
+                    <span className="console-label">{stepLabels[step]}</span>
+                    {isDone && <span className="console-msg">{evt.msg}</span>}
+                    {isCurrent && !isDone && (
+                      <span className="console-msg">
+                        {analyzeSteps.find(s => s.step === step)?.msg || '处理中...'}
+                        <span className="console-blink">▌</span>
+                      </span>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+            <div className="console-footer">
+              {currentStep >= 4 ? '✅ 报告已生成，正在加载...' : '⏳ 请耐心等待，AI 正在深度分析中...'}
+            </div>
+          </div>
+        )}
 
         {result && !analyzing && (
           <div className="space-y-3 animate-in">

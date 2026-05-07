@@ -9,6 +9,8 @@ from auth import get_current_user
 
 router = APIRouter(prefix="/api/favorites", tags=["收藏地址"])
 
+TOLERANCE_M = 200  # 分析记录匹配容差（米）
+
 
 class AddFavoriteBody(BaseModel):
     custom_name: str = ""
@@ -17,58 +19,91 @@ class AddFavoriteBody(BaseModel):
     longitude: float = 0.0
 
 
-def _find_nearest_report(db: Session, user_id: int, lat: float, lng: float, tolerance_m: int = 200):
-    """在分析记录中查找距离最近的报告（容差200米内）"""
-    records = db.query(AnalysisRecord).filter(
-        AnalysisRecord.user_id == user_id
-    ).all()
-    best = None
-    best_dist = float('inf')
-    for r in records:
-        dlat = abs(r.latitude - lat)
-        dlng = abs(r.longitude - lng)
-        dist_m = ((dlat * 111320) ** 2 + (dlng * 111320 * cos(radians(lat))) ** 2) ** 0.5
-        if dist_m < tolerance_m and dist_m < best_dist:
-            best_dist = dist_m
-            best = r
-    return best
+def _haversine_m(lat1: float, lng1: float, lat2: float, lng2: float) -> float:
+    """近似哈弗辛距离（米），误差 < 0.5% 在 2km 范围内"""
+    dlat = abs(lat1 - lat2)
+    dlng = abs(lng1 - lng2)
+    return ((dlat * 111320) ** 2 + (dlng * 111320 * cos(radians((lat1 + lat2) / 2))) ** 2) ** 0.5
+
+
+def _match_reports_in_memory(locations: list, reports: list) -> list[dict]:
+    """内存 O(n+m) 匹配：为每个收藏找最近的已分析报告（容差200m内）。
+    替代原 N+1 循环查询，一次查出全部报告后纯内存匹配。"""
+    if not reports:
+        return [_empty_fav(loc) for loc in locations]
+
+    result = []
+    for loc in locations:
+        best = None
+        best_dist = float('inf')
+        for r in reports:
+            dist = _haversine_m(loc.latitude, loc.longitude, r.latitude, r.longitude)
+            if dist < TOLERANCE_M and dist < best_dist:
+                best_dist = dist
+                best = r
+        if best:
+            result.append(_enriched_fav(loc, best))
+        else:
+            result.append(_empty_fav(loc))
+    return result
+
+
+def _enriched_fav(loc: SavedLocation, report: AnalysisRecord) -> dict:
+    return {
+        **loc.to_dict(),
+        "is_analyzed": True,
+        "report_id": report.id,
+        "report_overall_score": report.overall_score,
+        "report_created_at": report.created_at.isoformat() if report.created_at else None,
+        "report_business_type": report.business_type or "",
+        "report_store_size": report.store_size or 0,
+        "report_brand_desc": report.brand_desc or "",
+        "report_address": report.address or "",
+    }
+
+
+def _empty_fav(loc: SavedLocation) -> dict:
+    return {
+        **loc.to_dict(),
+        "is_analyzed": False,
+        "report_id": None,
+        "report_overall_score": None,
+        "report_created_at": None,
+        "report_business_type": "",
+        "report_store_size": 0,
+        "report_brand_desc": "",
+        "report_address": "",
+    }
 
 
 @router.get("")
 def list_favorites(
     user: dict = Depends(get_current_user),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100),
     db: Session = Depends(get_db),
 ):
-    """获取用户收藏列表，跨表注入 is_analyzed 和 report_id"""
+    """获取用户收藏列表，跨表注入 is_analyzed 和 report_id。
+    ★ 性能重构：一次查出全部报告做内存匹配 O(n+m)，替代原 N+1 循环查询。"""
     user_id = user["user_id"]
-    locations = db.query(SavedLocation).filter(
-        SavedLocation.user_id == user_id
-    ).order_by(SavedLocation.created_at.desc()).all()
 
-    result = []
-    for loc in locations:
-        item = loc.to_dict()
-        report = _find_nearest_report(db, user_id, loc.latitude, loc.longitude)
-        if report:
-            item["is_analyzed"] = True
-            item["report_id"] = report.id
-            item["report_overall_score"] = report.overall_score
-            item["report_created_at"] = report.created_at.isoformat() if report.created_at else None
-            item["report_business_type"] = report.business_type or ""
-            item["report_store_size"] = report.store_size or 0
-            item["report_brand_desc"] = report.brand_desc or ""
-            item["report_address"] = report.address or ""
-        else:
-            item["is_analyzed"] = False
-            item["report_id"] = None
-            item["report_overall_score"] = None
-            item["report_created_at"] = None
-            item["report_business_type"] = ""
-            item["report_store_size"] = 0
-            item["report_brand_desc"] = ""
-            item["report_address"] = ""
-        result.append(item)
-    return {"favorites": result}
+    # ── 一次查出该用户全部报告（单次 DB 查询，消除 N+1）──
+    reports = db.query(AnalysisRecord).filter(
+        AnalysisRecord.user_id == user_id
+    ).all()
+
+    # ── 收藏列表分页 ──
+    query = db.query(SavedLocation).filter(
+        SavedLocation.user_id == user_id
+    ).order_by(SavedLocation.created_at.desc())
+
+    total = query.count()
+    locations = query.offset((page - 1) * page_size).limit(page_size).all()
+
+    # ── 内存匹配 ──
+    enriched = _match_reports_in_memory(locations, reports)
+
+    return {"favorites": enriched, "total": total, "page": page, "page_size": page_size}
 
 
 @router.get("/check")

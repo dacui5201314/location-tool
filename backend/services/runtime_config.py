@@ -212,41 +212,76 @@ def _score_from_detail(value: Any) -> int:
 
 
 def normalize_report_result(result: dict[str, Any]) -> dict[str, Any]:
-    """Add stable report fields while keeping legacy fields untouched."""
+    """Add stable report fields while keeping legacy fields untouched.
+    ★ 强制数学接管 overall_score：决不允许 LLM 捏造总分，维度平均分即最终得分。"""
     details = result.get("details") or {}
     if not isinstance(details, dict):
         details = {}
         result["details"] = details
 
-    dim_labels = {
-        "population_density": "人口密集度",
-        "traffic_accessibility": "交通可达性",
-        "traffic_flow": "客流特征",
-        "consumer_profile": "消费人群",
-        "competition": "竞争环境",
-        "complementary_businesses": "互补业态",
-        "category_advantage": "品类优势",
-        "cost_estimate": "成本压力",
-    }
-    dimension_scores = []
-    for key, label in dim_labels.items():
-        text = str(details.get(key, "") or "")
-        score = _score_from_detail(text)
-        dimension_scores.append({"key": key, "label": label, "score": score, "text": text})
+    # ═══════════════════════════════════════════
+    # ★ 雷达图维度强制固定顺序——彻底杜绝张冠李戴
+    # ═══════════════════════════════════════════
+    FIXED_DIM_ORDER = [
+        ("population_density", "人口密集度"),
+        ("traffic_accessibility", "交通可达性"),
+        ("traffic_flow", "客流特征"),
+        ("consumer_profile", "消费人群"),
+        ("competition", "竞争环境"),
+        ("complementary_businesses", "互补业态"),
+        ("category_advantage", "品类优势"),
+        ("cost_estimate", "成本压力"),
+    ]
 
-    scores = [d["score"] for d in dimension_scores if d["score"] > 0]
-    if not isinstance(result.get("score"), int) or result.get("score") <= 0:
-        result["score"] = round(sum(scores) / len(scores)) if scores else 0
+    # ── 从 LLM 原始 dimension_scores 构建 key→score 查找表 ──
+    llm_score_map = {}
+    llm_text_map = {}
+    llm_dims = result.get("dimension_scores")
+    if isinstance(llm_dims, list):
+        for d in llm_dims:
+            if isinstance(d, dict) and d.get("key"):
+                raw = d.get("score", 0)
+                try:
+                    llm_score_map[d["key"]] = int(raw) if raw is not None else 0
+                except (ValueError, TypeError):
+                    llm_score_map[d["key"]] = 0
+                llm_text_map[d["key"]] = str(d.get("text", "") or "")
 
+    # ── 按固定顺序重建 dimension_scores，缺失维度从 detail 补分 ──
+    rebuilt_dims = []
+    valid_scores = []
+    for key, label in FIXED_DIM_ORDER:
+        if key in llm_score_map:
+            score = llm_score_map[key]
+        else:
+            score = _score_from_detail(str(details.get(key, "") or ""))
+        score = max(0, min(100, score))
+        if score > 0:
+            valid_scores.append(score)
+        text = llm_text_map.get(key) or str(details.get(key, "") or "")
+        rebuilt_dims.append({"key": key, "label": label, "score": score, "text": text})
+
+    # ★ 无条件覆写：前端拿到的永远是固定顺序的数组
+    result["dimension_scores"] = rebuilt_dims
+
+    # ★ 强制覆写总分——地毯式覆盖所有可能的总分字段名
+    calculated_score = round(sum(valid_scores) / len(valid_scores)) if valid_scores else 0
+    result["score"] = calculated_score
+    result["overall_score"] = calculated_score
+    result["total_score"] = calculated_score
+    print(f"[Backend Calculation] 维度数={len(valid_scores)}, 各维度={valid_scores}, 平均分={calculated_score}, 已强制覆写 AI 原始总分!", flush=True)
+
+    # ── 客观结构化摘要（不包含建议/推荐/推进等主观判断）──
     if "executive_summary" not in result:
         result["executive_summary"] = {
-            "verdict": "建议推进" if result["score"] >= 75 else "谨慎推进" if result["score"] >= 60 else "不建议贸然推进",
             "summary": str(result.get("summary") or ""),
             "top_strengths": _as_list(result.get("advantages"), 3),
             "top_risks": _as_list(result.get("disadvantages"), 3),
         }
-    if "dimension_scores" not in result:
-        result["dimension_scores"] = dimension_scores
+    # 如果 LLM 返回了 executive_summary，清除其中可能存在的 verdict 字段
+    if "verdict" in result.get("executive_summary", {}):
+        del result["executive_summary"]["verdict"]
+
     if "action_plan" not in result:
         result["action_plan"] = [
             "先实地复核客流高峰、门头可见度和竞品排队情况。",

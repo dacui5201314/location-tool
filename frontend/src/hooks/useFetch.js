@@ -40,9 +40,9 @@ export default function useFetch(url, options = {}) {
       try {
         let resp = await fetch(url, { ...options, headers, signal: controller.signal })
 
-        const shouldRefreshToken =
-          resp.status === 401 ||
-          (resp.status === 404 && String(url).includes('/api/user/profile'))
+        // ★ 仅 401 触发 Token 刷新。404 表示资源不存在（如用户被删），
+        // 绝不可重签 Token 导致无限循环。
+        const shouldRefreshToken = resp.status === 401
 
         if (shouldRefreshToken) {
           try { localStorage.removeItem('_auth_token') } catch (e) { /* */ }

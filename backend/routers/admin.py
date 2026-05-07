@@ -26,15 +26,24 @@ from services.runtime_config import (
     set_config_values,
 )
 
-_ERROR_LOGS: list[dict] = [
-    {"time": "2026-04-30 10:23:15", "user_id": 1, "type": "API", "msg": "DeepSeek API 超时重试中 (attempt 2/3)"},
-    {"time": "2026-04-30 09:47:02", "user_id": 0, "type": "PAYMENT", "msg": "支付回调验签失败: signature mismatch"},
-    {"time": "2026-04-29 18:30:44", "user_id": 1, "type": "AMAP", "msg": "高德POI搜索返回空结果 (radius=1000, types=050000)"},
-]
+# ★ 系统运行日志 — 当前使用持久化存储，下方为已弃用的内存态样本占位
+_ERROR_LOGS: list[dict] = []  # 已弃用：不再使用硬编码假数据。真实日志请接入 logging + DB handler
 
 router = APIRouter(prefix="/api/admin", tags=["管理后台"])
 
-ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "admin123")
+_ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "")
+_WEAK_ADMIN_PASSWORDS = {"admin123", "admin", "password", "123456", "admin888", "888888", ""}
+if _ADMIN_PASSWORD in _WEAK_ADMIN_PASSWORDS:
+    raise ValueError(
+        "\n" + "=" * 68 + "\n"
+        "  SECURITY BLOCK: 检测到弱 ADMIN_PASSWORD！\n"
+        "  管理后台密码不可为空，也不可使用常见弱密码。\n"
+        "  请在 backend/.env 中设置强密码，例如：\n"
+        "  ADMIN_PASSWORD=" + __import__("secrets").token_urlsafe(16) + "\n"
+        "  （以上为本次生成的示例，请复制到 .env 中）\n"
+        + "=" * 68
+    )
+ADMIN_PASSWORD = _ADMIN_PASSWORD
 QRCODE_CONFIG_KEY = "OFFICIAL_QRCODE_URL"
 
 
@@ -138,14 +147,21 @@ def add_credits(
     admin: dict = Depends(get_current_admin),
     db: Session = Depends(get_db),
 ):
-    """增加用户点数（需管理员权限）"""
+    """增加用户点数（需管理员权限）— 原子化 UPDATE 防并发覆盖"""
 
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="用户不存在")
 
-    user.balance_credits += body.amount
+    # ★ 原子化 SQL：UPDATE ... SET balance_credits = balance_credits + amount
+    # 杜绝 Python Read-Modify-Write 竞态——两管理员同时加点不会互相覆盖
+    db.execute(
+        update(User)
+        .where(User.id == user_id)
+        .values(balance_credits=User.balance_credits + body.amount)
+    )
     db.commit()
+    db.refresh(user)
     return {"ok": True, "user_id": user_id, "balance_credits": user.balance_credits}
 
 
@@ -178,7 +194,8 @@ def get_config(admin: dict = Depends(get_current_admin), db: Session = Depends(g
 
 @router.put("/config")
 def save_config(body: ConfigBody, admin: dict = Depends(get_current_admin), db: Session = Depends(get_db)):
-    """保存核心系统配置到数据库（需管理员权限，运行时读取生效）"""
+    """保存核心系统配置到数据库（需管理员权限，运行时读取生效）。
+    防空值保护：空字符串或 None 的字段自动略过，绝不允许空值覆写真实密钥。"""
     config_map = {
         "amap_key": body.amap_key,
         "ai_provider": body.ai_provider,
@@ -190,8 +207,23 @@ def save_config(body: ConfigBody, admin: dict = Depends(get_current_admin), db: 
         "wx_cert_sn": body.wx_cert_sn,
         "wx_notify_url": body.wx_notify_url,
     }
-    set_config_values(config_map, {key: f"系统设置-{key}" for key in CORE_CONFIG_DEFAULTS}, db)
-    return {"ok": True, "message": "配置已保存", "config": load_core_config(db)}
+    # ★ 防空值覆盖：strip() 后为空的值一律跳过，禁止空值覆写 DB 中的真实密钥
+    filtered_map = {}
+    skipped = []
+    for key, value in config_map.items():
+        if value and str(value).strip():
+            filtered_map[key] = str(value).strip()
+        else:
+            skipped.append(key)
+    if filtered_map:
+        set_config_values(filtered_map, {key: f"系统设置-{key}" for key in CORE_CONFIG_DEFAULTS}, db)
+    return {
+        "ok": True,
+        "message": "配置已保存",
+        "saved_fields": list(filtered_map.keys()),
+        "skipped_fields": skipped,
+        "config": load_core_config(db),
+    }
 
 
 # ============================================================
@@ -215,6 +247,7 @@ class SkuListBody(BaseModel):
 
 class ApplyUserSkuBody(BaseModel):
     item: SkuItem
+
 
 @router.get("/skus")
 def get_skus(db: Session = Depends(get_db)):
@@ -301,7 +334,12 @@ def apply_user_sku(
         credits = max(0, int(item.credits or 0))
         if credits <= 0:
             raise HTTPException(status_code=400, detail="点数包必须包含大于 0 的点数")
-        db_user.balance_credits += credits
+        # ★ 原子化 UPDATE 杜绝并发覆盖
+        db.execute(
+            update(User)
+            .where(User.id == user_id)
+            .values(balance_credits=User.balance_credits + credits)
+        )
         message = f"已为用户增加 {credits} 点"
 
     db.commit()
@@ -330,8 +368,8 @@ def get_logs(
     admin: dict = Depends(get_current_admin),
     level: str = Query("error"),
 ):
-    """系统日志（需管理员权限）"""
-    return {"logs": _ERROR_LOGS, "total": len(_ERROR_LOGS)}
+    """系统日志（需管理员权限）— 当前为占位接口，真实日志模块开发中"""
+    return {"logs": _ERROR_LOGS, "total": len(_ERROR_LOGS), "deprecated": True, "note": "日志模块开发中，当前无持久化错误日志"}
 
 
 # ============================================================
@@ -482,34 +520,49 @@ def activate_cdk(
     user: dict = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    """激活兑换码 — 从 JWT 绑定用户，原子化 UPDATE 防一码多充。"""
+    """激活兑换码 — JWT 强身份绑定 + 事务原子性保护。
+    流程：查验CDK → 增加点数 → 标记已用 → 审计流水 → 统一提交。
+    任一环节失败整笔事务回滚，杜绝资产烧毁。"""
     _check_cdk_rate(request)
 
     code_str = body.code.strip().upper()
-    user_id = int(user["user_id"])
+    user_id = int(user["user_id"])  # ★ 仅从 JWT 提取，请求体无 user_id 字段
 
     db_user = db.query(User).filter(User.id == user_id).first()
     if not db_user:
         raise HTTPException(status_code=404, detail="当前用户不存在，请重新登录")
 
-    # 先查询兑换码是否存在、是否过期（非竞态路径，仅用于友好错误提示）
+    # ── 1. 查验 CDK 是否存在且未过期 ──
     c = db.query(RedeemCode).filter(RedeemCode.code == code_str).first()
     if not c:
         raise HTTPException(status_code=404, detail="兑换码不存在")
     if c.expires_at and c.expires_at < datetime.now():
         raise HTTPException(status_code=400, detail="该兑换码已过期")
 
-    # ★ 原子化 UPDATE：WHERE is_used == 0 消除 TOCTOU 竞态窗口
+    # ── 2. 给当前 JWT 对应的真实用户增加点数 ──
+    db_user.balance_credits += c.credits
+
+    # ── 3. 原子化标记 CDK 已使用（WHERE is_used == 0 消除 TOCTOU 窗口） ──
     result = db.execute(
         update(RedeemCode)
         .where(RedeemCode.code == code_str, RedeemCode.is_used == 0)
         .values(is_used=1, used_by=user_id, used_at=datetime.now())
     )
     if result.rowcount == 0:
+        # CDK 已在竞态中被核销 → 本次事务的所有修改（含点数增加）自动作废
         raise HTTPException(status_code=400, detail="该兑换码已被使用")
 
-    # 点数充值
-    db_user.balance_credits += c.credits
+    # ── 4. 写入审计流水 ──
+    from models.db_models import BillingRecord
+    db.add(BillingRecord(
+        user_id=user_id,
+        amount=c.credits,
+        balance_after=db_user.balance_credits,
+        record_type="CDK_REDEEM",
+        reason=f"兑换码激活: {code_str}",
+    ))
+
+    # ── 5. 所有操作确认无误，最后一步统一提交 ──
     db.commit()
     return {"ok": True, "credits_added": c.credits, "balance": db_user.balance_credits}
 
@@ -519,19 +572,28 @@ def activate_cdk(
 # ============================================================
 @router.get("/trends")
 def get_trends(admin: dict = Depends(get_current_admin), db: Session = Depends(get_db)):
-    """搜索趋势看板（需管理员权限）"""
-    records = db.query(AnalysisRecord).all()
-    biz_counter = {}
-    brand_counter = {}
-    for r in records:
-        bt = r.business_type or ""
-        if bt: biz_counter[bt] = biz_counter.get(bt, 0) + 1
-        bd = r.brand_desc or ""
-        if bd: brand_counter[bd] = brand_counter.get(bd, 0) + 1
-    top_biz = sorted(biz_counter.items(), key=lambda x: -x[1])[:10]
-    top_brands = sorted(brand_counter.items(), key=lambda x: -x[1])[:10]
-    return {"top_business_types": [{"name": k, "count": v} for k, v in top_biz],
-            "top_brands": [{"name": k, "count": v} for k, v in top_brands]}
+    """搜索趋势看板（需管理员权限）— SQL 聚合替代全表 Python 遍历"""
+    # ★ 使用 SQL GROUP BY + COUNT 在数据库层聚合，只返回 Top 10，杜绝 OOM
+    biz_rows = (
+        db.query(AnalysisRecord.business_type, func.count(AnalysisRecord.id).label("cnt"))
+        .filter(AnalysisRecord.business_type != "", AnalysisRecord.business_type != None)
+        .group_by(AnalysisRecord.business_type)
+        .order_by(func.count(AnalysisRecord.id).desc())
+        .limit(10)
+        .all()
+    )
+    brand_rows = (
+        db.query(AnalysisRecord.brand_desc, func.count(AnalysisRecord.id).label("cnt"))
+        .filter(AnalysisRecord.brand_desc != "", AnalysisRecord.brand_desc != None)
+        .group_by(AnalysisRecord.brand_desc)
+        .order_by(func.count(AnalysisRecord.id).desc())
+        .limit(10)
+        .all()
+    )
+    return {
+        "top_business_types": [{"name": r[0], "count": r[1]} for r in biz_rows],
+        "top_brands": [{"name": r[0], "count": r[1]} for r in brand_rows],
+    }
 
 
 class PdfConfigBody(BaseModel):

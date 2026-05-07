@@ -1,7 +1,8 @@
-import { useState, useRef, useCallback } from 'react'
+import { useState, useRef, useCallback, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import RadarChart from './RadarChart'
 import useReportExport from '../hooks/useReportExport'
+import { getAssetUrl } from '../services/api'
 
 function formatDate() {
   const d = new Date()
@@ -114,6 +115,20 @@ function SectionBox({ children, style }) {
 export default function PdfExport({ selectedLocation, result, businessType, brandName }) {
   const reportRef = useRef(null)
   const { exportPdf, ExportModal, loading: exporting, toast, showToast } = useReportExport()
+  const [pdfConfig, setPdfConfig] = useState({ logo_url: '', footer_text: '' })
+  const [brandQrUrl, setBrandQrUrl] = useState('')
+
+  // ★ 拉取管理员自定义的 PDF 品牌配置和二维码，确保预览与导出 PDF 一致
+  useEffect(() => {
+    fetch('/api/admin/pdf-config')
+      .then(r => r.ok ? r.json() : {})
+      .then(cfg => setPdfConfig({ logo_url: cfg.logo_url || '', footer_text: cfg.footer_text || '' }))
+      .catch(() => {})
+    fetch('/api/admin/qrcode-slot/brand')
+      .then(r => r.ok ? r.json() : {})
+      .then(d => setBrandQrUrl(getAssetUrl(d.url || '')))
+      .catch(() => {})
+  }, [])
 
   if (!result) return null
 
@@ -154,9 +169,14 @@ export default function PdfExport({ selectedLocation, result, businessType, bran
         <div style={{
           textAlign: 'center', borderBottom: '3px solid #1e40af', paddingBottom: 22, marginBottom: 24,
         }}>
-          <h1 style={{ fontSize: 28, color: '#1e40af', margin: '0 0 8px 0', fontWeight: 700, letterSpacing: 3 }}>
-            📍 址得选 AI选址分析报告
-          </h1>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12, marginBottom: 8 }}>
+            {pdfConfig.logo_url ? (
+              <img src={getAssetUrl(pdfConfig.logo_url)} alt="品牌标识" style={{ width: 38, height: 38, objectFit: 'contain', borderRadius: 4 }} />
+            ) : null}
+            <h1 style={{ fontSize: 28, color: '#1e40af', margin: 0, fontWeight: 700, letterSpacing: 3 }}>
+              📍 址得选 AI选址分析报告
+            </h1>
+          </div>
           <p style={{ fontSize: 13, color: '#888', margin: 0 }}>
             址得选 | 基于实时 POI 数据 + AI 多维度分析 | {formatDate()}
           </p>
@@ -480,15 +500,19 @@ export default function PdfExport({ selectedLocation, result, businessType, bran
         </div>
       </div>
 
-      {/* ===== FOOTER ===== */}
+      {/* ===== FOOTER — 品牌自定义页脚 ===== */}
       <div data-section style={{ breakInside: 'avoid' }}>
         <div style={{
           textAlign: 'center', fontSize: 11, color: '#aaa',
           borderTop: '1px solid #e5e7eb', paddingTop: 16, marginTop: 12,
           lineHeight: 2,
         }}>
-          <p style={{ margin: 0 }}>📄 本报告由 AI 选址分析工具基于实时 POI 数据自动生成</p>
-          <p style={{ margin: 0 }}>🌐 数据底座：全网多维度商业 POI 聚合数据库 | 仅供参考，实际决策请结合实地考察与多方因素</p>
+          <p style={{ margin: 0, fontWeight: 600, color: '#334155' }}>
+            {pdfConfig.footer_text || 'AI 选址分析 · 商业数据决策平台'}
+          </p>
+          <p style={{ margin: '4px 0 0', fontSize: 10, color: '#94a3b8' }}>
+            📄 本报告由 AI 选址分析工具基于实时 POI 数据自动生成 | 仅供参考
+          </p>
         </div>
       </div>
     </div>

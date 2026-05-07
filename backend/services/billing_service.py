@@ -110,6 +110,16 @@ def check_billing_access(user: User, cost: int = 1, db_session=None) -> BillingR
     # 刷新 ORM 对象以反映数据库最新状态
     db_session.refresh(user)
 
+    # ★ 审计流水：每次消费必须记录，保证每一分钱有账可查
+    from models.db_models import BillingRecord
+    db_session.add(BillingRecord(
+        user_id=user.id,
+        amount=-cost,
+        balance_after=user.balance_credits,
+        record_type="CONSUME",
+        reason=f"分析消费 {cost} 点",
+    ))
+
     return BillingResult(
         allowed=True,
         reason=f"已消耗 {cost} 个分析点数",
@@ -132,5 +142,8 @@ def refund_credits(user_id: int, amount: int = 1):
         db.commit()
     except Exception:
         db.rollback()
+        import traceback
+        print(f"[CRITICAL] 点数退还失败！user_id={user_id}, amount={amount}，用户已损失点数，需手工补偿", flush=True)
+        traceback.print_exc()
     finally:
         db.close()

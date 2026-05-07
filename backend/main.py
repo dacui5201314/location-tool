@@ -1,12 +1,14 @@
 import json
 import os
 import re
+import asyncio
 from dotenv import load_dotenv
 load_dotenv()
 
 from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from fastapi.responses import StreamingResponse
 
 from models.schemas import AnalyzeRequest, AnalyzeResponse
 from prompts.location_analysis import build_system_prompt, build_analysis_prompt
@@ -128,7 +130,7 @@ BUSINESS_TYPE_TO_AMAP = {
 
 
 def _extract_json(text: str) -> str:
-    """从 LLM 原始响应中强力提取 JSON — 处理 Markdown 代码块及前后废话"""
+    """从 LLM 原始响应中强力提取 JSON — 处理 Markdown 代码块、截断修复"""
     text = text.strip()
     # 去掉 ```json ... ``` 或 ``` ... ``` 等 Markdown 代码块标记
     text = re.sub(r'```(?:json)?\s*\n?', '', text)
@@ -138,71 +140,48 @@ def _extract_json(text: str) -> str:
     last = text.rfind('}')
     if first != -1 and last != -1 and last > first:
         text = text[first:last + 1]
+    # ★ 截断修复：LLM 输出超出 max_tokens 时 JSON 会被腰斩
+    # 补全缺失的 } 和 ] 使 JSON 尽可能可解析
+    if text and text[0] == '{':
+        open_braces = text.count('{') - text.count('}')
+        open_brackets = text.count('[') - text.count(']')
+        if open_braces > 0 or open_brackets > 0:
+            # 检查是否在字符串中间被截断（未闭合的引号）
+            in_string = False
+            for i, ch in enumerate(text):
+                if ch == '"' and (i == 0 or text[i-1] != '\\\\'):
+                    in_string = not in_string
+            if in_string:
+                text += '"'
+            text += ']' * open_brackets + '}' * open_braces
     return text.strip()
 
 
-@app.post("/api/analyze", response_model=AnalyzeResponse)
+def _sse(step, msg, result=None):
+    """构建 SSE 事件字符串"""
+    payload = {"step": step, "msg": msg}
+    if result is not None:
+        payload["result"] = result
+    return f"data: {json.dumps(payload, ensure_ascii=False)}\n\n"
+
+
+@app.post("/api/analyze")
 async def analyze_location(req: AnalyzeRequest, user: dict = Depends(get_current_user)):
+    """SSE 流式选址分析 — 四步进度推送 + 最终报告 JSON"""
     current_user_id = user["user_id"]
 
-    # 1. 获取高德真实数据（后端 Web API 优先，前端 JS API 做备选）
-    real_data = None
-    try:
-        # 优先使用 IndustryConfig 的竞品类型
-        cfg = get_config(req.business_type)
-        competitor_type = cfg.get("competitor_amap_types", "")
-        if not competitor_type:
-            competitor_type = BUSINESS_TYPE_TO_AMAP.get(req.business_type, "")
-        ld = await collect_location_data(
-            req.location.lng, req.location.lat, competitor_type
-        )
-        real_data = {
-            "city": ld.city,
-            "district": ld.district,
-            "township": ld.township,
-            "formatted_address": ld.address,
-            "nearby_roads": ld.nearby_roads,
-            "business_areas": ld.business_areas,
-            "building_type": ld.building_type,
-            "poi_counts": ld.poi_counts,
-            "stats_200m": ld.stats_200m,
-            "stats_500m": ld.stats_500m,
-            "stats_1000m": ld.stats_1000m,
-            "raw_poi_counts": ld.raw_poi_counts,
-            "raw_stats_200m": ld.raw_stats_200m,
-            "raw_stats_500m": ld.raw_stats_500m,
-            "raw_stats_1000m": ld.raw_stats_1000m,
-            "hot_brands": ld.hot_brands[:15],
-            "competitors_200m": ld.competitors_200m,
-            "competitors_500m": ld.competitors_500m,
-            "competitors_1000m": ld.competitors_1000m,
-            "competitor_list": ld.competitor_list[:10],
-            "poi_lists": {k: v for k, v in ld.poi_lists.items()},
-        }
-    except Exception as e:
-        import traceback
-        print(f"[WARN] 后端AMap数据采集失败: {e}")
-        traceback.print_exc()
-        print("[INFO] 回退使用前端采集数据")
-        real_data = req.real_data
-    else:
-        total = sum(real_data.get("poi_counts", {}).values())
-        print(f"[INFO] 后端数据采集成功，共 {total} 个POI，"
-              f"医院{real_data.get('poi_counts', {}).get('hospitals', 0)}个，"
-              f"学校{real_data.get('poi_counts', {}).get('schools', 0)}个")
-
-    # 2. 计费校验：会员优先 → 点数抵扣 → 拦截（强制后端鉴权，杜绝绕过）
+    # ── 前置计费校验（流开始前必须通过，失败直接返回 402）──
+    billing = None
     db_billing = SessionLocal()
     try:
-        user = db_billing.query(User).filter(User.id == current_user_id).first()
-        if not user:
-            # 不存在用户 → 自动创建（0 点数），必须充值后才能使用
-            user = User(id=current_user_id, balance_credits=0, membership_tier="free")
-            db_billing.add(user)
+        db_user = db_billing.query(User).filter(User.id == current_user_id).first()
+        if not db_user:
+            db_user = User(id=current_user_id, balance_credits=0, membership_tier="free")
+            db_billing.add(db_user)
             db_billing.commit()
-            db_billing.refresh(user)
+            db_billing.refresh(db_user)
 
-        billing = check_billing_access(user, cost=1, db_session=db_billing)
+        billing = check_billing_access(db_user, cost=1, db_session=db_billing)
         if not billing.allowed:
             db_billing.close()
             raise HTTPException(status_code=402, detail=billing.reason)
@@ -214,99 +193,167 @@ async def analyze_location(req: AnalyzeRequest, user: dict = Depends(get_current
         db_billing.close()
         raise HTTPException(status_code=500, detail="计费系统异常")
 
-    # 3. 构建提示词并调用大模型（provider 从后台核心配置热读取）
-    runtime_llm = get_llm_config()
-    custom_system_prompt = get_runtime_config_value("system_prompt", "").strip()
-    system_prompt = custom_system_prompt or build_system_prompt(req.business_type)
-    prompt = system_prompt + "\n\n" + build_analysis_prompt(
-        req.address, req.location.lng, req.location.lat,
-        req.business_type or "", real_data,
-        brand_name=req.brand_name or "",
-        store_size=req.store_size or 0,
-    )
-
-    try:
-        raw_response = await generate_llm_response(prompt)
-        raw_response = _extract_json(raw_response)
-        result = json.loads(raw_response)
-        result = normalize_report_result(result)
-        result["provider"] = runtime_llm.get("provider", req.provider)
-        result["error"] = None
-        result["real_data"] = real_data
-
-        # 保存分析记录到数据库
+    async def event_stream():
+        """SSE 事件生成器"""
+        nonlocal billing
         try:
-            db = SessionLocal()
-            # 从 detail 中提取综合评分
-            details = result.get("details", {})
-            scores = []
-            for key in ["population_density","traffic_accessibility","traffic_flow",
-                        "consumer_profile","competition","complementary_businesses",
-                        "category_advantage","cost_estimate"]:
-                txt = str(details.get(key, ""))
-                m = re.search(r'(\d{1,3})\s*分', txt)
-                if m: scores.append(int(m.group(1)))
-            overall = round(sum(scores) / len(scores)) if scores else 0
+            # ═══════════════════════════════════════════
+            # Step 1 — POI 数据采集
+            # ═══════════════════════════════════════════
+            yield _sse(1, "📍 正在锁定坐标，拉取周边核心商圈 POI...")
+            await asyncio.sleep(0)  # ★ 强制刷新 ASGI 缓冲区，立刻推送到前端
 
-            record = AnalysisRecord(
-                user_id=current_user_id,
-                brand_desc=req.brand_name or "",
-                address=req.address,
-                latitude=req.location.lat,
-                longitude=req.location.lng,
-                business_type=req.business_type or "",
-                store_size=req.store_size or 0,
-                overall_score=overall,
-                report_json=json.dumps(result, ensure_ascii=False),
-            )
-            db.add(record)
-            db.commit()
-            db.refresh(record)
-
-            # 保存报告为物理文件，记录路径/URL
+            real_data = None
             try:
-                file_path = save_report(
-                    record.id, result,
-                    address=req.address, brand_name=req.brand_name or "",
+                cfg = get_config(req.business_type)
+                competitor_type = cfg.get("competitor_amap_types", "")
+                if not competitor_type:
+                    competitor_type = BUSINESS_TYPE_TO_AMAP.get(req.business_type, "")
+                ld = await collect_location_data(
+                    req.location.lng, req.location.lat, competitor_type
                 )
-                if file_path.startswith("http"):
-                    record.report_url = file_path
-                else:
-                    record.report_file = file_path
+                real_data = {
+                    "city": ld.city,
+                    "district": ld.district,
+                    "township": ld.township,
+                    "formatted_address": ld.address,
+                    "nearby_roads": ld.nearby_roads,
+                    "business_areas": ld.business_areas,
+                    "building_type": ld.building_type,
+                    "poi_counts": ld.poi_counts,
+                    "stats_200m": ld.stats_200m,
+                    "stats_500m": ld.stats_500m,
+                    "stats_1000m": ld.stats_1000m,
+                    "raw_poi_counts": ld.raw_poi_counts,
+                    "raw_stats_200m": ld.raw_stats_200m,
+                    "raw_stats_500m": ld.raw_stats_500m,
+                    "raw_stats_1000m": ld.raw_stats_1000m,
+                    "hot_brands": ld.hot_brands[:15],
+                    "competitors_200m": ld.competitors_200m,
+                    "competitors_500m": ld.competitors_500m,
+                    "competitors_1000m": ld.competitors_1000m,
+                    "competitor_list": ld.competitor_list[:10],
+                    "poi_lists": {k: v for k, v in ld.poi_lists.items()},
+                }
+            except Exception:
+                import traceback
+                print("[WARN] 后端AMap数据采集失败，回退前端数据", flush=True)
+                traceback.print_exc()
+                real_data = req.real_data
+
+            # ═══════════════════════════════════════════
+            # Step 2 — 数据脱水与竞品交叉比对
+            # ═══════════════════════════════════════════
+            yield _sse(2, "🧮 高德数据脱水完成，正在交叉比对竞品与客流...")
+            await asyncio.sleep(0)
+
+            # ═══════════════════════════════════════════
+            # Step 3 — AI 大模型分析
+            # ═══════════════════════════════════════════
+            yield _sse(3, "🧠 AI 消费水平测算中，正在构建商业评估模型...")
+            await asyncio.sleep(0)
+
+            runtime_llm = get_llm_config()
+            custom_system_prompt = get_runtime_config_value("system_prompt", "").strip()
+            system_prompt = custom_system_prompt or build_system_prompt(req.business_type)
+            prompt = system_prompt + "\n\n" + build_analysis_prompt(
+                req.address, req.location.lng, req.location.lat,
+                req.business_type or "", real_data,
+                brand_name=req.brand_name or "",
+                store_size=req.store_size or 0,
+            )
+
+            raw_response = await generate_llm_response(prompt)
+            raw_response = _extract_json(raw_response)
+            result = json.loads(raw_response)
+            result = normalize_report_result(result)
+            result["provider"] = runtime_llm.get("provider", req.provider)
+            result["error"] = None
+            result["real_data"] = real_data
+
+            # 保存到数据库
+            try:
+                db = SessionLocal()
+                # ★ 直接复用 normalize_report_result 已算好的分数，不与 detail 文本重复解析
+                overall = result.get("score", 0)
+
+                record = AnalysisRecord(
+                    user_id=current_user_id,
+                    brand_desc=req.brand_name or "",
+                    address=req.address,
+                    latitude=req.location.lat,
+                    longitude=req.location.lng,
+                    business_type=req.business_type or "",
+                    store_size=req.store_size or 0,
+                    overall_score=overall,
+                    report_json=json.dumps(result, ensure_ascii=False),
+                )
+                db.add(record)
                 db.commit()
-            except Exception:
-                pass
+                db.refresh(record)
 
-            db.close()
-        except Exception:
-            pass  # 记录保存失败不影响分析结果返回
+                try:
+                    file_path = save_report(
+                        record.id, result,
+                        address=req.address, brand_name=req.brand_name or "",
+                    )
+                    if file_path.startswith("http"):
+                        record.report_url = file_path
+                    else:
+                        record.report_file = file_path
+                    db.commit()
+                except Exception:
+                    import traceback
+                    print("[CRITICAL] 报告物理文件保存失败", flush=True)
+                    traceback.print_exc()
+                db.close()
+            except Exception:
+                import traceback
+                print("[CRITICAL] 分析记录数据库保存失败", flush=True)
+                traceback.print_exc()
 
-        return result
-    except json.JSONDecodeError:
-        # 点数退还：LLM 返回格式异常，已扣点数必须回滚
-        if billing and billing.source == "points":
-            try:
-                refund_credits(current_user_id, 1)
-            except Exception:
-                pass
-        return AnalyzeResponse(
-            score=0,
-            advantages=[],
-            disadvantages=[],
-            summary="AI 引擎数据生成异常，已为您全额退还点数，请稍后重试",
-            details={},
-            provider=req.provider,
-            error="AI JSON parse error, credits refunded",
-            real_data=real_data,
-        )
-    except Exception as e:
-        # 点数退还：任何 AI 调用异常都触发资损回滚
-        if billing and billing.source == "points":
-            try:
-                refund_credits(current_user_id, 1)
-            except Exception:
-                pass
-        raise HTTPException(status_code=500, detail=f"AI service error: {str(e)}")
+            # ═══════════════════════════════════════════
+            # Step 4 — 流输出前最终拦截：强制重算总分
+            # ═══════════════════════════════════════════
+            dims = result.get("dimension_scores", [])
+            final_scores = [int(d.get("score") or 0) for d in dims if isinstance(d, dict) and int(d.get("score") or 0) > 0]
+            if final_scores:
+                locked_score = round(sum(final_scores) / len(final_scores))
+                result["score"] = locked_score
+                result["overall_score"] = locked_score
+                result["total_score"] = locked_score
+                print(f"[SSE Intercept] Step4 前最终锁定: 维度分={final_scores}, 总分={locked_score}", flush=True)
+            yield _sse(4, "✅ 报告生成完毕！", result=result)
+            await asyncio.sleep(0)
+
+        except json.JSONDecodeError:
+            if billing and billing.source == "points":
+                try: refund_credits(current_user_id, 1)
+                except Exception:
+                    import traceback
+                    print("[CRITICAL] JSON解析失败后点数退还失败！", flush=True)
+                    traceback.print_exc()
+            yield _sse("error", "AI 引擎数据生成异常，已为您全额退还点数，请稍后重试")
+            await asyncio.sleep(0)
+        except Exception as e:
+            if billing and billing.source == "points":
+                try: refund_credits(current_user_id, 1)
+                except Exception:
+                    import traceback
+                    print("[CRITICAL] AI调用异常后点数退还失败！", flush=True)
+                    traceback.print_exc()
+            yield _sse("error", str(e) or "AI 服务异常，请稍后重试")
+            await asyncio.sleep(0)
+
+    return StreamingResponse(
+        event_stream(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",  # 禁用 Nginx 缓冲
+        },
+    )
 
 
 if __name__ == "__main__":
