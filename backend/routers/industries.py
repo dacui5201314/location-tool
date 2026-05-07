@@ -163,3 +163,36 @@ def list_active_industries(db: Session = Depends(get_db)):
             for item in items
         ]
     }
+
+
+@public_router.get("/match")
+def match_industry(business_type: str = Query("", description="前端选中的业态类型"), db: Session = Depends(get_db)):
+    """根据 business_type（如 奶茶店）精确匹配业态专属规则"""
+    if not business_type:
+        return {"matched": False, "industry_id": None, "industry_name": ""}
+
+    from prompts.industry_config import BUSINESS_TYPE_TO_MASTER, MASTER_TEMPLATES, DEFAULT_MASTER
+
+    # Step 1: business_type → master_key
+    master_key = BUSINESS_TYPE_TO_MASTER.get(business_type, "")
+    if not master_key:
+        return {"matched": False, "industry_id": None, "industry_name": ""}
+
+    # Step 2: master_key → label → 拆分为关键词
+    template = MASTER_TEMPLATES.get(master_key, DEFAULT_MASTER)
+    label = template.get("label", master_key)
+    keywords = [k.strip() for k in label.split("/") if k.strip()]
+
+    # Step 3: 关键词匹配 DB 中的 industry name
+    items = db.query(BusinessIndustry).filter(
+        BusinessIndustry.is_active == 1
+    ).all()
+
+    for item in items:
+        name = item.name or ""
+        # 任一关键词出现在 industry name 中，或 industry name 包含任一关键词 → 匹配
+        for kw in keywords:
+            if kw in name or name in kw:
+                return {"matched": True, "industry_id": item.id, "industry_name": name}
+
+    return {"matched": False, "industry_id": None, "industry_name": ""}

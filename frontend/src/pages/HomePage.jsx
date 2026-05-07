@@ -74,7 +74,6 @@ export default function HomePage() {
   const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(''), 2000) }
   const [loginModalOpen, setLoginModalOpen] = useState(false)
   // ── 业态专属规则匹配 ──
-  const [activeIndustries, setActiveIndustries] = useState([])
   const [matchedIndustryId, setMatchedIndustryId] = useState(null)
   const [announcement, setAnnouncement] = useState('')
   const announceRef = useRef(null)
@@ -390,17 +389,16 @@ export default function HomePage() {
     }
   }, [selectedLocation, businessType, brandName, storeSize])
 
-  // ── 加载启用业态列表 ──
-  useEffect(() => { fetch('/api/industries/active').then(r => r.json()).then(d => setActiveIndustries(d.industries || [])).catch(() => {}) }, [])
-
-  // ── businessType 变更时匹配业态 ──
+  // ── businessType 变更时调用后端匹配接口 ──
   useEffect(() => {
-    if (!businessType || activeIndustries.length === 0) { setMatchedIndustryId(null); return }
-    const match = activeIndustries.find(item =>
-      businessType.includes(item.name) || item.name.includes(businessType)
-    )
-    setMatchedIndustryId(match ? match.id : null)
-  }, [businessType, activeIndustries])
+    if (!businessType) { setMatchedIndustryId(null); return }
+    const controller = new AbortController()
+    fetch(`/api/industries/match?business_type=${encodeURIComponent(businessType)}`, { signal: controller.signal })
+      .then(r => r.json())
+      .then(d => setMatchedIndustryId(d.matched ? d.industry_id : null))
+      .catch(() => setMatchedIndustryId(null))
+    return () => controller.abort()
+  }, [businessType])
 
   const canAnalyze = selectedLocation && !analyzing
 

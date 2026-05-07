@@ -269,6 +269,7 @@ npx vite --host
 | PUT | `/api/admin/industries/{id}` | JWT Admin | ★ 更新业态（含专属 Prompt） |
 | DELETE | `/api/admin/industries/{id}` | JWT Admin | ★ 删除业态 |
 | GET | `/api/industries/active` | 无 | ★ 前台获取启用业态列表 |
+| GET | `/api/industries/match?business_type=xxx` | 无 | ★ 精准匹配业态专属规则 |
 
 ---
 
