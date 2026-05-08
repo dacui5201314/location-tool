@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { adminLogin, getAdminToken, clearAdminToken, fetchSystemSettings, saveSystemSettings, getAssetUrl } from '../services/api'
 import CorePromptEditor from '../components/CorePromptEditor'
@@ -276,12 +276,15 @@ export default function AdminPage() {
   const tab = searchParams.get('tab') || 'dashboard'
   const setTab = (key) => setSearchParams({ tab: key })
 
-  // ★ 刷新/直接URL访问时自动加载对应Tab数据
+  // ★ 数据统一在此加载，避免 onClick 中重复调用
   useEffect(() => {
     if (tab === 'users') loadUsers()
     if (tab === 'settings') loadSettingsData()
     if (tab === 'oplogs') loadOpLogs()
     if (tab === 'industries') loadIndustries()
+    if (tab === 'logs') adminFetch('/logs').then(r => r.json()).then(d => setLogs(d.logs || [])).catch(() => {})
+    if (tab === 'cdk') loadCdk()
+    if (tab === 'sysparams') fetchSystemSettings().then(d => setSystemParams(d.configs || {})).catch(() => showToast('加载全局参数失败'))
   }, [tab])
 
   const [stats, setStats] = useState(null)
@@ -315,7 +318,7 @@ export default function AdminPage() {
   const [promptEditor, setPromptEditor] = useState(null) // null | industry object (full)
   // ★ IndustryRuleDrawer 状态已移至独立组件，消除全局重渲染
   const [industryDeleteConfirm, setIndustryDeleteConfirm] = useState(null) // null | industry object
-  const loadIndustries = () => { adminFetch('/industries').then(r => r.json()).then(d => setIndustries(d.industries || [])).catch(() => showToast('业态列表加载失败')) }
+  const loadIndustries = useCallback(() => { adminFetch('/industries').then(r => r.json()).then(d => setIndustries(d.industries || [])).catch(() => showToast('业态列表加载失败')) }, [adminFetch, showToast])
   const [pdfConfig, setPdfConfig] = useState({ logo_url: '', footer_text: 'AI 选址分析 · 商业数据决策平台' })
   const [storageConfig, setStorageConfig] = useState({
     storage_mode: 'local',
@@ -348,7 +351,7 @@ export default function AdminPage() {
   }
   const [toast, setToast] = useState('')
   const loadCdk = () => { adminFetch('/cdk/list').then(r => r.json()).then(d => setCdkList(d.codes || [])).catch(() => showToast('CDK列表加载失败')) }
-  const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(''), 2000) }
+  const showToast = useCallback((msg) => { setToast(msg); setTimeout(() => setToast(''), 2000) }, [])
   const updateSettings = (patch) => { setSettings(s => ({ ...s, ...patch })); setSettingsDirty(true) }
   const updatePdfConfig = (patch) => { setPdfConfig(c => ({ ...c, ...patch })); setPdfDirty(true) }
   const updateStorageConfig = (patch) => { setStorageConfig(c => ({ ...c, ...patch })); setStorageDirty(true) }
@@ -360,7 +363,7 @@ export default function AdminPage() {
     setUserSkuDraft(prev => prev.map((item, i) => (i === index ? { ...item, ...patch } : item)))
   }
 
-  const adminFetch = (path, options = {}) => {
+  const adminFetch = useCallback((path, options = {}) => {
     const token = getAdminToken()
     const headers = { ...options.headers }
     if (token) headers['Authorization'] = `Bearer ${token}`
@@ -368,7 +371,7 @@ export default function AdminPage() {
       headers['Content-Type'] = 'application/json'
     }
     return fetch(`/api/admin${path}`, { ...options, headers })
-  }
+  }, [])
 
   const loadSettingsData = () => {
     fetch('/api/admin/skus').then(r => r.json()).then(d => { setSkus(d.skus || []); setSkusDirty(false) }).catch(() => showToast('套餐列表加载失败'))
@@ -599,13 +602,6 @@ export default function AdminPage() {
           ].map(t => (
             <button key={t.key} onClick={() => {
               setTab(t.key);
-              if (t.key === 'users') loadUsers();
-              if (t.key === 'settings') loadSettingsData();
-              if (t.key === 'logs') adminFetch('/logs').then(r => r.json()).then(d => setLogs(d.logs || [])).catch(() => {});
-              if (t.key === 'cdk') loadCdk();
-              if (t.key === 'sysparams') { fetchSystemSettings().then(d => setSystemParams(d.configs || {})).catch(() => showToast('加载全局参数失败')); }
-              if (t.key === 'oplogs') loadOpLogs();
-              if (t.key === 'industries') loadIndustries();
             }}
               className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all text-left ${
                 tab === t.key ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/25' : 'text-slate-300 hover:bg-white/5 hover:text-white'
