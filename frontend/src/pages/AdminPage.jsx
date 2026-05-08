@@ -599,7 +599,7 @@ export default function AdminPage() {
       {toast && <div className="fixed top-5 left-1/2 -translate-x-1/2 z-50 rounded-full bg-slate-800 text-white text-xs px-5 py-2 shadow-lg">{toast}</div>}
 
       {/* ═══════════ 左侧边栏 ═══════════ */}
-      <aside className="w-64 h-full flex-shrink-0 flex flex-col" style={{ background: 'linear-gradient(180deg, #0f172a 0%, #1e293b 100%)' }}>
+      <aside className="w-64 h-full flex-shrink-0 flex flex-col transform-gpu" style={{ background: 'linear-gradient(180deg, #0f172a 0%, #1e293b 100%)' }}>
         <div className="px-5 py-5 border-b border-white/10">
           <div className="flex items-center gap-2.5">
             <img
@@ -628,7 +628,7 @@ export default function AdminPage() {
             <button key={t.key} onClick={() => {
               setTab(t.key);
             }}
-              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all text-left ${
+              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors text-left ${
                 tab === t.key ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/25' : 'text-slate-300 hover:bg-white/5 hover:text-white'
               }`}>
               <span className="text-base">{t.icon}</span>
@@ -682,7 +682,7 @@ export default function AdminPage() {
         </header>
 
         {/* 内容滚动区 */}
-        <main className="flex-1 overflow-auto p-6 space-y-4">
+        <main className="flex-1 overflow-auto p-6 space-y-4 transform-gpu will-change-transform">
         {tab === 'dashboard' && stats && (
           <>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -1418,7 +1418,7 @@ export default function AdminPage() {
         )}
         {tab === 'logs' && (
           <div className="rounded-xl bg-white shadow-sm border border-slate-100 overflow-hidden">
-            <div className="max-h-[70vh] overflow-y-auto">
+            <div className="max-h-[70vh] overflow-y-auto transform-gpu overscroll-contain">
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead className="sticky top-0 z-10">
@@ -1468,7 +1468,7 @@ export default function AdminPage() {
               }} className="rounded-lg bg-blue-600 text-white text-sm font-semibold px-5 py-2.5 hover:bg-blue-700">生成兑换码</button>
             </div>
             <div className="rounded-xl bg-white shadow-sm border border-slate-100 overflow-hidden">
-              <div className="max-h-[70vh] overflow-y-auto">
+              <div className="max-h-[70vh] overflow-y-auto transform-gpu overscroll-contain">
               <div className="overflow-x-auto"><table className="w-full text-sm">
                 <thead className="sticky top-0 z-10">
                   <tr className="bg-slate-50">
@@ -1505,7 +1505,7 @@ export default function AdminPage() {
               <div className="text-sm text-slate-500">共 {opLogs.length} 条操作记录</div>
               <button onClick={loadOpLogs} className="text-sm text-blue-600 font-semibold hover:text-blue-700">刷新列表</button>
             </div>
-            <div className="max-h-[70vh] overflow-y-auto">
+            <div className="max-h-[70vh] overflow-y-auto transform-gpu overscroll-contain">
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead className="sticky top-0 z-10">
@@ -1671,7 +1671,7 @@ export default function AdminPage() {
               </div>
             ) : (
               <div className="rounded-xl bg-white shadow-sm border border-slate-100 overflow-hidden">
-                <div className="max-h-[70vh] overflow-y-auto">
+                <div className="max-h-[70vh] overflow-y-auto transform-gpu overscroll-contain">
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
                     <thead className="sticky top-0 z-10">
