@@ -370,8 +370,13 @@ export default function AdminPage() {
       return { ...prev, [key]: { ...existing, value } }
     })
   }
-  const [toast, setToast] = useState('')
-  const showToast = useCallback((msg) => { setToast(msg); setTimeout(() => setToast(''), 2000) }, [])
+  const showToast = useCallback((msg) => {
+    const el = document.createElement('div')
+    el.className = 'fixed top-5 left-1/2 -translate-x-1/2 z-[9999] rounded-full bg-slate-800 text-white text-xs px-5 py-2 shadow-lg whitespace-nowrap'
+    el.textContent = msg
+    document.body.appendChild(el)
+    setTimeout(() => { el.style.opacity = '0'; el.style.transition = 'opacity 0.3s'; setTimeout(() => el.remove(), 300) }, 2000)
+  }, [])
   const updateSettings = (patch) => { setSettings(s => ({ ...s, ...patch })); setSettingsDirty(true) }
   const updatePdfConfig = (patch) => { setPdfConfig(c => ({ ...c, ...patch })); setPdfDirty(true) }
   const updateStorageConfig = (patch) => { setStorageConfig(c => ({ ...c, ...patch })); setStorageDirty(true) }
@@ -576,7 +581,6 @@ export default function AdminPage() {
   if (!authed) {
     return (
       <div className="admin-page min-h-screen flex items-center justify-center px-4">
-        {toast && <div className="fixed top-5 left-1/2 -translate-x-1/2 z-50 rounded-full bg-red-600 text-white text-xs px-5 py-2 shadow-lg">{toast}</div>}
         <div className="admin-login-card w-full max-w-sm p-8">
           <div className="text-center mb-6">
             <img src="/brand-logo-transparent.png" alt="址得选" className="mx-auto h-14 w-14 object-contain" />
@@ -596,7 +600,6 @@ export default function AdminPage() {
 
   return (
     <div className="admin-page h-screen flex overflow-hidden bg-slate-50">
-      {toast && <div className="fixed top-5 left-1/2 -translate-x-1/2 z-50 rounded-full bg-slate-800 text-white text-xs px-5 py-2 shadow-lg">{toast}</div>}
 
       {/* ═══════════ 左侧边栏 ═══════════ */}
       <aside className="w-64 h-full flex-shrink-0 flex flex-col" style={{ background: 'linear-gradient(180deg, #0f172a 0%, #1e293b 100%)' }}>
