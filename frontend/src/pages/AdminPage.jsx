@@ -342,12 +342,13 @@ export default function AdminPage() {
   const [userSkuApplyingId, setUserSkuApplyingId] = useState(null)
 
   // ── 列表前端分页（每页20条，减少DOM节点）──
-  const PAGE_SIZE = 20
+  const PAGE_SIZE = 15
   const [opLogsPage, setOpLogsPage] = useState(1)
   const [logsPage, setLogsPage] = useState(1)
   const [cdkPage, setCdkPage] = useState(1)
+  const [industriesPage, setIndustriesPage] = useState(1)
   // 切标签页时重置分页
-  useEffect(() => { setOpLogsPage(1); setLogsPage(1); setCdkPage(1) }, [tab])
+  useEffect(() => { setOpLogsPage(1); setLogsPage(1); setCdkPage(1); setIndustriesPage(1) }, [tab])
 
   const Paginator = ({ page, total, onPage }) => {
     if (total <= PAGE_SIZE) return null
@@ -1417,7 +1418,7 @@ export default function AdminPage() {
         )}
         {tab === 'logs' && (
           <div className="rounded-xl bg-white shadow-sm border border-slate-100 overflow-hidden">
-            <div className="max-h-[60vh] overflow-y-auto">
+            <div className="max-h-[70vh] overflow-y-auto">
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead className="sticky top-0 z-10">
@@ -1467,7 +1468,7 @@ export default function AdminPage() {
               }} className="rounded-lg bg-blue-600 text-white text-sm font-semibold px-5 py-2.5 hover:bg-blue-700">生成兑换码</button>
             </div>
             <div className="rounded-xl bg-white shadow-sm border border-slate-100 overflow-hidden">
-              <div className="max-h-[60vh] overflow-y-auto">
+              <div className="max-h-[70vh] overflow-y-auto">
               <div className="overflow-x-auto"><table className="w-full text-sm">
                 <thead className="sticky top-0 z-10">
                   <tr className="bg-slate-50">
@@ -1504,7 +1505,7 @@ export default function AdminPage() {
               <div className="text-sm text-slate-500">共 {opLogs.length} 条操作记录</div>
               <button onClick={loadOpLogs} className="text-sm text-blue-600 font-semibold hover:text-blue-700">刷新列表</button>
             </div>
-            <div className="max-h-[60vh] overflow-y-auto">
+            <div className="max-h-[70vh] overflow-y-auto">
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead className="sticky top-0 z-10">
@@ -1670,9 +1671,10 @@ export default function AdminPage() {
               </div>
             ) : (
               <div className="rounded-xl bg-white shadow-sm border border-slate-100 overflow-hidden">
+                <div className="max-h-[70vh] overflow-y-auto">
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
-                    <thead>
+                    <thead className="sticky top-0 z-10">
                       <tr className="bg-slate-50">
                         <th className="text-left px-4 py-4 text-[15px] font-semibold text-slate-600 w-16">排序</th>
                         <th className="text-left px-4 py-4 text-[15px] font-semibold text-slate-600">业态名称</th>
@@ -1682,7 +1684,7 @@ export default function AdminPage() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
-                      {industries.map(item => (
+                      {industries.slice((industriesPage - 1) * PAGE_SIZE, industriesPage * PAGE_SIZE).map(item => (
                         <tr key={item.id} className="hover:bg-slate-50 transition-colors">
                           <td className="px-4 py-4 text-slate-500 font-mono">{item.sort_order}</td>
                           <td className="px-4 py-4 font-medium text-slate-800">{item.name}</td>
@@ -1722,6 +1724,8 @@ export default function AdminPage() {
                     </tbody>
                   </table>
                 </div>
+                </div>
+                <Paginator page={industriesPage} total={industries.length} onPage={setIndustriesPage} />
               </div>
             )}
           </div>
