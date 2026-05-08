@@ -753,7 +753,7 @@ export default function AdminPage() {
                           <span className="text-xs text-slate-500 w-7 text-right font-bold">{i + 1}</span>
                           <span className="text-xs text-slate-700 w-16 truncate">{b.name}</span>
                           <div className="flex-1 h-5 bg-slate-100 rounded-full overflow-hidden relative">
-                            <div className="h-full rounded-full transition-all" style={{ width: `${((b.count || 0) / maxCount) * 100}%`, background: barColors[i % 5] }} />
+                            <div className="h-full rounded-full transition-[width] duration-300" style={{ width: `${((b.count || 0) / maxCount) * 100}%`, background: barColors[i % 5] }} />
                           </div>
                           <span className="text-xs font-bold text-slate-600 w-8 text-right">{b.count}</span>
                         </div>

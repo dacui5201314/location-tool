@@ -539,7 +539,7 @@ export default function PdfExport({ selectedLocation, result, businessType, bran
           hover:bg-gray-50 hover:border-gray-400
           active:bg-gray-100
           disabled:opacity-50 disabled:cursor-not-allowed
-          transition-all duration-200 flex items-center justify-center gap-2"
+          transition-colors duration-150 flex items-center justify-center gap-2"
       >
         {exporting ? (
           <>
