@@ -53,6 +53,7 @@ def _enriched_fav(loc: SavedLocation, report: AnalysisRecord) -> dict:
         **loc.to_dict(),
         "is_analyzed": True,
         "report_id": report.id,
+        "report_uuid": report.report_uuid or "",  # ★ 公开 UUID，供前端跳转
         "report_overall_score": report.overall_score,
         "report_created_at": report.created_at.isoformat() if report.created_at else None,
         "report_business_type": report.business_type or "",

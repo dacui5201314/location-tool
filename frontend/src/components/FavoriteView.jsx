@@ -212,7 +212,7 @@ export default function FavoriteView() {
               deleting={deletingId === item.id}
               onDelete={() => requestDelete(item)}
               onAnalyze={() => navigate('/', { replace: true, state: { loc: item } })}
-              onReport={() => navigate(`/record/${item.report_id}`)}
+              onReport={() => navigate(`/record/${item.report_uuid}`)}
             />
           ))
         )}
