@@ -1,10 +1,11 @@
 import { useRef, useEffect, useState } from 'react'
 
-export default function AddressInput({ onSelect, disabled, mapLoaded, externalAddress, onToast }) {
+export default function AddressInput({ onSelect, disabled, mapLoaded, externalAddress, onToast, city }) {
   const inputRef = useRef(null)
   const autoRef = useRef(null)
   const [busy, setBusy] = useState(false)
   const [hasText, setHasText] = useState(false)
+  const busyRef = useRef(false)  // ★ 避免 AutoComplete 回调中的闭包过期
 
   // AutoComplete 下拉提示
   useEffect(() => {
@@ -19,10 +20,12 @@ export default function AddressInput({ onSelect, disabled, mapLoaded, externalAd
         setHasText(true)
         return
       }
-      // 关键词补全 → PlaceSearch 兜底
-      if (window.AMap?.PlaceSearch && e.poi.name) {
-        const ps = new window.AMap.PlaceSearch({ pageSize: 1, pageIndex: 1 })
+      // 关键词补全 → PlaceSearch 兜底（加锁 + 城市上下文）
+      if (window.AMap?.PlaceSearch && e.poi.name && !busyRef.current) {
+        busyRef.current = true
+        const ps = new window.AMap.PlaceSearch({ pageSize: 1, pageIndex: 1, ...(city ? { city, citylimit: true } : {}) })
         ps.search(e.poi.name, (status, result) => {
+          busyRef.current = false
           if (status === 'complete' && result?.info === 'OK') {
             const pois = result.poiList?.pois || []
             if (pois.length > 0) {
@@ -53,16 +56,17 @@ export default function AddressInput({ onSelect, disabled, mapLoaded, externalAd
   }, [externalAddress])
 
   const handleClick = async () => {
-    if (busy || disabled) return
+    if (busy || disabled || busyRef.current) return
     const keyword = inputRef.current?.value?.trim()
 
     // 情景 A：有文本 → PlaceSearch
     if (keyword) {
       setBusy(true)
+      busyRef.current = true
       try {
         const result = await new Promise((resolve, reject) => {
           if (!window.AMap?.PlaceSearch) return reject(new Error('搜索插件未加载'))
-          const ps = new window.AMap.PlaceSearch({ pageSize: 1, pageIndex: 1, citylimit: false })
+          const ps = new window.AMap.PlaceSearch({ pageSize: 1, pageIndex: 1, ...(city ? { city, citylimit: true } : {}) })
           ps.search(keyword, (status, res) => {
             if (status === 'complete' && res?.info === 'OK' && res.poiList?.pois?.length > 0) {
               const p = res.poiList.pois[0]
@@ -73,18 +77,19 @@ export default function AddressInput({ onSelect, disabled, mapLoaded, externalAd
         if (inputRef.current) inputRef.current.value = result.name
         onSelect(result)
       } catch (err) { onToast?.(err.message || '搜索失败') }
-      finally { setBusy(false) }
+      finally { setBusy(false); busyRef.current = false }
       return
     }
 
     // 情景 B：空文本 → Geolocation + Geocoder 逆地理编码
     if (!window.AMap?.Geolocation) { onToast?.('定位插件未加载'); return }
     setBusy(true)
+    busyRef.current = true
     onToast?.('正在获取精确位置...')
     const geo = new window.AMap.Geolocation({ enableHighAccuracy: true, timeout: 8000, maximumAge: 0 })
     geo.getCurrentPosition((status, result) => {
       if (status !== 'complete' || !result?.position) {
-        setBusy(false)
+        setBusy(false); busyRef.current = false
         onToast?.('定位失败，请直接输入目标地址进行搜索')
         return
       }
@@ -103,7 +108,7 @@ export default function AddressInput({ onSelect, disabled, mapLoaded, externalAd
       if (window.AMap?.Geocoder) {
         const geocoder = new window.AMap.Geocoder()
         geocoder.getAddress([lng, lat], (gcStatus, gcResult) => {
-          setBusy(false)
+          setBusy(false); busyRef.current = false
           if (gcStatus === 'complete' && gcResult?.info === 'OK') {
             const addr = gcResult.regeocode.formattedAddress
             applyAddress(addr)

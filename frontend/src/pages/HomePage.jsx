@@ -493,7 +493,8 @@ export default function HomePage() {
           <div className="hero-search">
             <div className="flex-1">
               <AddressInput onSelect={handleSelectAddress} disabled={analyzing} mapLoaded={mapLoaded}
-                externalAddress={selectedLocation?.address || selectedLocation?.name} onToast={showToast} />
+                externalAddress={selectedLocation?.address || selectedLocation?.name} onToast={showToast}
+                city={selectedLocation?.city || ''} />
               <div className={`favorite-hint-line ${selectedLocation ? 'is-ready' : ''}`}>
                 <div className="favorite-hint-copy">
                   <span>★</span>
