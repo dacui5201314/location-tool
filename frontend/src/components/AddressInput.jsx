@@ -7,6 +7,7 @@ export default function AddressInput({ onSelect, disabled, mapLoaded, externalAd
   const [hasText, setHasText] = useState(false)
   const busyRef = useRef(false)  // ★ 避免 AutoComplete 回调中的闭包过期
   const userInteracted = useRef(false)  // ★ 用户手动操作后，禁止定位结果覆盖
+  const searchIdRef = useRef(0)  // ★ 防并发回调乱序：只应用最新一次搜索的结果
 
   // AutoComplete 下拉提示
   useEffect(() => {
@@ -66,17 +67,21 @@ export default function AddressInput({ onSelect, disabled, mapLoaded, externalAd
     if (keyword) {
       setBusy(true)
       busyRef.current = true
+      const thisSearchId = ++searchIdRef.current  // ★ 递增 ID，回调只认最新
       try {
         const result = await new Promise((resolve, reject) => {
           if (!window.AMap?.PlaceSearch) return reject(new Error('搜索插件未加载'))
           const ps = new window.AMap.PlaceSearch({ pageSize: 1, pageIndex: 1, ...(city ? { city, citylimit: true } : {}) })
           ps.search(keyword, (status, res) => {
+            // ★ 忽略旧搜索的回调（并发乱序防护）
+            if (thisSearchId !== searchIdRef.current) return
             if (status === 'complete' && res?.info === 'OK' && res.poiList?.pois?.length > 0) {
               const p = res.poiList.pois[0]
               resolve({ name: p.name, address: (p.district || '') + (p.address || ''), location: { lng: p.location.lng, lat: p.location.lat } })
             } else { reject(new Error('未搜索到相关地址')) }
           })
         })
+        if (thisSearchId !== searchIdRef.current) return  // ★ 后续搜索已发起，丢弃此结果
         if (inputRef.current) inputRef.current.value = result.name
         userInteracted.current = true  // ★ 标记用户已手动搜索
         onSelect(result)
