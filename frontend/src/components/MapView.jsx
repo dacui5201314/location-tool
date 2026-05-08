@@ -5,6 +5,7 @@ let _cachedMap = null        // AMap.Map 实例
 let _cachedMarker = null     // AMap.Marker 实例
 let _cachedContainer = null  // 原生 DOM 容器节点
 let _cachedCenter = null     // {lng, lat}
+let _clickBound = false      // ★ 防 click handler 重复绑定叠加
 
 export default function MapView({ position, onPositionChange, mapLoaded, mapError, selectedAddress }) {
   const mountRef = useRef(null)    // React ref 挂载点
@@ -33,12 +34,11 @@ export default function MapView({ position, onPositionChange, mapLoaded, mapErro
   }, [])
   geoRef.current = geocodeAndNotify
 
-  // 绑定/重新绑定地图点击事件
+  // 绑定地图点击事件（全局仅绑定一次，路由切回不重复叠加）
   const bindClickHandler = useCallback(() => {
-    if (!mapRef.current || !window.AMap) return
+    if (!mapRef.current || !window.AMap || _clickBound) return
     const map = mapRef.current
-    // 先清除旧监听，避免重复绑定
-    try { map.clearEvents('click') } catch {}
+    _clickBound = true
     map.on('click', (e) => {
       const lng = e.lnglat.getLng()
       const lat = e.lnglat.getLat()
