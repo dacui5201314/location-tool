@@ -6,6 +6,7 @@ export default function AddressInput({ onSelect, disabled, mapLoaded, externalAd
   const [busy, setBusy] = useState(false)
   const [hasText, setHasText] = useState(false)
   const busyRef = useRef(false)  // ★ 避免 AutoComplete 回调中的闭包过期
+  const userInteracted = useRef(false)  // ★ 用户手动操作后，禁止定位结果覆盖
 
   // AutoComplete 下拉提示
   useEffect(() => {
@@ -16,6 +17,7 @@ export default function AddressInput({ onSelect, disabled, mapLoaded, externalAd
       if (!e.poi) return
       if (e.poi.location) {
         const address = (e.poi.district || '') + (e.poi.address || '')
+        userInteracted.current = true
         onSelect({ name: e.poi.name, address, location: { lng: e.poi.location.lng, lat: e.poi.location.lat } })
         setHasText(true)
         return
@@ -31,6 +33,7 @@ export default function AddressInput({ onSelect, disabled, mapLoaded, externalAd
             if (pois.length > 0) {
               const p = pois[0]
               const address = (p.district || '') + (p.address || '')
+              userInteracted.current = true
               onSelect({ name: p.name, address, location: { lng: p.location.lng, lat: p.location.lat } })
               if (inputRef.current) inputRef.current.value = p.name
               setHasText(true)
@@ -75,6 +78,7 @@ export default function AddressInput({ onSelect, disabled, mapLoaded, externalAd
           })
         })
         if (inputRef.current) inputRef.current.value = result.name
+        userInteracted.current = true  // ★ 标记用户已手动搜索
         onSelect(result)
       } catch (err) { onToast?.(err.message || '搜索失败') }
       finally { setBusy(false); busyRef.current = false }
@@ -86,8 +90,10 @@ export default function AddressInput({ onSelect, disabled, mapLoaded, externalAd
     setBusy(true)
     busyRef.current = true
     onToast?.('正在获取精确位置...')
-    const geo = new window.AMap.Geolocation({ enableHighAccuracy: true, timeout: 8000, maximumAge: 0 })
+    const geo = new window.AMap.Geolocation({ enableHighAccuracy: true, timeout: 8000, maximumAge: 0, panToLocation: false, zoomToAccuracy: false })
     geo.getCurrentPosition((status, result) => {
+      // ★ 用户已手动操作 → 忽略迟到的定位回调，防止地图幽灵跳转
+      if (userInteracted.current) { setBusy(false); busyRef.current = false; return }
       if (status !== 'complete' || !result?.position) {
         setBusy(false); busyRef.current = false
         onToast?.('定位失败，请直接输入目标地址进行搜索')
