@@ -341,6 +341,28 @@ export default function AdminPage() {
   const [userSkuSaving, setUserSkuSaving] = useState(false)
   const [userSkuApplyingId, setUserSkuApplyingId] = useState(null)
 
+  // ── 列表前端分页（每页20条，减少DOM节点）──
+  const PAGE_SIZE = 20
+  const [opLogsPage, setOpLogsPage] = useState(1)
+  const [logsPage, setLogsPage] = useState(1)
+  const [cdkPage, setCdkPage] = useState(1)
+  // 切标签页时重置分页
+  useEffect(() => { setOpLogsPage(1); setLogsPage(1); setCdkPage(1) }, [tab])
+
+  const Paginator = ({ page, total, onPage }) => {
+    if (total <= PAGE_SIZE) return null
+    const maxPage = Math.ceil(total / PAGE_SIZE)
+    return (
+      <div className="flex items-center justify-end gap-2 px-4 py-3 border-t border-slate-100 bg-slate-50">
+        <span className="text-xs text-slate-400">{page}/{maxPage} 页（共{total}条）</span>
+        <button onClick={() => onPage(Math.max(1, page - 1))} disabled={page <= 1}
+          className="rounded border border-slate-200 px-2 py-1 text-xs font-medium text-slate-600 hover:bg-white disabled:opacity-30">上一页</button>
+        <button onClick={() => onPage(Math.min(maxPage, page + 1))} disabled={page >= maxPage}
+          className="rounded border border-slate-200 px-2 py-1 text-xs font-medium text-slate-600 hover:bg-white disabled:opacity-30">下一页</button>
+      </div>
+    )
+  }
+
   const updateParam = (key, value) => {
     setSystemParams(prev => {
       const existing = prev?.[key] || {}
@@ -1395,9 +1417,10 @@ export default function AdminPage() {
         )}
         {tab === 'logs' && (
           <div className="rounded-xl bg-white shadow-sm border border-slate-100 overflow-hidden">
+            <div className="max-h-[60vh] overflow-y-auto">
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
-                <thead>
+                <thead className="sticky top-0 z-10">
                   <tr className="bg-slate-50">
                     <th className="text-left px-4 py-4 text-[15px] font-semibold text-slate-600">时间</th>
                     <th className="text-left px-4 py-4 text-[15px] font-semibold text-slate-600">类型</th>
@@ -1406,7 +1429,7 @@ export default function AdminPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {logs.map((l, i) => (
+                  {logs.slice((logsPage - 1) * PAGE_SIZE, logsPage * PAGE_SIZE).map((l, i) => (
                     <tr key={i} className="hover:bg-slate-50">
                       <td className="px-4 py-4 text-slate-500 font-mono text-sm">{l.time}</td>
                       <td className="px-4 py-4"><span className={`text-xs font-bold px-2.5 py-1 rounded-full ${l.type === 'API' ? 'bg-orange-50 text-orange-600' : l.type === 'PAYMENT' ? 'bg-red-50 text-red-600' : 'bg-blue-50 text-blue-600'}`}>{l.type}</span></td>
@@ -1417,6 +1440,8 @@ export default function AdminPage() {
                 </tbody>
               </table>
             </div>
+            </div>
+            <Paginator page={logsPage} total={logs.length} onPage={setLogsPage} />
             {logs.length === 0 && <div className="p-8 text-center text-sm text-slate-400">暂无错误日志</div>}
           </div>
         )}
@@ -1442,8 +1467,9 @@ export default function AdminPage() {
               }} className="rounded-lg bg-blue-600 text-white text-sm font-semibold px-5 py-2.5 hover:bg-blue-700">生成兑换码</button>
             </div>
             <div className="rounded-xl bg-white shadow-sm border border-slate-100 overflow-hidden">
+              <div className="max-h-[60vh] overflow-y-auto">
               <div className="overflow-x-auto"><table className="w-full text-sm">
-                <thead>
+                <thead className="sticky top-0 z-10">
                   <tr className="bg-slate-50">
                     <th className="text-left px-4 py-4 text-[15px] font-semibold text-slate-600">兑换码</th>
                     <th className="text-left px-4 py-4 text-[15px] font-semibold text-slate-600">点数</th>
@@ -1454,7 +1480,7 @@ export default function AdminPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {cdkList.map(c => (
+                  {cdkList.slice((cdkPage - 1) * PAGE_SIZE, cdkPage * PAGE_SIZE).map(c => (
                     <tr key={c.id} className="hover:bg-slate-50">
                       <td className="px-4 py-4 font-mono text-slate-600 text-sm">{c.code}</td>
                       <td className="px-4 py-4 font-bold text-blue-600">{c.credits}</td>
@@ -1466,6 +1492,8 @@ export default function AdminPage() {
                   ))}
                 </tbody>
               </table></div>
+              </div>
+              <Paginator page={cdkPage} total={cdkList.length} onPage={setCdkPage} />
             </div>
           </div>
         )}
@@ -1476,9 +1504,10 @@ export default function AdminPage() {
               <div className="text-sm text-slate-500">共 {opLogs.length} 条操作记录</div>
               <button onClick={loadOpLogs} className="text-sm text-blue-600 font-semibold hover:text-blue-700">刷新列表</button>
             </div>
+            <div className="max-h-[60vh] overflow-y-auto">
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
-                <thead>
+                <thead className="sticky top-0 z-10">
                   <tr className="bg-slate-50">
                     <th className="text-left px-4 py-4 text-[15px] font-semibold text-slate-600">时间</th>
                     <th className="text-left px-4 py-4 text-[15px] font-semibold text-slate-600">操作人</th>
@@ -1489,7 +1518,7 @@ export default function AdminPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {opLogs.map(log => (
+                  {opLogs.slice((opLogsPage - 1) * PAGE_SIZE, opLogsPage * PAGE_SIZE).map(log => (
                     <tr key={log.id} className="hover:bg-slate-50">
                       <td className="px-4 py-4 text-slate-500">{log.created_at?.slice(0, 16)?.replace('T', ' ')}</td>
                       <td className="px-4 py-4 text-slate-600 font-medium">#{log.admin_id}</td>
@@ -1506,6 +1535,8 @@ export default function AdminPage() {
                 </tbody>
               </table>
             </div>
+            </div>
+            <Paginator page={opLogsPage} total={opLogs.length} onPage={setOpLogsPage} />
             {opLogs.length === 0 && <div className="p-8 text-center text-sm text-slate-400">暂无操作记录</div>}
           </div>
         )}
