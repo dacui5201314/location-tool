@@ -114,7 +114,7 @@ export default function useAMap() {
       animation: 'AMAP_ANIMATION_DROP',
     })
     map.add(marker)
-    map.setCenter([position.lng, position.lat])
+    map.setCenter([position.lng, position.lat], true)
     return marker
   }, [])
 

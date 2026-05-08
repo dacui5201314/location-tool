@@ -53,7 +53,7 @@ export default function MapView({ position, onPositionChange, mapLoaded, mapErro
             geocodeAndNotify(pos.lng, pos.lat)
           })
         }
-        map.panTo([lng, lat])
+        map.setCenter([lng, lat], true)
         geocodeAndNotify(lng, lat)
       })
     }, 100)
@@ -83,7 +83,7 @@ export default function MapView({ position, onPositionChange, mapLoaded, mapErro
       draggable: true, animation: 'AMAP_ANIMATION_DROP',
     })
     mapRef.current.add(m)
-    mapRef.current.setZoomAndCenter(16, [position.lng, position.lat])
+    mapRef.current.setZoomAndCenter(16, [position.lng, position.lat], true)
     markerRef.current = m
     m.on('dragend', () => {
       const pos = m.getPosition()

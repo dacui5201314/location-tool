@@ -53,10 +53,15 @@ export default function BusinessTypeSelector({ selected, onChange, disabled, err
             <button key={cat} type="button" disabled={disabled}
               onClick={() => {
                 if (disabled) return
-                // 切换展开/收起
-                setExpandedCat(isExpanded ? null : cat)
+                // 点击不同分类 → 清空旧选择 + 展开新面板（绝对排他）
+                if (!isExpanded) {
+                  onChange(null)
+                  setExpandedCat(cat)
+                } else {
+                  setExpandedCat(null)
+                }
                 // 如果该分类只有1个业态，直接选中
-                if (items.length === 1 && !anySelected) {
+                if (items.length === 1) {
                   onChange(items[0])
                   setExpandedCat(null)
                 }
