@@ -64,7 +64,7 @@ function UiCustomerConfigCard({ uiConfig, setUiConfig, adminFetch, showToast }) 
   }
 
   return (
-    <div className="rounded-xl bg-white p-5 shadow-sm border border-slate-100">
+    <div className="rounded-xl bg-white p-5 shadow-sm border border-slate-100 contain-paint">
       <div className="flex items-start justify-between gap-3 mb-4">
         <div>
           <div className="text-sm font-bold text-slate-800 mb-1">UI 客服配置</div>
@@ -185,7 +185,7 @@ function QrcodeSlotCard({ slot, title, description, uploadPath, adminFetch, show
   const isBrand = slot === 'brand'
 
   return (
-    <div className="rounded-xl bg-white p-5 shadow-sm border border-slate-100">
+    <div className="rounded-xl bg-white p-5 shadow-sm border border-slate-100 contain-paint">
       <div className="flex items-start justify-between gap-3 mb-4">
         <div>
           <div className="text-sm font-bold text-slate-800 mb-1">{title}</div>
@@ -682,7 +682,7 @@ export default function AdminPage() {
         </header>
 
         {/* 内容滚动区 */}
-        <main className="flex-1 overflow-auto p-6 space-y-4 transform-gpu will-change-transform">
+        <main className="flex-1 overflow-auto p-6 space-y-4">
         {tab === 'dashboard' && stats && (
           <>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -1109,7 +1109,7 @@ export default function AdminPage() {
         {tab === 'settings' && (
           <div className="space-y-4">
             {/* 地图服务配置 */}
-            <div className="rounded-xl bg-white p-5 shadow-sm border border-slate-100">
+            <div className="rounded-xl bg-white p-5 shadow-sm border border-slate-100 contain-paint">
               <div className="text-sm font-bold text-slate-800 mb-1">地图服务配置</div>
               <div className="text-[11px] text-slate-400 mb-4">高德地图 Web API 密钥</div>
               <div className="flex gap-2">
@@ -1122,7 +1122,7 @@ export default function AdminPage() {
             </div>
 
             {/* AI 模型配置 */}
-            <div className="rounded-xl bg-white p-5 shadow-sm border border-slate-100">
+            <div className="rounded-xl bg-white p-5 shadow-sm border border-slate-100 contain-paint">
               <div className="text-sm font-bold text-slate-800 mb-1">AI 模型配置</div>
               <div className="text-[11px] text-slate-400 mb-4">选择当前激活的大模型供应商及对应密钥</div>
               <div className="space-y-3">
@@ -1163,7 +1163,7 @@ export default function AdminPage() {
             />
 
             {/* 微信支付配置 */}
-            <div className="rounded-xl bg-white p-5 shadow-sm border border-slate-100">
+            <div className="rounded-xl bg-white p-5 shadow-sm border border-slate-100 contain-paint">
               <div className="text-sm font-bold text-slate-800 mb-1">微信支付配置</div>
               <div className="text-[11px] text-slate-400 mb-4">微信商户号、API 密钥及回调地址</div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -1197,7 +1197,7 @@ export default function AdminPage() {
             </div>
 
             {/* 套餐与定价管理 */}
-            <div className="rounded-xl bg-white p-5 shadow-sm border border-slate-100">
+            <div className="rounded-xl bg-white p-5 shadow-sm border border-slate-100 contain-paint">
               <div className="flex items-center justify-between mb-4">
                 <div>
                   <div className="text-sm font-bold text-slate-800">套餐与定价管理</div>
@@ -1266,7 +1266,7 @@ export default function AdminPage() {
             />
 
             {/* PDF 报告品牌定制 */}
-            <div className="rounded-xl bg-white p-5 shadow-sm border border-slate-100">
+            <div className="rounded-xl bg-white p-5 shadow-sm border border-slate-100 contain-paint">
               <div className="text-sm font-bold text-slate-800 mb-1">PDF 报告品牌定制</div>
               <div className="text-[11px] text-slate-400 mb-4">自定义导出 PDF 的页眉 Logo 和页脚版权文案</div>
               <div className="space-y-3">
@@ -1298,7 +1298,7 @@ export default function AdminPage() {
             />
 
             {/* 对象存储配置 (OSS/S3) */}
-            <div className="rounded-xl bg-white p-5 shadow-sm border border-slate-100">
+            <div className="rounded-xl bg-white p-5 shadow-sm border border-slate-100 contain-paint">
               <div className="text-sm font-bold text-slate-800 mb-1">对象存储配置 (OSS/S3)</div>
               <div className="text-[11px] text-slate-400 mb-4">报告文件存储方案：本地存储 / 云端对象存储</div>
 
@@ -1449,7 +1449,7 @@ export default function AdminPage() {
 
         {tab === 'cdk' && (
           <div className="space-y-4">
-            <div className="rounded-xl bg-white p-5 shadow-sm border border-slate-100">
+            <div className="rounded-xl bg-white p-5 shadow-sm border border-slate-100 contain-paint">
               <div className="text-sm font-bold text-slate-800 mb-4">批量生成兑换码</div>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
                 <div><label className="text-[11px] text-slate-400">前缀</label>
@@ -1544,7 +1544,7 @@ export default function AdminPage() {
 
         {tab === 'sysparams' && (
           <div className="space-y-4">
-            <div className="rounded-xl bg-white p-5 shadow-sm border border-slate-100">
+            <div className="rounded-xl bg-white p-5 shadow-sm border border-slate-100 contain-paint">
               <div className="text-sm font-bold text-slate-800 mb-1">新用户注册奖励</div>
               <div className="text-[11px] text-slate-400 mb-4">运营人员可在此动态调整新用户注册时赠送的点数，无需修改代码或重启服务</div>
               <div className="grid grid-cols-2 gap-3">
@@ -1567,7 +1567,7 @@ export default function AdminPage() {
               </div>
             </div>
 
-            <div className="rounded-xl bg-white p-5 shadow-sm border border-slate-100">
+            <div className="rounded-xl bg-white p-5 shadow-sm border border-slate-100 contain-paint">
               <div className="text-sm font-bold text-slate-800 mb-1">微信公众号配置</div>
               <div className="text-[11px] text-slate-400 mb-4">用于公众号网页授权登录，填入真实值后生效</div>
               <div className="space-y-3">
@@ -1589,7 +1589,7 @@ export default function AdminPage() {
               </div>
             </div>
 
-            <div className="rounded-xl bg-white p-5 shadow-sm border border-slate-100">
+            <div className="rounded-xl bg-white p-5 shadow-sm border border-slate-100 contain-paint">
               <div className="text-sm font-bold text-slate-800 mb-1">微信小程序配置</div>
               <div className="text-[11px] text-slate-400 mb-4">用于小程序内嵌授权登录</div>
               <div className="space-y-3">
@@ -1611,7 +1611,7 @@ export default function AdminPage() {
               </div>
             </div>
 
-            <div className="rounded-xl bg-white p-5 shadow-sm border border-slate-100">
+            <div className="rounded-xl bg-white p-5 shadow-sm border border-slate-100 contain-paint">
               <div className="text-sm font-bold text-slate-800 mb-1">微信服务号配置</div>
               <div className="text-[11px] text-slate-400 mb-4">用于服务号模板消息等高级能力（预留）</div>
               <div className="space-y-3">
