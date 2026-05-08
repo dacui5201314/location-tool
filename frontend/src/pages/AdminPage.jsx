@@ -310,7 +310,6 @@ export default function AdminPage() {
   // ★ CorePromptEditor 状态已移至独立组件，消除全局重渲染
   const [dashTrends, setDashTrends] = useState({ dates: [], counts: [] })
   const [opLogs, setOpLogs] = useState([])
-  const loadOpLogs = () => { adminFetch('/operation-logs').then(r => r.json()).then(d => setOpLogs(d.logs || [])).catch(() => showToast('操作记录加载失败')) }
   // ── 业态规则管理 ──
   const [industries, setIndustries] = useState([])
   const [industryModal, setIndustryModal] = useState(null) // null | { id?, name, sort_order, is_active }
@@ -318,7 +317,6 @@ export default function AdminPage() {
   const [promptEditor, setPromptEditor] = useState(null) // null | industry object (full)
   // ★ IndustryRuleDrawer 状态已移至独立组件，消除全局重渲染
   const [industryDeleteConfirm, setIndustryDeleteConfirm] = useState(null) // null | industry object
-  const loadIndustries = useCallback(() => { adminFetch('/industries').then(r => r.json()).then(d => setIndustries(d.industries || [])).catch(() => showToast('业态列表加载失败')) }, [adminFetch, showToast])
   const [pdfConfig, setPdfConfig] = useState({ logo_url: '', footer_text: 'AI 选址分析 · 商业数据决策平台' })
   const [storageConfig, setStorageConfig] = useState({
     storage_mode: 'local',
@@ -350,7 +348,6 @@ export default function AdminPage() {
     })
   }
   const [toast, setToast] = useState('')
-  const loadCdk = () => { adminFetch('/cdk/list').then(r => r.json()).then(d => setCdkList(d.codes || [])).catch(() => showToast('CDK列表加载失败')) }
   const showToast = useCallback((msg) => { setToast(msg); setTimeout(() => setToast(''), 2000) }, [])
   const updateSettings = (patch) => { setSettings(s => ({ ...s, ...patch })); setSettingsDirty(true) }
   const updatePdfConfig = (patch) => { setPdfConfig(c => ({ ...c, ...patch })); setPdfDirty(true) }
@@ -372,6 +369,11 @@ export default function AdminPage() {
     }
     return fetch(`/api/admin${path}`, { ...options, headers })
   }, [])
+
+  // ── 数据加载器（必须在 adminFetch/showToast 之后定义）──
+  const loadCdk = useCallback(() => { adminFetch('/cdk/list').then(r => r.json()).then(d => setCdkList(d.codes || [])).catch(() => showToast('CDK列表加载失败')) }, [adminFetch, showToast])
+  const loadOpLogs = useCallback(() => { adminFetch('/operation-logs').then(r => r.json()).then(d => setOpLogs(d.logs || [])).catch(() => showToast('操作记录加载失败')) }, [adminFetch, showToast])
+  const loadIndustries = useCallback(() => { adminFetch('/industries').then(r => r.json()).then(d => setIndustries(d.industries || [])).catch(() => showToast('业态列表加载失败')) }, [adminFetch, showToast])
 
   const loadSettingsData = () => {
     fetch('/api/admin/skus').then(r => r.json()).then(d => { setSkus(d.skus || []); setSkusDirty(false) }).catch(() => showToast('套餐列表加载失败'))
