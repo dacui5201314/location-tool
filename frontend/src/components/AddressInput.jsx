@@ -8,6 +8,7 @@ export default function AddressInput({ onSelect, disabled, mapLoaded, externalAd
   const busyRef = useRef(false)  // ★ 避免 AutoComplete 回调中的闭包过期
   const userInteracted = useRef(false)  // ★ 用户手动操作后，禁止定位结果覆盖
   const searchIdRef = useRef(0)  // ★ 防并发回调乱序：只应用最新一次搜索的结果
+  const programmaticInput = useRef(false)  // ★ 程序写入 input 时屏蔽 AutoComplete 事件
 
   // AutoComplete 下拉提示
   useEffect(() => {
@@ -15,12 +16,14 @@ export default function AddressInput({ onSelect, disabled, mapLoaded, externalAd
     if (!window.AMap?.AutoComplete) return
     const auto = new window.AMap.AutoComplete({ input: inputRef.current })
     const onSelectHandler = (e) => {
-      if (!e.poi) return
+      if (!e.poi || programmaticInput.current) return  // ★ 程序写入时忽略
       if (e.poi.location) {
         const address = (e.poi.district || '') + (e.poi.address || '')
         userInteracted.current = true
+        programmaticInput.current = true
         onSelect({ name: e.poi.name, address, location: { lng: e.poi.location.lng, lat: e.poi.location.lat } })
         setHasText(true)
+        setTimeout(() => { programmaticInput.current = false }, 200)
         return
       }
       // 关键词补全 → PlaceSearch 兜底（加锁 + 城市上下文）
@@ -36,7 +39,9 @@ export default function AddressInput({ onSelect, disabled, mapLoaded, externalAd
               const address = (p.district || '') + (p.address || '')
               userInteracted.current = true
               onSelect({ name: p.name, address, location: { lng: p.location.lng, lat: p.location.lat } })
+              programmaticInput.current = true
               if (inputRef.current) inputRef.current.value = p.name
+              setTimeout(() => { programmaticInput.current = false }, 200)
               setHasText(true)
             }
           }
@@ -82,7 +87,9 @@ export default function AddressInput({ onSelect, disabled, mapLoaded, externalAd
           })
         })
         if (thisSearchId !== searchIdRef.current) return  // ★ 后续搜索已发起，丢弃此结果
+        programmaticInput.current = true  // ★ 屏蔽 AutoComplete 异步事件
         if (inputRef.current) inputRef.current.value = result.name
+        setTimeout(() => { programmaticInput.current = false }, 200)  // 延迟恢复
         userInteracted.current = true  // ★ 标记用户已手动搜索
         onSelect(result)
       } catch (err) { onToast?.(err.message || '搜索失败') }
