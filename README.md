@@ -621,6 +621,8 @@ server {
     root /www/wwwroot/location-tool/frontend/dist;
     index index.html;
 
+    #error_page 404/404.html;
+
     # Gzip 压缩
     gzip on;
     gzip_types text/plain text/css application/json application/javascript text/xml application/xml text/javascript;
@@ -1036,6 +1038,8 @@ server {
 
     root /www/wwwroot/location-tool/frontend/dist;
     index index.html;
+
+    #error_page 404/404.html;
 
     # 限制请求体大小
     client_max_body_size 10m;
