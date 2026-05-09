@@ -9,6 +9,7 @@ export default function AddressInput({ onSelect, disabled, mapLoaded, externalAd
   const userInteracted = useRef(false)  // ★ 用户手动操作后，禁止定位结果覆盖
   const searchIdRef = useRef(0)  // ★ 防并发回调乱序：只应用最新一次搜索的结果
   const cachedPosition = useRef(null)  // ★ 缓存首次 Geolocation 结果，避免重复调用 IP 漂移
+  const locateJustFired = useRef(false)  // ★ 定位刚完成，阻止 externalAddress sync 回填 input
   const programmaticInput = useRef(false)  // ★ 程序写入 input 时屏蔽 AutoComplete 事件
 
   // AutoComplete 下拉提示
@@ -59,6 +60,7 @@ export default function AddressInput({ onSelect, disabled, mapLoaded, externalAd
 
   // 外部地址同步
   useEffect(() => {
+    if (locateJustFired.current) { locateJustFired.current = false; return }  // ★ 定位刚完成，跳过回填
     if (externalAddress && inputRef.current) {
       inputRef.current.value = externalAddress
       setHasText(true)
@@ -131,11 +133,10 @@ export default function AddressInput({ onSelect, disabled, mapLoaded, externalAd
       // 逆地理编码：坐标 → 结构化地址
       const applyAddress = (addrText) => {
         cachedPosition.current = { lng, lat, addrText }  // ★ 缓存首次结果
+        locateJustFired.current = true  // ★ 阻止 externalAddress sync 回填
         onSelect({ name: addrText, address: addrText, location: { lng, lat } })
-        if (inputRef.current) {
-          inputRef.current.value = addrText
-          setHasText(true)
-        }
+        if (inputRef.current) inputRef.current.value = ''
+        setHasText(false)
       }
 
       if (window.AMap?.Geocoder) {
