@@ -46,8 +46,7 @@ export default function MapView({ position, onPositionChange, mapLoaded, mapErro
         markerRef.current.setPosition([lng, lat])
       } else {
         const m = new window.AMap.Marker({
-          position: [lng, lat], draggable: true, animation: 'AMAP_ANIMATION_DROP',
-        })
+          position: [lng, lat], draggable: true,         })
         map.add(m)
         markerRef.current = m
         _cachedMarker = m
@@ -119,8 +118,7 @@ export default function MapView({ position, onPositionChange, mapLoaded, mapErro
     }
     const m = new window.AMap.Marker({
       position: [lng, lat],
-      draggable: true, animation: 'AMAP_ANIMATION_DROP',
-    })
+      draggable: true,     })
     mapRef.current.add(m)
     mapRef.current.setZoomAndCenter(16, [lng, lat], true)
     markerRef.current = m
@@ -150,8 +148,8 @@ export default function MapView({ position, onPositionChange, mapLoaded, mapErro
   }
 
   return (
-    <div className="relative h-full w-full overflow-hidden rounded-lg">
-      <div ref={mountRef} className="h-full min-h-[220px] w-full" />
+    <div className="relative h-full w-full">
+      <div ref={mountRef} className="h-full min-h-[220px] w-full" style={{ borderRadius: 8, overflow: 'hidden', willChange: 'transform' }} />
       {selectedAddress && (
         <div className="selected-location-card pointer-events-none absolute left-4 right-4 z-10 rounded-lg bg-white/95 px-4 py-3 shadow-lg backdrop-blur-sm">
           <div className="flex items-center gap-3">

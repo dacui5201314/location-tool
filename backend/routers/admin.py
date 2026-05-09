@@ -174,10 +174,19 @@ def list_users(
     total = query.count()
     users = query.offset((page - 1) * page_size).limit(page_size).all()
 
+    user_ids = [u.id for u in users]
+    report_counts = {}
+    if user_ids:
+        report_counts = dict(
+            db.query(AnalysisRecord.user_id, func.count(AnalysisRecord.id))
+            .filter(AnalysisRecord.user_id.in_(user_ids))
+            .group_by(AnalysisRecord.user_id)
+            .all()
+        )
+
     result = []
     tier_labels = {"free": "非会员", "monthly": "月度", "quarterly": "季度", "yearly": "年度"}
     for u in users:
-        report_count = db.query(AnalysisRecord).filter(AnalysisRecord.user_id == u.id).count()
         result.append({
             "id": u.id,
             "phone": u.phone or u.phone_number or "",
@@ -189,7 +198,7 @@ def list_users(
             "is_member": u.is_member,
             "membership_days_left": u.membership_days_left,
             "membership_expiry": u.membership_expiry.isoformat() if u.membership_expiry else None,
-            "report_count": report_count,
+            "report_count": report_counts.get(u.id, 0),
             "channel": u.channel or "",
             "created_at": u.created_at.isoformat() if u.created_at else None,
         })

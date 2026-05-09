@@ -4811,7 +4811,10 @@ textarea {
   border-radius: 8px;
   background: rgba(255, 255, 255, 0.95);
   box-shadow: 0 16px 42px rgba(9, 24, 54, 0.08);
-  backdrop-filter: blur(16px);
+}
+
+.admin-page .rounded-xl.bg-white {
+  background: #ffffff;
 }
 
 .admin-page input,

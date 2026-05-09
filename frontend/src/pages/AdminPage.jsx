@@ -278,7 +278,7 @@ export default function AdminPage() {
 
   // ★ 数据统一在此加载，避免 onClick 中重复调用
   useEffect(() => {
-    if (tab === 'users') loadUsers()
+    if (tab === 'users') loadUsers(userFilter, 1)
     if (tab === 'settings') loadSettingsData()
     if (tab === 'oplogs') loadOpLogs()
     if (tab === 'industries') loadIndustries()
@@ -347,8 +347,10 @@ export default function AdminPage() {
   const [logsPage, setLogsPage] = useState(1)
   const [cdkPage, setCdkPage] = useState(1)
   const [industriesPage, setIndustriesPage] = useState(1)
+  const [usersPage, setUsersPage] = useState(1)
+  const [usersTotal, setUsersTotal] = useState(0)
   // 切标签页时重置分页
-  useEffect(() => { setOpLogsPage(1); setLogsPage(1); setCdkPage(1); setIndustriesPage(1) }, [tab])
+  useEffect(() => { setOpLogsPage(1); setLogsPage(1); setCdkPage(1); setIndustriesPage(1); setUsersPage(1) }, [tab])
 
   const Paginator = ({ page, total, onPage }) => {
     if (total <= PAGE_SIZE) return null
@@ -461,18 +463,36 @@ export default function AdminPage() {
   }
 
   const [userFilter, setUserFilter] = useState({ phone: '', member: '', channel: '', dateFrom: '', dateTo: '' })
-  const loadUsers = (filter = {}) => {
+  const loadUsers = (filter = userFilter, page = usersPage) => {
     const params = new URLSearchParams()
+    params.set('page', String(page))
+    params.set('page_size', String(PAGE_SIZE))
     if (filter.phone) params.set('phone', filter.phone)
     if (filter.member) params.set('member', filter.member)
     if (filter.channel) params.set('channel', filter.channel)
     if (filter.dateFrom) params.set('date_from', filter.dateFrom)
     if (filter.dateTo) params.set('date_to', filter.dateTo)
     const qs = params.toString()
-    adminFetch(`/users${qs ? '?' + qs : ''}`).then(r => r.json()).then(d => setUsers(d.users || [])).catch(() => showToast('用户列表加载失败'))
+    adminFetch(`/users?${qs}`).then(r => r.json()).then(d => {
+      setUsers(d.users || [])
+      setUsersTotal(d.total || 0)
+      setUsersPage(d.page || page)
+    }).catch(() => showToast('用户列表加载失败'))
   }
-  const handleUserFilter = () => loadUsers(userFilter)
-  const resetUserFilter = () => { setUserFilter({ phone: '', member: '', channel: '', dateFrom: '', dateTo: '' }); loadUsers() }
+  const handleUserFilter = () => {
+    setUsersPage(1)
+    loadUsers(userFilter, 1)
+  }
+  const resetUserFilter = () => {
+    const emptyFilter = { phone: '', member: '', channel: '', dateFrom: '', dateTo: '' }
+    setUserFilter(emptyFilter)
+    setUsersPage(1)
+    loadUsers(emptyFilter, 1)
+  }
+  const changeUsersPage = (page) => {
+    setUsersPage(page)
+    loadUsers(userFilter, page)
+  }
   const [creditModal, setCreditModal] = useState(null) // { userId, phone }
   const [creditAmount, setCreditAmount] = useState(10)
   const [creditReason, setCreditReason] = useState('')
@@ -837,13 +857,14 @@ export default function AdminPage() {
                 className="h-9 rounded-lg border border-slate-200 text-slate-600 text-sm font-medium px-4 hover:bg-slate-50">重置</button>
             </div>
             <div className="flex items-center justify-between">
-              <div className="text-sm text-slate-500">共 {users.length} 位用户</div>
-              <button onClick={() => loadUsers()} className="text-sm text-blue-600 font-semibold hover:text-blue-700">刷新列表</button>
+              <div className="text-sm text-slate-500">共 {usersTotal} 位用户</div>
+              <button onClick={() => loadUsers(userFilter, usersPage)} className="text-sm text-blue-600 font-semibold hover:text-blue-700">刷新列表</button>
             </div>
-            <div className="rounded-xl bg-white shadow-sm border border-slate-100 overflow-hidden">
+            <div className="rounded-xl bg-white shadow-sm border border-slate-100 overflow-hidden contain-paint">
+              <div className="max-h-[70vh] overflow-y-auto overscroll-contain">
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
-                  <thead>
+                  <thead className="sticky top-0 z-10">
                     <tr className="bg-slate-50">
                       <th className="text-left px-4 py-4 text-[15px] font-semibold text-slate-600">ID</th>
                       <th className="text-left px-4 py-4 text-[15px] font-semibold text-slate-600">手机号</th>
@@ -905,6 +926,8 @@ export default function AdminPage() {
                   </tbody>
                 </table>
               </div>
+              </div>
+              <Paginator page={usersPage} total={usersTotal} onPage={changeUsersPage} />
               {users.length === 0 && (
                 <div className="p-8 text-center text-sm text-slate-400">暂无用户数据</div>
               )}
