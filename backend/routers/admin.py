@@ -7,7 +7,6 @@ from datetime import datetime, date, timedelta
 from typing import List
 import random, string
 from fastapi import APIRouter, Depends, Query, HTTPException, UploadFile, File, Request
-from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 from sqlalchemy import func, update
 from pydantic import BaseModel, ConfigDict
@@ -328,8 +327,11 @@ class ApplyUserSkuBody(BaseModel):
 
 
 @router.get("/skus")
-def get_skus(db: Session = Depends(get_db)):
-    """获取套餐列表（前端充值弹窗动态拉取）"""
+def get_skus(
+    admin: dict = Depends(get_current_admin),
+    db: Session = Depends(get_db),
+):
+    """获取套餐列表（需管理员权限）"""
     return {"skus": load_skus(db)}
 
 @router.put("/skus")
@@ -1142,8 +1144,11 @@ async def upload_qrcode(
 
 
 @router.get("/qrcode")
-def get_qrcode(db: Session = Depends(get_db)):
-    """获取当前公众号二维码 URL"""
+def get_qrcode(
+    admin: dict = Depends(get_current_admin),
+    db: Session = Depends(get_db),
+):
+    """获取当前公众号二维码 URL（需管理员权限）"""
     return get_brand_qrcode(db)
 
 

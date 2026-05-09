@@ -1,5 +1,4 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
-import { createPortal } from 'react-dom'
 import RadarChart from './RadarChart'
 import useReportExport from '../hooks/useReportExport'
 import { getAssetUrl } from '../services/api'
@@ -116,17 +115,12 @@ export default function PdfExport({ selectedLocation, result, businessType, bran
   const reportRef = useRef(null)
   const { exportPdf, ExportModal, loading: exporting, toast, showToast } = useReportExport()
   const [pdfConfig, setPdfConfig] = useState({ logo_url: '', footer_text: '' })
-  const [brandQrUrl, setBrandQrUrl] = useState('')
 
   // ★ 拉取管理员自定义的 PDF 品牌配置和二维码，确保预览与导出 PDF 一致
   useEffect(() => {
     fetch('/api/admin/pdf-config')
       .then(r => r.ok ? r.json() : {})
       .then(cfg => setPdfConfig({ logo_url: cfg.logo_url || '', footer_text: cfg.footer_text || '' }))
-      .catch(() => {})
-    fetch('/api/admin/qrcode-slot/brand')
-      .then(r => r.ok ? r.json() : {})
-      .then(d => setBrandQrUrl(getAssetUrl(d.url || '')))
       .catch(() => {})
   }, [])
 
@@ -154,9 +148,6 @@ export default function PdfExport({ selectedLocation, result, businessType, bran
       filename,
     })
   }, [selectedLocation, exportPdf, result, brandName, businessType])
-
-  // Portal 渲染控制
-  const [renderPortal, setRenderPortal] = useState(false)
 
   const report = (
     <div ref={reportRef} style={{
@@ -550,20 +541,6 @@ export default function PdfExport({ selectedLocation, result, businessType, bran
           <>📄 导出 PDF 报告</>
         )}
       </button>
-
-      {/* Full-screen portal for high-fidelity capture */}
-      {renderPortal && createPortal(
-        <div style={{
-          position: 'fixed', top: 0, left: 0,
-          width: '100vw', minHeight: '100vh',
-          zIndex: 99999, background: 'white',
-        }}>
-          <div style={{ display: 'flex', justifyContent: 'center', minWidth: '900px' }}>
-            {report}
-          </div>
-        </div>,
-        document.body,
-      )}
     </>
   )
 }

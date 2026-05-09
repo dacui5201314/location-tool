@@ -19,7 +19,6 @@
  */
 import { useState, useCallback, useRef } from 'react'
 import { createPortal } from 'react-dom'
-import { exportElementToPDF, exportDataToPDF } from '../utils/exportToPDF'
 import { ensureToken, getToken, getAssetUrl } from '../services/api'
 
 // 获取公众号二维码
@@ -171,10 +170,12 @@ export default function useReportExport() {
       if (el) {
         // 模式 A: 截取 live DOM
         const name = filename || `选址分析报告_${new Date().toISOString().slice(0, 10)}.pdf`
+        const { exportElementToPDF } = await import('../utils/exportToPDF')
         await exportElementToPDF(el, name)
       } else if (data) {
         // 模式 B: 从 JSON 构建
         const [qrcodeUrl, pdfConfig] = await Promise.all([fetchQrcode(), fetchPdfConfig()])
+        const { exportDataToPDF } = await import('../utils/exportToPDF')
         await exportDataToPDF(data, meta || {}, qrcodeUrl, pdfConfig, filename)
       }
       showToast('PDF 下载完成')

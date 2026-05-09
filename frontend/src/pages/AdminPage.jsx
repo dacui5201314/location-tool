@@ -4,7 +4,6 @@ import { adminLogin, getAdminToken, clearAdminToken, fetchSystemSettings, saveSy
 import CorePromptEditor from '../components/CorePromptEditor'
 import IndustryRuleDrawer from '../components/IndustryRuleDrawer'
 
-const PWD_KEY = 'admin_pwd'
 const QR_ACCEPT = 'image/png,image/jpeg,image/gif,image/webp'
 const assetName = (url = '') => (url.startsWith('/assets/') ? url.split('/').pop() || '' : '')
 const isForeignAssetUrl = (url, tag) => {
@@ -269,7 +268,7 @@ function QrcodeSlotCard({ slot, title, description, uploadPath, adminFetch, show
 
 export default function AdminPage() {
   const navigate = useNavigate()
-  const [pwd, setPwd] = useState(localStorage.getItem(PWD_KEY) || '')
+  const [pwd, setPwd] = useState('')
   const [authed, setAuthed] = useState(false)
   const [isChecking, setIsChecking] = useState(true)
   const [searchParams, setSearchParams] = useSearchParams()
@@ -453,7 +452,6 @@ export default function AdminPage() {
     setLoginLoading(true)
     try {
       await adminLogin(pwd)
-      localStorage.setItem(PWD_KEY, pwd)
       setAuthed(true)
     } catch {
       showToast('密码错误')
@@ -698,7 +696,7 @@ export default function AdminPage() {
               ].find(t => t.key === tab)?.sub || ''}
             </span>
           </div>
-          <button onClick={() => { clearAdminToken(); localStorage.removeItem(PWD_KEY); setAuthed(false) }}
+          <button onClick={() => { clearAdminToken(); setAuthed(false) }}
             className="text-xs text-slate-400 hover:text-red-500 transition-colors font-medium">
             退出登录
           </button>

@@ -224,7 +224,7 @@ npx vite --host
 | 方法 | 路径 | 鉴权 | 说明 |
 |------|------|------|------|
 | GET | `/api/health` | 无 | 健康检查 |
-| GET | `/api/providers` | 无 | AI 提供商列表 |
+| GET | `/api/providers` | JWT | AI 提供商列表（需登录，防匿名探测底层架构） |
 | POST | `/api/auth/token` | 设备指纹 | ★ JWT 签发 + 多端身份绑定 + 防刷注册 |
 | POST | `/api/auth/register` | 无 | ★ 手机号+密码注册（PBKDF2 哈希） |
 | POST | `/api/auth/login` | 无 | ★ 手机号+密码登录 |
@@ -245,12 +245,12 @@ npx vite --host
 | GET | `/api/admin/users` | JWT Admin | 用户列表 |
 | POST | `/api/admin/users/{id}/add-credits` | JWT Admin | 增加点数 |
 | GET | `/api/admin/orders` | JWT Admin | 充值记录（预留） |
-| GET/PUT | `/api/admin/skus` | 无 / JWT Admin | 套餐管理 |
+| GET/PUT | `/api/admin/skus` | JWT Admin | 套餐管理（读写均需管理员权限） |
 | PUT | `/api/admin/config` | JWT Admin | 系统配置（敏感，仅管理员可写） |
 | GET/PUT | `/api/admin/ui-config` | 无 / JWT Admin | 全局公告/客服名称/二维码配置 |
 | GET/PUT | `/api/admin/pdf-config` | JWT Admin | PDF 品牌定制（管理员可读写） |
 | GET/PUT | `/api/admin/storage-config` | JWT Admin | ★ 对象存储配置（含 OSS 密钥，管理员可读写） |
-| GET | `/api/admin/qrcode` | 无 | 获取公众号二维码 |
+| GET | `/api/admin/qrcode` | JWT Admin | 获取公众号二维码（需管理员权限） |
 | POST | `/api/admin/upload-qrcode` | JWT Admin | 上传公众号二维码 |
 | POST | `/api/admin/cdk/generate` | JWT Admin | 生成兑换码 |
 | GET | `/api/admin/cdk/list` | JWT Admin | 兑换码列表 |
@@ -392,11 +392,17 @@ npx vite --host
 | 系统配置真实持久化 | `admin.py` | `PUT /api/admin/config` 写入 `system_config` 表，刷新不丢 |
 | 客服二维码运营配置 | `admin.py` + `AdminPage.jsx` | 后台上传客服二维码 + 名称，前端充值弹窗动态渲染 |
 | .gitignore 全量覆盖 | 根/后端/前端 | 3 个 .gitignore，屏蔽 .env/.db/node_modules/chrome-profile 等 |
+| 公开接口数据脱敏 | `industries.py` | `GET /api/industries/active` 强制 pop exclusive_prompt，禁止核心 AI 规则泄漏 |
+| 管理后台路由加锁 | `admin.py` | skus/qrcode GET 端点叠加 Admin JWT 鉴权，定价策略与二维码不再公开可读 |
+| 管理员密码防 XSS | `AdminPage.jsx` | 彻底删除 localStorage 明文密码存储，登录态仅依赖 admin_token (JWT) |
+| AI 供应商隐蔽 | `main.py` | `GET /api/providers` 加 JWT 用户鉴权，防匿名者探测底层 LLM 架构 |
+| 全局异常兜底 | `main.py` | `@app.exception_handler(Exception)` 捕获所有未处理异常，返回 500 JSON 防进程崩溃 |
 
 ---
 
 ## 版本历史
 
+- **v4.8** (2026-05-09) — 上线前安全审计清零：公开接口数据脱敏（exclusive_prompt 字段强制剥离）、管理后台路由加锁（skus/qrcode 越权修复）、XSS 致命隐患切除（localStorage 明文密码彻底删除）、AI 供应商信息隐蔽（providers 端点 JWT 鉴权）、全栈死代码大扫除（9 项后端未使用 import + 10 项前端未使用变量/console.log 清理）、全局异常处理器兜底 500 优雅响应
 - **v4.7** (2026-05-08) — 全面性能与稳定性加固：地图实例全局缓存（路由切换秒恢复）、PostgreSQL 级别搜索并发锁（busyRef + searchId 双重防竞态）、地图幽灵跳转修复（禁用定位自动平移 + userInteracted 拦截）、Toast 直写 DOM 消除最高频重渲染、长列表严格前端分页（PAGE_SIZE=15）+ 滚动隔离 + contain-paint 渲染隔离、transition-all 全量清除、GPU 纹理层清理、地图瞬间定位（panTo→setCenter immediate）、业态选择器排他高亮、收藏 UUID 补漏、CSS Hover 纯伪类驱动
 - **v4.6** (2026-05-07) — 管理后台性能优化：CorePromptEditor / IndustryRuleDrawer 独立组件隔离状态、useMemo 缓存长列表渲染、消除打字时全局重渲染导致的输入卡顿
 - **v4.5** (2026-05-07) — 全量业态实战规则库：34 个业态全部注入高质量专属 AI 选址规则（核心关注 / 红线避坑 / 权重调整），每个业态拥有独立的测算策略，LLM 分析精准度大幅提升

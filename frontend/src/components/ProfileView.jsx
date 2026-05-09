@@ -6,20 +6,17 @@ import { clearToken, getToken, getAssetUrl } from '../services/api'
 export default function ProfileView() {
   const navigate = useNavigate()
   const [toast, setToast] = useState('')
-  const [toastDuration, setToastDuration] = useState(2000)
   const [rechargeOpen, setRechargeOpen] = useState(false)
   const [cdkOpen, setCdkOpen] = useState(false)
   const [cdkInput, setCdkInput] = useState('')
   const [countdown, setCountdown] = useState('')
   const [csWechat, setCsWechat] = useState('')
   const [csPhone, setCsPhone] = useState('')
-  const [csName, setCsName] = useState('')
   const [csQrUrl, setCsQrUrl] = useState('')
   const countdownRef = useRef(null)
 
   const showToast = (msg, duration = 2000) => {
     setToast(msg)
-    setToastDuration(duration)
     setTimeout(() => setToast(''), duration)
   }
 
@@ -45,7 +42,6 @@ export default function ProfileView() {
       const d = uiData || {}
       setCsWechat(d?.cs_wechat || '')
       setCsPhone(d?.cs_phone || '')
-      setCsName(d?.customer_service_name || '')
     } catch { /* silent */ }
   }, [uiData])
 

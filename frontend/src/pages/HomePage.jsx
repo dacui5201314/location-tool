@@ -94,7 +94,7 @@ export default function HomePage() {
   }, [announcement])
 
   const location = useLocation()
-  const { loaded: mapLoaded, error: mapError, locateMe } = useAMap()
+  const { loaded: mapLoaded, error: mapError } = useAMap()
   const [welcomeOpen, setWelcomeOpen] = useState(false)
   const [freePointActive, setFreePointActive] = useState(false)
   const [freePointExpireAt, setFreePointExpireAt] = useState(null)
@@ -237,7 +237,7 @@ export default function HomePage() {
     } catch {
       // JSON 超长跨 chunk → 等待更多数据；纯格式异常 → 记日志
       if (jsonStr.length > 500) {
-        console.warn('[SSE] JSON parse failed, likely incomplete chunk, len:', jsonStr.length)
+        console.error('[SSE] JSON parse failed, incomplete chunk, len:', jsonStr.length)
       }
       return null
     }
@@ -310,10 +310,8 @@ export default function HomePage() {
       }
 
       // ── 一次性切割全部 SSE 事件 ──
-      console.log('[SSE DEBUG] rawBody length:', rawBody.length, 'preview:', rawBody.slice(0, 300))
       const allEvents = []
       const segments = rawBody.split('\n\n')
-      console.log('[SSE DEBUG] segments after split:', segments.length)
       for (const seg of segments) {
         const event = _parseSseEvent(seg)
         if (event) allEvents.push(event)

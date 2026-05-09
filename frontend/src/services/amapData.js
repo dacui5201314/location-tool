@@ -199,7 +199,7 @@ function classifyType(typeCode) {
  */
 function fetchAllNearbyPOIs(lng, lat, radius = 1000) {
   if (!window.AMap || !window.AMap.PlaceSearch) {
-    console.warn('[amapData] AMap.PlaceSearch 未加载，POI数据采集不可用')
+    console.error('[amapData] AMap.PlaceSearch 未加载，POI数据采集不可用')
     return Promise.resolve([])
   }
 

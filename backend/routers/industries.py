@@ -1,8 +1,6 @@
 """业态专属规则引擎 — 管理后台 CRUD + 前台匹配接口"""
-from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
-from sqlalchemy import update
 from pydantic import BaseModel
 
 from database import get_db
@@ -168,18 +166,16 @@ def list_active_industries(db: Session = Depends(get_db)):
         BusinessIndustry.sort_order.asc(),
         BusinessIndustry.id.asc()
     ).all()
-    return {
-        "industries": [
-            {
-                "id": item.id,
-                "name": item.name or "",
-                "config_key": item.config_key or "",
-                "category": _KEY_TO_CATEGORY.get(item.config_key, "其他"),
-                "sort_order": item.sort_order,
-            }
-            for item in items
-        ]
-    }
+    industries = []
+    for item in items:
+        d = item.to_dict()
+        d.pop("exclusive_prompt", None)
+        d.pop("is_active", None)
+        d.pop("created_at", None)
+        d.pop("updated_at", None)
+        d["category"] = _KEY_TO_CATEGORY.get(item.config_key, "其他")
+        industries.append(d)
+    return {"industries": industries}
 
 
 @public_router.get("/match")

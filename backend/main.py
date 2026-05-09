@@ -10,7 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import StreamingResponse
 
-from models.schemas import AnalyzeRequest, AnalyzeResponse
+from models.schemas import AnalyzeRequest
 from prompts.location_analysis import build_system_prompt, build_analysis_prompt
 from prompts.industry_config import get_config, get_config_by_key
 from services.amap_service import collect_location_data
@@ -68,13 +68,27 @@ app.add_middleware(
 )
 
 
+# 全局异常处理器 — 捕获所有未经路由级处理的异常，返回优雅 500 而非进程崩溃
+from fastapi.responses import JSONResponse as _JSONResponse
+from fastapi.requests import Request as _Request
+
+@app.exception_handler(Exception)
+async def _global_exception_handler(_req: _Request, exc: Exception):
+    import traceback as _traceback
+    _traceback.print_exc()
+    return _JSONResponse(
+        status_code=500,
+        content={"detail": "Internal server error"},
+    )
+
+
 @app.get("/api/health")
 async def health():
     return {"status": "ok"}
 
 
 @app.get("/api/providers")
-async def list_providers():
+async def list_providers(user: dict = Depends(get_current_user)):
     return {
         "providers": [
             {"id": "gemini", "name": "Google Gemini", "icon": "🤖"},
