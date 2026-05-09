@@ -807,6 +807,8 @@ echo "Backup completed at $(date)"
 
 #### 9.5 如何更新项目代码
 
+**如果项目通过 `git clone` 部署：**
+
 ```bash
 # 第一步：拉取最新代码
 cd /www/wwwroot/location-tool
@@ -822,8 +824,35 @@ npm install
 npm run build
 
 # 第四步：重启后端
-# 在 Python 项目管理器中点击「重启」
+kill -HUP $(cat /www/wwwroot/location-tool/backend/gunicorn.pid)
 ```
+
+**如果项目通过 zip 上传部署（目录中无 `.git`）：**
+
+1. 宝塔「文件」→ 导航到 `/www/wwwroot/location-tool/`
+2. 点击「上传」→ 选择更新后的文件 → 覆盖上传
+3. 或使用宝塔「终端」用 `curl` 下载单个文件（需服务器能访问 GitHub）
+4. 更新后执行上述第三、四步
+
+> 推荐首次部署后执行一次 `git init && git remote add origin ...`（见问题 18），后续即可用 `git pull` 更新。
+
+#### 9.6 首次部署：初始化业态数据
+
+> 新部署的服务器数据库为空，业态下拉框无选项，**必须执行本步骤**。
+
+```bash
+# 1. 找到正在使用的 Python 路径
+PYTHON=$(readlink -f /proc/$(pgrep -f "gunicorn|uvicorn" | head -1)/exe)
+echo $PYTHON
+
+# 2. 创建 34 条细分业态记录
+$PYTHON /www/wwwroot/location-tool/backend/fix_industry_names.py
+
+# 3. 注入 34 条 AI 专属规则
+$PYTHON /www/wwwroot/location-tool/backend/import_all_prompts.py
+```
+
+预期：`[DONE] 成功注入 34/34 个业态的 AI 专属规则！`
 
 ---
 
@@ -916,6 +945,105 @@ Nginx 配置文件缺少宝塔 SSL 注入标记。在「配置文件」的 `serv
 2. 用 `curl -I http://服务器IP/` 测试 → IP 通说明服务正常
 3. 登录域名 DNS 管理平台，添加 A 记录：`@` → 服务器IP、`www` → 服务器IP
 4. 保存后等 1-10 分钟生效
+
+#### 问题 13：分析报错"分析服务异常"或日志显示 401 Authorization Required
+
+**原因**：`.env` 中 `LLM_API_KEY` 未从占位符改成真实 Key。
+
+**检查方法**：
+
+```bash
+cat /www/wwwroot/location-tool/backend/.env | grep LLM_API_KEY
+```
+
+如果显示 `LLM_API_KEY=sk-your-key-here`（占位符），说明真实 Key 只填在了 `DEEPSEEK_API_KEY` 里但未被使用。代码优先读取 `LLM_API_KEY`。
+
+**修复**：
+
+```bash
+sed -i 's/LLM_API_KEY=sk-your-key-here/LLM_API_KEY=你的真实Key/' /www/wwwroot/location-tool/backend/.env
+```
+
+然后重启后端：`kill -HUP $(cat /www/wwwroot/location-tool/backend/gunicorn.pid)`
+
+> **提醒**：所有 `.env` 中标注 `★` 或 `必填` 的变量**每一行都要检查**，特别是那些值为 `sk-your-key-here` 或 `change-this` 的占位符。
+
+#### 问题 14：分析报错"高德API错误: CUQPS_HAS_EXCEEDED_THE_LIMIT"
+
+高德 Web 服务 API 日调用量超限。免费版每个 Key 每日 5000 次 POI 搜索配额。
+
+**解决**：
+1. 等次日 00:00 自动重置，或
+2. 登录 [高德开放平台](https://console.amap.com) 购买更高配额套餐
+
+#### 问题 15：服务器部署后业态下拉框为空 / 没有选择项
+
+数据库表是新建的，业态数据未初始化。需要在服务器上运行同步脚本：
+
+**第一步：查找正在使用的 Python 路径**
+
+```bash
+readlink -f /proc/$(pgrep -f uvicorn | head -1)/exe 2>/dev/null || readlink -f /proc/$(pgrep -f gunicorn | head -1)/exe
+```
+
+**第二步：创建 34 条细分业态**
+
+```bash
+PYTHON_PATH:/www/server/pyporject_evn/versions/3.12.13/bin/python3.12
+$PYTHON_PATH /www/wwwroot/location-tool/backend/fix_industry_names.py
+```
+
+**第三步：注入 34 条 AI 专属规则**
+
+```bash
+$PYTHON_PATH /www/wwwroot/location-tool/backend/import_all_prompts.py
+```
+
+预期输出：`[DONE] 成功注入 34/34 个业态的 AI 专属规则！`
+
+#### 问题 16：查看后端错误日志
+
+后端通过 Gunicorn 启动的，错误日志位置：
+
+```bash
+tail -100 /www/wwwlogs/python/backend/gunicorn_error.log
+```
+
+如果目录不存在，查看 Gunicorn 配置：
+
+```bash
+cat /www/wwwroot/location-tool/backend/gunicorn_conf.py | grep errorlog
+```
+
+#### 问题 17：宝塔网页终端粘贴命令后出现混乱文本
+
+宝塔的网页终端在粘贴多行时会混入历史输出，导致命令无法正常执行。
+
+**解决方法**：使用 SSH 客户端连接服务器（推荐 Windows 自带 PowerShell）：
+
+```bash
+ssh root@你的服务器IP
+```
+
+进入后终端干净，不会出现粘贴混乱。
+
+#### 问题 18：项目通过 zip 上传无法 `git pull` 更新
+
+如果项目不是 `git clone` 而是压缩包上传的，目录中没有 `.git` 无法拉取更新。
+
+**方法 A（推荐）**：将已有目录转为 Git 仓库
+
+```bash
+cd /www/wwwroot/location-tool
+git init
+git remote add origin https://github.com/dacui5201314/location-tool.git
+git fetch origin main
+git reset --hard origin/main
+```
+
+> 首次执行会覆盖本地文件。如果 `.env` 有修改会被覆盖，操作前先备份：`cp backend/.env ~/env.backup`，操作后恢复。
+
+**方法 B**：通过宝塔「文件」页面，手动上传更新的文件覆盖旧文件。
 
 ---
 
