@@ -8,6 +8,7 @@ export default function AddressInput({ onSelect, disabled, mapLoaded, externalAd
   const busyRef = useRef(false)  // ★ 避免 AutoComplete 回调中的闭包过期
   const userInteracted = useRef(false)  // ★ 用户手动操作后，禁止定位结果覆盖
   const searchIdRef = useRef(0)  // ★ 防并发回调乱序：只应用最新一次搜索的结果
+  const cachedPosition = useRef(null)  // ★ 缓存首次 Geolocation 结果，避免重复调用 IP 漂移
   const programmaticInput = useRef(false)  // ★ 程序写入 input 时屏蔽 AutoComplete 事件
 
   // AutoComplete 下拉提示
@@ -99,6 +100,19 @@ export default function AddressInput({ onSelect, disabled, mapLoaded, externalAd
 
     // 情景 B：空文本 → Geolocation + Geocoder 逆地理编码
     if (!window.AMap?.Geolocation) { onToast?.('定位插件未加载'); return }
+    // ★ 已有缓存定位 → 直接复用，避免重复调用 IP 漂移到外省
+    if (cachedPosition.current) {
+      const { lng, lat, addrText } = cachedPosition.current
+      onSelect({ name: addrText, address: addrText, location: { lng, lat } })
+      if (inputRef.current) {
+        programmaticInput.current = true
+        inputRef.current.value = addrText
+        setTimeout(() => { programmaticInput.current = false }, 200)
+        setHasText(true)
+      }
+      onToast?.('已定位（使用缓存位置）')
+      return
+    }
     setBusy(true)
     busyRef.current = true
     onToast?.('正在获取精确位置...')
@@ -116,6 +130,7 @@ export default function AddressInput({ onSelect, disabled, mapLoaded, externalAd
 
       // 逆地理编码：坐标 → 结构化地址
       const applyAddress = (addrText) => {
+        cachedPosition.current = { lng, lat, addrText }  // ★ 缓存首次结果
         onSelect({ name: addrText, address: addrText, location: { lng, lat } })
         if (inputRef.current) {
           inputRef.current.value = addrText
