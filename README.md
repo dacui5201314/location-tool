@@ -353,7 +353,7 @@ openssl rand -hex 32
 # ===== LLM 大模型配置 =====
 LLM_PROVIDER=deepseek
 LLM_MODEL=deepseek-chat
-LLM_BASE_URL=https://api.deepseek.com
+LLM_BASE_URL=https://api.deepseek.com/v1
 LLM_API_KEY=sk-你的DeepSeek_API_Key
 
 # ===== 备用供应商 API Key（可只填你用的那个）=====
@@ -985,7 +985,7 @@ findtime = 600
 
 #### 11.4 项目文件安全防护
 
-**11.4.1 保护 .env 敏感文件**
+##### 11.4.1 保护 .env 敏感文件
 
 ```bash
 # 设置严格权限
@@ -996,84 +996,124 @@ ls -la /www/wwwroot/location-tool/backend/.env
 # 应显示 -rw-------
 ```
 
-在 Nginx 配置中添加：
+##### 11.4.2 Nginx 安全配置升级（完整替换版）
+
+> **操作时机**：确认第六章基本配置已生效、网站能正常访问后，再做以下升级。
+
+以下操作分两步。**务必按顺序执行，否则 Nginx 会报错。**
+
+**第一步：在主配置中添加限速区（http 块）**
+
+`limit_req_zone` 指令**只能**放在 Nginx 的 `http` 块中，不能放在 `server` 块里。在宝塔中操作：
+
+1. 宝塔左侧 **「软件商店」** → 找到 **「Nginx」** → 点击 **「设置」** → 点击 **「配置修改」**
+2. 你会看到 Nginx 的主配置文件（包含 `http { ... }` 块）
+3. 在 `http {` 这一行的**下面**，找一处空行，添加以下两行：
 
 ```nginx
-# 禁止访问敏感文件
-location ~ /\. {
-    deny all;
-    return 404;
-}
+    limit_req_zone $binary_remote_addr zone=api_limit:10m rate=10r/s;
+    limit_req_zone $binary_remote_addr zone=page_limit:10m rate=30r/s;
+```
 
-# 禁止访问数据库文件
-location ~* \.(db|sqlite|sqlite3)$ {
-    deny all;
-    return 404;
-}
+4. 点击 **「保存」**
 
-# 禁止访问 Python 源码
-location ~* \.py$ {
-    deny all;
-    return 404;
+> 这两行定义了限速规则：API 每秒最多 10 个请求，普通页面每秒 30 个请求。注意缩进跟在 `http {` 内部。
+
+**第二步：用增强版配置替换站点配置**
+
+回到宝塔 **「网站」** → 你的站点 → **「设置」** → **「配置文件」**。把当前内容**全选 → 删除**，粘贴下面的增强版配置：
+
+```nginx
+server {
+    listen 80;
+    server_name 你的域名.com;
+
+    # 隐藏 Nginx 版本号
+    server_tokens off;
+
+    access_log /www/wwwlogs/zhidexuan.access.log;
+    error_log  /www/wwwlogs/zhidexuan.error.log;
+
+    root /www/wwwroot/location-tool/frontend/dist;
+    index index.html;
+
+    # 限制请求体大小
+    client_max_body_size 10m;
+    client_body_timeout 30s;
+    client_header_timeout 30s;
+
+    # Gzip 压缩
+    gzip on;
+    gzip_types text/plain text/css application/json application/javascript text/xml application/xml text/javascript;
+    gzip_min_length 1000;
+
+    # 安全响应头
+    add_header X-Frame-Options "SAMEORIGIN" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header X-XSS-Protection "1; mode=block" always;
+
+    # ===== 禁止访问敏感文件 =====
+    location ~ /\. {
+        deny all;
+        return 404;
+    }
+
+    location ~* \.(db|sqlite|sqlite3|py)$ {
+        deny all;
+        return 404;
+    }
+
+    # ===== 保护 API 文档（替换为你的公网 IP）=====
+    location ~ ^/api/(docs|redoc|openapi\.json) {
+        allow 127.0.0.1;
+        deny all;
+        proxy_pass http://127.0.0.1:8000;
+        proxy_set_header Host $host;
+    }
+
+    # ===== SPA 路由回退 + 页面限速 =====
+    location / {
+        limit_req zone=page_limit burst=50 nodelay;
+        try_files $uri $uri/ /index.html;
+    }
+
+    # ===== API 反向代理 + 接口限速 =====
+    location /api/ {
+        limit_req zone=api_limit burst=20 nodelay;
+        proxy_pass http://127.0.0.1:8000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_read_timeout 120s;
+        proxy_connect_timeout 10s;
+    }
+
+    # ===== 静态资源转发 =====
+    location /assets/ {
+        proxy_pass http://127.0.0.1:8000;
+        proxy_set_header Host $host;
+    }
+
+    # ===== 浏览器缓存策略（放在最后，优先匹配上面的规则）=====
+    location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2)$ {
+        expires 30d;
+        add_header Cache-Control "public, immutable";
+    }
 }
 ```
 
-**11.4.2 Nginx 安全配置加固**
+3. 把 **`你的域名.com`** 替换为你的真实域名
+4. 点击 **「保存」**
+5. 打开宝塔 **「终端」**，执行：
 
-在站点配置文件的 server 块中添加：
-
-```nginx
-# 隐藏 Nginx 版本号
-server_tokens off;
-
-# 限制请求方法
-if ($request_method !~ ^(GET|POST|OPTIONS)$) {
-    return 405;
-}
-
-# 安全响应头
-add_header X-Frame-Options "SAMEORIGIN" always;
-add_header X-Content-Type-Options "nosniff" always;
-add_header X-XSS-Protection "1; mode=block" always;
-
-# 请求频率限制
-limit_req_zone $binary_remote_addr zone=api_limit:10m rate=10r/s;
-limit_req_zone $binary_remote_addr zone=page_limit:10m rate=30r/s;
-
-# API 接口限速
-location /api/ {
-    limit_req zone=api_limit burst=20 nodelay;
-    proxy_pass http://127.0.0.1:8000;
-    proxy_set_header Host $host;
-    proxy_set_header X-Real-IP $remote_addr;
-    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-    proxy_set_header X-Forwarded-Proto $scheme;
-    proxy_read_timeout 120s;
-    proxy_connect_timeout 10s;
-}
-
-# 页面限速
-location / {
-    limit_req zone=page_limit burst=50 nodelay;
-    try_files $uri $uri/ /index.html;
-}
-
-client_max_body_size 10m;
-client_body_timeout 30s;
-client_header_timeout 30s;
+```bash
+nginx -t
+# 确认输出 test is successful
+nginx -s reload
 ```
 
-**11.4.3 API 文档访问控制**
-
-```nginx
-# 保护 Swagger 文档
-location ~ ^/api/(docs|redoc|openapi\.json) {
-    allow 你的公网IP;
-    deny all;
-    proxy_pass http://127.0.0.1:8000;
-    proxy_set_header Host $host;
-}
-```
+> **验证**：在浏览器访问 `https://你的域名.com/.env` → 应返回 404。访问 `https://你的域名.com/api/health` → 应正常返回 JSON。
 
 #### 11.5 定期安全维护
 
