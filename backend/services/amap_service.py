@@ -363,7 +363,10 @@ class AmapService:
             if not pois:
                 break
             for p in pois:
-                dist = int(p.get("distance", 0))
+                try:
+                    dist = int(p.get("distance", 0) or 0)
+                except (ValueError, TypeError):
+                    dist = 0
                 if dist < 10:
                     continue
                 name = p.get("name", "")
@@ -371,13 +374,23 @@ class AmapService:
                 if key in seen:
                     continue
                 seen.add(key)
+                loc_str = p.get("location", "0,0") or "0,0"
+                parts = loc_str.split(",")
+                try:
+                    lng_val = float(parts[0]) if len(parts) > 0 else 0.0
+                except (ValueError, TypeError):
+                    lng_val = 0.0
+                try:
+                    lat_val = float(parts[1]) if len(parts) > 1 else 0.0
+                except (ValueError, TypeError):
+                    lat_val = 0.0
                 all_pois.append({
                     "name": name,
                     "type": p.get("type", ""),
                     "distance": dist,
                     "address": p.get("address", ""),
-                    "lng": float(p.get("location", "0,0").split(",")[0] or 0),
-                    "lat": float(p.get("location", "0,0").split(",")[1] or 0),
+                    "lng": lng_val,
+                    "lat": lat_val,
                 })
             if len(all_pois) >= max_results:
                 break
@@ -401,7 +414,10 @@ class AmapService:
             if not pois:
                 break
             for p in pois:
-                dist = int(p.get("distance", 0))
+                try:
+                    dist = int(p.get("distance", 0) or 0)
+                except (ValueError, TypeError):
+                    dist = 0
                 if dist < 10:
                     continue
                 name = p.get("name", "")
@@ -409,13 +425,23 @@ class AmapService:
                 if key in seen:
                     continue
                 seen.add(key)
+                loc_str = p.get("location", "0,0") or "0,0"
+                parts = loc_str.split(",")
+                try:
+                    lng_val = float(parts[0]) if len(parts) > 0 else 0.0
+                except (ValueError, TypeError):
+                    lng_val = 0.0
+                try:
+                    lat_val = float(parts[1]) if len(parts) > 1 else 0.0
+                except (ValueError, TypeError):
+                    lat_val = 0.0
                 all_pois.append({
                     "name": name,
                     "type": p.get("type", ""),
                     "distance": dist,
                     "address": p.get("address", ""),
-                    "lng": float(p.get("location", "0,0").split(",")[0] or 0),
-                    "lat": float(p.get("location", "0,0").split(",")[1] or 0),
+                    "lng": lng_val,
+                    "lat": lat_val,
                 })
             if len(all_pois) >= max_results:
                 break

@@ -48,7 +48,7 @@ export default function RecordDetail() {
         storeSize: String(data?.store_size || ''),
         date: data?.created_at?.slice(0, 10),
       },
-      recordUuid: data?.report_uuid,
+      reportUuid: data?.report_uuid,
       isPdfUnlocked: data?.is_pdf_unlocked,
     })
     if (result?.ok && result?.unlocked) {
@@ -66,7 +66,7 @@ export default function RecordDetail() {
         storeSize: String(data?.store_size || ''),
         date: data?.created_at?.slice(0, 10),
       },
-      recordUuid: data?.report_uuid,
+      reportUuid: data?.report_uuid,
       isPdfUnlocked: false,
     })
     if (result?.ok && result?.unlocked) {

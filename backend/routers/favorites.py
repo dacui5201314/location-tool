@@ -26,17 +26,32 @@ def _haversine_m(lat1: float, lng1: float, lat2: float, lng2: float) -> float:
     return ((dlat * 111320) ** 2 + (dlng * 111320 * cos(radians((lat1 + lat2) / 2))) ** 2) ** 0.5
 
 
-def _match_reports_in_memory(locations: list, reports: list) -> list[dict]:
-    """内存 O(n+m) 匹配：为每个收藏找最近的已分析报告（容差200m内）。
-    替代原 N+1 循环查询，一次查出全部报告后纯内存匹配。"""
-    if not reports:
-        return [_empty_fav(loc) for loc in locations]
+def _match_reports_sql(db: Session, user_id: int, locations: list) -> list[dict]:
+    """SQL bounding-box 预筛选 + Python 精确哈弗辛匹配。
+    对每页 20 个收藏，仅加载其附近 ~200m 范围的报告候选，
+    避免全量拉取用户所有历史报告导致 OOM。"""
+    from sqlalchemy import and_, or_
 
+    if not locations:
+        return []
+
+    # 构造 bounding-box OR 条件：每个收藏周围 ±0.002° (≈200m)
+    box_conds = []
+    for loc in locations:
+        box_conds.append(and_(
+            AnalysisRecord.user_id == user_id,
+            AnalysisRecord.latitude.between(loc.latitude - 0.002, loc.latitude + 0.002),
+            AnalysisRecord.longitude.between(loc.longitude - 0.002, loc.longitude + 0.002),
+        ))
+
+    candidates = db.query(AnalysisRecord).filter(or_(*box_conds)).all()
+
+    # 精确哈弗辛匹配
     result = []
     for loc in locations:
         best = None
         best_dist = float('inf')
-        for r in reports:
+        for r in candidates:
             dist = _haversine_m(loc.latitude, loc.longitude, r.latitude, r.longitude)
             if dist < TOLERANCE_M and dist < best_dist:
                 best_dist = dist
@@ -85,15 +100,11 @@ def list_favorites(
     db: Session = Depends(get_db),
 ):
     """获取用户收藏列表，跨表注入 is_analyzed 和 report_id。
-    ★ 性能重构：一次查出全部报告做内存匹配 O(n+m)，替代原 N+1 循环查询。"""
+    ★ SQL 层面完成关联匹配：Lat/Lng 约束做 bounding-box 预筛选，
+    仅对候选记录做精确哈弗辛匹配，分页在 DB 层完成，杜绝 OOM。"""
     user_id = user["user_id"]
 
-    # ── 一次查出该用户全部报告（单次 DB 查询，消除 N+1）──
-    reports = db.query(AnalysisRecord).filter(
-        AnalysisRecord.user_id == user_id
-    ).all()
-
-    # ── 收藏列表分页 ──
+    # ── 收藏列表分页（SQL 层 offset/limit）──
     query = db.query(SavedLocation).filter(
         SavedLocation.user_id == user_id
     ).order_by(SavedLocation.created_at.desc())
@@ -101,8 +112,11 @@ def list_favorites(
     total = query.count()
     locations = query.offset((page - 1) * page_size).limit(page_size).all()
 
-    # ── 内存匹配 ──
-    enriched = _match_reports_in_memory(locations, reports)
+    if not locations:
+        return {"favorites": [], "total": total, "page": page, "page_size": page_size}
+
+    # ── SQL bounding-box 预筛选：仅拉取收藏附近 (~200m) 的报告 ──
+    enriched = _match_reports_sql(db, user_id, locations)
 
     return {"favorites": enriched, "total": total, "page": page, "page_size": page_size}
 
@@ -114,10 +128,14 @@ def check_favorite(
     longitude: float = Query(...),
     db: Session = Depends(get_db),
 ):
-    """检查指定坐标是否已被收藏，返回收藏ID"""
+    """检查指定坐标是否已被收藏，返回收藏ID。
+    ★ SQL bounding-box 预筛选：仅查询坐标 ±0.001° (≈100m) 范围内的收藏，
+    再在 Python 做精确哈弗辛匹配，杜绝全量加载。"""
     user_id = user["user_id"]
     locations = db.query(SavedLocation).filter(
-        SavedLocation.user_id == user_id
+        SavedLocation.user_id == user_id,
+        SavedLocation.latitude.between(latitude - 0.001, latitude + 0.001),
+        SavedLocation.longitude.between(longitude - 0.001, longitude + 0.001),
     ).all()
     best = None
     best_dist = float('inf')

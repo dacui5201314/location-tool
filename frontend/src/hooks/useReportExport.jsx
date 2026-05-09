@@ -45,7 +45,8 @@ export default function useReportExport() {
   const [modalBody, setModalBody] = useState('')
   const [loading, setLoading] = useState(false)
   const [toast, setToast] = useState('')
-  const pendingRef = useRef(null) // 存储待执行的导出参数
+  const pendingRef = useRef(null)    // 存储待执行的导出参数
+  const exportingRef = useRef(false) // ★ 同步锁：防止高频点击发起多个导出流程
 
   const showToast = useCallback((msg) => { setToast(msg); setTimeout(() => setToast(''), 2500) }, [])
 
@@ -70,7 +71,9 @@ export default function useReportExport() {
    */
   const exportPdf = useCallback(async (opts = {}) => {
     const { el, data, meta, reportUuid, isPdfUnlocked, filename } = opts
-    if (loading) return
+    // ★ 同步锁：防止高频点击绕过 loading 状态发起多个导出流程
+    if (exportingRef.current || loading) return
+    exportingRef.current = true
 
     setLoading(true)
     try {
@@ -116,6 +119,7 @@ export default function useReportExport() {
       return { ok: false, error: e }
     } finally {
       setLoading(false)
+      exportingRef.current = false
     }
   }, [loading])
 

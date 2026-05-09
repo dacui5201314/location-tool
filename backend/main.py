@@ -283,8 +283,8 @@ async def analyze_location(req: AnalyzeRequest, user: dict = Depends(get_current
             industry_config = None
             industry_name = req.business_type or ""
             if req.industry_id:
+                db_local = SessionLocal()
                 try:
-                    db_local = SessionLocal()
                     industry = db_local.query(BusinessIndustry).filter(
                         BusinessIndustry.id == req.industry_id,
                         BusinessIndustry.is_active == 1
@@ -296,22 +296,24 @@ async def analyze_location(req: AnalyzeRequest, user: dict = Depends(get_current
                         # 专属 Prompt 注入
                         if industry.exclusive_prompt and industry.exclusive_prompt.strip():
                             print(f"[SSE Prompt] 已注入业态专属规则: {industry.name} ({len(industry.exclusive_prompt)}字符)", flush=True)
-                    db_local.close()
                 except Exception as e:
                     print(f"[SSE Prompt] 业态查询失败: {e}", flush=True)
+                finally:
+                    db_local.close()
             system_prompt = custom_system_prompt or build_system_prompt(industry_name, config=industry_config)
             # 叠加专属规则
             if req.industry_id and industry_config:
+                db_local = SessionLocal()
                 try:
-                    db_local = SessionLocal()
                     industry = db_local.query(BusinessIndustry).filter(
                         BusinessIndustry.id == req.industry_id
                     ).first()
-                    db_local.close()
                     if industry and industry.exclusive_prompt and industry.exclusive_prompt.strip():
                         system_prompt += "\n\n## 业态专属测算规则（优先于通用规则执行）\n" + industry.exclusive_prompt.strip()
                 except Exception:
                     pass
+                finally:
+                    db_local.close()
             prompt = system_prompt + "\n\n" + build_analysis_prompt(
                 req.address, req.location.lng, req.location.lat,
                 industry_name, real_data,
@@ -337,8 +339,8 @@ async def analyze_location(req: AnalyzeRequest, user: dict = Depends(get_current
             result["real_data"] = real_data
 
             # 保存到数据库
+            db = SessionLocal()
             try:
-                db = SessionLocal()
                 # ★ 直接复用 normalize_report_result 已算好的分数，不与 detail 文本重复解析
                 overall = result.get("score", 0)
 
@@ -371,11 +373,12 @@ async def analyze_location(req: AnalyzeRequest, user: dict = Depends(get_current
                     import traceback
                     print("[CRITICAL] 报告物理文件保存失败", flush=True)
                     traceback.print_exc()
-                db.close()
             except Exception:
                 import traceback
                 print("[CRITICAL] 分析记录数据库保存失败", flush=True)
                 traceback.print_exc()
+            finally:
+                db.close()
 
             # ═══════════════════════════════════════════
             # Step 4 — 流输出前最终拦截：强制重算总分

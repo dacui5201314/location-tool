@@ -72,7 +72,7 @@ export default function useAMap() {
     const auto = new window.AMap.AutoComplete({
       input: inputEl,
     })
-    window.AMap.Event.addListener(auto, 'select', (e) => {
+    const onSelect = (e) => {
       if (e.poi && e.poi.location) {
         cb({
           name: e.poi.name,
@@ -83,9 +83,16 @@ export default function useAMap() {
           },
         })
       }
-    })
+    }
+    window.AMap.Event.addListener(auto, 'select', onSelect)
     autoCompleteRef.current = auto
-    return auto
+    return {
+      instance: auto,
+      destroy() {
+        try { auto.off('select', onSelect) } catch {}
+        try { auto.destroy?.() } catch {}
+      },
+    }
   }, [])
 
   const geocode = useCallback(async (address) => {

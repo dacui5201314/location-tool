@@ -13,7 +13,9 @@ export default function MapView({ position, onPositionChange, mapLoaded, mapErro
   const markerRef = useRef(null)
   const geoRef = useRef(null)      // ★ 始终保持最新 geocodeAndNotify 引用
   const onPosRef = useRef(null)    // ★ 始终保持最新 onPositionChange 引用
-  onPosRef.current = onPositionChange
+  // ★ 每次 render 更新 latestProps，地图 click 回调通过它访问最新引用，解陈旧闭包
+  const latestProps = useRef({ onPositionChange, geoRef, markerRef, mapRef })
+  latestProps.current = { onPositionChange, geoRef, markerRef, mapRef }
 
   // 逆地理编码 + 通知父组件
   const geocodeAndNotify = useCallback((lng, lat) => {
@@ -42,22 +44,24 @@ export default function MapView({ position, onPositionChange, mapLoaded, mapErro
     map.on('click', (e) => {
       const lng = e.lnglat.getLng()
       const lat = e.lnglat.getLat()
-      if (markerRef.current) {
-        markerRef.current.setPosition([lng, lat])
+      // ★ 通过 latestProps.current 访问最新 ref，解除首次挂载时的陈旧闭包
+      const props = latestProps.current
+      if (props.markerRef.current) {
+        props.markerRef.current.setPosition([lng, lat])
       } else {
         const m = new window.AMap.Marker({
           position: [lng, lat], draggable: true,         })
         map.add(m)
-        markerRef.current = m
+        props.markerRef.current = m
         _cachedMarker = m
         m.on('dragend', () => {
           const pos = m.getPosition()
-          geoRef.current?.(pos.lng, pos.lat)
+          props.geoRef.current?.(pos.lng, pos.lat)
         })
       }
       map.setCenter([lng, lat], true)
       _cachedCenter = { lng, lat }
-      geoRef.current?.(lng, lat)
+      props.onPositionChange?.({ lng, lat })
     })
   }, [])
 
@@ -113,7 +117,9 @@ export default function MapView({ position, onPositionChange, mapLoaded, mapErro
     if (!mapRef.current || !position || !window.AMap) return
     const { lng, lat } = position
     if (_cachedCenter && _cachedCenter.lng === lng && _cachedCenter.lat === lat) return
+    // ★ 清理旧 marker 的 dragend 事件监听，防止泄漏
     if (markerRef.current) {
+      try { markerRef.current.off('dragend') } catch {}
       try { markerRef.current.setMap(null) } catch {}
     }
     const m = new window.AMap.Marker({

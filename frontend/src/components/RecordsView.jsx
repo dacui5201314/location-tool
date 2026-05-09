@@ -138,7 +138,7 @@ function RecordCard({ record, exportingId, onDownload, onDelete, onOpen }) {
 export default function RecordsView() {
   const navigate = useNavigate()
   const [localRecords, setLocalRecords] = useState(null)
-  const [deleteConfirmId, setDeleteConfirmId] = useState(null)
+  const [deleteConfirmUuid, setDeleteConfirmUuid] = useState(null)
   const [deleting, setDeleting] = useState(false)
   const [activeFilter, setActiveFilter] = useState('all')
 
@@ -189,12 +189,12 @@ export default function RecordsView() {
           storeSize: String(record.store_size || ''),
           date: record.created_at?.slice(0, 10),
         },
-        recordId: record.report_uuid,
+        reportUuid: record.report_uuid,
         isPdfUnlocked: record.is_pdf_unlocked,
       })
 
       if (result?.ok && result?.unlocked) {
-        const updated = records.map(r => r.id === record.report_uuid ? { ...r, is_pdf_unlocked: true } : r)
+        const updated = records.map(r => r.report_uuid === record.report_uuid ? { ...r, is_pdf_unlocked: true } : r)
         setLocalRecords(updated)
       }
     } catch {
@@ -205,22 +205,22 @@ export default function RecordsView() {
   }, [exportPdf, exportingPdf, records, showToast])
 
   const handleDeleteConfirm = async () => {
-    if (deleting || !deleteConfirmId) return
+    if (deleting || !deleteConfirmUuid) return
     setDeleting(true)
     try {
-      const r = await fetch(`/api/records/${deleteConfirmId}`, {
+      const r = await fetch(`/api/records/${deleteConfirmUuid}`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${getToken()}` },
       })
       const d = await r.json()
       if (d.ok) {
-        setLocalRecords(prev => (prev !== null ? prev : rawRecords).filter(item => item.id !== deleteConfirmId))
+        setLocalRecords(prev => (prev !== null ? prev : rawRecords).filter(item => item.report_uuid !== deleteConfirmUuid))
         showToast('已删除')
       } else {
         showToast(d.error || d.detail || '删除失败')
       }
     } catch { showToast('网络异常，请重试') }
-    finally { setDeleting(false); setDeleteConfirmId(null) }
+    finally { setDeleting(false); setDeleteConfirmUuid(null) }
   }
 
   return (
@@ -265,14 +265,14 @@ export default function RecordsView() {
               record={r}
               exportingId={exportingId}
               onDownload={handleDownload}
-              onDelete={() => setDeleteConfirmId(r.id)}
+              onDelete={() => setDeleteConfirmUuid(r.report_uuid)}
               onOpen={() => navigate(`/record/${r.report_uuid}`)}
             />
           ))
         )}
       </main>
 
-      {deleteConfirmId && (
+      {deleteConfirmUuid && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setDeleteConfirmId(null)}>
           <div className="mx-4 w-full max-w-sm rounded-xl bg-white p-6 shadow-2xl" onClick={e => e.stopPropagation()}>
             <h3 className="text-base font-bold text-slate-900">确定要删除该条分析记录吗？</h3>

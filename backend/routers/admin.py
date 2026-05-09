@@ -782,7 +782,8 @@ def activate_cdk(
         .values(is_used=1, used_by=user_id, used_at=datetime.now())
     )
     if result.rowcount == 0:
-        # CDK 已在竞态中被核销 → 本次事务的所有修改（含点数增加）自动作废
+        # CDK 已在竞态中被核销 → 回滚事务后报错
+        db.rollback()
         raise HTTPException(status_code=400, detail="该兑换码已被使用")
 
     # ── 4. 写入审计流水 ──
