@@ -399,6 +399,8 @@ WECHAT_MP_SECRET=
 | `你自己设置一个强密码` | 你自定义的管理员密码 | 至少8位，登录 /admin 后台用 |
 | `你的域名.com` | 你解析到服务器的域名 | 如果有多个域名，用英文逗号分隔 |
 
+> **关键提醒**：后端 `AMAP_WEB_KEY` 是**高德「Web服务」类型**的 Key；前端 `.env.local` 中的 `VITE_AMAP_KEY` 是**高德「JS API」类型**的 Key。它们必须是**两个不同的应用**，各自有独立的 Key 和安全密钥，不能混用。详见第十章问题 7。
+
 #### 3.5 保存并设置权限
 
 1. 编辑完成后，点击编辑器右上角的 **「保存」** 按钮
@@ -549,6 +551,7 @@ npm install
 | `EACCES: permission denied` | 目录权限不足 | `chmod -R 755 /www/wwwroot/location-tool/frontend` |
 | `code ENOTFOUND` | DNS 解析失败 | 换国内源 |
 | `npm ERR! cb() never called` | npm 缓存损坏 | `npm cache clean --force && npm install` |
+| `npm ERR! code ENOENT` | 当前目录不对 | `cd /www/wwwroot/location-tool/frontend` 后再执行 |
 
 #### 5.4 执行编译（npm run build）
 
@@ -574,12 +577,23 @@ frontend/dist/
 └── brand-logo-xxx.png
 ```
 
-如果 `dist/` 为空或不存在：
+如果 `dist/` 为空或不存在，或编译报错：
 1. 确认 `npm run build` 没有报错
 2. 检查 `src/` 目录是否完整（`main.jsx`、`App.jsx` 是否存在）
 3. 检查 `.env.local` 格式是否正确
-4. 重新执行 `npm run build`，观察错误输出
-5. 如报模块找不到：`rm -rf node_modules && npm install && npm run build` 三连重试
+4. 如报模块找不到：`rm -rf node_modules && npm install && npm run build` 三连重试
+
+**编译报错：`ENOTDIR: not a directory, scandir '.../dist/.user.ini'`**
+
+这是宝塔建站时在 `dist/` 目录自动生成的保护文件，带不可变属性导致 Vite 无法清空目录。执行：
+
+```bash
+chattr -i /www/wwwroot/location-tool/frontend/dist/.user.ini
+rm -rf /www/wwwroot/location-tool/frontend/dist
+cd /www/wwwroot/location-tool/frontend && npm run build
+```
+
+> 如果 `chattr` 命令无效，在宝塔「文件」页面找到 `dist/.user.ini`，右键删除后再编译。
 
 ---
 
@@ -666,6 +680,9 @@ server {
 1. 在站点设置弹窗中，点击 **「SSL」** 标签
 2. 选择 **「Let's Encrypt」** 子标签
 3. 勾选你的域名，填写邮箱地址，点击 **「申请」**
+
+> **如果报错"未找到标识信息 #error_page 404/404.html"**：说明配置文件缺少宝塔 SSL 注入标记。在站点「配置文件」的 `server` 块中（`index index.html;` 后面）添加一行 `#error_page 404/404.html;`，保存后重新申请。
+
 4. 申请成功后，打开 **「强制HTTPS」** 开关
 
 > 如果服务器在国内且域名没有备案，Let's Encrypt 可能无法使用。需要先完成 ICP 备案。
@@ -741,12 +758,14 @@ curl http://localhost/api/health
 
 | 现象 | 原因 | 解决步骤 |
 |------|------|----------|
-| 域名显示"无法连接" | 域名解析未生效或 Nginx 未启动 | 检查 DNS 解析 + 确认站点状态为运行中 |
+| 域名显示"无法连接" | 域名 DNS 未解析或 Nginx 未启动 | 1. `curl -s ip.sb` 查公网 IP 2. `curl -I http://服务器IP/` 测试 3. IP 能通域名不通 → 去 DNS 管理添加 A 记录 |
+| 域名能通但 `www` 不能通（或反过来） | DNS 只解析了一个 | 在 DNS 管理中添加 `@` 和 `www` 两条 A 记录，同时更新 Nginx `server_name` |
 | 页面能打开但全是乱的 | 静态文件路径不对 | 检查根目录是否指向 `frontend/dist/` |
 | 页面刷新后 404 | Nginx try_files 没配置 | 检查配置文件 `try_files` 那行 |
 | API 返回 502 | 后端没运行 | Python 项目管理器确认状态为「运行中」 |
 | API 返回 500 | 后端代码报错 | 查看 Python 项目管理器「日志」标签 |
 | 地图不显示 | 高德 JS API Key 未设置或类型不对 | 确认 `.env.local` 为 JS API 类型，且构建前已配置 |
+| 点击搜索/定位后输入框显示坐标（如`107.2340, 34.3427`） | 1. 安全密钥与 Key 不匹配 2. 用了 Web服务Key 而非 JS API Key 3. 未启用逆地理编码服务 | 在高德控制台确认：Key 类型为 JS API、安全密钥正确、已启用「地理编码」和「逆地理编码」服务，然后重新编译前端 |
 
 ---
 
@@ -849,6 +868,54 @@ Python 项目管理器 → 项目设置 → 勾选 **「开机自启」**。
 #### 问题 6：.env 文件改了不生效
 
 修改 `.env` 后必须重启后端。在 Python 项目管理器中点击 **「重启」**。
+
+#### 问题 7：高德地图 Key 配置混淆
+
+项目需要**两个不同的高德应用**，Key 不能混用：
+
+| 用途 | 应用类型 | 配置文件 |
+|------|----------|----------|
+| 后端 POI 数据采集 | **Web服务** | `backend/.env` 中的 `AMAP_WEB_KEY` |
+| 前端地图显示 + 搜索 | **JS API** | `frontend/.env.local` 中的 `VITE_AMAP_KEY` |
+
+两个应用各自有独立的 Key 和安全密钥。用同一个 Key 会导致地图不显示或坐标无法解析。
+另外，高德控制台 → 应用管理 → 点击应用，确认已启用 **「地理编码」** 和 **「逆地理编码」** 服务。
+
+#### 问题 8：关闭 8000 端口后管理后台不能用？
+
+关闭 8000 公网端口不影响使用。所有请求通过 Nginx 代理走：
+
+```
+浏览器 → 443(Nginx) → 127.0.0.1:8000(后端)
+```
+
+Nginx 和 uvicorn 在同台机器上通过 localhost 通信，不经过外部防火墙。关闭 8000 端口只是阻止外部直连，正常用户不受影响。
+
+#### 问题 9：管理后台入口在哪？
+
+浏览器访问 `https://你的域名.com/admin`，登录密码是 `.env` 中设置的 `ADMIN_PASSWORD`。
+
+#### 问题 10：编译报错 `ENOTDIR: not a directory, scandir '.../dist/.user.ini'`
+
+宝塔建站时在 `dist/` 目录自动生成的保护文件导致 Vite 无法清空目录。解决：
+
+```bash
+chattr -i /www/wwwroot/location-tool/frontend/dist/.user.ini
+rm -rf /www/wwwroot/location-tool/frontend/dist
+cd /www/wwwroot/location-tool/frontend && npm run build
+```
+
+#### 问题 11：SSL 证书申请报错"未找到标识信息"
+
+Nginx 配置文件缺少宝塔 SSL 注入标记。在「配置文件」的 `server` 块中添加一行 `#error_page 404/404.html;`（`index index.html;` 后面），保存后重新申请证书。
+
+#### 问题 12：`curl http://域名` 返回 `Could not resolve host`
+
+域名 DNS 解析未配置或未生效：
+1. 执行 `curl -s ip.sb` 获取服务器公网 IP
+2. 用 `curl -I http://服务器IP/` 测试 → IP 通说明服务正常
+3. 登录域名 DNS 管理平台，添加 A 记录：`@` → 服务器IP、`www` → 服务器IP
+4. 保存后等 1-10 分钟生效
 
 ---
 
