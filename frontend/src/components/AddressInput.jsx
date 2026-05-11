@@ -11,6 +11,7 @@ export default function AddressInput({ onSelect, disabled, mapLoaded, externalAd
   const busyRef = useRef(false)
   const searchIdRef = useRef(0)
   const programmaticInput = useRef(false)
+  const locateTriggered = useRef(false)  // ★ 区分外部地址变更是定位触发还是地图点击
 
   // AutoComplete 下拉提示
   useEffect(() => {
@@ -54,12 +55,16 @@ export default function AddressInput({ onSelect, disabled, mapLoaded, externalAd
     }
   }, [mapLoaded, onSelect, city])
 
-  // 外部地址同步
+  // 外部地址同步（仅写入输入框，不修改 hasText——保留定位按钮可见）
   useEffect(() => {
     if (programmaticInput.current) return
     if (externalAddress && inputRef.current) {
       inputRef.current.value = externalAddress
-      setHasText(true)
+      // 地图点击/拖拽 → 地址变了但不是定位触发的 → 重置定位状态
+      if (!locateTriggered.current) {
+        setLocateDone(false)
+      }
+      locateTriggered.current = false
     }
   }, [externalAddress])
 
@@ -68,6 +73,7 @@ export default function AddressInput({ onSelect, disabled, mapLoaded, externalAd
     if (busy || disabled || busyRef.current) return
     // ★ 全局缓存命中 → 直接复用
     if (_cachedGeo) {
+      locateTriggered.current = true
       onSelect({ name: _cachedGeo.addrText, address: _cachedGeo.addrText, location: { lng: _cachedGeo.lng, lat: _cachedGeo.lat } })
       onToast?.('已定位')
       return
@@ -88,6 +94,7 @@ export default function AddressInput({ onSelect, disabled, mapLoaded, externalAd
       const apply = (addrText) => {
         _cachedGeo = { lng, lat, addrText }  // ★ 全局缓存
         setLocateDone(true)
+        locateTriggered.current = true  // ★ 标记：这次地址变更是定位触发的
         onSelect({ name: addrText, address: addrText, location: { lng, lat } })
       }
       if (window.AMap?.Geocoder) {

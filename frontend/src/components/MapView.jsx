@@ -12,14 +12,13 @@ export default function MapView({ position, onPositionChange, mapLoaded, mapErro
   const mapRef = useRef(null)
   const markerRef = useRef(null)
   const geoRef = useRef(null)      // ★ 始终保持最新 geocodeAndNotify 引用
-  const onPosRef = useRef(null)    // ★ 始终保持最新 onPositionChange 引用
   // ★ 每次 render 更新 latestProps，地图 click 回调通过它访问最新引用，解陈旧闭包
   const latestProps = useRef({ onPositionChange, geoRef, markerRef, mapRef })
   latestProps.current = { onPositionChange, geoRef, markerRef, mapRef }
 
   // 逆地理编码 + 通知父组件
   const geocodeAndNotify = useCallback((lng, lat) => {
-    const cb = onPosRef.current
+    const cb = latestProps.current.onPositionChange
     const newPos = { lng, lat }
     if (window.AMap?.Geocoder) {
       try {
@@ -61,7 +60,7 @@ export default function MapView({ position, onPositionChange, mapLoaded, mapErro
       }
       map.setCenter([lng, lat], true)
       _cachedCenter = { lng, lat }
-      props.onPositionChange?.({ lng, lat })
+      props.geoRef.current?.(lng, lat)
     })
   }, [])
 
