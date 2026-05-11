@@ -254,6 +254,14 @@ export default function ProfileView() {
       {rechargeOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setRechargeOpen(false)}>
           <div className="recharge-sheet mx-4 w-full max-w-sm rounded-xl bg-white p-6 shadow-2xl" onClick={e => e.stopPropagation()}>
+            <button
+              type="button"
+              className="recharge-close"
+              onClick={() => setRechargeOpen(false)}
+              aria-label="关闭充值弹窗"
+            >
+              ×
+            </button>
             <h3 className="text-base font-bold text-slate-900 text-center">获取更多点数</h3>
             <p className="mt-2 text-sm text-slate-500 text-center leading-relaxed">
               开通会员或购买点数，请扫码添加专属客服微信，<br/>或使用兑换码激活。
