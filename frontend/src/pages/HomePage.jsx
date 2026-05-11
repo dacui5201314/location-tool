@@ -478,16 +478,6 @@ export default function HomePage() {
             <HeroGraphic />
           </div>
 
-          <div className="hero-points">
-            {HERO_POINTS.map(point => (
-              <span key={point.title}>
-                <i />
-                <strong>{point.title}</strong>
-                <small>{point.desc}</small>
-              </span>
-            ))}
-          </div>
-
           <div className="hero-search">
             <div className="flex-1">
               <AddressInput onSelect={handleSelectAddress} disabled={analyzing} mapLoaded={mapLoaded}

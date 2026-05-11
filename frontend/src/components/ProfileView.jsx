@@ -7,6 +7,7 @@ export default function ProfileView() {
   const navigate = useNavigate()
   const [toast, setToast] = useState('')
   const [rechargeOpen, setRechargeOpen] = useState(false)
+  const [rechargeTab, setRechargeTab] = useState('points')
   const [cdkOpen, setCdkOpen] = useState(false)
   const [cdkInput, setCdkInput] = useState('')
   const [countdown, setCountdown] = useState('')
@@ -252,15 +253,32 @@ export default function ProfileView() {
 
       {rechargeOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setRechargeOpen(false)}>
-          <div className="mx-4 w-full max-w-sm rounded-xl bg-white p-6 shadow-2xl" onClick={e => e.stopPropagation()}>
+          <div className="recharge-sheet mx-4 w-full max-w-sm rounded-xl bg-white p-6 shadow-2xl" onClick={e => e.stopPropagation()}>
             <h3 className="text-base font-bold text-slate-900 text-center">获取更多点数</h3>
             <p className="mt-2 text-sm text-slate-500 text-center leading-relaxed">
               开通会员或购买点数，请扫码添加专属客服微信，<br/>或使用兑换码激活。
             </p>
 
+            <div className="recharge-tabs">
+              <button
+                type="button"
+                className={rechargeTab === 'points' ? 'is-active' : ''}
+                onClick={() => setRechargeTab('points')}
+              >
+                点数包
+              </button>
+              <button
+                type="button"
+                className={rechargeTab === 'membership' ? 'is-active' : ''}
+                onClick={() => setRechargeTab('membership')}
+              >
+                会员套餐
+              </button>
+            </div>
+
             {(membershipSkus.length > 0 || pointSkus.length > 0) && (
               <div className="mt-4 space-y-3">
-                {membershipSkus.length > 0 && (
+                {rechargeTab === 'membership' && membershipSkus.length > 0 && (
                   <div>
                     <div className="mb-2 text-[11px] font-bold text-slate-500">会员套餐</div>
                     <div className="grid grid-cols-3 gap-2">
@@ -278,7 +296,7 @@ export default function ProfileView() {
                   </div>
                 )}
 
-                {pointSkus.length > 0 && (
+                {rechargeTab === 'points' && pointSkus.length > 0 && (
                   <div>
                     <div className="mb-2 text-[11px] font-bold text-slate-500">点数包</div>
                     <div className="grid grid-cols-2 gap-2">
