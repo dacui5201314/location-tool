@@ -80,7 +80,7 @@ export default function RadarChart({ scores }) {
         {/* Dimension labels — name + score 分两行, 绝不重叠 */}
         {labels.map((l) => {
           const s = scores?.[l.key] || 0
-          const scoreColor = s >= 70 ? '#10b981' : s >= 60 ? '#f59e0b' : '#ef4444'
+          const scoreColor = s >= 60 ? '#10b981' : s >= 40 ? '#f59e0b' : '#ef4444'
           return (
             <text key={`label-${l.key}`} x={l.x.toFixed(2)} y={l.y.toFixed(2)} textAnchor="middle" dominantBaseline="middle" fontSize="11" fill="#475569" fontWeight="500">
               <tspan x={l.x.toFixed(2)} dy="-0.6em">{l.label}</tspan>

@@ -100,12 +100,13 @@ def _build_report_html(record_id: int, report_data: dict, address: str, brand_na
     exec_summary = report_data.get("executive_summary") or {}
     dimension_scores = report_data.get("dimension_scores") or []
     action_plan = report_data.get("action_plan") or []
+    real_data = report_data.get("real_data") or {}
     pdf_cfg = get_pdf_config()
     brand_qr = get_config_value("OFFICIAL_QRCODE_URL", "")
     footer_text = pdf_cfg.get("footer_text") or "AI 选址分析 · 商业数据决策平台"
     logo_url = pdf_cfg.get("logo_url") or ""
-    verdict = exec_summary.get("verdict") or ("建议推进" if score >= 75 else "谨慎验证" if score >= 60 else "高风险")
-    tone = "#0f8a5f" if score >= 75 else "#b7791f" if score >= 60 else "#dc2626"
+    verdict = exec_summary.get("verdict") or ("建议推进" if score >= 60 else "谨慎验证" if score >= 40 else "高风险")
+    tone = "#0f8a5f" if score >= 60 else "#b7791f" if score >= 40 else "#dc2626"
 
     def _list_html(items):
         return "".join(f"<li>{html.escape(str(i))}</li>" for i in (items or []) if str(i).strip())
@@ -115,7 +116,7 @@ def _build_report_html(record_id: int, report_data: dict, address: str, brand_na
             n = max(0, min(100, int(score_value or 0)))
         except Exception:
             n = 0
-        color = "#0f8a5f" if n >= 75 else "#b7791f" if n >= 60 else "#dc2626"
+        color = "#0f8a5f" if n >= 60 else "#b7791f" if n >= 40 else "#dc2626"
         return (
             '<div class="bar"><i style="width:%s%%;background:%s"></i></div>'
             % (n, color)
@@ -145,6 +146,39 @@ def _build_report_html(record_id: int, report_data: dict, address: str, brand_na
     adv_html = _list_html(exec_summary.get("top_strengths") or advantages)
     dis_html = _list_html(exec_summary.get("top_risks") or disadvantages)
     action_html = _list_html(action_plan)
+    # Build real_data POI HTML
+    real_html = ""
+    if real_data:
+        poi_rows = []
+        for label, key in [
+            ("🏘️ 住宅小区", "residential"), ("🏢 写字楼", "office"), ("🏫 学校", "schools"),
+            ("🏥 医院", "hospitals"), ("🛍️ 购物商场", "shopping"), ("🍽️ 餐饮门店", "restaurants"),
+            ("☕ 咖啡茶饮", "cafe_tea"), ("🍔 快餐", "fast_food"), ("🥢 中餐厅", "chinese_restaurants"),
+            ("🍝 异国料理", "foreign_restaurants"), ("🏨 酒店住宿", "hotels"), ("🚇 地铁站", "subway"),
+            ("🚌 公交站", "bus"), ("🅿️ 停车场", "parking"), ("🏦 银行", "banks"),
+            ("🏪 便利店", "convenience"), ("💊 药店", "pharmacy"), ("🍺 酒吧", "bars"),
+        ]:
+            s200 = (real_data.get("stats_200m") or {}).get(key, 0)
+            s500 = (real_data.get("stats_500m") or {}).get(key, 0)
+            s1000 = (real_data.get("stats_1000m") or {}).get(key, 0)
+            raw1000 = (real_data.get("raw_stats_1000m") or {}).get(key)
+            show_raw = raw1000 is not None and raw1000 != s1000
+            val_text = f"{s200} / {s500} / {s1000}" if s1000 is not None else f"{s200} 个"
+            poi_rows.append(f'<div class="metric"><div><strong>{label}</strong><span>{val_text}</span></div>{"".join(f"<small>(共:{raw1000})</small>" if show_raw else "")}</div>')
+        if poi_rows:
+            comp_html = ""
+            if real_data.get("competitors_1000m", 0) > 0:
+                clist = real_data.get("competitor_list") or []
+                clist_html = "".join(f"<span>{html.escape(c.get('name',''))}（{c.get('distance','')}m） </span>" for c in clist[:10])
+                comp_html = f'<div style="background:#fff7ed;border-radius:6px;padding:10px;margin:8px 0;border:1px solid #fed7aa"><strong style="color:#dc2626">⚔️ 同类竞品</strong><br><span style="font-size:12px;color:#9a3412">200m: {real_data.get("competitors_200m",0)}家 · 500m: {real_data.get("competitors_500m",0)}家 · 1km: {real_data.get("competitors_1000m",0)}家</span><br><span style="font-size:11px;color:#9a3412">{clist_html}</span></div>'
+            brand_html = ""
+            if real_data.get("hot_brands"):
+                brand_html = '<div style="background:#f0fdf4;border-radius:6px;padding:10px;margin:8px 0;border:1px solid #bbf7d0"><strong style="color:#15803d">🏪 周边连锁品牌</strong><br>' + "".join(f'<span style="font-size:11px;margin-right:10px;color:#333"><strong>{html.escape(b.get("name",""))}</strong> ×{b.get("count",0)}</span>' for b in real_data.get("hot_brands", [])[:12]) + '</div>'
+            info_line = ""
+            if real_data.get("city"):
+                info_line = f'<div style="font-size:11px;color:#888;text-align:center;margin-top:6px">📍 {html.escape(real_data.get("city",""))} {html.escape(real_data.get("district",""))} {html.escape(real_data.get("township",""))}</div>'
+            real_html = f'<section class="card"><h2>📊 周边POI数据</h2><div class="metrics">{"".join(poi_rows)}</div><p style="font-size:10px;color:#888;margin-top:4px">200m / 500m / 1000m 三层半径实时采集 · 已过滤低关联干扰项</p>{comp_html}{brand_html}{info_line}</section>'
+
     warning_html = f'<div class="warning">⚠️ {html.escape(str(warning))}</div>' if warning else ""
     logo_html = f'<img class="logo" src="{html.escape(logo_url)}" alt="logo">' if logo_url else '<div class="logo-fallback">址</div>'
     qr_html = f'<img class="qr" src="{html.escape(brand_qr)}" alt="品牌二维码">' if brand_qr else '<div class="qr empty"></div>'
@@ -224,6 +258,7 @@ def _build_report_html(record_id: int, report_data: dict, address: str, brand_na
   </div>
   {f'<section class="card"><h2>指标卡</h2><div class="metrics">{dim_html}</div></section>' if dim_html else ''}
   {f'<section class="card"><h2>落地行动清单</h2><ol>{action_html}</ol></section>' if action_html else ''}
+  {f'{real_html}' if real_html else ''}
   <section class="card"><h2>分模块详细分析</h2>{detail_html}</section>
   <section class="footer">
     <div class="footer-copy">

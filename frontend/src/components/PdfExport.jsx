@@ -95,8 +95,8 @@ function generateRadarSummary(scores, totalScore) {
   const weak = valid.filter(([, v]) => v < 50).slice(-2).map(([k]) => dimLabel[k])
   let text = `该位置在${strong.join('、')}方面表现较为突出`
   if (weak.length > 0) text += `，但${weak.join('、')}方面需重点关注`
-  if (totalScore >= 75) text += '，整体选址条件良好'
-  else if (totalScore >= 60) text += '，整体条件尚可但需权衡利弊'
+  if (totalScore >= 65) text += '，整体选址条件良好'
+  else if (totalScore >= 45) text += '，整体条件尚可但需权衡利弊'
   else text += '，整体条件需谨慎评估'
   return text + '。'
 }
@@ -251,7 +251,7 @@ export default function PdfExport({ selectedLocation, result, businessType, bran
       {summary && (() => {
         const ts = computeTotalScore(details)
         const scores = buildRadarScores(details)
-        const scoreColor = ts >= 75 ? '#16a34a' : ts >= 60 ? '#ca8a04' : '#dc2626'
+        const scoreColor = ts >= 60 ? '#16a34a' : ts >= 40 ? '#ca8a04' : '#dc2626'
         const ringSize = 140
         const strokeW = 12
         const radius = (ringSize - strokeW) / 2
@@ -402,6 +402,56 @@ export default function PdfExport({ selectedLocation, result, businessType, bran
               <span>🛣️ 道路：{real_data.nearby_roads.join('、')}</span>
             )}
           </div>
+
+          {/* POI Detail Lists — 周边各类POI名称与距离明细（独立页，表格化防溢出） */}
+          {real_data.poi_lists && Object.keys(real_data.poi_lists).length > 0 && (
+            <div data-section style={{ breakBefore: 'page', breakInside: 'avoid', marginBottom: 20, paddingTop: 10 }}>
+              <h2 style={sectionH2('#1a1a2e')}>📋 周边业态明细（名称 + 距离）</h2>
+              <p style={{ fontSize: 10, color: '#94a3b8', textAlign: 'center', margin: '0 0 10px' }}>
+                以下为高德地图实时采集的各类 POI 详细清单 · 最多展示前 8 条
+              </p>
+              <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
+                <thead>
+                  <tr style={{ background: '#f0f4ff' }}>
+                    <th style={{ width: 100, padding: '5px 8px', fontSize: 10, color: '#1e40af', textAlign: 'left', borderBottom: '2px solid #e2e8f0' }}>类别</th>
+                    <th style={{ padding: '5px 8px', fontSize: 10, color: '#1e40af', textAlign: 'left', borderBottom: '2px solid #e2e8f0' }}>POI 名称（距离）</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {[
+                    ['🏘️ 住宅小区', 'residential'], ['🏢 写字楼', 'office'], ['🏫 学校', 'schools'],
+                    ['🏥 医院', 'hospitals'], ['🛍️ 购物商场', 'shopping'], ['🍽️ 餐厅', 'restaurants'],
+                    ['☕ 咖啡茶饮', 'cafe_tea'], ['🍔 快餐', 'fast_food'], ['🥢 中餐厅', 'chinese_restaurants'],
+                    ['🍝 异国料理', 'foreign_restaurants'], ['🏨 酒店', 'hotels'], ['🚇 地铁站', 'subway'],
+                    ['🚌 公交站', 'bus'], ['🅿️ 停车场', 'parking'], ['🏦 银行', 'banks'],
+                    ['🏪 便利店', 'convenience'], ['💊 药店', 'pharmacy'], ['🍺 酒吧', 'bars'],
+                  ].map(([iconLabel, key]) => {
+                    const items = real_data.poi_lists[key]
+                    if (!items || items.length === 0) return null
+                    return (
+                      <tr key={key} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                        <td style={{ width: 100, padding: '4px 8px', fontSize: 10, fontWeight: 700, color: '#334155', verticalAlign: 'top', whiteSpace: 'nowrap' }}>
+                          {iconLabel} ×{items.length}
+                        </td>
+                        <td style={{ padding: '4px 8px', fontSize: 10, color: '#475569', lineHeight: 1.7, wordBreak: 'break-all', overflowWrap: 'break-word' }}>
+                          {items.slice(0, 8).map((poi, i) => {
+                            const sep = i < Math.min(items.length, 8) - 1 ? '、' : ''
+                            return (
+                              <span key={i}>
+                                {poi.name}
+                                {poi.distance != null ? <span style={{ color: '#94a3b8' }}>（{poi.distance}m）</span> : null}{sep}
+                              </span>
+                            )
+                          })}
+                          {items.length > 8 && <span style={{ color: '#94a3b8' }}> 等{items.length}个</span>}
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
         </SectionBox>
       )}
 
@@ -464,7 +514,7 @@ export default function PdfExport({ selectedLocation, result, businessType, bran
                   {pd.score > 0 && (
                     <span style={{
                       marginLeft: 10, fontSize: 13, fontWeight: 800,
-                      color: pd.score >= 75 ? '#16a34a' : pd.score >= 60 ? '#ca8a04' : '#dc2626',
+                      color: pd.score >= 60 ? '#16a34a' : pd.score >= 40 ? '#ca8a04' : '#dc2626',
                     }}>
                       {pd.score} 分
                     </span>

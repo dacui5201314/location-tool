@@ -261,7 +261,8 @@ async def analyze_location(req: AnalyzeRequest, user: dict = Depends(get_current
                 }
             except Exception:
                 import traceback
-                print("[WARN] 后端AMap数据采集失败，回退前端数据", flush=True)
+                print("[WARN] ⚠️ 后端AMap数据采集失败，回退前端简化数据！请检查 AMAP_WEB_KEY 是否有效", flush=True)
+                print(f"[WARN] 前端数据容量: poi_lists={len(req.real_data.get('poi_lists', {}))}类, competitors={req.real_data.get('competitors_1000m', 0)}家", flush=True)
                 traceback.print_exc()
                 real_data = req.real_data
 
@@ -333,7 +334,7 @@ async def analyze_location(req: AnalyzeRequest, user: dict = Depends(get_current
                 raise  # 继续上抛，由外层 except 统一处理
             raw_response = _extract_json(raw_response)
             result = json.loads(raw_response)
-            result = normalize_report_result(result)
+            result = normalize_report_result(result, weights=industry_config.get("radar_weights") if industry_config else None)
             result["provider"] = runtime_llm.get("provider", req.provider)
             result["error"] = None
             result["real_data"] = real_data

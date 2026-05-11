@@ -20,8 +20,8 @@ function stripScore(value = '') {
 }
 
 function scoreColor(score = 0) {
-  if (score >= 70) return '#10b981'
-  if (score >= 60) return '#f59e0b'
+  if (score >= 60) return '#10b981'
+  if (score >= 40) return '#f59e0b'
   return '#ef4444'
 }
 
@@ -32,9 +32,9 @@ export async function exportElementToPDF(element, filename) {
   const opt = {
     margin: [0, 0, 0, 0],
     filename,
-    image: { type: 'jpeg', quality: 0.98 },
+    image: { type: 'jpeg', quality: 1.0 },
     html2canvas: {
-      scale: 2,
+      scale: 3,
       useCORS: true,
       allowTaint: false,
       backgroundColor: '#f8fafc',
@@ -67,9 +67,9 @@ export async function exportDataToPDF(reportData, meta = {}, qrcodeUrl = '', pdf
     const opt = {
       margin: [0, 0, 0, 0],
       filename: filename || `址得选_选址报告_${safeName}_${d}.pdf`,
-      image: { type: 'jpeg', quality: 0.98 },
+      image: { type: 'jpeg', quality: 1.0 },
       html2canvas: {
-        scale: 2,
+        scale: 3,
         useCORS: true,
         letterRendering: true,
         backgroundColor: '#f8fafc',
@@ -131,7 +131,7 @@ function buildFullReportHTML(data, meta, qrcodeUrl = '', pdfConfig = {}) {
     consumer_profile: '🛍️', competition: '⚔️', complementary_businesses: '🤝',
     category_advantage: '🌟', cost_estimate: '💰', revenue_estimation: '💵', site_suggestion: '📋',
   }
-  const dimScoreColor = (s) => s >= 70 ? '#10b981' : s >= 60 ? '#f59e0b' : '#ef4444'
+  const dimScoreColor = (s) => s >= 60 ? '#10b981' : s >= 40 ? '#f59e0b' : '#ef4444'
 
   let metricCards = '<table style="width:100%;border-collapse:separate;border-spacing:6px;margin:-6px;">'
   const safeDims = dims.slice(0, 8)
@@ -200,15 +200,19 @@ function buildFullReportHTML(data, meta, qrcodeUrl = '', pdfConfig = {}) {
   reportHtml += '<div class="pdf-no-break" style="margin-bottom:28px;"><div style="display:flex;gap:20px;background:#f8fafc;border-radius:10px;padding:16px 20px;border:1px solid #e2e8f0;box-shadow:0 2px 4px rgba(0,0,0,0.04);"><div style="display:flex;flex-direction:column;align-items:center;min-width:120px;border-right:1px dashed #cbd5e1;padding-right:20px;"><div style="font-size:14px;font-weight:900;color:#1e293b;margin-bottom:10px;">📊 综合评分</div>' + ringSvg + '</div><div style="flex:1;display:flex;flex-direction:column;justify-content:center;"><div style="font-size:12px;color:#475569;line-height:1.5;margin-bottom:10px;padding-bottom:10px;border-bottom:1px dashed #cbd5e1;">' + escapeHtml(shortSummary) + '</div><div><div style="font-size:14px;font-weight:900;color:#1e293b;margin-bottom:6px;">📋 分析摘要</div><div style="font-size:12px;font-weight:400;color:#475569;line-height:1.6;text-align:justify;">' + escapeHtml(summary || exec.summary || shortSummary) + '</div></div></div></div></div>'
   reportHtml += '<div class="pdf-no-break" style="margin-bottom:24px;"><div style="display:flex;gap:16px;align-items:stretch;"><section style="flex:1;border:1px solid #bbf7d0;border-radius:12px;padding:16px 20px;background:#f0fdf4;"><h2 style="font-size:16px;font-weight:900;margin:0 0 8px;color:#047857;">✅ 关键优势</h2><ul style="margin:0;padding-left:20px;font-size:12px;font-weight:400;color:#475569;line-height:1.7;">' + (strengths.length > 0 ? strengths.map((x, idx, arr) => '<li style="margin-bottom:' + (idx === arr.length - 1 ? '0' : '6px') + '">' + escapeHtml(x) + '</li>').join('') : '<li style="margin-bottom:0">暂无明显优势数据</li>') + '</ul></section><section style="flex:1;border:1px solid #fecaca;border-radius:12px;padding:16px 20px;background:#fff5f5;"><h2 style="font-size:16px;font-weight:900;margin:0 0 8px;color:#b91c1c;">⚠️ 主要风险</h2><ul style="margin:0;padding-left:20px;font-size:12px;font-weight:400;color:#475569;line-height:1.7;">' + (risks.length > 0 ? risks.map((x, idx, arr) => '<li style="margin-bottom:' + (idx === arr.length - 1 ? '0' : '6px') + '">' + escapeHtml(x) + '</li>').join('') : '<li style="margin-bottom:0">暂无明显风险数据</li>') + '</ul></section></div></div></div>' + pageClose + '</div>'
 
-  reportHtml += '<div style="width:100%;box-sizing:border-box;">' + pageOpen + '<h2 style="font-size:16px;font-weight:900;margin:0 0 16px;color:#0f172a;padding-top:34px;">📊 指标雷达与维度评分</h2><div style="display:table;width:100%;table-layout:fixed;margin-bottom:24px;"><div style="display:table-cell;width:340px;vertical-align:top;text-align:center;padding-right:24px;">' + radarSvg.replace('<svg width="360" height="360"', '<svg width="330" height="330" style="display:block;margin:0 auto"') + '</div><div style="display:table-cell;vertical-align:middle;padding-left:18px;">' + metricCards + '</div></div><div style="margin-bottom:0;">' + (hasRealData ? _buildRealDataHTML(real_data) : '') + '</div>' + pageClose + '</div>'
+  const realDataResult = hasRealData ? _buildRealDataHTML(real_data, pageOpen, pageClose) : { main: '', poiPage: '' }
+  reportHtml += '<div style="width:100%;box-sizing:border-box;">' + pageOpen + '<h2 style="font-size:16px;font-weight:900;margin:0 0 16px;color:#0f172a;padding-top:34px;">📊 指标雷达与维度评分</h2><div style="display:table;width:100%;table-layout:fixed;margin-bottom:24px;"><div style="display:table-cell;width:340px;vertical-align:top;text-align:center;padding-right:24px;">' + radarSvg.replace('<svg width="360" height="360"', '<svg width="330" height="330" style="display:block;margin:0 auto"') + '</div><div style="display:table-cell;vertical-align:middle;padding-left:18px;">' + metricCards + '</div></div><div style="margin-bottom:0;">' + realDataResult.main + '</div>' + pageClose + '</div>'
+  if (realDataResult.poiPage) {
+    reportHtml += '<div style="width:100%;box-sizing:border-box;">' + realDataResult.poiPage + '</div>'
+  }
   reportHtml += '<div style="width:100%;box-sizing:border-box;">' + pageOpen + '<h2 style="font-size:16px;font-weight:900;margin:0 0 16px;color:#0f172a;padding-top:34px;">📝 各维度详细分析</h2>' + detailPageOne + pageClose + '</div>'
   reportHtml += '<div style="width:100%;box-sizing:border-box;">' + pageOpen + '<div style="padding-top:34px;">' + detailPageTwo + '</div><section style="clear:both;margin-top:24px;display:flex;align-items:center;gap:20px;border-top:1px solid #e2e8f0;background:#fff;border-radius:8px;padding:14px 18px;"><div style="flex:1"><div style="font-size:15px;font-weight:900;color:#1e40af;margin-bottom:6px">址得选 · AI 选址分析报告</div><div style="font-size:11px;color:#64748b;line-height:1.8">' + escapeHtml(footerText) + '</div><div style="font-size:10px;color:#94a3b8;margin-top:6px">本报告由系统自动生成，仅供商业决策参考，不构成投资建议。</div></div><div style="width:112px;text-align:center;flex-shrink:0">' + (qrcodeUrl ? '<img src="' + escapeHtml(qrcodeUrl) + '" width="112" height="112" style="display:block;border-radius:8px;object-fit:contain;background:white;border:1px solid #e2e8f0"/>' : '<div style="width:112px;height:112px;border:1px dashed #cbd5e1;border-radius:8px;background:white"></div>') + '<div style="font-size:10px;font-weight:800;color:#1d4ed8;margin-top:7px;line-height:1.4">扫码获取更多测算</div></div></section>' + pageClose + '</div>'
   reportHtml += '</body></html>'
   return reportHtml
 }
 
-function _buildRealDataHTML(rd) {
-  if (!rd) return ''
+function _buildRealDataHTML(rd, pageOpen, pageClose) {
+  if (!rd) return { main: '', poiPage: '' }
   const rows = [
     ['🏘️ 住宅小区', rd.stats_200m?.residential, rd.stats_500m?.residential, rd.stats_1000m?.residential],
     ['🏢 写字楼', rd.stats_200m?.office, rd.stats_500m?.office, rd.stats_1000m?.office],
@@ -240,7 +244,28 @@ function _buildRealDataHTML(rd) {
   if (rd.city) infoLines.push('📍 ' + escapeHtml(rd.city) + ' ' + escapeHtml(rd.district || '') + ' ' + escapeHtml(rd.township || ''))
   if (rd.business_areas?.length) infoLines.push('🏬 商圈：' + escapeHtml(rd.business_areas.join('、')))
   if (rd.nearby_roads?.length) infoLines.push('🛣️ 道路：' + escapeHtml(rd.nearby_roads.join('、')))
-  return '<section><h2 style="font-size:15px;font-weight:900;margin:0 0 8px;color:#0f172a">📊 周边真实数据（200m / 500m / 1000m 三层半径采集）</h2><div style="display:flex;flex-wrap:wrap;gap:3px;margin-bottom:6px">' + poiGrid + '</div><div style="font-size:7px;color:#aaa;text-align:center;margin-bottom:8px;line-height:1.5">注：以上为系统判定的有效商机数，已自动过滤诊所、培训机构、公司厂房等低关联干扰项</div>' + compHTML + brandHTML + (infoLines.length ? '<div style="font-size:11px;color:#888;line-height:1.8;text-align:center">' + infoLines.join(' · ') + '</div>' : '') + '</section>'
+  let poiListHTML = ''
+  if (rd.poi_lists && Object.keys(rd.poi_lists).length > 0) {
+    const cats = [
+      ['🏘️ 住宅小区', 'residential'], ['🏢 写字楼', 'office'], ['🏫 学校', 'schools'],
+      ['🏥 医院', 'hospitals'], ['🛍️ 购物商场', 'shopping'], ['🍽️ 餐厅', 'restaurants'],
+      ['☕ 咖啡茶饮', 'cafe_tea'], ['🍔 快餐', 'fast_food'], ['🥢 中餐厅', 'chinese_restaurants'],
+      ['🍝 异国料理', 'foreign_restaurants'], ['🏨 酒店', 'hotels'], ['🚇 地铁站', 'subway'],
+      ['🚌 公交站', 'bus'], ['🅿️ 停车场', 'parking'], ['🏦 银行', 'banks'],
+      ['🏪 便利店', 'convenience'], ['💊 药店', 'pharmacy'], ['🍺 酒吧', 'bars'],
+    ]
+    let rows = ''
+    for (const [iconLabel, key] of cats) {
+      const items = rd.poi_lists[key]
+      if (!items || items.length === 0) continue
+      const names = items.slice(0, 8).map(p => escapeHtml(p.name) + (p.distance != null ? '<span style="color:#94a3b8;font-size:9px">(' + p.distance + 'm)</span>' : '')).join('、')
+      rows += '<tr style="border-bottom:1px solid #f1f5f9"><td style="width:100px;padding:4px 8px;font-size:10px;font-weight:700;color:#334155;vertical-align:top;white-space:nowrap">' + iconLabel + ' ×' + items.length + '</td><td style="padding:4px 8px;font-size:10px;color:#475569;line-height:1.7;word-break:break-all;overflow-wrap:break-word">' + names + (items.length > 8 ? '<span style="color:#94a3b8"> 等' + items.length + '个</span>' : '') + '</td></tr>'
+    }
+    if (rows) {
+      poiListHTML = pageOpen + '<h2 style="font-size:16px;font-weight:900;margin:0 0 8px;color:#0f172a;padding-top:34px;text-align:center">📋 周边业态明细（名称 + 距离）</h2><p style="font-size:9px;color:#94a3b8;text-align:center;margin:0 0 12px">高德地图实时采集 · 最多展示前8条POI</p><table style="width:100%;border-collapse:collapse;table-layout:fixed;font-size:10px"><thead><tr style="background:#f0f4ff"><th style="width:96px;padding:6px 8px;color:#1e40af;text-align:left;border-bottom:2px solid #e2e8f0;font-size:10px">类别</th><th style="padding:6px 8px;color:#1e40af;text-align:left;border-bottom:2px solid #e2e8f0;font-size:10px">POI 名称（距离）</th></tr></thead><tbody>' + rows + '</tbody></table>' + pageClose
+    }
+  }
+  return { main: '<section><h2 style="font-size:15px;font-weight:900;margin:0 0 8px;color:#0f172a">📊 周边真实数据（200m / 500m / 1000m 三层半径采集）</h2><div style="display:flex;flex-wrap:wrap;gap:3px;margin-bottom:6px">' + poiGrid + '</div><div style="font-size:7px;color:#aaa;text-align:center;margin-bottom:8px;line-height:1.5">注：以上为系统判定的有效商机数，已自动过滤诊所、培训机构、公司厂房等低关联干扰项</div>' + compHTML + brandHTML + (infoLines.length ? '<div style="font-size:11px;color:#888;line-height:1.8;text-align:center">' + infoLines.join(' · ') + '</div>' : '') + '</section>', poiPage: poiListHTML }
 }
 
 function buildInlineRadarSVG(dims) {
@@ -270,7 +295,7 @@ function buildInlineRadarSVG(dims) {
   // 标签：名称上行 + 分数下行，用 tspan 强制换行，绝不重叠
   const labelTexts = dims.map((d, i) => {
     const p = getPoint(100, i, r + 42)
-    const sc = (d.score || 0) >= 70 ? '#10b981' : (d.score || 0) >= 60 ? '#f59e0b' : '#ef4444'
+    const sc = (d.score || 0) >= 60 ? '#10b981' : (d.score || 0) >= 40 ? '#f59e0b' : '#ef4444'
     return `<text x="${p.x.toFixed(1)}" y="${p.y.toFixed(1)}" text-anchor="middle" dominant-baseline="middle" font-size="11" fill="#475569" font-weight="500">
       <tspan x="${p.x.toFixed(1)}" dy="-0.5em">${escapeHtml(d.label)}</tspan>
       <tspan x="${p.x.toFixed(1)}" dy="1.3em" font-size="10" font-weight="700" fill="${sc}">${d.score || '-'}</tspan>

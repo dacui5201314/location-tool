@@ -211,9 +211,9 @@ def _score_from_detail(value: Any) -> int:
     return max(0, min(100, int(m.group(1))))
 
 
-def normalize_report_result(result: dict[str, Any]) -> dict[str, Any]:
+def normalize_report_result(result: dict[str, Any], weights: dict[str, int] = None) -> dict[str, Any]:
     """Add stable report fields while keeping legacy fields untouched.
-    ★ 强制数学接管 overall_score：决不允许 LLM 捏造总分，维度平均分即最终得分。"""
+    ★ 强制数学接管 overall_score：决不允许 LLM 捏造总分，维度加权平均分即最终得分。"""
     details = result.get("details") or {}
     if not isinstance(details, dict):
         details = {}
@@ -256,16 +256,30 @@ def normalize_report_result(result: dict[str, Any]) -> dict[str, Any]:
         else:
             score = _score_from_detail(str(details.get(key, "") or ""))
         score = max(0, min(100, score))
-        if score > 0:
-            valid_scores.append(score)
+        valid_scores.append(score)  # include all 8 dims, zeros penalize skipped dimensions
         text = llm_text_map.get(key) or str(details.get(key, "") or "")
         rebuilt_dims.append({"key": key, "label": label, "score": score, "text": text})
 
     # ★ 无条件覆写：前端拿到的永远是固定顺序的数组
     result["dimension_scores"] = rebuilt_dims
 
-    # ★ 强制覆写总分——地毯式覆盖所有可能的总分字段名
-    calculated_score = round(sum(valid_scores) / len(valid_scores)) if valid_scores else 0
+    # ★ 强制覆写总分 —— 支持业态权重加权平均
+    if weights:
+        dim_weights = {
+            "population_density": weights.get("population_density", 20),
+            "traffic_accessibility": weights.get("traffic_accessibility", 20),
+            "traffic_flow": 15,
+            "consumer_profile": 15,
+            "competition": weights.get("competition", 20),
+            "complementary_businesses": weights.get("complementary_businesses", 20),
+            "category_advantage": 10,
+            "cost_estimate": weights.get("cost_estimate", 10),
+        }
+        total_w = sum(dim_weights.get(d["key"], 10) for d in rebuilt_dims)
+        weighted_sum = sum(d["score"] * dim_weights.get(d["key"], 10) for d in rebuilt_dims)
+        calculated_score = round(weighted_sum / total_w) if total_w > 0 else 0
+    else:
+        calculated_score = round(sum(valid_scores) / len(valid_scores)) if valid_scores else 0
     result["score"] = calculated_score
     result["overall_score"] = calculated_score
     result["total_score"] = calculated_score

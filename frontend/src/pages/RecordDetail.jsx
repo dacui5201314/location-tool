@@ -165,7 +165,7 @@ export default function RecordDetail() {
           {data.overall_score > 0 && (
             <div className="mt-3 pt-3 border-t border-slate-50 flex items-center gap-3">
               <div className="text-[10px] text-slate-400">综合评分</div>
-              <div className="text-xl font-black" style={{ color: data.overall_score >= 75 ? '#16a34a' : data.overall_score >= 60 ? '#ca8a04' : '#dc2626' }}>
+              <div className="text-xl font-black" style={{ color: data.overall_score >= 60 ? '#16a34a' : data.overall_score >= 40 ? '#ca8a04' : '#dc2626' }}>
                 {data.overall_score}
               </div>
               <span className={`ml-auto text-[10px] font-semibold px-2 py-0.5 rounded-full ${

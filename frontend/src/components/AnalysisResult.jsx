@@ -49,8 +49,8 @@ function generateRadarSummary(scores, totalScore) {
   const weak = valid.filter(([, v]) => v < 50).slice(-2).map(([k]) => dimLabel[k])
   let text = `该位置在${strong.join('、')}方面表现较为突出`
   if (weak.length > 0) text += `，但${weak.join('、')}方面需重点关注`
-  if (totalScore >= 75) text += '，整体选址条件良好'
-  else if (totalScore >= 60) text += '，整体条件尚可但需权衡利弊'
+  if (totalScore >= 65) text += '，整体选址条件良好'
+  else if (totalScore >= 45) text += '，整体条件尚可但需权衡利弊'
   else text += '，整体条件需谨慎评估'
   return text + '。'
 }
@@ -61,7 +61,7 @@ function formatCount(num) {
 }
 
 function ScoreRing({ score }) {
-  const scoreColor = score >= 70 ? '#10b981' : score >= 60 ? '#f59e0b' : '#ef4444'
+  const scoreColor = score >= 60 ? '#10b981' : score >= 40 ? '#f59e0b' : '#ef4444'
   const ringSize = 112
   const strokeW = 10
   const radius = (ringSize - strokeW) / 2
@@ -181,7 +181,7 @@ export default function AnalysisResult({ data }) {
   const summaryText = generateRadarSummary(radarScores, totalScore)
   const topStrengths = (advantages && advantages.length > 0) ? advantages.filter(Boolean) : (executive_summary?.top_strengths || [])
   const topRisks = (disadvantages && disadvantages.length > 0) ? disadvantages.filter(Boolean) : (executive_summary?.top_risks || [])
-  const scoreColor = totalScore >= 70 ? '#10b981' : totalScore >= 60 ? '#f59e0b' : '#ef4444'
+  const scoreColor = totalScore >= 60 ? '#10b981' : totalScore >= 40 ? '#f59e0b' : '#ef4444'
   const primaryDims = (dimension_scores?.length ? dimension_scores : Object.keys(dimLabel).map(key => ({ key, label: dimLabel[key], score: radarScores[key] || 0 }))).slice(0, 8)
 
   const dimEmoji = { population_density: '🏘️', traffic_accessibility: '🚇', traffic_flow: '🚶', consumer_profile: '🛍️', competition: '⚔️', complementary_businesses: '🤝', category_advantage: '🌟', cost_estimate: '💰', revenue_estimation: '💵', site_suggestion: '📋' }
@@ -256,7 +256,7 @@ export default function AnalysisResult({ data }) {
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
           {primaryDims.map((d) => {
             const s = Number(d.score || 0)
-            const sc = s >= 70 ? '#10b981' : s >= 60 ? '#f59e0b' : '#ef4444'
+            const sc = s >= 60 ? '#10b981' : s >= 40 ? '#f59e0b' : '#ef4444'
             return (
               <div key={d.key} style={{ padding: '8px 10px', border: '1px solid #e2e8f0', borderRadius: 6, background: '#fff' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
@@ -348,6 +348,42 @@ export default function AnalysisResult({ data }) {
             {real_data.business_areas?.length > 0 && <span style={{ marginLeft: 12 }}>商圈：{real_data.business_areas.join('、')}</span>}
             {real_data.nearby_roads?.length > 0 && <span style={{ marginLeft: 12 }}>道路：{real_data.nearby_roads.join('、')}</span>}
           </div>
+
+          {/* POI Detail Lists — 周边各类POI名称与距离明细（表格化防溢出） */}
+          {real_data.poi_lists && Object.keys(real_data.poi_lists).length > 0 && (
+            <div style={{ marginTop: 12, borderTop: '1px solid #e2e8f0', paddingTop: 12 }}>
+              <p style={{ fontSize: 13, fontWeight: 700, color: '#1e293b', margin: '0 0 8px', textAlign: 'center' }}>📋 周边业态明细</p>
+              <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
+                <tbody>
+                  {[
+                    ['🏘️ 住宅', 'residential'], ['🏢 写字楼', 'office'], ['🏫 学校', 'schools'],
+                    ['🏥 医院', 'hospitals'], ['🛍️ 商场', 'shopping'], ['🍽️ 餐厅', 'restaurants'],
+                    ['☕ 茶饮', 'cafe_tea'], ['🍔 快餐', 'fast_food'], ['🥢 中餐', 'chinese_restaurants'],
+                    ['🍝 异国料理', 'foreign_restaurants'], ['🏨 酒店', 'hotels'], ['🚇 地铁', 'subway'],
+                    ['🚌 公交', 'bus'], ['🅿️ 停车', 'parking'], ['🏦 银行', 'banks'],
+                    ['🏪 便利店', 'convenience'], ['💊 药店', 'pharmacy'], ['🍺 酒吧', 'bars'],
+                  ].map(([iconLabel, key]) => {
+                    const items = real_data.poi_lists[key]
+                    if (!items || items.length === 0) return null
+                    return (
+                      <tr key={key} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                        <td style={{ width: 80, padding: '4px 6px', fontSize: 10, fontWeight: 700, color: '#334155', verticalAlign: 'top', whiteSpace: 'nowrap' }}>{iconLabel} ×{items.length}</td>
+                        <td style={{ padding: '4px 6px', fontSize: 10, color: '#64748b', lineHeight: 1.6, wordBreak: 'break-all', overflowWrap: 'break-word' }}>
+                          {items.slice(0, 8).map((poi, i) => (
+                            <span key={i} style={{ display: 'inline', marginRight: 4 }}>
+                              {poi.name}
+                              {poi.distance != null ? <span style={{ color: '#94a3b8' }}>({poi.distance}m)</span> : null}
+                            </span>
+                          ))}
+                          {items.length > 8 && <span style={{ color: '#94a3b8' }}> +{items.length - 8}更多</span>}
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       )}
 
@@ -359,7 +395,7 @@ export default function AnalysisResult({ data }) {
             if (!details[key]) return null
             const ds = dimension_scores?.find(d => d.key === key)
             const dimScore = ds ? Number(ds.score || 0) : 0
-            const sc = dimScore >= 70 ? '#10b981' : dimScore >= 60 ? '#f59e0b' : '#ef4444'
+            const sc = dimScore >= 60 ? '#10b981' : dimScore >= 40 ? '#f59e0b' : '#ef4444'
             return (
               <div key={key} style={{ padding: '14px 16px', background: '#f8fafc', borderRadius: 8, borderLeft: `4px solid ${sc}`, marginBottom: 12 }}>
                 <div style={{ marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
