@@ -28,6 +28,7 @@ if JWT_SECRET in _DEFAULT_SECRETS:
     )
 JWT_ALGORITHM = "HS256"
 JWT_EXPIRY_HOURS = int(os.getenv("JWT_EXPIRY_HOURS", "168"))
+ADMIN_JWT_EXPIRY_HOURS = int(os.getenv("ADMIN_JWT_EXPIRY_HOURS", str(min(JWT_EXPIRY_HOURS, 4))))
 
 # ==========================================
 # 新用户注册奖励配置

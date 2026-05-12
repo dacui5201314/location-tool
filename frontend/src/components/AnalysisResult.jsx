@@ -78,11 +78,11 @@ function ScoreRing({ score }) {
           strokeLinecap="round" transform={`rotate(-90 ${cx} ${cy})`}
           style={{ transition: 'stroke-dashoffset 0.6s ease' }} />
         <text x={cx} y={cy - 4} textAnchor="middle" dominantBaseline="central"
-          fontSize="28" fontWeight="800" fill={scoreColor}>
+          fontSize="32" fontWeight="800" fill={scoreColor}>
           {score}
         </text>
         <text x={cx} y={cy + 16} textAnchor="middle" dominantBaseline="central"
-          fontSize="10" fill="#9ca3af" fontWeight="500">
+          fontSize="11" fill="#9ca3af" fontWeight="500">
           / 100
         </text>
       </svg>
@@ -117,17 +117,17 @@ function MetricBadge({ icon, label, val, sub, highlight, raw }) {
   }
   const showDual = raw !== undefined && raw !== null && raw !== val
   return (
-    <div className={`min-w-0 rounded-lg p-2.5 ${bgMap[highlight] || 'border border-slate-100 bg-slate-50'}`}>
+    <div className={`min-w-0 rounded-lg p-3 ${bgMap[highlight] || 'border border-slate-100 bg-slate-50'}`}>
       <div className="mb-1 flex items-center gap-1.5">
-        <span className="text-sm">{icon}</span>
-        <p className="truncate text-xs text-slate-500">{label}</p>
+        <span className="text-base">{icon}</span>
+        <p className="truncate text-sm text-slate-500">{label}</p>
       </div>
       <div className="min-w-0">
-        <p className={`truncate text-sm font-bold ${textMap[highlight] || 'text-slate-700'}`}>
+        <p className={`truncate text-base font-bold ${textMap[highlight] || 'text-slate-700'}`}>
           {val}
-          {showDual && <span className="ml-1 text-[10px] font-normal text-slate-400">(共:{raw})</span>}
+          {showDual && <span className="ml-1 text-xs font-normal text-slate-400">(共:{raw})</span>}
         </p>
-        {sub && <p className="mt-0.5 text-[10px] text-slate-400">{sub}</p>}
+        {sub && <p className="mt-0.5 text-[9px] text-slate-400">{sub}</p>}
       </div>
     </div>
   )
@@ -139,6 +139,13 @@ export default function AnalysisResult({ data }) {
   const _stripScore = (v) => String(v || '').replace(/[，,]?\s*评分[：:]\s*\d{1,3}\s*分?\s*$/, '').trim()
 
   const { advantages, disadvantages, summary, details, warning, real_data, executive_summary = {}, dimension_scores = [], action_plan = [] } = data
+
+  // ★ 严谨度：仅认 rigor_enabled
+  const hasRigor = real_data?.rigor_enabled === true
+  const dc200 = hasRigor ? (real_data.direct_competitors_200m ?? 0) : (real_data?.competitors_200m ?? 0)
+  const dc500 = hasRigor ? (real_data.direct_competitors_500m ?? 0) : (real_data?.competitors_500m ?? 0)
+  const dc1000 = hasRigor ? (real_data.direct_competitors_1000m ?? 0) : (real_data?.competitors_1000m ?? 0)
+  const dcList = hasRigor ? (real_data.direct_competitor_list || []) : (real_data?.competitor_list || [])
 
   if (data.error) {
     return (
@@ -171,12 +178,8 @@ export default function AnalysisResult({ data }) {
     })
   }
 
-  // ★ 前端强制重算：彻底抛弃后端/大模型的 score，只认 dimension_scores 8 维算术平均
-  // 后端已保证 dimension_scores 顺序固定，直接用 reduce 取平均值
-  const REBUILT_SCORE = dimension_scores.length >= 8
-    ? Math.round(dimension_scores.slice(0, 8).reduce((acc, d) => acc + (Number(d.score) || 0), 0) / 8)
-    : Math.round(Object.keys(WEIGHTS).reduce((sum, key) => sum + (radarScores[key] || 0), 0) / 8)
-  const totalScore = REBUILT_SCORE
+  // ★ 以后端加权后的总分（data.score）为准，全局唯一
+  const totalScore = Number(data.score || data.overall_score || 0)
 
   const summaryText = generateRadarSummary(radarScores, totalScore)
   const topStrengths = (advantages && advantages.length > 0) ? advantages.filter(Boolean) : (executive_summary?.top_strengths || [])
@@ -190,31 +193,33 @@ export default function AnalysisResult({ data }) {
     <div style={{ maxWidth: 800, margin: '0 auto', background: '#f8fafc', padding: '16px 0' }}>
 
       {/* ═══════════ 免责声明 ═══════════ */}
-      <div style={{ background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 6, padding: '8px 14px', marginBottom: 16, fontSize: 10, color: '#92400e', fontWeight: 600, textAlign: 'center' }}>
-        ⚠️ 本工具不提供"推荐/不推荐"结论，各维度评分仅供参考，最终决策请结合实地考察
+      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 8, padding: '10px 14px', marginBottom: 16, fontSize: 12, lineHeight: 1.6, color: '#92400e' }}>
+        <span style={{ flexShrink: 0, fontSize: 14 }}>💡</span>
+        <span>本工具不提供"推荐/不推荐"结论，各维度评分仅供参考，最终决策请结合实地考察与多方因素综合判断。</span>
       </div>
 
       {/* ═══════════ 风险提示 ═══════════ */}
       {warning && (
-        <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 6, padding: '10px 14px', marginBottom: 16, fontSize: 12, color: '#dc2626', fontWeight: 700, textAlign: 'center' }}>
-          🚨 风险提示：{warning}
+        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 8, padding: '10px 14px', marginBottom: 16, fontSize: 12, lineHeight: 1.6, color: '#991b1b' }}>
+          <span style={{ flexShrink: 0, fontSize: 14 }}>⚠️</span>
+          <span><strong>风险提示：</strong>{warning}</span>
         </div>
       )}
 
       {/* ═══════════ 第一块：综合评分 + 分析摘要 ═══════════ */}
       <div style={{ background: '#fff', borderRadius: 6, border: '1px solid #e2e8f0', padding: 24, marginBottom: 16, boxShadow: '0 1px 2px rgba(0,0,0,0.04)' }}>
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: 20 }}>
-          <div style={{ fontSize: 14, fontWeight: 700, color: '#1e293b', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
+          <div style={{ fontSize: 16, fontWeight: 700, color: '#1e293b', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
             📊 综合评分
           </div>
           <ScoreRing score={totalScore} />
-          <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 4 }}>8 维度平均</div>
+          <div style={{ fontSize: 13, color: '#94a3b8', marginTop: 4 }}>8 维度平均</div>
         </div>
         <div>
-          <div style={{ fontSize: 14, fontWeight: 900, color: '#1e293b', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
+          <div style={{ fontSize: 16, fontWeight: 900, color: '#1e293b', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
             📋 分析摘要
           </div>
-          <p style={{ fontSize: 13, color: '#475569', lineHeight: 1.6, margin: 0 }}>
+          <p style={{ fontSize: 15, color: '#475569', lineHeight: 1.7, margin: 0 }}>
             {summary || executive_summary?.summary || summaryText}
           </p>
         </div>
@@ -223,14 +228,14 @@ export default function AnalysisResult({ data }) {
       {/* ═══════════ 第二块：关键优势 + 主要风险（上下排列）═══════════ */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 16 }}>
         <section style={{ border: '1px solid #bbf7d0', borderRadius: 6, padding: '16px 20px', background: '#f0fdf4' }}>
-          <h2 style={{ fontSize: 16, fontWeight: 900, margin: '0 0 12px', color: '#047857' }}>✅ 关键优势</h2>
-          <ul style={{ margin: 0, paddingLeft: 20, fontSize: 12, fontWeight: 400, color: '#475569', lineHeight: 1.6, textAlign: 'justify' }}>
+          <h2 style={{ fontSize: 17, fontWeight: 900, margin: '0 0 12px', color: '#047857' }}>✅ 关键优势</h2>
+          <ul style={{ margin: 0, paddingLeft: 20, fontSize: 14, fontWeight: 400, color: '#475569', lineHeight: 1.7, textAlign: 'justify' }}>
             {topStrengths.map((item, i) => <li key={i} style={{ marginBottom: i === topStrengths.length - 1 ? 0 : 6 }}>{item}</li>)}
           </ul>
         </section>
         <section style={{ border: '1px solid #fecaca', borderRadius: 6, padding: '16px 20px', background: '#fff5f5' }}>
-          <h2 style={{ fontSize: 16, fontWeight: 900, margin: '0 0 12px', color: '#b91c1c' }}>⚠️ 主要风险</h2>
-          <ul style={{ margin: 0, paddingLeft: 20, fontSize: 12, fontWeight: 400, color: '#475569', lineHeight: 1.6, textAlign: 'justify' }}>
+          <h2 style={{ fontSize: 17, fontWeight: 900, margin: '0 0 12px', color: '#b91c1c' }}>⚠️ 主要风险</h2>
+          <ul style={{ margin: 0, paddingLeft: 20, fontSize: 14, fontWeight: 400, color: '#475569', lineHeight: 1.7, textAlign: 'justify' }}>
             {topRisks.map((item, i) => <li key={i} style={{ marginBottom: i === topRisks.length - 1 ? 0 : 6 }}>{item}</li>)}
           </ul>
         </section>
@@ -238,7 +243,7 @@ export default function AnalysisResult({ data }) {
 
       {/* ═══════════ 第三块：指标雷达图 ═══════════ */}
       <div style={{ background: '#fff', borderRadius: 6, border: '1px solid #e2e8f0', padding: 24, marginBottom: 16, boxShadow: '0 1px 2px rgba(0,0,0,0.04)' }}>
-        <h2 style={{ fontSize: 16, fontWeight: 900, margin: '0 0 16px', color: '#0f172a', textAlign: 'center' }}>📊 指标雷达图</h2>
+        <h2 style={{ fontSize: 17, fontWeight: 900, margin: '0 0 16px', color: '#0f172a', textAlign: 'center' }}>📊 指标雷达图</h2>
         <div style={{ display: 'flex', justifyContent: 'center' }}>
           <RadarChart scores={(() => {
             const ORDER = ['人口密集度', '交通可达性', '客流特征', '消费人群', '竞争环境', '互补业态', '品类优势', '成本压力']
@@ -252,16 +257,16 @@ export default function AnalysisResult({ data }) {
 
       {/* ═══════════ 第四块：维度评分卡片 ═══════════ */}
       <div style={{ background: '#fff', borderRadius: 6, border: '1px solid #e2e8f0', padding: 24, marginBottom: 16 }}>
-        <h2 style={{ fontSize: 16, fontWeight: 900, margin: '0 0 12px', color: '#0f172a' }}>📈 维度评分</h2>
+        <h2 style={{ fontSize: 17, fontWeight: 900, margin: '0 0 12px', color: '#0f172a' }}>📈 维度评分</h2>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
           {primaryDims.map((d) => {
             const s = Number(d.score || 0)
             const sc = s >= 60 ? '#10b981' : s >= 40 ? '#f59e0b' : '#ef4444'
             return (
-              <div key={d.key} style={{ padding: '8px 10px', border: '1px solid #e2e8f0', borderRadius: 6, background: '#fff' }}>
+              <div key={d.key} style={{ padding: '10px 12px', border: '1px solid #e2e8f0', borderRadius: 6, background: '#fff' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-                  <strong style={{ fontSize: 12, color: '#334155' }}>{d.label || dimLabel[d.key]}</strong>
-                  <span style={{ fontSize: 14, fontWeight: 900, color: sc }}>{s || '-'}</span>
+                  <strong style={{ fontSize: 13, color: '#334155' }}>{d.label || dimLabel[d.key]}</strong>
+                  <span style={{ fontSize: 16, fontWeight: 900, color: sc }}>{s || '-'}</span>
                 </div>
                 <div style={{ height: 5, background: '#e5e7eb', borderRadius: 99, overflow: 'hidden' }}>
                   <div style={{ height: '100%', width: `${Math.max(0, Math.min(100, s))}%`, background: sc }} />
@@ -275,8 +280,8 @@ export default function AnalysisResult({ data }) {
       {/* ═══════════ 第五块：周边真实数据 ═══════════ */}
       {real_data && (
         <div style={{ background: '#fff', borderRadius: 6, border: '1px solid #e2e8f0', padding: 24, marginBottom: 16 }}>
-          <h2 style={{ fontSize: 16, fontWeight: 900, margin: '0 0 4px', color: '#0f172a' }}>📊 周边真实数据</h2>
-          <p style={{ fontSize: 10, color: '#94a3b8', margin: '0 0 12px' }}>200m / 500m / 1000m 三层半径实时采集</p>
+          <h2 style={{ fontSize: 17, fontWeight: 900, margin: '0 0 4px', color: '#0f172a' }}>📊 周边真实数据</h2>
+          <p style={{ fontSize: 12, color: '#94a3b8', margin: '0 0 12px' }}>200m / 500m / 1000m 三层半径实时采集</p>
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6, marginBottom: 12 }}>
             <MetricBadge icon="🏘️" label="住宅小区"
@@ -314,28 +319,81 @@ export default function AnalysisResult({ data }) {
             <MetricBadge icon="🅿️" label="停车场"
               val={`${formatCount(real_data.poi_counts?.parking)} 个`} raw={real_data.raw_poi_counts?.parking} />
           </div>
-          <p style={{ fontSize: 9, color: '#94a3b8', marginBottom: 12, lineHeight: 1.4 }}>注：括号外为系统判定的有效商机数，已自动过滤诊所、培训机构、公司厂房等低关联干扰项</p>
+          <p style={{ fontSize: 11, color: '#94a3b8', marginBottom: 12, lineHeight: 1.4 }}>注：括号外为系统判定的有效商机数，已自动过滤诊所、培训机构、公司厂房等低关联干扰项</p>
 
-          {real_data.competitors_1000m > 0 && (
-            <div style={{ background: '#fff7ed', borderRadius: 6, padding: '10px 14px', marginBottom: 8, border: '1px solid #fed7aa' }}>
-              <p style={{ fontSize: 13, fontWeight: 700, color: '#dc2626', margin: '0 0 6px', textAlign: 'center' }}>⚔️ 同类店铺密度</p>
-              <div style={{ fontSize: 11, color: '#9a3412', lineHeight: 2, textAlign: 'center', marginBottom: 4 }}>
-                200m 共 <strong style={{ fontSize: 15, color: '#dc2626' }}>{formatCount(real_data.competitors_200m)}</strong> 家 · 500m 共 <strong style={{ fontSize: 15, color: '#dc2626' }}>{formatCount(real_data.competitors_500m)}</strong> 家 · 1km 共 <strong style={{ fontSize: 15, color: '#dc2626' }}>{formatCount(real_data.competitors_1000m)}</strong> 家
+          {/* ★ 严谨度提示：未启用时明确告知用户 */}
+          {!hasRigor && (
+            <div style={{ background: '#fffbeb', borderRadius: 6, padding: '8px 12px', marginBottom: 8, border: '1px solid #fde68a', fontSize: 11, color: '#92400e', textAlign: 'center', lineHeight: 1.5 }}>
+              ⚠️ 该业态暂无完整严谨分类规则，竞品结果仅供兼容参考。如需精准竞品分析，请联系管理员补充业态规则或使用严谨分类已覆盖的业态重新分析。
+            </div>
+          )}
+
+          {/* ★ 严谨度框架：直接竞品 */}
+          {(hasRigor || dc1000 > 0) && (
+            <div style={{ background: '#fef2f2', borderRadius: 6, padding: '12px 14px', marginBottom: 8, border: '1px solid #fecaca' }}>
+              <p style={{ fontSize: 14, fontWeight: 700, color: '#dc2626', margin: '0 0 4px', textAlign: 'center' }}>🎯 直接竞品（同类业态）</p>
+              <div style={{ fontSize: 13, color: '#9a3412', lineHeight: 2, textAlign: 'center' }}>
+                200m: <strong style={{ fontSize: 17, color: '#dc2626' }}>{formatCount(dc200)}</strong> ·
+                500m: <strong style={{ fontSize: 17, color: '#dc2626' }}>{formatCount(dc500)}</strong> ·
+                1km: <strong style={{ fontSize: 17, color: '#dc2626' }}>{formatCount(dc1000)}</strong>
               </div>
-              {real_data.competitor_list?.length > 0 && (
-                <div style={{ fontSize: 10, color: '#9a3412', lineHeight: 1.8, borderTop: '1px solid #fed7aa', paddingTop: 6, textAlign: 'center' }}>
-                  {real_data.competitor_list.slice(0, 10).map((c, i) => <span key={i} style={{ marginRight: 10 }}>· {c.name}（{c.distance}m）</span>)}
+              {dcList.length > 0 ? (
+                <div style={{ fontSize: 12, color: '#9a3412', lineHeight: 1.8, borderTop: '1px solid #fecaca', paddingTop: 6, marginTop: 4, textAlign: 'center' }}>
+                  {dcList.slice(0, 10).map((c, i) => (
+                    <span key={i} style={{ marginRight: 8 }}>· {c.name}（{c.distance}m）</span>
+                  ))}
+                </div>
+              ) : hasRigor && (
+                <div style={{ fontSize: 12, color: '#9a3412', lineHeight: 1.8, borderTop: '1px solid #fecaca', paddingTop: 6, marginTop: 4, textAlign: 'center' }}>
+                  1km内暂无直接竞品
+                </div>
+              )}
+              {!hasRigor && (
+                <div style={{ fontSize: 10, color: '#b45309', textAlign: 'center', marginTop: 4 }}>⚠️ 该业态暂无完整严谨分类规则，竞品结果仅供兼容参考</div>
+              )}
+            </div>
+          )}
+
+          {/* ★ 严谨度框架：替代消费压力 */}
+          {(real_data.substitute_competitors_1000m || 0) > 0 && (
+            <div style={{ background: '#fff7ed', borderRadius: 6, padding: '10px 14px', marginBottom: 8, border: '1px solid #fed7aa' }}>
+              <p style={{ fontSize: 13, fontWeight: 700, color: '#c2410c', margin: '0 0 4px', textAlign: 'center' }}>🔶 替代消费压力（非同业态，不计入直接竞品）</p>
+              <div style={{ fontSize: 11, color: '#9a3412', lineHeight: 1.6, textAlign: 'center' }}>
+                200m: {formatCount(real_data.substitute_competitors_200m)} · 500m: {formatCount(real_data.substitute_competitors_500m)} · 1km: {formatCount(real_data.substitute_competitors_1000m)}
+              </div>
+              {real_data.substitute_list?.length > 0 && (
+                <div style={{ fontSize: 11, color: '#9a3412', lineHeight: 1.6, borderTop: '1px solid #fed7aa', paddingTop: 4, marginTop: 4, textAlign: 'center' }}>
+                  {real_data.substitute_list.slice(0, 6).map((s, i) => (
+                    <span key={i} style={{ marginRight: 6 }}>· {s.name}（{s.distance}m）</span>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ★ 严谨度框架：客流锚点 */}
+          {(real_data.traffic_anchors_1000m || 0) > 0 && (
+            <div style={{ background: '#f0fdf4', borderRadius: 6, padding: '10px 14px', marginBottom: 8, border: '1px solid #bbf7d0' }}>
+              <p style={{ fontSize: 13, fontWeight: 700, color: '#166534', margin: '0 0 4px', textAlign: 'center' }}>🟢 客流锚点（商业活跃度参考 · 非竞品）</p>
+              <div style={{ fontSize: 11, color: '#15803d', lineHeight: 1.6, textAlign: 'center' }}>
+                200m: {formatCount(real_data.traffic_anchors_200m)} · 500m: {formatCount(real_data.traffic_anchors_500m)} · 1km: {formatCount(real_data.traffic_anchors_1000m)}
+              </div>
+              {real_data.traffic_anchor_list?.length > 0 && (
+                <div style={{ fontSize: 11, color: '#15803d', lineHeight: 1.6, borderTop: '1px solid #bbf7d0', paddingTop: 4, marginTop: 4, textAlign: 'center' }}>
+                  {real_data.traffic_anchor_list.slice(0, 8).map((a, i) => (
+                    <span key={i} style={{ marginRight: 6 }}>· {a.name}（{a.distance}m）</span>
+                  ))}
                 </div>
               )}
             </div>
           )}
 
           {real_data.hot_brands?.length > 0 && (
-            <div style={{ background: '#f0fdf4', borderRadius: 6, padding: '10px 14px', marginBottom: 8, border: '1px solid #bbf7d0' }}>
-              <p style={{ fontSize: 13, fontWeight: 700, color: '#15803d', margin: '0 0 6px', textAlign: 'center' }}>🏪 周边连锁品牌</p>
+            <div style={{ background: '#f8fafc', borderRadius: 6, padding: '10px 14px', marginBottom: 8, border: '1px solid #e2e8f0' }}>
+              <p style={{ fontSize: 13, fontWeight: 700, color: '#475569', margin: '0 0 4px', textAlign: 'center' }}>🏪 周边连锁品牌（含客流锚点品牌）</p>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, justifyContent: 'center' }}>
                 {real_data.hot_brands.map((b, i) => (
-                  <span key={i} style={{ background: '#fff', borderRadius: 4, padding: '3px 10px', fontSize: 11, color: '#334155', border: '1px solid #bbf7d0' }}>
+                  <span key={i} style={{ background: '#fff', borderRadius: 4, padding: '3px 10px', fontSize: 12, color: '#334155', border: '1px solid #e2e8f0' }}>
                     <strong>{b.name}</strong> <span style={{ color: '#94a3b8' }}>×{b.count}</span>
                   </span>
                 ))}
@@ -343,45 +401,51 @@ export default function AnalysisResult({ data }) {
             </div>
           )}
 
-          <div style={{ fontSize: 11, color: '#94a3b8', lineHeight: 1.6, textAlign: 'center' }}>
+          {/* 数据质量摘要 */}
+          {real_data.data_quality_notes?.length > 0 && (
+            <div style={{ background: '#f8fafc', borderRadius: 6, padding: '8px 12px', marginBottom: 8, border: '1px solid #e2e8f0', fontSize: 11, color: '#64748b', lineHeight: 1.6, textAlign: 'center' }}>
+              📊 数据质量：{real_data.data_quality_notes.map((note, i) => (
+                <span key={i}>{note}{i < real_data.data_quality_notes.length - 1 ? ' · ' : ''}</span>
+              ))}
+            </div>
+          )}
+
+          <div style={{ fontSize: 13, color: '#94a3b8', lineHeight: 1.6, textAlign: 'center' }}>
             {real_data.city && real_data.district && <span>{real_data.city} {real_data.district} {real_data.township || ''}</span>}
             {real_data.business_areas?.length > 0 && <span style={{ marginLeft: 12 }}>商圈：{real_data.business_areas.join('、')}</span>}
             {real_data.nearby_roads?.length > 0 && <span style={{ marginLeft: 12 }}>道路：{real_data.nearby_roads.join('、')}</span>}
           </div>
 
-          {/* POI Detail Lists — 周边各类POI名称与距离明细（表格化防溢出） */}
+          {/* POI Detail Lists — 周边各类POI名称与距离明细 */}
           {real_data.poi_lists && Object.keys(real_data.poi_lists).length > 0 && (
             <div style={{ marginTop: 12, borderTop: '1px solid #e2e8f0', paddingTop: 12 }}>
-              <p style={{ fontSize: 13, fontWeight: 700, color: '#1e293b', margin: '0 0 8px', textAlign: 'center' }}>📋 周边业态明细</p>
-              <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
-                <tbody>
-                  {[
-                    ['🏘️ 住宅', 'residential'], ['🏢 写字楼', 'office'], ['🏫 学校', 'schools'],
-                    ['🏥 医院', 'hospitals'], ['🛍️ 商场', 'shopping'], ['🍽️ 餐厅', 'restaurants'],
-                    ['☕ 茶饮', 'cafe_tea'], ['🍔 快餐', 'fast_food'], ['🥢 中餐', 'chinese_restaurants'],
-                    ['🍝 异国料理', 'foreign_restaurants'], ['🏨 酒店', 'hotels'], ['🚇 地铁', 'subway'],
-                    ['🚌 公交', 'bus'], ['🅿️ 停车', 'parking'], ['🏦 银行', 'banks'],
-                    ['🏪 便利店', 'convenience'], ['💊 药店', 'pharmacy'], ['🍺 酒吧', 'bars'],
-                  ].map(([iconLabel, key]) => {
-                    const items = real_data.poi_lists[key]
-                    if (!items || items.length === 0) return null
-                    return (
-                      <tr key={key} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                        <td style={{ width: 80, padding: '4px 6px', fontSize: 10, fontWeight: 700, color: '#334155', verticalAlign: 'top', whiteSpace: 'nowrap' }}>{iconLabel} ×{items.length}</td>
-                        <td style={{ padding: '4px 6px', fontSize: 10, color: '#64748b', lineHeight: 1.6, wordBreak: 'break-all', overflowWrap: 'break-word' }}>
-                          {items.slice(0, 8).map((poi, i) => (
-                            <span key={i} style={{ display: 'inline', marginRight: 4 }}>
-                              {poi.name}
-                              {poi.distance != null ? <span style={{ color: '#94a3b8' }}>({poi.distance}m)</span> : null}
-                            </span>
-                          ))}
-                          {items.length > 8 && <span style={{ color: '#94a3b8' }}> +{items.length - 8}更多</span>}
-                        </td>
-                      </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
+              <p style={{ fontSize: 15, fontWeight: 700, color: '#1e293b', margin: '0 0 8px', textAlign: 'center' }}>📋 周边业态明细</p>
+              {[
+                ['🏘️ 住宅', 'residential'], ['🏢 写字楼', 'office'], ['🏫 学校', 'schools'],
+                ['🏥 医院', 'hospitals'], ['🛍️ 商场', 'shopping'], ['🍽️ 餐厅', 'restaurants'],
+                ['☕ 茶饮', 'cafe_tea'], ['🍔 快餐', 'fast_food'], ['🥢 中餐', 'chinese_restaurants'],
+                ['🍝 异国料理', 'foreign_restaurants'], ['🏨 酒店', 'hotels'], ['🚇 地铁', 'subway'],
+                ['🚌 公交', 'bus'], ['🅿️ 停车', 'parking'], ['🏦 银行', 'banks'],
+                ['🏪 便利店', 'convenience'], ['💊 药店', 'pharmacy'], ['💅 美容', 'beauty'], ['🐾 宠物', 'pets'], ['🍺 酒吧', 'bars'],
+              ].map(([iconLabel, key]) => {
+                const items = real_data.poi_lists[key]
+                if (!items || items.length === 0) return null
+                return (
+                  <div key={key} style={{ marginBottom: 6 }}>
+                    <span style={{ fontSize: 13, fontWeight: 700, color: '#334155' }}>{iconLabel} ×{items.length}</span>
+                    <div style={{ fontSize: 12, color: '#475569', lineHeight: 1.7, marginTop: 2, wordBreak: 'break-all', overflowWrap: 'break-word' }}>
+                      {items.slice(0, 8).map((poi, i) => (
+                        <span key={i}>
+                          {poi.name}
+                          {poi.distance != null ? <span style={{ color: '#94a3b8' }}>({poi.distance}m)</span> : null}
+                          {i < Math.min(items.length, 8) - 1 ? '、' : ''}
+                        </span>
+                      ))}
+                      {items.length > 8 && <span style={{ color: '#94a3b8' }}> 等{items.length}个</span>}
+                    </div>
+                  </div>
+                )
+              })}
             </div>
           )}
         </div>
@@ -390,7 +454,7 @@ export default function AnalysisResult({ data }) {
       {/* ═══════════ 第六块：各维度详细分析 ═══════════ */}
       {details && Object.keys(details).length > 0 && (
         <div style={{ background: '#fff', borderRadius: 6, border: '1px solid #e2e8f0', padding: 24, marginBottom: 16 }}>
-          <h2 style={{ fontSize: 16, fontWeight: 900, margin: '0 0 12px', color: '#0f172a' }}>📝 各维度详细分析</h2>
+          <h2 style={{ fontSize: 17, fontWeight: 900, margin: '0 0 12px', color: '#0f172a' }}>📝 各维度详细分析</h2>
           {Object.entries(detailLabels).map(([key, label]) => {
             if (!details[key]) return null
             const ds = dimension_scores?.find(d => d.key === key)
@@ -399,11 +463,11 @@ export default function AnalysisResult({ data }) {
             return (
               <div key={key} style={{ padding: '14px 16px', background: '#f8fafc', borderRadius: 8, borderLeft: `4px solid ${sc}`, marginBottom: 12 }}>
                 <div style={{ marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <span style={{ fontSize: 16 }}>{dimEmoji[key] || ''}</span>
-                  <strong style={{ fontSize: 15, color: '#0f172a' }}>{label}</strong>
-                  {dimScore > 0 && <span style={{ fontSize: 14, fontWeight: 900, color: sc, marginLeft: 12 }}>{dimScore} 分</span>}
+                  <span style={{ fontSize: 18 }}>{dimEmoji[key] || ''}</span>
+                  <strong style={{ fontSize: 16, color: '#0f172a' }}>{label}</strong>
+                  {dimScore > 0 && <span style={{ fontSize: 15, fontWeight: 900, color: sc, marginLeft: 12 }}>{dimScore} 分</span>}
                 </div>
-                <p style={{ fontSize: 13, color: '#475569', lineHeight: 1.6, textAlign: 'justify', whiteSpace: 'pre-wrap', margin: 0 }}>{_stripScore(details[key])}</p>
+                <p style={{ fontSize: 15, color: '#475569', lineHeight: 1.7, textAlign: 'justify', whiteSpace: 'pre-wrap', margin: 0 }}>{_stripScore(details[key])}</p>
               </div>
             )
           })}
@@ -411,7 +475,7 @@ export default function AnalysisResult({ data }) {
       )}
 
       {/* ═══════════ 页脚 ═══════════ */}
-      <div style={{ textAlign: 'center', padding: '12px 16px', background: '#fff', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 11, color: '#94a3b8' }}>
+      <div style={{ textAlign: 'center', padding: '12px 16px', background: '#fff', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 12, color: '#94a3b8' }}>
         以上分析仅供参考，不构成投资建议。最终选址决策请结合实地考察、商务谈判等多方面因素综合判断。
       </div>
     </div>

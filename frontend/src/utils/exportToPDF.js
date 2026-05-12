@@ -118,7 +118,7 @@ function buildFullReportHTML(data, meta, qrcodeUrl = '', pdfConfig = {}) {
 
   const reportDate = date?.slice(0, 10) || new Date().toISOString().slice(0, 10)
   const nowStr = new Date().toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })
-  const footerText = pdfConfig.footer_text || 'AI 选址分析 · 商业数据决策平台'
+  const footerText = pdfConfig.footer_text || 'AI 选址分析 · 商业选址初筛参考'
 
   const detailLabels = {
     population_density: '人口密集度', traffic_accessibility: '交通与可达性', traffic_flow: '客流特征',
@@ -187,7 +187,7 @@ function buildFullReportHTML(data, meta, qrcodeUrl = '', pdfConfig = {}) {
   reportHtml += '<body style="margin:0 auto;background:#f8fafc;color:#1e293b;font-family:\'Microsoft YaHei\',sans-serif;width:800px;">'
 
   reportHtml += '<div style="width:100%;box-sizing:border-box;">' + pageOpen
-  reportHtml += '<div style="text-align:center;padding:22px 0 16px;background:#f8fafc;border-bottom:1px solid #e2e8f0"><h1 style="font-size:22px;font-weight:900;color:#1e40af;margin:0;letter-spacing:2px">址得选 · AI选址分析报告</h1><p style="font-size:10px;color:#94a3b8;margin:6px 0 0">商业选址数据决策平台 | 基于实时 POI 数据 + AI 多维度分析 | ' + nowStr + '</p></div>'
+  reportHtml += '<div style="text-align:center;padding:22px 0 16px;background:#f8fafc;border-bottom:1px solid #e2e8f0"><h1 style="font-size:22px;font-weight:900;color:#1e40af;margin:0;letter-spacing:2px">址得选 · AI选址分析报告</h1><p style="font-size:10px;color:#94a3b8;margin:6px 0 0">商业选址初筛参考工具 | 基于实时 POI 数据 + AI 多维度分析 | ' + nowStr + '</p></div>'
   reportHtml += '<div style="padding:16px 0 20px"><div style="background:#eff6ff;border-radius:10px;padding:12px 20px;margin-bottom:24px;font-size:12px;line-height:2.2;color:#334155">'
   reportHtml += '<div><span style="font-weight:700;color:#1e40af;display:inline-block;min-width:80px">📍 分析地址</span>' + escapeHtml(address || '-') + '</div>'
   if (brandName) reportHtml += '<div><span style="font-weight:700;color:#1e40af;display:inline-block;min-width:80px">🏷️ 分析品牌</span>' + escapeHtml(brandName) + '</div>'
@@ -231,14 +231,43 @@ function _buildRealDataHTML(rd, pageOpen, pageClose) {
     const color = hiColor || '#334155'
     return '<div style="flex:0 0 auto;width:calc(25% - 3px);padding:8px 4px;background:' + (color === '#dc2626' ? '#fef2f2' : color === '#16a34a' ? '#f0fdf4' : '#f7f8fa') + ';border-radius:6px;text-align:center;box-sizing:border-box"><div style="font-size:9px;color:#888;margin-bottom:1px">' + label + '</div><div style="font-size:12px;font-weight:700;color:' + color + '">' + (v1000 != null ? _fmt(v200) + ' / ' + _fmt(v500) + ' / ' + _fmt(v1000) : _fmt(v200) + ' 个') + '</div>' + (v1000 != null ? '<div style="font-size:7px;color:#aaa;margin-top:0">200m / 500m / 1000m</div>' : '') + '</div>'
   }).join('')
+  // ★ 严谨度 helper：新字段不存在才回退旧口径
+  const hasRigor = rd.rigor_enabled === true
+  const dc200 = hasRigor ? (rd.direct_competitors_200m ?? 0) : (rd.competitors_200m ?? 0)
+  const dc500 = hasRigor ? (rd.direct_competitors_500m ?? 0) : (rd.competitors_500m ?? 0)
+  const dc1000 = hasRigor ? (rd.direct_competitors_1000m ?? 0) : (rd.competitors_1000m ?? 0)
+  const dcList = hasRigor ? (rd.direct_competitor_list || []) : (rd.competitor_list || [])
+
+  // ★ 严谨度提示（未启用时）
+  let rigorWarningHTML = !hasRigor ? '<div style="background:#fffbeb;border-radius:6px;padding:8px 12px;margin-bottom:8px;border:1px solid #fde68a;font-size:10px;color:#92400e;text-align:center;line-height:1.5">⚠️ 该业态暂无完整严谨分类规则，竞品结果仅供兼容参考。</div>' : ''
+
+  // ★ 严谨度：直接竞品
   let compHTML = ''
-  if ((rd.competitors_1000m || 0) > 0) {
-    const clist = rd.competitor_list?.length ? '<div style="font-size:10px;color:#9a3412;line-height:1.8;border-top:1px solid #fed7aa;padding-top:8px;margin-top:8px;text-align:center">' + rd.competitor_list.slice(0, 12).map(c => '<span style="margin-right:12px">· ' + escapeHtml(c.name) + '（' + c.distance + 'm）</span>').join('') + '</div>' : ''
-    compHTML = '<div style="background:#fff7ed;border-radius:6px;padding:10px 14px;margin-bottom:8px;border:1px solid #fed7aa"><div style="font-size:13px;font-weight:700;color:#dc2626;margin-bottom:6px;text-align:center">⚔️ 同类店铺密度</div><div style="font-size:12px;color:#9a3412;line-height:2.2;text-align:center">200m 共 <strong style="font-size:16px;color:#dc2626">' + _fmt(rd.competitors_200m) + '</strong> 家 · 500m 共 <strong style="font-size:16px;color:#dc2626">' + _fmt(rd.competitors_500m) + '</strong> 家 · 1km 共 <strong style="font-size:16px;color:#dc2626">' + _fmt(rd.competitors_1000m) + '</strong> 家</div>' + clist + '</div>'
+  if (hasRigor || dc1000 > 0) {
+    const clist = dcList.length
+      ? '<div style="font-size:10px;color:#9a3412;line-height:1.8;border-top:1px solid #fecaca;padding-top:8px;margin-top:8px;text-align:center">' + dcList.slice(0, 12).map(c => '<span style="margin-right:12px">· ' + escapeHtml(c.name) + '（' + c.distance + 'm）</span>').join('') + '</div>'
+      : (hasRigor ? '<div style="font-size:10px;color:#9a3412;line-height:1.8;border-top:1px solid #fecaca;padding-top:8px;margin-top:8px;text-align:center">1km内暂无直接竞品</div>' : '')
+    const legacyNote = !hasRigor ? '<span style="font-size:10px;color:#b45309;display:block">⚠️ 该业态暂无完整严谨分类规则，竞品结果仅供兼容参考</span>' : ''
+    compHTML = '<div style="background:#fef2f2;border-radius:6px;padding:10px 14px;margin-bottom:8px;border:1px solid #fecaca"><div style="font-size:13px;font-weight:700;color:#dc2626;margin-bottom:6px;text-align:center">🎯 直接竞品（同类业态）</div><div style="font-size:12px;color:#9a3412;line-height:2.2;text-align:center">200m: <strong style="font-size:16px;color:#dc2626">' + _fmt(dc200) + '</strong> · 500m: <strong style="font-size:16px;color:#dc2626">' + _fmt(dc500) + '</strong> · 1km: <strong style="font-size:16px;color:#dc2626">' + _fmt(dc1000) + '</strong></div>' + clist + legacyNote + '</div>'
+  }
+  // ★ 替代消费压力（三层半径）
+  let subHTML = ''
+  if ((rd.substitute_competitors_1000m || 0) > 0) {
+    subHTML = '<div style="background:#fff7ed;border-radius:6px;padding:8px 14px;margin-bottom:8px;border:1px solid #fed7aa"><div style="font-size:12px;font-weight:700;color:#c2410c;margin-bottom:4px;text-align:center">🔶 替代消费压力（非同业态）</div><div style="font-size:10px;color:#9a3412;line-height:1.8;text-align:center">200m: ' + _fmt(rd.substitute_competitors_200m) + ' · 500m: ' + _fmt(rd.substitute_competitors_500m) + ' · 1km: ' + _fmt(rd.substitute_competitors_1000m) + '</div>' + ((rd.substitute_list || []).length > 0 ? '<div style="font-size:9px;color:#9a3412;line-height:1.6;border-top:1px solid #fed7aa;padding-top:4px;margin-top:4px;text-align:center">' + rd.substitute_list.slice(0,6).map(s => '· ' + escapeHtml(s.name) + '（' + s.distance + 'm）').join(' ') + '</div>' : '') + '</div>'
+  }
+  // ★ 客流锚点（三层半径）
+  let anchorHTML = ''
+  if ((rd.traffic_anchors_1000m || 0) > 0) {
+    anchorHTML = '<div style="background:#f0fdf4;border-radius:6px;padding:8px 14px;margin-bottom:8px;border:1px solid #bbf7d0"><div style="font-size:12px;font-weight:700;color:#166534;margin-bottom:4px;text-align:center">🟢 客流锚点（非竞品）</div><div style="font-size:10px;color:#15803d;line-height:1.8;text-align:center">200m: ' + _fmt(rd.traffic_anchors_200m) + ' · 500m: ' + _fmt(rd.traffic_anchors_500m) + ' · 1km: ' + _fmt(rd.traffic_anchors_1000m) + '</div>' + ((rd.traffic_anchor_list || []).length > 0 ? '<div style="font-size:9px;color:#15803d;line-height:1.6;border-top:1px solid #bbf7d0;padding-top:4px;margin-top:4px;text-align:center">' + rd.traffic_anchor_list.slice(0,8).map(a => '· ' + escapeHtml(a.name) + '（' + a.distance + 'm）').join(' ') + '</div>' : '') + '</div>'
   }
   let brandHTML = ''
   if (rd.hot_brands?.length) {
-    brandHTML = '<div style="background:#f0fdf4;border-radius:6px;padding:10px 14px;margin-bottom:8px;border:1px solid #bbf7d0"><div style="font-size:13px;font-weight:700;color:#15803d;margin-bottom:6px;text-align:center">🏪 周边连锁品牌</div><div style="font-size:11px;line-height:2.2;text-align:center">' + rd.hot_brands.map(b => '<span style="margin-right:14px;color:#333;white-space:nowrap"><strong>' + escapeHtml(b.name) + '</strong> ×' + b.count + (b.min_distance != null ? ' <span style="color:#888">（最近' + b.min_distance + 'm）</span>' : '') + '</span>').join('') + '</div></div>'
+    brandHTML = '<div style="background:#f8fafc;border-radius:6px;padding:10px 14px;margin-bottom:8px;border:1px solid #e2e8f0"><div style="font-size:12px;font-weight:700;color:#475569;margin-bottom:6px;text-align:center">🏪 周边连锁品牌（含客流锚点品牌）</div><div style="font-size:10px;line-height:2.2;text-align:center">' + rd.hot_brands.map(b => '<span style="margin-right:14px;color:#333;white-space:nowrap"><strong>' + escapeHtml(b.name) + '</strong> ×' + b.count + (b.min_distance != null ? ' <span style="color:#888">（最近' + b.min_distance + 'm）</span>' : '') + '</span>').join('') + '</div></div>'
+  }
+  // 数据质量摘要
+  let qualHTML = ''
+  if (rd.data_quality_notes?.length) {
+    qualHTML = '<div style="background:#f8fafc;border-radius:6px;padding:6px 12px;margin-bottom:8px;border:1px solid #e2e8f0;font-size:10px;color:#64748b;text-align:center;line-height:1.6">📊 数据质量：' + rd.data_quality_notes.map(n => escapeHtml(n)).join(' · ') + '</div>'
   }
   const infoLines = []
   if (rd.city) infoLines.push('📍 ' + escapeHtml(rd.city) + ' ' + escapeHtml(rd.district || '') + ' ' + escapeHtml(rd.township || ''))
@@ -252,20 +281,20 @@ function _buildRealDataHTML(rd, pageOpen, pageClose) {
       ['☕ 咖啡茶饮', 'cafe_tea'], ['🍔 快餐', 'fast_food'], ['🥢 中餐厅', 'chinese_restaurants'],
       ['🍝 异国料理', 'foreign_restaurants'], ['🏨 酒店', 'hotels'], ['🚇 地铁站', 'subway'],
       ['🚌 公交站', 'bus'], ['🅿️ 停车场', 'parking'], ['🏦 银行', 'banks'],
-      ['🏪 便利店', 'convenience'], ['💊 药店', 'pharmacy'], ['🍺 酒吧', 'bars'],
+      ['🏪 便利店', 'convenience'], ['💊 药店', 'pharmacy'], ['💅 美容', 'beauty'], ['🐾 宠物', 'pets'], ['🍺 酒吧', 'bars'],
     ]
-    let rows = ''
+    let blocks = ''
     for (const [iconLabel, key] of cats) {
       const items = rd.poi_lists[key]
       if (!items || items.length === 0) continue
-      const names = items.slice(0, 8).map(p => escapeHtml(p.name) + (p.distance != null ? '<span style="color:#94a3b8;font-size:9px">(' + p.distance + 'm)</span>' : '')).join('、')
-      rows += '<tr style="border-bottom:1px solid #f1f5f9"><td style="width:100px;padding:4px 8px;font-size:10px;font-weight:700;color:#334155;vertical-align:top;white-space:nowrap">' + iconLabel + ' ×' + items.length + '</td><td style="padding:4px 8px;font-size:10px;color:#475569;line-height:1.7;word-break:break-all;overflow-wrap:break-word">' + names + (items.length > 8 ? '<span style="color:#94a3b8"> 等' + items.length + '个</span>' : '') + '</td></tr>'
+      const names = items.slice(0, 8).map(p => escapeHtml(p.name) + (p.distance != null ? '<span style="color:#94a3b8">(' + p.distance + 'm)</span>' : '')).join('、')
+      blocks += '<div style="margin-bottom:5px"><span style="font-size:12px;font-weight:700;color:#334155">' + iconLabel + ' ×' + items.length + '</span><div style="font-size:11px;color:#475569;line-height:1.7;word-break:break-all;overflow-wrap:break-word">' + names + (items.length > 8 ? '<span style="color:#94a3b8"> 等' + items.length + '个</span>' : '') + '</div></div>'
     }
-    if (rows) {
-      poiListHTML = pageOpen + '<h2 style="font-size:16px;font-weight:900;margin:0 0 8px;color:#0f172a;padding-top:34px;text-align:center">📋 周边业态明细（名称 + 距离）</h2><p style="font-size:9px;color:#94a3b8;text-align:center;margin:0 0 12px">高德地图实时采集 · 最多展示前8条POI</p><table style="width:100%;border-collapse:collapse;table-layout:fixed;font-size:10px"><thead><tr style="background:#f0f4ff"><th style="width:96px;padding:6px 8px;color:#1e40af;text-align:left;border-bottom:2px solid #e2e8f0;font-size:10px">类别</th><th style="padding:6px 8px;color:#1e40af;text-align:left;border-bottom:2px solid #e2e8f0;font-size:10px">POI 名称（距离）</th></tr></thead><tbody>' + rows + '</tbody></table>' + pageClose
+    if (blocks) {
+      poiListHTML = pageOpen + '<h2 style="font-size:16px;font-weight:900;margin:0 0 8px;color:#0f172a;padding-top:34px;text-align:center">📋 周边业态明细（名称 + 距离）</h2><p style="font-size:9px;color:#94a3b8;text-align:center;margin:0 0 12px">高德地图实时采集 · 最多展示前8条POI</p>' + blocks + pageClose
     }
   }
-  return { main: '<section><h2 style="font-size:15px;font-weight:900;margin:0 0 8px;color:#0f172a">📊 周边真实数据（200m / 500m / 1000m 三层半径采集）</h2><div style="display:flex;flex-wrap:wrap;gap:3px;margin-bottom:6px">' + poiGrid + '</div><div style="font-size:7px;color:#aaa;text-align:center;margin-bottom:8px;line-height:1.5">注：以上为系统判定的有效商机数，已自动过滤诊所、培训机构、公司厂房等低关联干扰项</div>' + compHTML + brandHTML + (infoLines.length ? '<div style="font-size:11px;color:#888;line-height:1.8;text-align:center">' + infoLines.join(' · ') + '</div>' : '') + '</section>', poiPage: poiListHTML }
+  return { main: '<section><h2 style="font-size:15px;font-weight:900;margin:0 0 8px;color:#0f172a">📊 周边真实数据（200m / 500m / 1000m 三层半径采集）</h2><div style="display:flex;flex-wrap:wrap;gap:3px;margin-bottom:6px">' + poiGrid + '</div><div style="font-size:7px;color:#aaa;text-align:center;margin-bottom:8px;line-height:1.5">注：以上为系统判定的有效商机数，已自动过滤诊所、培训机构、公司厂房等低关联干扰项</div>' + rigorWarningHTML + compHTML + subHTML + anchorHTML + brandHTML + qualHTML + (infoLines.length ? '<div style="font-size:11px;color:#888;line-height:1.8;text-align:center">' + infoLines.join(' · ') + '</div>' : '') + '</section>', poiPage: poiListHTML }
 }
 
 function buildInlineRadarSVG(dims) {

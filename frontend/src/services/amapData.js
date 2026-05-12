@@ -1,5 +1,8 @@
 /**
- * 高德地图 JS API 2.0 POI 数据采集服务
+ * Deprecated: 当前正式分析链路已完全使用后端 AMap Web API 采集 real_data。
+ * 本文件仅保留旧版兼容，禁止用于正式报告。正式链路见 backend/services/amap_service.py。
+ *
+ * 高德地图 JS API 2.0 POI 数据采集服务（旧版）
  * 使用已加载的 AMap JS API 进行一次搜索 + 前端分类，速度快
  */
 
@@ -29,13 +32,10 @@ const TYPE_CLASSIFIERS = [
   ['购物服务;数码电子', 'shopping'],
   ['购物服务;药店', 'pharmacy'],
   ['购物服务', 'shopping'],
-  // === 生活服务 ===
-  ['生活服务;售票处', 'convenience'],
-  ['生活服务;旅行社', 'convenience'],
-  ['生活服务;美容美发', 'convenience'],
+  // === 生活服务 → 拆分 ===
+  ['生活服务;美容美发', 'beauty'],
+  ['生活服务;宠物服务', 'pets'],
   ['生活服务;洗衣店', 'convenience'],
-  ['生活服务;宠物服务', 'convenience'],
-  ['生活服务', 'convenience'],
   // === 商务住宅 ===
   ['商务住宅;住宅区', 'residential'],
   ['商务住宅;商务写字楼', 'office'],
@@ -44,11 +44,9 @@ const TYPE_CLASSIFIERS = [
   // === 医疗保健服务 ===
   ['医疗保健服务;综合医院', 'hospitals'],
   ['医疗保健服务;专科医院', 'hospitals'],
-  ['医疗保健服务;诊所', 'pharmacy'],
+  ['医疗保健服务;诊所', 'hospitals'],
   ['医疗保健服务;医药保健销售店', 'pharmacy'],
   ['医疗保健服务;药房', 'pharmacy'],
-  ['医疗保健服务;动物医疗', 'pharmacy'],
-  ['医疗保健服务', 'pharmacy'],
   // === 住宿服务 ===
   ['住宿服务', 'hotels'],
   // === 交通设施服务 ===
@@ -56,30 +54,19 @@ const TYPE_CLASSIFIERS = [
   ['交通设施服务;公交站', 'bus'],
   ['交通设施服务;停车场', 'parking'],
   ['交通设施服务;长途客运站', 'bus'],
-  ['交通设施服务', 'bus'],
   // === 科教文化服务 ===
   ['科教文化服务;学校', 'schools'],
-  ['科教文化服务;培训机构', 'schools'],
-  ['科教文化服务', 'schools'],
   // === 金融保险服务 ===
   ['金融保险服务', 'banks'],
   // === 体育休闲服务 ===
-  ['体育休闲服务;运动场馆', 'bars'],
   ['体育休闲服务;KTV', 'bars'],
   ['体育休闲服务;酒吧', 'bars'],
   ['体育休闲服务;网吧', 'bars'],
-  ['体育休闲服务', 'bars'],
-  // === 风景名胜 ===
-  ['风景名胜;公园', 'residential'],
-  ['风景名胜;风景名胜', 'residential'],
-  ['风景名胜', 'residential'],
-  // === 政府机构 ===
-  ['政府机构及社会团体', 'office'],
   // === 公司企业 ===
   ['公司企业', 'office'],
   // === 数字代码兜底 ===
   ['050100', 'chinese_restaurants'],
-  ['050200', 'chinese_restaurants'],
+  ['050200', 'foreign_restaurants'],
   ['050300', 'fast_food'],
   ['050400', 'bars'],
   ['050500', 'cafe_tea'],
@@ -90,12 +77,12 @@ const TYPE_CLASSIFIERS = [
   ['060300', 'convenience'],
   ['060400', 'shopping'],
   ['060000', 'shopping'],
-  ['070000', 'convenience'],
-  ['080000', 'bars'],
+  // 070000 生活服务大类 → 不展示
+  // 080000 体育休闲大类 → 不展示
   ['090100', 'hospitals'],
   ['090200', 'hospitals'],
   ['090300', 'hospitals'],
-  ['090400', 'hospitals'],
+  ['090400', 'pharmacy'],
   ['090500', 'hospitals'],
   ['090000', 'hospitals'],
   ['100000', 'hotels'],
@@ -104,15 +91,15 @@ const TYPE_CLASSIFIERS = [
   ['120200', 'office'],
   ['120000', 'residential'],
   ['130000', 'office'],
-  ['141200', 'schools'],
-  ['140000', 'schools'],
+  // 141200 培训 → 不展示
+  // 140000 科教大类 → 不展示
   ['150500', 'subway'],
   ['150200', 'bus'],
   ['150900', 'parking'],
-  ['150000', 'bus'],
+  // 150000 交通大类 → 不展示
   ['160100', 'banks'],
   ['160000', 'banks'],
-  ['170000', 'office'],
+  // 170000 政府机构 → 不展示
 ]
 
 // 聚合类别（用于初始化计数器）
@@ -122,6 +109,7 @@ const AGGREGATED_CATEGORIES = {
   shopping: 1, convenience: 1,
   residential: 1, office: 1, schools: 1, hotels: 1,
   subway: 1, bus: 1, parking: 1, hospitals: 1, pharmacy: 1, banks: 1,
+  beauty: 1, pets: 1,
 }
 
 const CATEGORY_LABELS = {
@@ -139,7 +127,27 @@ const CATEGORY_LABELS = {
   bus: '公交站',
   parking: '停车场',
   hospitals: '医院',
+  pharmacy: '药店',
   banks: '银行',
+  beauty: '美容美体',
+  pets: '宠物服务',
+}
+
+// ── 便利店名称脱水 ──
+const CONVENIENCE_KEEP = ["便利店","超市","小卖部","生鲜","水果","烟酒","百货店","杂货","便利","副食","日杂","蔬菜","肉","粮油"]
+const CONVENIENCE_DROP = ["废品","回收","养生","足疗","足道","彩票","中介","广告","装饰","装修","房产","地产","充电站","充电桩","售票","旅行社","劳务","人力","家政","搬家","开锁","疏通","驾校","文印","照相","刻章","缝纫","修理","修鞋","配钥匙","干洗","皮具护理","擦鞋","美发","理发","美容","美甲","纹身","按摩","采耳","洗浴","汗蒸","推拿","艾灸","拔罐","眼镜"]
+function isRealConvenience(name) {
+  for (const kw of CONVENIENCE_DROP) { if (name.includes(kw)) return false }
+  for (const kw of CONVENIENCE_KEEP) { if (name.includes(kw)) return true }
+  return false
+}
+// ── 药店名称脱水 ──
+const PHARMACY_KEEP = ["药店","药房","医药","大药房","药行","国药","同仁堂","老百姓","益丰","一心堂","健之佳","海王星辰","大参林"]
+const PHARMACY_DROP = ["器械","体验中心","门诊","诊所","医院","卫生院","体检","整形","美容","保健体验","理疗","养生馆","养生堂","生活馆"]
+function isRealPharmacy(name) {
+  for (const kw of PHARMACY_DROP) { if (name.includes(kw)) return false }
+  for (const kw of PHARMACY_KEEP) { if (name.includes(kw)) return true }
+  return false
 }
 
 const KNOWN_BRANDS = [
@@ -296,6 +304,11 @@ export async function collectLocationData(lng, lat, businessType = '') {
     const cat = classifyType(typeCode)
 
     if (cat && AGGREGATED_CATEGORIES[cat]) {
+      // ★ 名称脱水：便利店/药店名称不匹配则丢弃
+      const pname = p.name || ''
+      if (cat === 'convenience' && !isRealConvenience(pname)) continue
+      if (cat === 'pharmacy' && !isRealPharmacy(pname)) continue
+
       poiCounts[cat] += 1
       if (poiLists[cat].length < 10) {
         poiLists[cat].push({ name: p.name || '', distance: dist, address: p.address || '' })

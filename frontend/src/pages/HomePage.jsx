@@ -56,6 +56,108 @@ function FeatureTile({ tone, title, desc, icon }) {
   )
 }
 
+const ANALYSIS_STEP_CONFIG = [
+  { step: 1, label: 'POI 数据采集', shortLabel: '多渠道数据融合', range: [8, 28], icon: '◇' },
+  { step: 2, label: '数据脱水 & 竞品交叉比对', shortLabel: '样本清洗比对', range: [28, 52], icon: '◎' },
+  { step: 3, label: 'AI 商业评估模型', shortLabel: '智能模型计算', range: [52, 82], icon: '✦' },
+  { step: 4, label: '生成选址报告', shortLabel: '生成最优报告', range: [82, 100], icon: '☆' },
+]
+
+function AnalysisLoadingPanel({ analyzing, currentStep, analyzeSteps }) {
+  const [progress, setProgress] = useState(6)
+  const doneSteps = analyzeSteps
+    .filter(item => typeof item.step === 'number')
+    .map(item => item.step)
+  const maxDoneStep = doneSteps.length ? Math.max(...doneSteps) : 0
+  const activeStep = Math.min(Math.max(currentStep || maxDoneStep || 1, 1), 4)
+  const completed = maxDoneStep >= 4
+
+  useEffect(() => {
+    if (!analyzing) {
+      setProgress(6)
+      return
+    }
+
+    const activeConfig = ANALYSIS_STEP_CONFIG.find(item => item.step === activeStep) || ANALYSIS_STEP_CONFIG[0]
+    const [, stepCeiling] = activeConfig.range
+    const cap = completed ? 100 : Math.min(stepCeiling - 2, 96)
+
+    setProgress(prev => {
+      const floor = activeConfig.range[0]
+      if (completed) return Math.max(prev, 100)
+      return Math.max(prev, floor)
+    })
+
+    const timer = window.setInterval(() => {
+      setProgress(prev => {
+        if (completed) return Math.min(100, prev + 8)
+        if (prev >= cap) return prev
+        const distance = cap - prev
+        const easing = distance > 18 ? 2.4 : distance > 8 ? 1.2 : 0.35
+        return Math.min(cap, prev + easing)
+      })
+    }, 420)
+
+    return () => window.clearInterval(timer)
+  }, [analyzing, activeStep, completed])
+
+  const displayProgress = Math.round(progress)
+  const ringStyle = { '--analysis-progress': `${displayProgress * 3.6}deg` }
+
+  return (
+    <div className="analyze-console">
+      <div className="console-header">
+        <span className="console-dot" />
+        <span className="console-title">AI 选址分析引擎 V4.0</span>
+        <span className="console-status">{completed ? '报告生成完成' : 'AI 深度分析中...'}</span>
+        <span className="console-pulse" />
+      </div>
+
+      <div className="console-orbit" style={ringStyle}>
+        <span className="console-orbit-ring ring-a" />
+        <span className="console-orbit-ring ring-b" />
+        <span className="console-orbit-ring ring-c" />
+        <div className="console-progress-core">
+          <strong>{displayProgress}</strong>
+          <span>%</span>
+          <em>{completed ? '报告已生成' : 'AI 深度分析中'}</em>
+          <i />
+        </div>
+      </div>
+
+      <div className="console-stage-strip">
+        {ANALYSIS_STEP_CONFIG.slice(0, 3).map(item => (
+          <span key={item.step} className={activeStep === item.step ? 'active' : ''}>
+            <b>{item.icon}</b>
+            {item.shortLabel}
+          </span>
+        ))}
+      </div>
+
+      <div className="console-body">
+        {ANALYSIS_STEP_CONFIG.map(item => {
+          const evt = analyzeSteps.find(s => s.step === item.step)
+          const isDone = !!evt || maxDoneStep > item.step
+          const isCurrent = !isDone && activeStep === item.step
+          return (
+            <div key={item.step} className={`console-line ${isDone ? 'done' : ''} ${isCurrent ? 'active' : ''}`}>
+              <span className="console-caret" />
+              <span className="console-label">{item.label}</span>
+              <span className="console-msg">
+                {isDone ? '已完成' : isCurrent ? '分析中...' : '等待中'}
+              </span>
+            </div>
+          )
+        })}
+      </div>
+
+      <div className="console-footer">
+        {completed ? '报告已生成，正在加载结果...' : '请耐心等待，AI 正在深度分析中...'}
+      </div>
+    </div>
+  )
+}
+
 export default function HomePage() {
   const navigate = useNavigate()
   const [selectedLocation, setSelectedLocation] = useState(null)
@@ -246,7 +348,15 @@ export default function HomePage() {
   const handleAnalyze = useCallback(async () => {
     if (!validateForm()) return
 
-    const token = getToken()
+    let token = getToken()
+    if (!token) {
+      try {
+        const issued = await ensureToken()
+        token = issued?.token || getToken()
+      } catch {
+        token = ''
+      }
+    }
     if (!token) {
       setLoginModalOpen(true)
       showToast('请先注册或登录后再进行分析')
@@ -293,31 +403,59 @@ export default function HomePage() {
         throw new Error(errMsg)
       }
 
-      // ═══════════════════════════════════════════
-      // ★ 全缓冲读取 — 免疫 Vite 代理 / Nginx / uvicorn 缓冲层
-      // 不依赖流式 chunk：把全部数据读完再解析，然后逐行动画播放
-      // ═══════════════════════════════════════════
+      if (!resp.body?.getReader) {
+        throw new Error('当前浏览器不支持流式分析，请更换浏览器后重试')
+      }
+
+      // 真流式读取 SSE：每收到一个完整事件就立即更新进度。
       reader = resp.body.getReader()
       const decoder = new TextDecoder('utf-8')
+      let buffer = ''
       let rawBody = ''
+      let receivedEvents = 0
+      let finalResult = null
+
+      const handleSseEvent = (event) => {
+        if (!event) return
+        receivedEvents += 1
+        if (event.step === 'error') {
+          throw new Error(event.msg || '分析失败')
+        }
+        setCurrentStep(event.step)
+        setAnalyzeSteps(prev => [...prev, event])
+        if (event.step === 4) {
+          finalResult = event.result || null
+        }
+      }
 
       while (true) {
         const { done, value } = await reader.read()
         if (value) {
-          rawBody += decoder.decode(value, { stream: true })
+          const chunk = decoder.decode(value, { stream: !done })
+          rawBody += chunk
+          buffer += chunk
+
+          let boundary = buffer.indexOf('\n\n')
+          while (boundary !== -1) {
+            const segment = buffer.slice(0, boundary)
+            buffer = buffer.slice(boundary + 2)
+            handleSseEvent(_parseSseEvent(segment))
+            boundary = buffer.indexOf('\n\n')
+          }
         }
         if (done) break
       }
 
-      // ── 一次性切割全部 SSE 事件 ──
-      const allEvents = []
-      const segments = rawBody.split('\n\n')
-      for (const seg of segments) {
-        const event = _parseSseEvent(seg)
-        if (event) allEvents.push(event)
+      const tail = decoder.decode()
+      if (tail) {
+        rawBody += tail
+        buffer += tail
+      }
+      if (buffer.trim()) {
+        handleSseEvent(_parseSseEvent(buffer))
       }
 
-      if (allEvents.length === 0) {
+      if (receivedEvents === 0) {
         // ★ 纯 JSON 兜底：后端在流启动前抛了异常（如 LLM JSON 解析失败），
         // FastAPI 拦截异常并返回了普通 JSON 错误响应（而非 SSE 格式）。
         const trimmed = rawBody.trim()
@@ -353,21 +491,6 @@ export default function HomePage() {
         throw new Error(`分析服务返回异常 (${rawBody.length}字节)，请检查后端日志`)
       }
 
-      // ── 逐步骤动画播放（仿流式效果，每步延迟 300ms）──
-      let finalResult = null
-      for (const event of allEvents) {
-        if (event.step === 'error') {
-          throw new Error(event.msg || '分析失败')
-        }
-        setCurrentStep(event.step)
-        setAnalyzeSteps(prev => [...prev, event])
-        if (event.step === 4) {
-          finalResult = event.result || null
-        }
-        await new Promise(r => setTimeout(r, 300))
-      }
-
-      // ── 平滑收尾 ──
       if (finalResult) {
         setResult(finalResult)
         await new Promise(r => setTimeout(r, 500))
@@ -565,44 +688,11 @@ export default function HomePage() {
 
         {/* ── SSE 实时分析控制台 ── */}
         {analyzing && (
-          <div className="analyze-console">
-            <div className="console-header">
-              <span className="console-dot" />
-              <span className="console-title">AI 选址分析引擎 v4.0</span>
-              <span className="console-pulse" />
-            </div>
-            <div className="console-body">
-              {[1, 2, 3, 4].map(step => {
-                const evt = analyzeSteps.find(s => s.step === step)
-                const isDone = !!evt
-                const isCurrent = currentStep === step
-                const stepLabels = {
-                  1: 'POI 数据采集',
-                  2: '数据脱水 & 竞品交叉比对',
-                  3: 'AI 商业评估模型',
-                  4: '生成选址报告',
-                }
-                return (
-                  <div key={step} className={`console-line ${isDone ? 'done' : ''} ${isCurrent ? 'active' : ''}`}>
-                    <span className="console-caret">
-                      {isDone ? '✅' : isCurrent ? '▸' : '·'}
-                    </span>
-                    <span className="console-label">{stepLabels[step]}</span>
-                    {isDone && <span className="console-msg">{evt.msg}</span>}
-                    {isCurrent && !isDone && (
-                      <span className="console-msg">
-                        {analyzeSteps.find(s => s.step === step)?.msg || '处理中...'}
-                        <span className="console-blink">▌</span>
-                      </span>
-                    )}
-                  </div>
-                )
-              })}
-            </div>
-            <div className="console-footer">
-              {currentStep >= 4 ? '✅ 报告已生成，正在加载...' : '⏳ 请耐心等待，AI 正在深度分析中...'}
-            </div>
-          </div>
+          <AnalysisLoadingPanel
+            analyzing={analyzing}
+            currentStep={currentStep}
+            analyzeSteps={analyzeSteps}
+          />
         )}
 
         {result && !analyzing && (

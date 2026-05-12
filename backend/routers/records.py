@@ -132,26 +132,30 @@ def download_report_file(
     user: dict = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    """动态获取报告文件内容 — 通过 UUID 访问"""
+    """动态获取报告 HTML — 优先用 report_json 重建，防止旧 HTML 输出过期口径"""
     user_id = user["user_id"]
     record = _get_record_by_uuid(report_uuid, user_id, db)
     if not record:
         return HTMLResponse(content="<h2>记录不存在</h2>", status_code=404)
 
-    content = get_report_content(
-        record.id,
-        report_file=record.report_file,
-        report_url=record.report_url,
-    )
-    if not content and record.report_json:
+    content = None
+    if record.report_json:
         import json
         from services.storage_service import _build_report_html
         try:
             data = json.loads(record.report_json)
+            # ★ 存在 report_json 时优先动态重建，确保 rigor 等新口径生效
             html = _build_report_html(record.id, data, record.address, record.brand_desc)
             content = html.encode("utf-8")
         except Exception:
             pass
+
+    if not content:
+        content = get_report_content(
+            record.id,
+            report_file=record.report_file,
+            report_url=record.report_url,
+        )
 
     if content:
         return HTMLResponse(content=content, status_code=200)

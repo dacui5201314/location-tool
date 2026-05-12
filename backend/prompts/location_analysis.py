@@ -3,7 +3,7 @@
 根据业态配置（IndustryConfig）注入专属阈值和策略模板
 """
 import json
-from .industry_config import get_config, ENV_POI_MAP
+from .industry_config import get_config, ENV_POI_MAP, COMMON_LANGUAGE_RULES, get_rigor_for_config_key
 
 
 def build_system_prompt(business_type: str = "", config: dict = None) -> str:
@@ -72,6 +72,10 @@ def build_system_prompt(business_type: str = "", config: dict = None) -> str:
 3. 知名连锁→指出对散店的碾压优势；新品牌→指出区域老店壁垒。
 4. 【绝对红线——主营品类锁定】：你必须严格基于用户输入的品牌名称/描述来制定所有产品和营销策略！绝不允许为了迎合周边客群（如医院、学校、写字楼）而建议商家改变核心主营产品。例：如果品牌是擀面皮店，绝不能建议卖鸡蛋灌饼或粥——只能在擀面皮基础上给出套餐组合（如"面皮+肉夹馍+冰峰"三秦套餐）或时段引流建议（如午市推快速出餐的纯面皮档口）。策略必须围绕现有核心产品展开，不准跨界。
 
+# 🚫 报告严谨度铁律（违反任一条 = 报告作废）
+
+{chr(10).join(f'{i+1}. {rule}' for i, rule in enumerate(COMMON_LANGUAGE_RULES.values()))}
+
 # 输出语气与风格规范（强制遵守）
 
 ## 严禁暴露内部规则
@@ -96,20 +100,19 @@ def build_system_prompt(business_type: str = "", config: dict = None) -> str:
   - 地铁/公交缺失 → 仅归因于【交通可达性】，绝不允许说"因交通缺失导致竞争红海"
   - 竞品多 → 归因于【竞争环境激烈】，绝不允许扯上交通
   - 每条劣势只能归因于一个维度，禁止跨维度串线
-3. 定制化竞争分析：评估品牌在该区域的品牌势能——知名连锁能对散店形成降维打击；新品牌需面对老字号的地头蛇压力。
-4. 禁止虚构：如果品牌是区域性品牌或未知品牌，绝不虚构品牌背景，仅用选址业态通用逻辑推演。
 
 # 核心财务精算逻辑（当分析任务包含门店面积时强制激活）
 你必须基于提供的门店面积完成以下财务推演，结论以专家口吻直接输出，禁止使用"根据您提供的面积"等引导词：
-1. 租金成本推演：根据该地段商圈能级估算月租金（元/㎡/月），乘以门店面积得出月度房租总成本。无精准数据时基于城市及商圈能级合理估算并标注"(估)"。
-2. 盈亏平衡点：基于房租+人工（50㎡≈3人/100㎡≈5人/200㎡≈8人）+食材成本（餐饮约营收的30-35%），计算日均最低起保单量。
-3. 财务风险预警：如果预估日均客流无法覆盖门店面积对应的固定开支，必须在warning中给出明确的财务风险警示（如：按当前客流推算，月亏损约XX元）。
-4. 店型判断：≤30㎡为档口/外卖店型；30-80㎡为轻量堂食店型；80-200㎡为标准坐食店型；>200㎡为大型餐饮。根据店型给出匹配的经营建议。
+1. 租金成本推演：根据该地段商圈能级估算月租金区间（元/㎡/月），乘以门店面积得出月度房租范围。无精准数据时标注"模型假设"。
+2. 盈亏平衡点：给出盈亏平衡单量区间（如"日均 80-120 单"），标注假设条件。
+3. 财务风险预警：如果盈亏平衡区间的悲观值无法覆盖，在warning中警示。
+4. **必须输出保守/中性/乐观三档营收测算**，每档用区间（如"保守 60-80单/天"），列出全部假设并标注每个假设的置信度（高/中/低/模型假设）。
+5. **严格禁止单点精确数字**，如"日均183单""月营收23.6万""年利润47万"。所有数字必须是区间。
+6. 标注"估算，不代表承诺，需线下实测验证"。
 
 # 品牌/特色描述匹配逻辑（当分析任务包含品牌描述时强制激活）
 1. 精准竞争分析：不只看大类竞品数量，必须评估品牌描述的客单价与周边人群消费力的契合度。老旧小区 vs A级写字楼 → 消费力差距巨大。
 2. 错位竞争策略：如果周边竞品虽多但品牌描述的品类/价格带有独特性，从"红海"转化为"差异化优势"来分析。
-3. 选址定性：结合门店面积判断该店是"即买即走"的档口还是"需要环境氛围"的坐食店。大店但停车位严重不足 → 核心劣势。
 
 # 评分标准（重要：请严格使用0-100全量程，不要集中在60以上区间）
 - 80-100：该维度表现优秀（极少数位置能达到）
@@ -157,13 +160,13 @@ def build_system_prompt(business_type: str = "", config: dict = None) -> str:
   "details": {{
     "population_density": "引用住宅/写字楼/学校/医院数据推算人口量级，末尾「评分：XX」",
     "traffic_accessibility": "引用地铁/公交/停车场数据，按交通判定标准得出结论，末尾「评分：XX」",
-    "traffic_flow": "推算日均有效客流量（具体数字），分析峰谷时段，末尾「评分：XX」",
+    "traffic_flow": "推算日均有效客流量区间（禁止单点数字），分析峰谷时段，末尾「评分：XX」",
     "consumer_profile": "住宅vs办公vs学校比例，消费水平推断，末尾「评分：XX」",
     "competition": "引用竞品品牌名，标注🔴🟡🟢威胁等级，末尾「评分：XX」。评分<50时warning必须提及",
     "complementary_businesses": "配套协同效应，末尾「评分：XX」",
     "category_advantage": "该品类在此地的供需匹配度和切入机会，末尾「评分：XX」",
     "cost_estimate": "预估月租金范围（元/㎡/月）及性价比，末尾「评分：XX」",
-    "revenue_estimation": "日均单量、客单价、月营收、盈亏平衡单量（具体数字），基于客流和竞品数据推算",
+    "revenue_estimation": "保守/中性/乐观三档区间（禁止单点数字），每档标注假设及置信度（高/中/低/模型假设）",
     "site_suggestion": "{cfg.get('strategy_template', '针对该业态的具体落地策略')}"
   }}
 }}
@@ -412,30 +415,71 @@ def build_analysis_prompt(address: str, lng: float, lat: float,
 | 所有餐饮 | {ld.get('stats_200m', {}).get('restaurants', 0)} | {s500.get('restaurants', 0)} | {ld.get('stats_1000m', {}).get('restaurants', 0)} |
 | 中餐厅 | {ld.get('stats_200m', {}).get('chinese_restaurants', 0)} | {s500.get('chinese_restaurants', 0)} | {ld.get('stats_1000m', {}).get('chinese_restaurants', 0)} |
 | 快餐厅 | {ld.get('stats_200m', {}).get('fast_food', 0)} | {s500.get('fast_food', 0)} | {ld.get('stats_1000m', {}).get('fast_food', 0)} |
-| 咖啡茶饮 | {ld.get('stats_200m', {}).get('cafe_tea', 0)} | {s500.get('cafe_tea', 0)} | {ld.get('stats_1000m', {}).get('cafe_tea', 0)} |
+| 咖啡茶饮 | {ld.get('stats_200m', {}).get('cafe_tea', 0)} | {s500.get('cafe_tea', 0)} | {ld.get('stats_1000m', {}).get('cafe_tea', 0)} |"""]
 
-### 同品类竞品
+    # ★ 严谨度开关：仅认 rigor_enabled，不认字段存在
+    has_rigor = ld.get('rigor_enabled') is True
+
+    if has_rigor:
+        # ── 严谨框架：只注入新口径，绝对不注入旧 competitor_list ──
+        dc_list = ld.get('direct_competitor_list', [])
+        if dc_list:
+            dc_list_text = '\n'.join([f"  - {c['name']}（{c['distance']}米）"
+                                     for c in dc_list[:15]])
+        else:
+            dc_list_text = "（按当前业态严谨口径，1km 内未识别到明确直接竞品）"
+        parts.append(f"""
+### 🎯 直接竞品（同类业态 · 严谨口径）
+200m: {ld.get('direct_competitors_200m', 0)} 家 | 500m: {ld.get('direct_competitors_500m', 0)} 家 | 1000m: {ld.get('direct_competitors_1000m', 0)} 家
+{dc_list_text}
+**竞争维度的评分必须仅基于以上直接竞品数据。不得回退使用旧口径 competitors_* 或泛POI数量作为竞争评分依据。**""")
+
+        if ld.get('substitute_competitors_1000m') is not None:
+            sub_text = f"{ld.get('substitute_competitors_1000m', 0)} 家替代业态（如餐饮对便利鲜食/饮品的影响）"
+            sub_list = ld.get('substitute_list', [])
+            if sub_list:
+                sub_text += "\n" + '\n'.join([f"  - {c['name']}（{c['distance']}米）" for c in sub_list[:10]])
+            else:
+                sub_text += "\n（本轮未识别到明确替代消费压力）"
+            parts.append(f"""
+### 🔶 替代消费压力（非同业态 · 不计入直接竞品）
+{sub_text}
+**替代压力不影响直接竞品数量，仅在优势/劣势中定性提及。**""")
+
+        if ld.get('traffic_anchors_1000m') is not None:
+            anc_text = f"{ld.get('traffic_anchors_1000m', 0)} 个客流锚点"
+            anc_list = ld.get('traffic_anchor_list', [])
+            if anc_list:
+                anc_text += "\n" + '\n'.join([f"  - {c['name']}（{c['distance']}米）" for c in anc_list[:10]])
+            else:
+                anc_text += "\n（本轮未识别到明确客流锚点）"
+            parts.append(f"""
+### 🟢 客流锚点（商业活跃度参考 · 非竞品）
+{anc_text}
+**客流锚点品牌/业态只表示商业活跃度，绝对不得写成竞争品牌或计入竞争评分。**""")
+
+    else:
+        # ── 旧口径：该业态暂无严谨分类规则 ──
+        parts.append("""**⚠️ 该业态暂无完整严谨分类规则，以下竞品结果仅供兼容参考，不得作为正式评分依据。建议联系管理员补充业态规则。**""")
+        parts.append(f"""### 同品类竞品（旧口径·仅兼容）
 - 周边 200米 共 **{ld.get('competitors_200m', 0)}** 家
 - 周边 500米 共 **{ld.get('competitors_500m', 0)}** 家
-- 周边 1000米 共 **{ld.get('competitors_1000m', 0)}** 家"""]
+- 周边 1000米 共 **{ld.get('competitors_1000m', 0)}** 家
+**⚠️ 以上为旧口径竞品数量，不得作为竞争维度评分依据。建议重新分析以启用严谨口径。**""")
 
-    if ld.get('competitor_list'):
-        comp_list = '\n'.join([f"  - {c['name']}（{c['distance']}米）"
-                               for c in ld['competitor_list'][:15]])
-        parts.append(f"""
-### 竞品清单
+        if ld.get('competitor_list'):
+            comp_list = '\n'.join([f"  - {c['name']}（{c['distance']}米）"
+                                   for c in ld['competitor_list'][:15]])
+            parts.append(f"""
+### 竞品清单（旧口径·仅兼容）
 {comp_list}
-
-请在竞争分析中：
-1. 标注威胁等级：🔴高威胁（同类大品牌）、🟡中威胁（同类小品牌）、🟢低威胁
-2. 针对「{label}」给出面对这些竞品的具体应对打法
-""")
+**以上为旧口径列表，仅供参考，不得直接用于竞争评分。建议重新分析。**""")
 
     if ld.get('hot_brands'):
         brand_list = '\n'.join([f"  - {b['name']}：{b['count']} 家，最近 {b.get('min_distance', '?')}米"
                                 for b in ld['hot_brands'][:15]])
         parts.append(f"""
-### 周边连锁品牌
+### 周边连锁品牌（注意：含客流锚点品牌，不是所有品牌都是竞品）
 {brand_list}
 """)
 
@@ -452,7 +496,8 @@ def build_analysis_prompt(address: str, lng: float, lat: float,
     pre_disadvantages = []
 
     # === 维度1：竞品密度 (if/elif/else) —— ≤上限→优势，>下限→劣势，中间段→中性 ===
-    comp_200 = _int(ld.get('competitors_200m', 0))
+    # ★ 严谨框架下只用 direct_competitors；否则回退旧口径
+    comp_200 = _int(ld.get('direct_competitors_200m', 0) if has_rigor else ld.get('competitors_200m', 0))
     s_comp = sg.get("200m_competitors_lte")
     rf_comp = rf.get("200m_competitors_gt")
     if s_comp is not None and comp_200 <= _int(s_comp):
@@ -576,7 +621,7 @@ def build_analysis_prompt(address: str, lng: float, lat: float,
 **严格按交通判定标准得出结论**。引用地铁/公交/停车数据。
 
 ### 3. 客流特征
-推算日均有效客流量（具体数字），区分路过vs目的客流，工作日vs周末，早中晚时段分布。
+推算日均有效客流量区间（禁止单点数字），标注置信度，区分路过vs目的客流，工作日vs周末，早中晚时段分布。
 
 ### 4. 消费人群属性
 住宅vs办公vs学校比例，消费水平推断，与「{label}」目标客群匹配度。
@@ -592,16 +637,17 @@ def build_analysis_prompt(address: str, lng: float, lat: float,
 「{label}」在{scene_type}场景下的供需匹配度和具体切入机会。
 
 ### 8. 房租成本预估
-按该地段商圈能级估算月租金（元/㎡/月），若有门店面积({store_size}㎡)则输出：月租金=单价×面积的具体金额，并判断性价比。以"按{store_size}㎡店面核算..."为开头直接输出。
+按该地段商圈能级估算月租金区间（元/㎡/月），若有门店面积({store_size}㎡)则输出月租金范围。标注"模型假设"。
 
 ### 9. 营收测算模型
-必须包含以下具体数字：
-- 日均单量预估（基于商圈客流量和竞品密度推算）
-- 客单价（基于{label}业态和品牌定位估算）
-- 月营收 = 日均单量 × 客单价 × 30天
-- 月固定成本 = 房租 + 人工（按面积估人数×当地平均工资）+ 食材(营收×32%) + 水电杂费
-- 盈亏平衡单量 = 月固定成本 ÷ 客单价 ÷ 30天
-- 如果预估日均单量 < 盈亏平衡单量，必须在warning中明确警示
+★ 必须输出保守/中性/乐观三档区间，每档标注假设条件及置信度：
+- 日均单量区间（基于商圈客流量和竞品密度推算，置信度低/中/高）
+- 客单价区间（基于{label}业态和品牌定位估算）
+- 毛利率区间（标注假设或行业参考值）
+- 月固定成本区间：房租 + 人工 + 食材 + 水电杂费
+- 盈亏平衡单量区间
+- ★ 严格禁止单点精确数字（如"183单""23.6万"），所有数字必须是区间
+- 标注"模型估算，需线下实测验证，不代表承诺"
 
 ### 10. 选址分析与运营策略
 以冷练客观的商管顾问口吻，结合「{label}」的客单价和「{store_size}㎡」门店面积，输出至少3条可落地的经营动作。禁止使用"根据您提供的"等引导词，直接输出结论。""")

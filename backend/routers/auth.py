@@ -172,22 +172,22 @@ def _find_or_create_user(
 
 
 # ================================================================
-# 通用 Token 签发（device_id / wx_openid / phone）
+# 匿名设备 Token 签发（仅接受 device_id，严禁 phone/wx_openid）
 # ================================================================
 @router.post("/token")
 def get_token(
     device_id: str = Query("", description="设备指纹"),
-    wx_openid: str = Query("", description="微信 OpenID"),
-    phone: str = Query("", description="手机号"),
     channel: str = Query("web", description="注册来源"),
     request: Request = None,
     db: Session = Depends(get_db),
 ):
+    """仅用于匿名设备用户，不接受 phone 或 wx_openid。
+    手机号登录请用 /auth/login，微信授权请用 /auth/wechat/official。"""
+    if not device_id:
+        raise HTTPException(status_code=400, detail="device_id 不能为空")
     client_ip = _get_client_ip(request) if request else ""
     user, is_new, gift_note = _find_or_create_user(
         db,
-        wx_openid=wx_openid,
-        phone=phone,
         device_id=device_id,
         channel=channel,
         client_ip=client_ip,

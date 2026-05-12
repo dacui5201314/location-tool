@@ -129,17 +129,31 @@ def check_billing_access(user: User, cost: int = 1, db_session=None) -> BillingR
     )
 
 
-def refund_credits(user_id: int, amount: int = 1):
-    """原子化退还点数 — LLM/JSON解析异常时的资损兜底回滚"""
+def refund_credits(user_id: int, amount: int = 1, reason: str = ""):
+    """原子化退还点数 — LLM/JSON解析异常时的资损兜底回滚。写入REFUND记录。"""
     from database import SessionLocal
+    from models.db_models import BillingRecord
     db = SessionLocal()
     try:
+        user = db.query(User).filter(User.id == user_id).first()
+        if not user:
+            print(f"[CRITICAL] 退款失败：用户不存在 user_id={user_id}", flush=True)
+            return
+        before = user.balance_credits
         db.execute(
             update(User)
             .where(User.id == user_id)
             .values(balance_credits=User.balance_credits + amount)
         )
+        db.add(BillingRecord(
+            user_id=user_id,
+            amount=amount,
+            balance_after=before + amount,
+            record_type="REFUND",
+            reason=reason or "LLM/JSON 异常自动退款",
+        ))
         db.commit()
+        print(f"[SSE Guard] 退款成功 user_id={user_id} amount={amount} reason={reason}", flush=True)
     except Exception:
         db.rollback()
         import traceback

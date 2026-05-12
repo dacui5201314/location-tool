@@ -64,26 +64,18 @@ function parseDetail(text) {
   return { score, text: clean }
 }
 
-function buildRadarScores(details) {
+function buildRadarScores(dimensionScores) {
+  // ★ 直接从后端 dimension_scores 数组读取，不再从 details 文本正则解析
   const scores = {}
-  const dimKeys = ['population_density','traffic_accessibility','traffic_flow','consumer_profile','competition','complementary_businesses','category_advantage','cost_estimate']
-  dimKeys.forEach((k) => { scores[k] = parseDetail(details?.[k]).score })
+  if (Array.isArray(dimensionScores)) {
+    dimensionScores.forEach(d => { if (d.key) scores[d.key] = Number(d.score || 0) })
+  }
   return scores
 }
 
 function formatCount(num) {
   if (num === undefined || num === null) return '—'
   return num
-}
-
-function computeTotalScore(details) {
-  const scores = buildRadarScores(details)
-  const weights = {
-    population_density: 0.15, traffic_accessibility: 0.12, traffic_flow: 0.18,
-    consumer_profile: 0.15, competition: 0.20, complementary_businesses: 0.10,
-    category_advantage: 0.10, cost_estimate: 0.00,
-  }
-  return Math.round(Object.keys(weights).reduce((sum, k) => sum + (scores[k] || 0) * weights[k], 0))
 }
 
 function generateRadarSummary(scores, totalScore) {
@@ -102,6 +94,28 @@ function generateRadarSummary(scores, totalScore) {
 }
 
 const REPORT_WIDTH = 800
+
+function MetaItem({ icon, label, value, dim, accent, highlight, span }) {
+  return (
+    <div style={{
+      padding: '12px 18px',
+      borderBottom: '1px solid #f1f5f9',
+      borderRight: '1px solid #f1f5f9',
+      ...(span ? { gridColumn: '1 / -1' } : {}),
+    }}>
+      <div style={{ fontSize: 11, color: '#8b9cb3', marginBottom: 4, display: 'flex', alignItems: 'center', gap: 4 }}>
+        {icon} {label}
+      </div>
+      <div style={{
+        fontSize: 15, fontWeight: highlight ? 800 : 600,
+        color: highlight ? '#dc2626' : accent ? '#1e3a5f' : dim ? '#5a6d80' : '#1a1a2e',
+        wordBreak: 'break-all', overflowWrap: 'break-word', lineHeight: 1.5,
+      }}>
+        {value || '—'}
+      </div>
+    </div>
+  )
+}
 
 function SectionBox({ children, style }) {
   return (
@@ -128,6 +142,13 @@ export default function PdfExport({ selectedLocation, result, businessType, bran
 
   const { advantages, disadvantages, summary, details, warning, real_data } = result
   const hasRealData = real_data && Object.keys(real_data).length > 0
+
+  // ★ 严谨度：仅认 rigor_enabled
+  const hasRigor = real_data?.rigor_enabled === true
+  const dc200 = hasRigor ? (real_data.direct_competitors_200m ?? 0) : (real_data?.competitors_200m ?? 0)
+  const dc500 = hasRigor ? (real_data.direct_competitors_500m ?? 0) : (real_data?.competitors_500m ?? 0)
+  const dc1000 = hasRigor ? (real_data.direct_competitors_1000m ?? 0) : (real_data?.competitors_1000m ?? 0)
+  const dcList = hasRigor ? (real_data.direct_competitor_list || []) : (real_data?.competitor_list || [])
 
   const sectionH2 = (color = '#1a1a2e') => ({
     fontSize: 17, color, borderLeft: `4px solid ${color}`, paddingLeft: 12,
@@ -173,84 +194,73 @@ export default function PdfExport({ selectedLocation, result, businessType, bran
           </p>
         </div>
 
-        {/* META */}
+        {/* META — 现代化信息卡片 */}
         <div style={{
-          background: '#f0f4ff', borderRadius: 8, padding: '16px 22px',
-          fontSize: 13, lineHeight: 2.5,
+          background: '#fff', borderRadius: 10, padding: 0,
+          border: '1px solid #e8ecf1', overflow: 'hidden',
         }}>
-          <div style={{ display: 'flex' }}>
-            <span style={{ color: '#1e40af', fontWeight: 600, minWidth: 90 }}>📍 分析地址</span>
-            <span style={{ color: '#333', fontWeight: 600 }}>{selectedLocation.name}</span>
+          <div style={{
+            background: 'linear-gradient(135deg, #f8fafd 0%, #eef2ff 100%)',
+            padding: '12px 18px', borderBottom: '1px solid #e8ecf1',
+            fontSize: 14, fontWeight: 700, color: '#1e3a5f',
+            display: 'flex', alignItems: 'center', gap: 8,
+          }}>
+            📋 选址信息概要
           </div>
-          <div style={{ display: 'flex' }}>
-            <span style={{ color: '#1e40af', fontWeight: 600, minWidth: 90 }}>📌 详细地址</span>
-            <span style={{ color: '#333' }}>{selectedLocation.address || selectedLocation.name}</span>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 0, fontSize: 13 }}>
+            <MetaItem icon="📍" label="分析地址" value={selectedLocation.name} />
+            <MetaItem icon="📌" label="详细地址" value={selectedLocation.address || selectedLocation.name} dim />
+            {businessType && (
+              <MetaItem icon="🏪" label="选址业态" value={businessType} accent />
+            )}
+            {brandName && (
+              <MetaItem icon="🏷️" label="分析品牌" value={brandName} accent highlight />
+            )}
+            {hasRealData && real_data.city && (
+              <MetaItem icon="🏙️" label="所属区域" value={`${real_data.city} ${real_data.district || ''} ${real_data.township || ''}`} dim />
+            )}
+            <MetaItem icon="🌐" label="经纬度" value={`${selectedLocation?.location?.lng?.toFixed(6) ?? '—'}, ${selectedLocation?.location?.lat?.toFixed(6) ?? '—'}`} dim />
+            {hasRealData && real_data.business_areas?.length > 0 && (
+              <MetaItem icon="🏬" label="周边商圈" value={real_data.business_areas.join('、')} span />
+            )}
+            {hasRealData && real_data.nearby_roads?.length > 0 && (
+              <MetaItem icon="🛣️" label="周边道路" value={real_data.nearby_roads.join('、')} span />
+            )}
           </div>
-          <div style={{ display: 'flex' }}>
-            <span style={{ color: '#888', fontWeight: 600, minWidth: 90 }}>🌐 经纬度</span>
-            <span style={{ color: '#666' }}>{selectedLocation?.location?.lng?.toFixed(6) ?? '—'}, {selectedLocation?.location?.lat?.toFixed(6) ?? '—'}</span>
-          </div>
-          {businessType && (
-            <div style={{ display: 'flex' }}>
-              <span style={{ color: '#1e40af', fontWeight: 600, minWidth: 90 }}>🏪 选址业态</span>
-              <span style={{ color: '#1e40af', fontWeight: 700 }}>{businessType}</span>
-            </div>
-          )}
-          {brandName && (
-            <div style={{ display: 'flex' }}>
-              <span style={{ color: '#1e40af', fontWeight: 600, minWidth: 90 }}>🏷️ 分析品牌</span>
-              <span style={{ color: '#dc2626', fontWeight: 700, fontSize: 15 }}>{brandName}</span>
-            </div>
-          )}
-          {hasRealData && real_data.city && (
-            <div style={{ display: 'flex' }}>
-              <span style={{ color: '#888', fontWeight: 600, minWidth: 90 }}>🏙️ 所属区域</span>
-              <span style={{ color: '#666' }}>{real_data.city} {real_data.district} {real_data.township || ''}</span>
-            </div>
-          )}
-          {hasRealData && real_data.business_areas?.length > 0 && (
-            <div style={{ display: 'flex' }}>
-              <span style={{ color: '#888', fontWeight: 600, minWidth: 90 }}>🏬 周边商圈</span>
-              <span style={{ color: '#666' }}>{real_data.business_areas.join('、')}</span>
-            </div>
-          )}
-          {hasRealData && real_data.nearby_roads?.length > 0 && (
-            <div style={{ display: 'flex' }}>
-              <span style={{ color: '#888', fontWeight: 600, minWidth: 90 }}>🛣️ 周边道路</span>
-              <span style={{ color: '#666' }}>{real_data.nearby_roads.join('、')}</span>
-            </div>
-          )}
         </div>
       </div>
 
       {/* ===== DISCLAIMER ===== */}
-      <div data-section style={{ breakInside: 'avoid', marginBottom: 18 }}>
+      <div data-section style={{ breakInside: 'avoid', marginBottom: 14 }}>
         <div style={{
-          display: 'flex', justifyContent: 'center', alignItems: 'center',
-          padding: '12px 18px', borderRadius: 8,
+          display: 'flex', alignItems: 'flex-start', gap: 8,
+          padding: '10px 14px', borderRadius: 8,
           background: '#fffbeb', border: '1px solid #fde68a',
-          fontSize: 12, color: '#92400e', fontWeight: 600, textAlign: 'center',
+          fontSize: 12, lineHeight: 1.6, color: '#92400e',
         }}>
-          ⚠️ 本工具不提供"推荐/不推荐"结论，各维度评分仅供参考，最终决策请结合实地考察
+          <span style={{ flexShrink: 0, fontSize: 14 }}>💡</span>
+          <span>本工具不提供"推荐/不推荐"结论，各维度评分仅供参考，最终决策请结合实地考察与多方因素综合判断。</span>
         </div>
       </div>
 
       {warning && (
-        <div data-section style={{ breakInside: 'avoid', marginBottom: 18 }}>
+        <div data-section style={{ breakInside: 'avoid', marginBottom: 14 }}>
           <div style={{
-            padding: '12px 18px', borderRadius: 8,
+            display: 'flex', alignItems: 'flex-start', gap: 8,
+            padding: '10px 14px', borderRadius: 8,
             background: '#fef2f2', border: '1px solid #fecaca',
-            fontSize: 13, color: '#991b1b', fontWeight: 600, textAlign: 'center',
+            fontSize: 12, lineHeight: 1.6, color: '#991b1b',
           }}>
-            ⚠️ 风险提示：{warning}
+            <span style={{ flexShrink: 0, fontSize: 14 }}>⚠️</span>
+            <span><strong style={{ fontWeight: 800 }}>风险提示：</strong>{warning}</span>
           </div>
         </div>
       )}
 
       {/* ===== SUMMARY + SCORE ===== */}
       {summary && (() => {
-        const ts = computeTotalScore(details)
-        const scores = buildRadarScores(details)
+        const ts = result.score || result.overall_score || 0
+        const scores = buildRadarScores(result.dimension_scores)
         const scoreColor = ts >= 60 ? '#16a34a' : ts >= 40 ? '#ca8a04' : '#dc2626'
         const ringSize = 140
         const strokeW = 12
@@ -305,7 +315,7 @@ export default function PdfExport({ selectedLocation, result, businessType, bran
       {/* ===== RADAR CHART ===== */}
       {details && (
         <SectionBox style={{ textAlign: 'center' }}>
-          <RadarChart scores={buildRadarScores(details)} />
+          <RadarChart scores={buildRadarScores(result.dimension_scores)} />
         </SectionBox>
       )}
 
@@ -346,47 +356,94 @@ export default function PdfExport({ selectedLocation, result, businessType, bran
             注：括号外为系统判定的有效商机数，已自动过滤诊所、培训机构、公司厂房等低关联干扰项
           </div>
 
-          {/* Competitors */}
-          {(real_data.competitors_1000m > 0) && (
-            <div style={{
-              background: '#fff7ed', borderRadius: 8, padding: '16px 20px', marginBottom: 16,
-              border: '1px solid #fed7aa',
-            }}>
-              <div style={{ fontSize: 15, fontWeight: 700, color: '#dc2626', marginBottom: 10, textAlign: 'center' }}>
-                ⚔️ 同类店铺密度
+          {/* ★ 严谨度提示 */}
+          {!hasRigor && (
+            <div style={{ background: '#fffbeb', borderRadius: 8, padding: '10px 16px', marginBottom: 12, border: '1px solid #fde68a', fontSize: 12, color: '#92400e', textAlign: 'center', lineHeight: 1.6 }}>
+              ⚠️ 该业态暂无完整严谨分类规则，竞品结果仅供兼容参考。如需精准竞品分析，请联系管理员补充业态规则。
+            </div>
+          )}
+
+          {/* ★ 严谨度：直接竞品 */}
+          {(hasRigor || dc1000 > 0) && (
+            <div style={{ background: '#fef2f2', borderRadius: 8, padding: '14px 20px', marginBottom: 12, border: '1px solid #fecaca' }}>
+              <div style={{ fontSize: 14, fontWeight: 700, color: '#dc2626', marginBottom: 8, textAlign: 'center' }}>🎯 直接竞品（同类业态）</div>
+              <div style={{ fontSize: 13, color: '#9a3412', lineHeight: 2.2, marginBottom: 6, textAlign: 'center' }}>
+                200m: <strong style={{ fontSize: 18, color: '#dc2626' }}>{formatCount(dc200)}</strong> ·
+                500m: <strong style={{ fontSize: 18, color: '#dc2626' }}>{formatCount(dc500)}</strong> ·
+                1km: <strong style={{ fontSize: 18, color: '#dc2626' }}>{formatCount(dc1000)}</strong>
               </div>
-              <div style={{ fontSize: 13, color: '#9a3412', lineHeight: 2.4, marginBottom: 8, textAlign: 'center' }}>
-                <span style={{ marginRight: 20 }}>· 200m 共 <strong style={{ fontSize: 18, color: '#dc2626' }}>{formatCount(real_data.competitors_200m)}</strong> 家</span>
-                <span style={{ marginRight: 20 }}>· 500m 共 <strong style={{ fontSize: 18, color: '#dc2626' }}>{formatCount(real_data.competitors_500m)}</strong> 家</span>
-                <span>· 1km 共 <strong style={{ fontSize: 18, color: '#dc2626' }}>{formatCount(real_data.competitors_1000m)}</strong> 家</span>
+              {dcList.length > 0 ? (
+                <div style={{ fontSize: 11, color: '#9a3412', lineHeight: 2, borderTop: '1px solid #fecaca', paddingTop: 8, textAlign: 'center' }}>
+                  {dcList.slice(0, 12).map((c, i) => (
+                    <span key={i} style={{ marginRight: 14 }}>· {c.name}（{c.distance}m）</span>
+                  ))}
+                </div>
+              ) : hasRigor && (
+                <div style={{ fontSize: 11, color: '#9a3412', lineHeight: 2, borderTop: '1px solid #fecaca', paddingTop: 8, textAlign: 'center' }}>
+                  1km内暂无直接竞品
+                </div>
+              )}
+              {!hasRigor && (
+                <div style={{ fontSize: 10, color: '#b45309', textAlign: 'center', marginTop: 4 }}>⚠️ 该业态暂无完整严谨分类规则，竞品结果仅供兼容参考</div>
+              )}
+            </div>
+          )}
+
+          {/* ★ 严谨度：替代消费压力 */}
+          {(real_data.substitute_competitors_1000m || 0) > 0 && (
+            <div style={{ background: '#fff7ed', borderRadius: 8, padding: '12px 20px', marginBottom: 12, border: '1px solid #fed7aa' }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: '#c2410c', marginBottom: 6, textAlign: 'center' }}>🔶 替代消费压力（非同业态）</div>
+              <div style={{ fontSize: 11, color: '#9a3412', lineHeight: 1.8, textAlign: 'center' }}>
+                200m: {formatCount(real_data.substitute_competitors_200m)} · 500m: {formatCount(real_data.substitute_competitors_500m)} · 1km: {formatCount(real_data.substitute_competitors_1000m)}
               </div>
-              {real_data.competitor_list?.length > 0 && (
-                <div style={{ fontSize: 11, color: '#9a3412', lineHeight: 2, borderTop: '1px solid #fed7aa', paddingTop: 10, textAlign: 'center' }}>
-                  {real_data.competitor_list.slice(0, 12).map((c, i) => (
-                    <span key={i} style={{ marginRight: 16 }}>· {c.name}（{c.distance}m）</span>
+              {real_data.substitute_list?.length > 0 && (
+                <div style={{ fontSize: 10, color: '#9a3412', lineHeight: 1.8, borderTop: '1px solid #fed7aa', paddingTop: 6, marginTop: 4, textAlign: 'center' }}>
+                  {real_data.substitute_list.slice(0, 6).map((s, i) => (
+                    <span key={i} style={{ marginRight: 8 }}>· {s.name}（{s.distance}m）</span>
                   ))}
                 </div>
               )}
             </div>
           )}
 
-          {/* Hot Brands */}
-          {real_data.hot_brands?.length > 0 && (
-            <div style={{
-              background: '#f0fdf4', borderRadius: 8, padding: '16px 20px', marginBottom: 16,
-              border: '1px solid #bbf7d0',
-            }}>
-              <div style={{ fontSize: 15, fontWeight: 700, color: '#15803d', marginBottom: 10, textAlign: 'center' }}>
-                🏪 周边连锁品牌
+          {/* ★ 严谨度：客流锚点 */}
+          {(real_data.traffic_anchors_1000m || 0) > 0 && (
+            <div style={{ background: '#f0fdf4', borderRadius: 8, padding: '12px 20px', marginBottom: 12, border: '1px solid #bbf7d0' }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: '#166534', marginBottom: 6, textAlign: 'center' }}>🟢 客流锚点（商业活跃度 · 非竞品）</div>
+              <div style={{ fontSize: 11, color: '#15803d', lineHeight: 1.8, textAlign: 'center' }}>
+                200m: {formatCount(real_data.traffic_anchors_200m)} · 500m: {formatCount(real_data.traffic_anchors_500m)} · 1km: {formatCount(real_data.traffic_anchors_1000m)}
               </div>
-              <div style={{ fontSize: 12, lineHeight: 2.4, textAlign: 'center' }}>
+              {real_data.traffic_anchor_list?.length > 0 && (
+                <div style={{ fontSize: 10, color: '#15803d', lineHeight: 1.8, borderTop: '1px solid #bbf7d0', paddingTop: 6, marginTop: 4, textAlign: 'center' }}>
+                  {real_data.traffic_anchor_list.slice(0, 8).map((a, i) => (
+                    <span key={i} style={{ marginRight: 8 }}>· {a.name}（{a.distance}m）</span>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Hot Brands (客流锚点品牌标记) */}
+          {real_data.hot_brands?.length > 0 && (
+            <div style={{ background: '#f8fafc', borderRadius: 8, padding: '12px 20px', marginBottom: 12, border: '1px solid #e2e8f0' }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: '#475569', marginBottom: 8, textAlign: 'center' }}>🏪 周边连锁品牌（含客流锚点品牌）</div>
+              <div style={{ fontSize: 11, lineHeight: 2.2, textAlign: 'center' }}>
                 {real_data.hot_brands.map((b, i) => (
-                  <span key={i} style={{ marginRight: 18, color: '#333', whiteSpace: 'nowrap' }}>
+                  <span key={i} style={{ marginRight: 16, color: '#333', whiteSpace: 'nowrap' }}>
                     <strong>{b.name}</strong> ×{b.count}
                     {b.min_distance != null && <span style={{ color: '#888' }}>（最近{b.min_distance}m）</span>}
                   </span>
                 ))}
               </div>
+            </div>
+          )}
+
+          {/* 数据质量摘要 */}
+          {real_data.data_quality_notes?.length > 0 && (
+            <div style={{ background: '#f8fafc', borderRadius: 6, padding: '6px 12px', marginBottom: 10, border: '1px solid #e2e8f0', fontSize: 10, color: '#64748b', textAlign: 'center', lineHeight: 1.6 }}>
+              📊 数据质量：{real_data.data_quality_notes.map((note, i) => (
+                <span key={i}>{note}{i < real_data.data_quality_notes.length - 1 ? ' · ' : ''}</span>
+              ))}
             </div>
           )}
 
@@ -403,53 +460,39 @@ export default function PdfExport({ selectedLocation, result, businessType, bran
             )}
           </div>
 
-          {/* POI Detail Lists — 周边各类POI名称与距离明细（独立页，表格化防溢出） */}
+          {/* POI Detail Lists — 周边各类POI名称与距离明细（独立页，卡片式） */}
           {real_data.poi_lists && Object.keys(real_data.poi_lists).length > 0 && (
             <div data-section style={{ breakBefore: 'page', breakInside: 'avoid', marginBottom: 20, paddingTop: 10 }}>
               <h2 style={sectionH2('#1a1a2e')}>📋 周边业态明细（名称 + 距离）</h2>
               <p style={{ fontSize: 10, color: '#94a3b8', textAlign: 'center', margin: '0 0 10px' }}>
                 以下为高德地图实时采集的各类 POI 详细清单 · 最多展示前 8 条
               </p>
-              <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
-                <thead>
-                  <tr style={{ background: '#f0f4ff' }}>
-                    <th style={{ width: 100, padding: '5px 8px', fontSize: 10, color: '#1e40af', textAlign: 'left', borderBottom: '2px solid #e2e8f0' }}>类别</th>
-                    <th style={{ padding: '5px 8px', fontSize: 10, color: '#1e40af', textAlign: 'left', borderBottom: '2px solid #e2e8f0' }}>POI 名称（距离）</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {[
-                    ['🏘️ 住宅小区', 'residential'], ['🏢 写字楼', 'office'], ['🏫 学校', 'schools'],
-                    ['🏥 医院', 'hospitals'], ['🛍️ 购物商场', 'shopping'], ['🍽️ 餐厅', 'restaurants'],
-                    ['☕ 咖啡茶饮', 'cafe_tea'], ['🍔 快餐', 'fast_food'], ['🥢 中餐厅', 'chinese_restaurants'],
-                    ['🍝 异国料理', 'foreign_restaurants'], ['🏨 酒店', 'hotels'], ['🚇 地铁站', 'subway'],
-                    ['🚌 公交站', 'bus'], ['🅿️ 停车场', 'parking'], ['🏦 银行', 'banks'],
-                    ['🏪 便利店', 'convenience'], ['💊 药店', 'pharmacy'], ['🍺 酒吧', 'bars'],
-                  ].map(([iconLabel, key]) => {
-                    const items = real_data.poi_lists[key]
-                    if (!items || items.length === 0) return null
-                    return (
-                      <tr key={key} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                        <td style={{ width: 100, padding: '4px 8px', fontSize: 10, fontWeight: 700, color: '#334155', verticalAlign: 'top', whiteSpace: 'nowrap' }}>
-                          {iconLabel} ×{items.length}
-                        </td>
-                        <td style={{ padding: '4px 8px', fontSize: 10, color: '#475569', lineHeight: 1.7, wordBreak: 'break-all', overflowWrap: 'break-word' }}>
-                          {items.slice(0, 8).map((poi, i) => {
-                            const sep = i < Math.min(items.length, 8) - 1 ? '、' : ''
-                            return (
-                              <span key={i}>
-                                {poi.name}
-                                {poi.distance != null ? <span style={{ color: '#94a3b8' }}>（{poi.distance}m）</span> : null}{sep}
-                              </span>
-                            )
-                          })}
-                          {items.length > 8 && <span style={{ color: '#94a3b8' }}> 等{items.length}个</span>}
-                        </td>
-                      </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
+              {[
+                ['🏘️ 住宅小区', 'residential'], ['🏢 写字楼', 'office'], ['🏫 学校', 'schools'],
+                ['🏥 医院', 'hospitals'], ['🛍️ 购物商场', 'shopping'], ['🍽️ 餐厅', 'restaurants'],
+                ['☕ 咖啡茶饮', 'cafe_tea'], ['🍔 快餐', 'fast_food'], ['🥢 中餐厅', 'chinese_restaurants'],
+                ['🍝 异国料理', 'foreign_restaurants'], ['🏨 酒店', 'hotels'], ['🚇 地铁站', 'subway'],
+                ['🚌 公交站', 'bus'], ['🅿️ 停车场', 'parking'], ['🏦 银行', 'banks'],
+                ['🏪 便利店', 'convenience'], ['💊 药店', 'pharmacy'], ['💅 美容', 'beauty'], ['🐾 宠物', 'pets'], ['🍺 酒吧', 'bars'],
+              ].map(([iconLabel, key]) => {
+                const items = real_data.poi_lists[key]
+                if (!items || items.length === 0) return null
+                return (
+                  <div key={key} style={{ marginBottom: 6 }}>
+                    <span style={{ fontSize: 12, fontWeight: 700, color: '#334155' }}>{iconLabel} ×{items.length}</span>
+                    <div style={{ fontSize: 11, color: '#475569', lineHeight: 1.7, wordBreak: 'break-all', overflowWrap: 'break-word' }}>
+                      {items.slice(0, 8).map((poi, i) => (
+                        <span key={i}>
+                          {poi.name}
+                          {poi.distance != null ? <span style={{ color: '#94a3b8' }}>（{poi.distance}m）</span> : null}
+                          {i < Math.min(items.length, 8) - 1 ? '、' : ''}
+                        </span>
+                      ))}
+                      {items.length > 8 && <span style={{ color: '#94a3b8' }}> 等{items.length}个</span>}
+                    </div>
+                  </div>
+                )
+              })}
             </div>
           )}
         </SectionBox>
@@ -549,7 +592,7 @@ export default function PdfExport({ selectedLocation, result, businessType, bran
           lineHeight: 2,
         }}>
           <p style={{ margin: 0, fontWeight: 600, color: '#334155' }}>
-            {pdfConfig.footer_text || 'AI 选址分析 · 商业数据决策平台'}
+            {pdfConfig.footer_text || 'AI 选址分析 · 商业选址初筛参考'}
           </p>
           <p style={{ margin: '4px 0 0', fontSize: 10, color: '#94a3b8' }}>
             📄 本报告由 AI 选址分析工具基于实时 POI 数据自动生成 | 仅供参考

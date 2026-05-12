@@ -2431,32 +2431,34 @@ textarea {
 
 .records-filter-tabs {
   display: grid;
-  grid-auto-columns: minmax(96px, 1fr);
+  grid-auto-columns: minmax(78px, 1fr);
   grid-auto-flow: column;
-  gap: 12px;
+  gap: 8px;
   overflow-x: auto;
-  margin: 22px -18px 0;
-  padding: 0 18px 4px;
+  margin: 18px -18px 0;
+  padding: 0 18px 3px;
 }
 
 .records-filter-tabs button {
   display: inline-flex;
-  min-height: 48px;
+  min-height: 38px;
   align-items: center;
   justify-content: center;
-  gap: 16px;
+  gap: 8px;
   border: 1px solid rgba(18, 43, 112, 0.06);
   border-radius: 8px;
   background: rgba(255, 255, 255, 0.86);
   color: #172c69;
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 900;
-  box-shadow: 0 12px 28px rgba(13, 35, 88, 0.06);
+  padding: 0 12px;
+  box-shadow: 0 8px 18px rgba(13, 35, 88, 0.05);
   white-space: nowrap;
 }
 
 .records-filter-tabs button em {
   color: #9aa8ca;
+  font-size: 14px;
   font-style: normal;
   font-weight: 950;
 }
@@ -2465,7 +2467,7 @@ textarea {
   border-color: transparent;
   background: linear-gradient(135deg, #126dff 0%, #8c4bec 100%);
   color: #fff;
-  box-shadow: 0 14px 30px rgba(51, 100, 255, 0.26);
+  box-shadow: 0 10px 22px rgba(51, 100, 255, 0.24);
 }
 
 .records-filter-tabs .is-active em {
@@ -5075,4 +5077,445 @@ textarea {
   text-align: center;
   letter-spacing: .5px;
   text-shadow: 0 0 12px rgba(125, 211, 252, 0.18);
+}
+
+/* Premium AI analysis loading panel */
+.analyze-console {
+  margin-top: 14px;
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  border-radius: 8px;
+  border: 1px solid rgba(111, 167, 255, 0.24);
+  background:
+    radial-gradient(circle at 50% 26%, rgba(30, 101, 255, 0.28), transparent 28%),
+    radial-gradient(circle at 50% 53%, rgba(36, 214, 255, 0.14), transparent 34%),
+    linear-gradient(180deg, #121e36 0%, #071020 45%, #07101f 100%);
+  box-shadow:
+    0 24px 58px rgba(8, 19, 43, 0.28),
+    0 0 0 1px rgba(255, 255, 255, 0.04) inset,
+    0 0 48px rgba(37, 99, 255, 0.16);
+  font-family: "SF Pro Display", "PingFang SC", "Microsoft YaHei", sans-serif;
+  color: #dbeafe;
+  animation: console-in .32s ease-out;
+}
+
+.analyze-console::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -2;
+  background-image:
+    linear-gradient(rgba(96, 165, 250, 0.08) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(96, 165, 250, 0.06) 1px, transparent 1px);
+  background-size: 34px 34px;
+  mask-image: radial-gradient(circle at 50% 38%, rgba(0, 0, 0, 0.9), transparent 74%);
+}
+
+.analyze-console::after {
+  content: "";
+  position: absolute;
+  inset: -32% -10%;
+  z-index: -1;
+  background:
+    linear-gradient(115deg, transparent 43%, rgba(69, 146, 255, 0.18) 50%, transparent 57%),
+    radial-gradient(circle at 50% 48%, rgba(56, 189, 248, 0.26), transparent 11%);
+  animation: console-scan 4.2s linear infinite;
+}
+
+.console-header {
+  display: flex;
+  min-height: 54px;
+  align-items: center;
+  gap: 10px;
+  padding: 0 18px;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.14);
+  background: rgba(10, 21, 40, 0.72);
+  backdrop-filter: blur(16px);
+}
+
+.console-dot,
+.console-pulse {
+  width: 11px;
+  height: 11px;
+  flex: 0 0 auto;
+  border-radius: 999px;
+  background: #3b82f6;
+  box-shadow: 0 0 12px rgba(59, 130, 246, 0.95), 0 0 26px rgba(59, 130, 246, 0.5);
+}
+
+.console-dot {
+  animation: console-dot-breathe 1.8s ease-in-out infinite;
+}
+
+.console-pulse {
+  animation: console-pulse 1.25s ease-in-out infinite;
+}
+
+.console-title {
+  min-width: 0;
+  flex: 1;
+  color: #f8fbff;
+  font-family: "Courier New", monospace;
+  font-size: 13px;
+  font-weight: 900;
+  letter-spacing: 1px;
+  text-shadow: 0 0 18px rgba(147, 197, 253, 0.36);
+}
+
+.console-status {
+  flex: 0 0 auto;
+  color: rgba(203, 213, 225, 0.7);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.console-orbit {
+  --analysis-progress: 21.6deg;
+  position: relative;
+  width: min(72vw, 300px);
+  height: min(72vw, 300px);
+  margin: 22px auto 10px;
+  display: grid;
+  place-items: center;
+}
+
+.console-orbit::before {
+  content: "";
+  position: absolute;
+  inset: 18%;
+  border-radius: 999px;
+  background:
+    radial-gradient(circle, rgba(147, 197, 253, 0.2) 0 1px, transparent 1.7px),
+    radial-gradient(circle at 50% 100%, rgba(34, 211, 238, 0.46), transparent 28%);
+  background-size: 7px 7px, auto;
+  border: 1px solid rgba(147, 197, 253, 0.26);
+  box-shadow:
+    0 0 42px rgba(59, 130, 246, 0.42),
+    inset 0 0 36px rgba(29, 78, 216, 0.24);
+  animation: console-globe 7s linear infinite;
+}
+
+.console-orbit::after {
+  content: "";
+  position: absolute;
+  inset: 9%;
+  border-radius: 999px;
+  background:
+    conic-gradient(from -90deg, #3b82f6 var(--analysis-progress), rgba(59, 130, 246, 0.16) 0),
+    radial-gradient(circle, transparent 62%, rgba(24, 48, 92, 0.92) 63%);
+  filter: drop-shadow(0 0 12px rgba(59, 130, 246, 0.75));
+  mask-image: radial-gradient(circle, transparent 58%, #000 59%);
+}
+
+.console-orbit-ring {
+  position: absolute;
+  border-radius: 999px;
+  pointer-events: none;
+}
+
+.console-orbit-ring.ring-a {
+  width: 118%;
+  height: 34%;
+  border: 1px solid rgba(96, 165, 250, 0.36);
+  transform: rotate(-5deg);
+  box-shadow: 0 0 18px rgba(59, 130, 246, 0.25);
+}
+
+.console-orbit-ring.ring-b {
+  width: 86%;
+  height: 86%;
+  border: 1px solid rgba(125, 211, 252, 0.18);
+  animation: console-rotate 9s linear infinite;
+}
+
+.console-orbit-ring.ring-c {
+  width: 138%;
+  height: 42%;
+  bottom: 4%;
+  border: 1px solid rgba(96, 165, 250, 0.2);
+  transform: perspective(280px) rotateX(62deg);
+  box-shadow: 0 0 28px rgba(56, 189, 248, 0.22);
+}
+
+.console-progress-core {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: auto auto;
+  align-items: end;
+  justify-content: center;
+  min-width: 136px;
+  text-align: center;
+  color: #fff;
+}
+
+.console-progress-core strong {
+  font-size: 54px;
+  font-weight: 950;
+  line-height: 0.9;
+  text-shadow: 0 0 22px rgba(147, 197, 253, 0.64);
+}
+
+.console-progress-core span {
+  margin-left: 3px;
+  font-size: 24px;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.console-progress-core em {
+  grid-column: 1 / -1;
+  margin-top: 12px;
+  color: #dbeafe;
+  font-style: normal;
+  font-size: 13px;
+  font-weight: 900;
+  letter-spacing: 0.5px;
+}
+
+.console-progress-core i {
+  grid-column: 1 / -1;
+  justify-self: center;
+  width: 42px;
+  height: 8px;
+  margin-top: 11px;
+  background: radial-gradient(circle, #93c5fd 0 2px, transparent 3px);
+  background-size: 14px 8px;
+  opacity: 0.9;
+  animation: console-dots 1.1s steps(3) infinite;
+}
+
+.console-stage-strip {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0;
+  margin: 0 18px 14px;
+  border-top: 1px solid rgba(148, 163, 184, 0.14);
+  border-bottom: 1px solid rgba(148, 163, 184, 0.14);
+}
+
+.console-stage-strip span {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 42px;
+  color: rgba(226, 232, 240, 0.78);
+  font-size: 12px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.console-stage-strip span + span {
+  border-left: 1px solid rgba(148, 163, 184, 0.15);
+}
+
+.console-stage-strip span.active {
+  color: #ffffff;
+  text-shadow: 0 0 14px rgba(96, 165, 250, 0.5);
+}
+
+.console-stage-strip b {
+  color: #bfdbfe;
+  font-size: 15px;
+  line-height: 1;
+}
+
+.console-body {
+  margin: 0 18px 16px;
+  padding: 10px 14px;
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  border-radius: 8px;
+  background: rgba(13, 26, 49, 0.7);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  backdrop-filter: blur(14px);
+}
+
+.console-line {
+  display: grid;
+  grid-template-columns: 14px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  min-height: 39px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: rgba(148, 163, 184, 0.66);
+  font-size: 13px;
+  line-height: 1.4;
+  transition: color .25s ease;
+}
+
+.console-line + .console-line {
+  border-top: 1px solid rgba(148, 163, 184, 0.1);
+}
+
+.console-line.done,
+.console-line.active {
+  border-color: rgba(148, 163, 184, 0.1);
+  background: transparent;
+  transform: none;
+  box-shadow: none;
+}
+
+.console-line.done {
+  color: #bfdbfe;
+}
+
+.console-line.active {
+  color: #ffffff;
+}
+
+.console-caret {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: rgba(100, 116, 139, 0.75);
+  box-shadow: none;
+}
+
+.console-line.done .console-caret {
+  width: 18px;
+  height: 18px;
+  background: #3b82f6;
+  box-shadow: 0 0 16px rgba(59, 130, 246, 0.65);
+}
+
+.console-line.done .console-caret::before {
+  content: "";
+  display: block;
+  width: 7px;
+  height: 4px;
+  margin: 5px 0 0 5px;
+  border-left: 2px solid #07101f;
+  border-bottom: 2px solid #07101f;
+  transform: rotate(-45deg);
+}
+
+.console-line.active .console-caret {
+  background:
+    conic-gradient(#3b82f6 72%, rgba(59, 130, 246, 0.18) 0);
+  box-shadow: 0 0 14px rgba(59, 130, 246, 0.7);
+  animation: console-rotate 1s linear infinite;
+}
+
+.console-label {
+  min-width: 0;
+  overflow: hidden;
+  color: inherit;
+  font-size: 13px;
+  font-weight: 850;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.console-msg {
+  color: rgba(203, 213, 225, 0.62);
+  font-size: 12px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.console-line.done .console-msg {
+  color: #7db7ff;
+}
+
+.console-line.active .console-msg {
+  color: #60a5fa;
+}
+
+.console-footer {
+  margin: 0 18px 18px;
+  padding: 12px 14px;
+  border: 1px solid rgba(148, 163, 184, 0.1);
+  border-radius: 8px;
+  background: rgba(18, 33, 59, 0.68);
+  color: rgba(203, 213, 225, 0.72);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0;
+  text-align: center;
+  text-shadow: none;
+}
+
+@keyframes console-globe {
+  from { background-position: 0 0, center; }
+  to { background-position: 42px 0, center; }
+}
+
+@keyframes console-rotate {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes console-dots {
+  0% { opacity: 0.35; }
+  50% { opacity: 1; }
+  100% { opacity: 0.35; }
+}
+
+@media (max-width: 420px) {
+  .console-header {
+    min-height: 50px;
+    padding: 0 14px;
+  }
+
+  .console-title {
+    font-size: 12px;
+  }
+
+  .console-status {
+    display: none;
+  }
+
+  .console-orbit {
+    width: 252px;
+    height: 252px;
+    margin-top: 18px;
+  }
+
+  .console-progress-core strong {
+    font-size: 46px;
+  }
+
+  .console-stage-strip {
+    margin-inline: 12px;
+  }
+
+  .console-stage-strip span {
+    gap: 4px;
+    font-size: 10px;
+  }
+
+  .console-body,
+  .console-footer {
+    margin-inline: 12px;
+  }
+
+  .console-body {
+    padding-inline: 12px;
+  }
+
+  .console-label {
+    font-size: 12px;
+  }
+
+  .console-msg {
+    font-size: 11px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .analyze-console,
+  .analyze-console::after,
+  .console-dot,
+  .console-pulse,
+  .console-orbit::before,
+  .console-orbit-ring.ring-b,
+  .console-line.active .console-caret,
+  .console-progress-core i {
+    animation: none;
+  }
 }

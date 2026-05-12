@@ -165,6 +165,7 @@ export default function RecordsView() {
   const handleDownload = useCallback(async (record, e) => {
     e.stopPropagation()
     if (exportingPdf) return
+    // ★ 防御：已解锁的记录直接用实际状态，未解锁的也传真实状态由 hook 处理
     setExportingId(record.report_uuid)
 
     try {
@@ -194,9 +195,11 @@ export default function RecordsView() {
       })
 
       if (result?.ok && result?.unlocked) {
+        // ★ 解锁成功后同步更新列表状态
         const updated = records.map(r => r.report_uuid === record.report_uuid ? { ...r, is_pdf_unlocked: true } : r)
         setLocalRecords(updated)
       }
+      // ★ isPdfUnlocked 已为 true 时 hook 直接放行，不需要额外处理
     } catch {
       showToast('导出失败，请重试')
     } finally {
@@ -231,7 +234,7 @@ export default function RecordsView() {
       <header className="records-header">
         <div>
           <h2>分析记录</h2>
-          <p>历史分析，助力决策</p>
+          <p>历史分析，辅助参考</p>
         </div>
       </header>
 
@@ -267,12 +270,12 @@ export default function RecordsView() {
       </main>
 
       {deleteConfirmUuid && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setDeleteConfirmId(null)}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setDeleteConfirmUuid(null)}>
           <div className="mx-4 w-full max-w-sm rounded-xl bg-white p-6 shadow-2xl" onClick={e => e.stopPropagation()}>
             <h3 className="text-base font-bold text-slate-900">确定要删除该条分析记录吗？</h3>
             <p className="mt-2 text-sm leading-5 text-slate-500">删除后将无法恢复，报告文件也将一并销毁。</p>
             <div className="mt-5 flex gap-3">
-              <button onClick={() => setDeleteConfirmId(null)} disabled={deleting}
+              <button onClick={() => setDeleteConfirmUuid(null)} disabled={deleting}
                 className="flex-1 rounded-lg border border-slate-200 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-50">取消</button>
               <button onClick={handleDeleteConfirm} disabled={deleting}
                 className="flex-1 rounded-lg bg-red-600 py-2.5 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-50">

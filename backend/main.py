@@ -12,7 +12,7 @@ from fastapi.responses import StreamingResponse
 
 from models.schemas import AnalyzeRequest
 from prompts.location_analysis import build_system_prompt, build_analysis_prompt
-from prompts.industry_config import get_config, get_config_by_key
+from prompts.industry_config import get_config, get_config_by_key, BUSINESS_TYPE_TO_MASTER, get_rigor_for_config_key
 from services.amap_service import collect_location_data
 from ai_providers.unified import generate_llm_response
 from database import init_db, SessionLocal
@@ -57,12 +57,32 @@ def on_startup():
     init_db()
 
 
-# CORS: 生产环境应通过 CORS_ORIGINS 环境变量限制来源（逗号分隔），开发环境默认允许所有
-_cors_origins = os.getenv("CORS_ORIGINS", "*").split(",") if os.getenv("CORS_ORIGINS") else ["*"]
+# CORS: 生产环境必须显式设置 CORS_ORIGINS（逗号分隔），不允许 "*" 或空列表
+_cors_raw = os.getenv("CORS_ORIGINS", "").strip()
+_env = os.getenv("ENVIRONMENT", "development").strip().lower()
+if _env == "production":
+    if not _cors_raw:
+        raise RuntimeError(
+            "生产环境必须设置 CORS_ORIGINS 为具体域名（如 https://example.com），"
+            "不允许空值。如需本地开发，请设置 ENVIRONMENT=development。"
+        )
+    _cors_origins = [o.strip() for o in _cors_raw.split(",") if o.strip()]
+    if not _cors_origins:
+        raise RuntimeError(
+            "生产环境 CORS_ORIGINS 解析为空列表，必须包含至少一个具体域名。"
+        )
+    if any(o == "*" for o in _cors_origins):
+        raise RuntimeError(
+            "生产环境 CORS_ORIGINS 不允许包含 '*' 通配符，必须使用具体域名。"
+        )
+    _allow_creds = True  # 全部为具体域名时可开启
+else:
+    _cors_origins = [o.strip() for o in _cors_raw.split(",") if o.strip()] if _cors_raw else ["*"]
+    _allow_creds = True
 app.add_middleware(
     CORSMiddleware,
     allow_origins=_cors_origins,
-    allow_credentials=True,
+    allow_credentials=_allow_creds,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -219,7 +239,9 @@ async def analyze_location(req: AnalyzeRequest, user: dict = Depends(get_current
         _stream_ok = False  # ★ 流完整成功时置 True
         _refund_processed = False  # ★ 防双重退款
         _client_disconnect = False  # ★ 客户端主动断开不退款
-        _llm_server_error = False  # ★ 仅 LLM 500 级错误才退款
+        _llm_server_error = False  # ★ LLM 500 级错误
+        _llm_parse_error = False   # ★ JSON 解析失败 / 空响应 / 报告结构缺失
+        _amap_failed = False       # ★ AMap 采集失败（非调试模式）
         try:
             # ═══════════════════════════════════════════
             # Step 1 — POI 数据采集
@@ -229,12 +251,33 @@ async def analyze_location(req: AnalyzeRequest, user: dict = Depends(get_current
 
             real_data = None
             try:
-                cfg = get_config(req.business_type)
-                competitor_type = cfg.get("competitor_amap_types", "")
-                if not competitor_type:
-                    competitor_type = BUSINESS_TYPE_TO_AMAP.get(req.business_type, "")
+                # ★ 统一解析 cfg 和 config_key：优先 industry_id → 数据库 → get_config_by_key
+                config_key = ""
+                cfg = None
+                if req.industry_id:
+                    db_cfg = SessionLocal()
+                    try:
+                        row = db_cfg.query(BusinessIndustry).filter(
+                            BusinessIndustry.id == req.industry_id
+                        ).first()
+                        if row and row.config_key:
+                            config_key = row.config_key
+                            cfg = get_config_by_key(config_key)
+                    except Exception:
+                        pass
+                    finally:
+                        db_cfg.close()
+                if not cfg:
+                    cfg = get_config(req.business_type)
+                if not config_key:
+                    config_key = BUSINESS_TYPE_TO_MASTER.get(req.business_type, "")
+                # competitor_type 也来自同一份 cfg
+                competitor_type = cfg.get("competitor_amap_types", "") or BUSINESS_TYPE_TO_AMAP.get(req.business_type, "")
                 ld = await collect_location_data(
-                    req.location.lng, req.location.lat, competitor_type
+                    req.location.lng, req.location.lat,
+                    amap_type=competitor_type,
+                    config_key=config_key,
+                    business_type=req.business_type,
                 )
                 real_data = {
                     "city": ld.city,
@@ -258,13 +301,45 @@ async def analyze_location(req: AnalyzeRequest, user: dict = Depends(get_current
                     "competitors_1000m": ld.competitors_1000m,
                     "competitor_list": ld.competitor_list[:10],
                     "poi_lists": {k: v for k, v in ld.poi_lists.items()},
+                    # ★ 严谨度框架
+                    "direct_competitors_200m": ld.direct_competitors_200m,
+                    "direct_competitors_500m": ld.direct_competitors_500m,
+                    "direct_competitors_1000m": ld.direct_competitors_1000m,
+                    "direct_competitor_list": ld.direct_competitor_list,
+                    "substitute_competitors_200m": ld.substitute_competitors_200m,
+                    "substitute_competitors_500m": ld.substitute_competitors_500m,
+                    "substitute_competitors_1000m": ld.substitute_competitors_1000m,
+                    "substitute_list": ld.substitute_list,
+                    "traffic_anchors_200m": ld.traffic_anchors_200m,
+                    "traffic_anchors_500m": ld.traffic_anchors_500m,
+                    "traffic_anchors_1000m": ld.traffic_anchors_1000m,
+                    "traffic_anchor_list": ld.traffic_anchor_list,
+                    "irrelevant_excluded": ld.irrelevant_excluded,
+                    "data_quality_notes": ld.data_quality_notes,
+                    "rigor_enabled": bool(get_rigor_for_config_key(config_key)),
                 }
             except Exception:
                 import traceback
-                print("[WARN] ⚠️ 后端AMap数据采集失败，回退前端简化数据！请检查 AMAP_WEB_KEY 是否有效", flush=True)
-                print(f"[WARN] 前端数据容量: poi_lists={len(req.real_data.get('poi_lists', {}))}类, competitors={req.real_data.get('competitors_1000m', 0)}家", flush=True)
+                print("[CRITICAL] 后端AMap数据采集失败", flush=True)
                 traceback.print_exc()
-                real_data = req.real_data
+                # ★ 生产环境禁止使用客户端 real_data 参与评分
+                allow_fallback = os.getenv("ALLOW_CLIENT_REALDATA_FALLBACK", "").strip().lower() in ("1", "true", "yes")
+                if allow_fallback:
+                    fallback = req.real_data or {}
+                    print(f"[WARN] ALLOW_CLIENT_REALDATA_FALLBACK=true，回退前端数据: poi_lists={len(fallback.get('poi_lists', {}))}类", flush=True)
+                    real_data = fallback
+                else:
+                    _amap_failed = True
+                    real_data = {
+                        "city": "", "district": "", "township": "",
+                        "poi_counts": {}, "stats_200m": {}, "stats_500m": {}, "stats_1000m": {},
+                        "competitors_200m": 0, "competitors_500m": 0, "competitors_1000m": 0,
+                        "competitor_list": [], "poi_lists": {},
+                        "direct_competitors_200m": 0, "direct_competitors_500m": 0, "direct_competitors_1000m": 0,
+                        "direct_competitor_list": [],
+                        "data_quality_notes": ["数据采集失败：后端AMap服务不可用，报告数据不完整"],
+                        "rigor_enabled": False,
+                    }
 
             # ═══════════════════════════════════════════
             # Step 2 — 数据脱水与竞品交叉比对
@@ -275,14 +350,17 @@ async def analyze_location(req: AnalyzeRequest, user: dict = Depends(get_current
             # ═══════════════════════════════════════════
             # Step 3 — AI 大模型分析
             # ═══════════════════════════════════════════
+            if _amap_failed and not os.getenv("ALLOW_CLIENT_REALDATA_FALLBACK", "").strip().lower() in ("1", "true", "yes"):
+                raise RuntimeError("AMAP_DATA_COLLECTION_FAILED: 后端高德数据采集失败，无法生成有效分析报告。请检查 AMAP_WEB_KEY 配置。")
             yield _sse(3, "🧠 AI 消费水平测算中，正在构建商业评估模型...")
             await asyncio.sleep(0)
 
             runtime_llm = get_llm_config()
             custom_system_prompt = get_runtime_config_value("system_prompt", "").strip()
-            # ★ 数据驱动业态配置：industry_id → config_key → MASTER_TEMPLATES 配置
-            industry_config = None
+            # ★ 复用前面已解析的 cfg 和 config_key，避免重复查库
+            industry_config = cfg  # cfg 已在 POI 采集阶段统一解析
             industry_name = req.business_type or ""
+            # 专属 Prompt 注入（如有 industry_id）
             if req.industry_id:
                 db_local = SessionLocal()
                 try:
@@ -292,9 +370,6 @@ async def analyze_location(req: AnalyzeRequest, user: dict = Depends(get_current
                     ).first()
                     if industry:
                         industry_name = industry.name
-                        if industry.config_key:
-                            industry_config = get_config_by_key(industry.config_key)
-                        # 专属 Prompt 注入
                         if industry.exclusive_prompt and industry.exclusive_prompt.strip():
                             print(f"[SSE Prompt] 已注入业态专属规则: {industry.name} ({len(industry.exclusive_prompt)}字符)", flush=True)
                 except Exception as e:
@@ -334,10 +409,134 @@ async def analyze_location(req: AnalyzeRequest, user: dict = Depends(get_current
                 raise  # 继续上抛，由外层 except 统一处理
             raw_response = _extract_json(raw_response)
             result = json.loads(raw_response)
+
+            # ★ 报告结构校验：空/非dict/缺失关键字段 → 标记解析失败走退款
+            def _validate_report_payload(r):
+                if not isinstance(r, dict) or not r:
+                    return False, "LLM返回空或非dict"
+                details = r.get("details")
+                if not isinstance(details, dict) or not details:
+                    return False, "缺少details或details不是有效dict"
+                # 至少需要 advantages/disadvantages/summary/dimension_scores 中有2个
+                has_fields = sum(1 for k in ("advantages","disadvantages","summary","dimension_scores") if r.get(k))
+                if has_fields < 2:
+                    return False, f"关键报告字段严重缺失(仅{has_fields}/4)"
+                return True, ""
+            valid, fail_reason = _validate_report_payload(result)
+            if not valid:
+                print(f"[SSE Guard] 报告结构校验失败: {fail_reason}", flush=True)
+                _llm_parse_error = True
+                raise ValueError(f"报告结构不可用: {fail_reason}")
+
             result = normalize_report_result(result, weights=industry_config.get("radar_weights") if industry_config else None)
             result["provider"] = runtime_llm.get("provider", req.provider)
             result["error"] = None
             result["real_data"] = real_data
+
+            # ★ 报告事实校验：分句校验，杜绝半径交叉误伤
+            import re as _re
+            if real_data and isinstance(real_data, dict):
+                fact_errors = []
+                dims = result.get("dimension_scores", [])
+                if not isinstance(dims, list) or len(dims) < 8:
+                    fact_errors.append(f"dimension_scores 不足8维(仅{len(dims) if isinstance(dims, list) else 0}维)")
+                details = result.get("details", {}) or {}
+                exec_summary = result.get("executive_summary", {}) or {}
+                full_text = (
+                    json.dumps(details, ensure_ascii=False) + " " +
+                    json.dumps(result.get("advantages", []), ensure_ascii=False) + " " +
+                    json.dumps(result.get("disadvantages", []), ensure_ascii=False) + " " +
+                    json.dumps(exec_summary, ensure_ascii=False) + " " +
+                    json.dumps(result.get("action_plan", []), ensure_ascii=False) + " " +
+                    str(result.get("summary", ""))
+                )
+                # ── 分句 ──
+                sentences = _re.split(r'[。，；;、\n]+', full_text)
+                sentences = [s.strip() for s in sentences if s.strip()]
+
+                # ── 半径识别规则 ──
+                R200 = _re.compile(r'200米|200m|贴身')
+                R500 = _re.compile(r'500米|500m|步行圈')
+                R1K  = _re.compile(r'1km|1000米|1000m')
+                GENERIC = _re.compile(r'附近|周边|区域内|范围内|周围')
+
+                def _get_radius(sentence):
+                    """返回句子对应的半径：200m/500m/1000m/None"""
+                    if R200.search(sentence):
+                        return "200m"
+                    if R500.search(sentence):
+                        return "500m"
+                    if R1K.search(sentence):
+                        return "1000m"
+                    # 无明确半径但有泛半径词 → 视为 1000m 层
+                    if GENERIC.search(sentence):
+                        return "1000m"
+                    return None
+
+                def _check_sentence(sentence, field_path, expected, radius, subject_kw, units):
+                    """在单个句子内校验数字与 expected 是否冲突。radius 必须匹配才校验。"""
+                    sent_radius = _get_radius(sentence)
+                    if sent_radius != radius:
+                        return []  # 半径不匹配，跳过
+                    # 检查句内是否有目标主题词
+                    if not any(kw in sentence for kw in subject_kw):
+                        return []
+                    # 提取句内所有数字+单位对
+                    unit_pat = "|".join(units)
+                    for m in _re.finditer(rf'(\d+)\s*({unit_pat})', sentence, _re.IGNORECASE):
+                        reported = int(m.group(1))
+                        if expected == 0 and reported > 0:
+                            return [f"{field_path}={expected} but report says {reported}{m.group(2)} in '{sentence[:40]}'"]
+                        elif expected > 0 and reported > expected * 3:
+                            return [f"{field_path}={expected} but report says {reported}{m.group(2)} (>3x) in '{sentence[:40]}'"]
+                    return []
+
+                s2 = real_data.get("stats_200m", {}) or {}
+                s5 = real_data.get("stats_500m", {}) or {}
+                s10 = real_data.get("stats_1000m", {}) or {}
+
+                # 逐句扫描
+                for sent in sentences:
+                    # 直接竞品
+                    for radius, dc_field in [("200m","direct_competitors_200m"),("500m","direct_competitors_500m"),("1000m","direct_competitors_1000m")]:
+                        expected = real_data.get(dc_field)
+                        if expected is not None:
+                            fact_errors += _check_sentence(sent, dc_field, int(expected), radius, ("直接竞品","同类竞品","同品类竞品"), ("家",))
+                    # 替代竞品
+                    for radius, sc_field in [("200m","substitute_competitors_200m"),("500m","substitute_competitors_500m"),("1000m","substitute_competitors_1000m")]:
+                        expected = real_data.get(sc_field)
+                        if expected is not None:
+                            fact_errors += _check_sentence(sent, sc_field, int(expected), radius, ("替代消费","替代业态","替代压力"), ("家",))
+                    # 客流锚点
+                    for radius, ta_field in [("200m","traffic_anchors_200m"),("500m","traffic_anchors_500m"),("1000m","traffic_anchors_1000m")]:
+                        expected = real_data.get(ta_field)
+                        if expected is not None:
+                            fact_errors += _check_sentence(sent, ta_field, int(expected), radius, ("客流锚点",), ("个",))
+                    # 基础设施 POI
+                    for radius, stats_dict in [("200m",s2),("500m",s5),("1000m",s10)]:
+                        for cat, keywords, units in [
+                            ("subway",("地铁站","地铁","轨道交通"),("个","座","条")),
+                            ("bus",("公交站","公交线路","公交车"),("个","条")),
+                            ("schools",("学校","中小学","大学","学院"),("所","个")),
+                            ("hospitals",("医院","医疗机构","三甲"),("家","所","个")),
+                            ("residential",("住宅小区","小区","社区"),("个")),
+                            ("office",("写字楼","办公楼","商务楼"),("栋","座","幢")),
+                        ]:
+                            expected = stats_dict.get(cat)
+                            if expected is not None:
+                                fact_errors += _check_sentence(sent, f"stats_{radius}.{cat}", int(expected), radius, keywords, units)
+
+                # 异常大数字检查
+                for key in ("competition","population_density","traffic_accessibility","traffic_flow"):
+                    txt = str(details.get(key, ""))
+                    big_nums = _re.findall(r'(\d{4,})\s*(家|个|所|栋|条|辆)', txt)
+                    if big_nums:
+                        fact_errors.append(f"{key}中出现异常大数字: {big_nums[:3]}")
+
+                if fact_errors:
+                    print(f"[SSE Guard] 事实校验失败: {'; '.join(fact_errors)}", flush=True)
+                    _llm_parse_error = True
+                    raise ValueError(f"报告事实校验失败: {'; '.join(fact_errors[:3])}")
 
             # 保存到数据库
             db = SessionLocal()
@@ -381,17 +580,7 @@ async def analyze_location(req: AnalyzeRequest, user: dict = Depends(get_current
             finally:
                 db.close()
 
-            # ═══════════════════════════════════════════
-            # Step 4 — 流输出前最终拦截：强制重算总分
-            # ═══════════════════════════════════════════
-            dims = result.get("dimension_scores", [])
-            final_scores = [int(d.get("score") or 0) for d in dims if isinstance(d, dict) and int(d.get("score") or 0) > 0]
-            if final_scores:
-                locked_score = round(sum(final_scores) / len(final_scores))
-                result["score"] = locked_score
-                result["overall_score"] = locked_score
-                result["total_score"] = locked_score
-                print(f"[SSE Intercept] Step4 前最终锁定: 维度分={final_scores}, 总分={locked_score}", flush=True)
+            # ★ normalize_report_result 已完成加权总分计算，此处不再覆盖
             _stream_ok = True  # ★ 标记流完整成功，finally 块不退款
             yield _sse(4, "✅ 报告生成完毕！", result=result)
             await asyncio.sleep(0)
@@ -401,25 +590,46 @@ async def analyze_location(req: AnalyzeRequest, user: dict = Depends(get_current
             _client_disconnect = True
             print("[SSE Guard] 客户端主动断开，不执行退款", flush=True)
         except json.JSONDecodeError:
-            print("[SSE Error] JSON 解析失败", flush=True)
+            _llm_parse_error = True
+            print("[SSE Error] JSON 解析失败，标记可退款", flush=True)
             yield _sse("error", "AI 引擎数据生成异常，请稍后重试")
+            await asyncio.sleep(0)
+        except RuntimeError as e:
+            msg = str(e)
+            if msg.startswith("AMAP_DATA_COLLECTION_FAILED"):
+                print(f"[SSE Error] {msg}", flush=True)
+                yield _sse("error", "数据采集失败，请稍后重试")
+            else:
+                print(f"[SSE Error] RuntimeError: {msg}", flush=True)
+                yield _sse("error", "分析服务异常，请稍后重试")
+            await asyncio.sleep(0)
+        except ValueError as e:
+            _llm_parse_error = True
+            print(f"[SSE Error] 报告结构校验失败: {e}", flush=True)
+            yield _sse("error", f"报告生成异常，请稍后重试")
             await asyncio.sleep(0)
         except Exception as e:
             print(f"[SSE Error] 分析异常: {type(e).__name__}: {e}", flush=True)
             yield _sse("error", "分析服务异常，请稍后重试")
             await asyncio.sleep(0)
         finally:
-            # ★ 退款收口：仅 LLM 服务端 500 错误 + 扣点模式 + 未退过款 → 补偿一次
-            if _llm_server_error and not _refund_processed:
-                if billing and billing.source == "points":
-                    _refund_processed = True
-                    try:
-                        refund_credits(current_user_id, 1)
-                        print("[SSE Guard] LLM服务端异常，已执行点数退款", flush=True)
-                    except Exception:
-                        import traceback
-                        print("[CRITICAL] 点数退还失败！", flush=True)
-                        traceback.print_exc()
+            # ★ 退款收口：LLM 错误 / JSON解析失败 / 报告结构无效 / AMap采集失败 → 点数模式退款
+            should_refund = (_llm_server_error or _llm_parse_error or _amap_failed) and not _refund_processed
+            if should_refund and billing and billing.source == "points":
+                _refund_processed = True
+                try:
+                    if _amap_failed:
+                        refund_reason = "AMap数据采集失败"
+                    elif _llm_server_error:
+                        refund_reason = "LLM服务端异常"
+                    else:
+                        refund_reason = "LLM响应解析失败"
+                    refund_credits(current_user_id, 1, reason=refund_reason)
+                    print(f"[SSE Guard] {refund_reason}，已执行点数退款", flush=True)
+                except Exception:
+                    import traceback
+                    print("[CRITICAL] 点数退还失败！", flush=True)
+                    traceback.print_exc()
 
     return StreamingResponse(
         event_stream(),

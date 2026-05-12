@@ -3,15 +3,16 @@ import jwt
 from datetime import datetime, timedelta
 from fastapi import HTTPException, Depends, Header
 
-from config import JWT_SECRET, JWT_ALGORITHM, JWT_EXPIRY_HOURS
+from config import JWT_SECRET, JWT_ALGORITHM, JWT_EXPIRY_HOURS, ADMIN_JWT_EXPIRY_HOURS
 
 
 def create_token(user_id: int, role: str = "user") -> str:
-    """签发 JWT Token"""
+    """签发 JWT Token。admin 角色使用更短的过期时间。"""
+    expiry_hours = ADMIN_JWT_EXPIRY_HOURS if role == "admin" else JWT_EXPIRY_HOURS
     payload = {
         "user_id": user_id,
         "role": role,
-        "exp": datetime.utcnow() + timedelta(hours=JWT_EXPIRY_HOURS),
+        "exp": datetime.utcnow() + timedelta(hours=expiry_hours),
         "iat": datetime.utcnow(),
     }
     return jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGORITHM)

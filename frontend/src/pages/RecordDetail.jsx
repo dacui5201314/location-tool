@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import useReportExport from '../hooks/useReportExport'
 import AnalysisResult from '../components/AnalysisResult'
@@ -14,6 +14,9 @@ export default function RecordDetail() {
 
   const { exportPdf, ExportModal, loading: exporting, toast, showToast } = useReportExport()
 
+  // ★ 用 ref 跟踪最新 is_pdf_unlocked 值，避免 useCallback 过期闭包
+  const unlockedRef = useRef(false)
+
   // 拉取报告详情
   useEffect(() => {
     if (!uuid) { setLoading(false); return }
@@ -24,6 +27,7 @@ export default function RecordDetail() {
         const d = await fetchRecordDetail(uuid)
         if (cancelled) return
         setData(d)
+        unlockedRef.current = d.is_pdf_unlocked || false
         if (d.report_json) {
           try { setReport(JSON.parse(d.report_json)) } catch { setReport(null) }
         }
@@ -37,8 +41,10 @@ export default function RecordDetail() {
     return () => { cancelled = true }
   }, [uuid, showToast])
 
-  // 统一导出
+  // 已解锁导出（不扣费）
   const triggerDownload = useCallback(async () => {
+    // ★ 防御：确保传入的 isPdfUnlocked 反映当前最新状态
+    const isUnlocked = unlockedRef.current
     const result = await exportPdf({
       data: report || {},
       meta: {
@@ -49,14 +55,22 @@ export default function RecordDetail() {
         date: data?.created_at?.slice(0, 10),
       },
       reportUuid: data?.report_uuid,
-      isPdfUnlocked: data?.is_pdf_unlocked,
+      isPdfUnlocked: isUnlocked,
     })
     if (result?.ok && result?.unlocked) {
+      unlockedRef.current = true
       setData(prev => prev ? { ...prev, is_pdf_unlocked: true } : prev)
     }
   }, [report, data, exportPdf])
 
+  // 未解锁：消耗点数解锁后导出
   const handleUnlockThenDownload = useCallback(async () => {
+    // ★ 防御锁：如果 ref 已经标记为已解锁，绝不上解锁流程
+    if (unlockedRef.current) {
+      showToast('PDF 已解锁，正在生成下载...')
+      await triggerDownload()
+      return
+    }
     const result = await exportPdf({
       data: report || {},
       meta: {
@@ -70,9 +84,10 @@ export default function RecordDetail() {
       isPdfUnlocked: false,
     })
     if (result?.ok && result?.unlocked) {
+      unlockedRef.current = true
       setData(prev => prev ? { ...prev, is_pdf_unlocked: true } : prev)
     }
-  }, [report, data, exportPdf])
+  }, [report, data, exportPdf, triggerDownload, showToast])
 
   // ---------- Loading ----------
   if (loading) {

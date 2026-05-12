@@ -316,7 +316,7 @@ export default function AdminPage() {
   const [promptEditor, setPromptEditor] = useState(null) // null | industry object (full)
   // ★ IndustryRuleDrawer 状态已移至独立组件，消除全局重渲染
   const [industryDeleteConfirm, setIndustryDeleteConfirm] = useState(null) // null | industry object
-  const [pdfConfig, setPdfConfig] = useState({ logo_url: '', footer_text: 'AI 选址分析 · 商业数据决策平台' })
+  const [pdfConfig, setPdfConfig] = useState({ logo_url: '', footer_text: 'AI 选址分析 · 商业选址初筛参考' })
   const [storageConfig, setStorageConfig] = useState({
     storage_mode: 'local',
     oss_endpoint: '',

@@ -103,9 +103,9 @@ def _build_report_html(record_id: int, report_data: dict, address: str, brand_na
     real_data = report_data.get("real_data") or {}
     pdf_cfg = get_pdf_config()
     brand_qr = get_config_value("OFFICIAL_QRCODE_URL", "")
-    footer_text = pdf_cfg.get("footer_text") or "AI 选址分析 · 商业数据决策平台"
+    footer_text = pdf_cfg.get("footer_text") or "AI 选址分析 · 商业选址初筛参考"
     logo_url = pdf_cfg.get("logo_url") or ""
-    verdict = exec_summary.get("verdict") or ("建议推进" if score >= 60 else "谨慎验证" if score >= 40 else "高风险")
+    verdict = exec_summary.get("verdict") or ("初筛参考" if score >= 60 else "需线下验证" if score >= 40 else "需谨慎验证")
     tone = "#0f8a5f" if score >= 60 else "#b7791f" if score >= 40 else "#dc2626"
 
     def _list_html(items):
@@ -166,18 +166,55 @@ def _build_report_html(record_id: int, report_data: dict, address: str, brand_na
             val_text = f"{s200} / {s500} / {s1000}" if s1000 is not None else f"{s200} 个"
             poi_rows.append(f'<div class="metric"><div><strong>{label}</strong><span>{val_text}</span></div>{"".join(f"<small>(共:{raw1000})</small>" if show_raw else "")}</div>')
         if poi_rows:
+            # ★ 严谨度框架：优先使用 direct_competitors
+            has_rigor = real_data.get("rigor_enabled") is True
             comp_html = ""
-            if real_data.get("competitors_1000m", 0) > 0:
-                clist = real_data.get("competitor_list") or []
-                clist_html = "".join(f"<span>{html.escape(c.get('name',''))}（{c.get('distance','')}m） </span>" for c in clist[:10])
-                comp_html = f'<div style="background:#fff7ed;border-radius:6px;padding:10px;margin:8px 0;border:1px solid #fed7aa"><strong style="color:#dc2626">⚔️ 同类竞品</strong><br><span style="font-size:12px;color:#9a3412">200m: {real_data.get("competitors_200m",0)}家 · 500m: {real_data.get("competitors_500m",0)}家 · 1km: {real_data.get("competitors_1000m",0)}家</span><br><span style="font-size:11px;color:#9a3412">{clist_html}</span></div>'
+            if has_rigor:
+                dc200 = real_data.get("direct_competitors_200m", 0)
+                dc500 = real_data.get("direct_competitors_500m", 0)
+                dc1000 = real_data.get("direct_competitors_1000m", 0)
+                dclist = real_data.get("direct_competitor_list") or []
+                if dclist:
+                    dclist_html = "".join(f"<span>{html.escape(c.get('name',''))}（{c.get('distance','')}m） </span>" for c in dclist[:10])
+                else:
+                    dclist_html = "<span style='color:#888'>1km内暂无明确直接竞品</span>"
+                comp_html = f'<div style="background:#fef2f2;border-radius:6px;padding:10px;margin:8px 0;border:1px solid #fecaca"><strong style="color:#dc2626">🎯 直接竞品（严谨口径）</strong><br><span style="font-size:12px;color:#9a3412">200m: {dc200}家 · 500m: {dc500}家 · 1km: {dc1000}家</span><br><span style="font-size:11px;color:#9a3412">{dclist_html}</span></div>'
+                # 替代消费压力（三层半径）
+                sub1k = real_data.get("substitute_competitors_1000m", 0)
+                if sub1k > 0:
+                    sub200 = real_data.get("substitute_competitors_200m", 0)
+                    sub500 = real_data.get("substitute_competitors_500m", 0)
+                    sublist = real_data.get("substitute_list") or []
+                    sublist_html = "".join(f"<span>{html.escape(c.get('name',''))}（{c.get('distance','')}m） </span>" for c in sublist[:6]) if sublist else ""
+                    comp_html += f'<div style="background:#fff7ed;border-radius:6px;padding:8px;margin:4px 0;border:1px solid #fed7aa"><strong style="color:#c2410c">🔶 替代消费压力</strong><br><span style="font-size:11px;color:#9a3412">200m: {sub200} · 500m: {sub500} · 1km: {sub1k}（不计入直接竞品）</span>{f"<br><span style='font-size:10px;color:#9a3412'>{sublist_html}</span>" if sublist_html else ""}</div>'
+                # 客流锚点（三层半径）
+                anc1k = real_data.get("traffic_anchors_1000m", 0)
+                if anc1k > 0:
+                    anc200 = real_data.get("traffic_anchors_200m", 0)
+                    anc500 = real_data.get("traffic_anchors_500m", 0)
+                    anclist = real_data.get("traffic_anchor_list") or []
+                    anclist_html = "".join(f"<span>{html.escape(c.get('name',''))}（{c.get('distance','')}m） </span>" for c in anclist[:8]) if anclist else ""
+                    comp_html += f'<div style="background:#f0fdf4;border-radius:6px;padding:8px;margin:4px 0;border:1px solid #bbf7d0"><strong style="color:#166534">🟢 客流锚点（非竞品）</strong><br><span style="font-size:11px;color:#15803d">200m: {anc200} · 500m: {anc500} · 1km: {anc1k}</span>{f"<br><span style='font-size:10px;color:#15803d'>{anclist_html}</span>" if anclist_html else ""}</div>'
+            else:
+                # 旧口径兼容
+                if real_data.get("competitors_1000m", 0) > 0:
+                    clist = real_data.get("competitor_list") or []
+                    clist_html = "".join(f"<span>{html.escape(c.get('name',''))}（{c.get('distance','')}m） </span>" for c in clist[:10])
+                    comp_html = f'<div style="background:#fff7ed;border-radius:6px;padding:10px;margin:8px 0;border:1px solid #fed7aa"><strong style="color:#dc2626">⚔️ 同类竞品（旧口径·仅供兼容）</strong><br><span style="font-size:12px;color:#9a3412">200m: {real_data.get("competitors_200m",0)}家 · 500m: {real_data.get("competitors_500m",0)}家 · 1km: {real_data.get("competitors_1000m",0)}家</span><br><span style="font-size:11px;color:#9a3412">{clist_html}</span></div>'
             brand_html = ""
             if real_data.get("hot_brands"):
-                brand_html = '<div style="background:#f0fdf4;border-radius:6px;padding:10px;margin:8px 0;border:1px solid #bbf7d0"><strong style="color:#15803d">🏪 周边连锁品牌</strong><br>' + "".join(f'<span style="font-size:11px;margin-right:10px;color:#333"><strong>{html.escape(b.get("name",""))}</strong> ×{b.get("count",0)}</span>' for b in real_data.get("hot_brands", [])[:12]) + '</div>'
+                brand_html = '<div style="background:#f8fafc;border-radius:6px;padding:10px;margin:8px 0;border:1px solid #e2e8f0"><strong style="color:#475569">🏪 周边连锁品牌（含客流锚点）</strong><br>' + "".join(f'<span style="font-size:11px;margin-right:10px;color:#333"><strong>{html.escape(b.get("name",""))}</strong> ×{b.get("count",0)}</span>' for b in real_data.get("hot_brands", [])[:12]) + '</div>'
+            qual_html = ""
+            notes = real_data.get("data_quality_notes") or []
+            if notes:
+                qual_html = '<div style="background:#f8fafc;border-radius:6px;padding:8px 12px;margin:8px 0;border:1px solid #e2e8f0;font-size:11px;color:#64748b;text-align:center;line-height:1.6">📊 数据质量：' + " · ".join(html.escape(str(n)) for n in notes) + '</div>'
+            rigor_warning = ""
+            if not has_rigor:
+                rigor_warning = '<div style="background:#fffbeb;border-radius:6px;padding:8px 12px;margin:8px 0;border:1px solid #fde68a;font-size:11px;color:#92400e;text-align:center;line-height:1.5">⚠️ 该业态暂无完整严谨分类规则，竞品结果仅供兼容参考。</div>'
             info_line = ""
             if real_data.get("city"):
                 info_line = f'<div style="font-size:11px;color:#888;text-align:center;margin-top:6px">📍 {html.escape(real_data.get("city",""))} {html.escape(real_data.get("district",""))} {html.escape(real_data.get("township",""))}</div>'
-            real_html = f'<section class="card"><h2>📊 周边POI数据</h2><div class="metrics">{"".join(poi_rows)}</div><p style="font-size:10px;color:#888;margin-top:4px">200m / 500m / 1000m 三层半径实时采集 · 已过滤低关联干扰项</p>{comp_html}{brand_html}{info_line}</section>'
+            real_html = f'<section class="card"><h2>📊 周边POI数据</h2><div class="metrics">{"".join(poi_rows)}</div><p style="font-size:10px;color:#888;margin-top:4px">200m / 500m / 1000m 三层半径实时采集 · 已过滤低关联干扰项</p>{qual_html}{rigor_warning}{comp_html}{brand_html}{info_line}</section>'
 
     warning_html = f'<div class="warning">⚠️ {html.escape(str(warning))}</div>' if warning else ""
     logo_html = f'<img class="logo" src="{html.escape(logo_url)}" alt="logo">' if logo_url else '<div class="logo-fallback">址</div>'
@@ -245,7 +282,7 @@ def _build_report_html(record_id: int, report_data: dict, address: str, brand_na
     </div>
     <div style="border:1px solid rgba(255,255,255,.18);border-radius:14px;padding:18px;color:#cbd5e1;font-size:12px;line-height:2;">
       <div>品牌：{html.escape(brand_name or "-")}</div>
-      <div>结论：{html.escape(verdict)}</div>
+      <div>数据解读状态：{html.escape(verdict)}</div>
       <div>数据结构：结论卡 / 指标卡 / 分模块分析</div>
     </div>
   </div>

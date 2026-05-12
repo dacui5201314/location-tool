@@ -275,7 +275,10 @@ BUSINESS_TYPE_TO_MASTER = {
     # 酒店
     "酒店": "商务酒店", "民宿": "民宿青旅", "青年旅舍": "民宿青旅",
     # 零售
-    "便利店": "高频刚需零售", "超市": "高频刚需零售", "药店": "高频刚需零售",
+    "便利店": "高频刚需零售", "小超市": "高频刚需零售", "超市": "高频刚需零售", "药店": "高频刚需零售",
+    "生鲜店": "高频刚需零售", "水果店": "高频刚需零售", "菜店": "高频刚需零售",
+    "烟酒店": "高频刚需零售", "烟酒行": "高频刚需零售",
+    "日用百货": "高频刚需零售", "百货店": "高频刚需零售", "杂货店": "高频刚需零售",
     "零售店": "低频目的零售", "服装店": "低频目的零售", "数码店": "低频目的零售",
     # 生活服务
     "美容美发": "专业生活服务", "宠物店": "专业生活服务", "健身房": "专业生活服务",
@@ -302,11 +305,503 @@ DEFAULT_MASTER = {
     "thresholds":{"s_grade":{"500m_subway_gte":1},"red_flag":{"200m_competitors_gt":15}},
 }
 
+# ═══════════════════════════════════════════════════════════════
+# ★ 业态严谨度配置框架 (Rigor Framework v1)
+# 每个行业集群定义：直接竞品、替代竞品、客流锚点、无关POI、
+# 评分依据、营收模型、报告语言规则
+# ═══════════════════════════════════════════════════════════════
+
+# ── 通用报告语言规则（所有业态共享）──
+COMMON_LANGUAGE_RULES = {
+    "forbidden_raw_as_valid": "禁止把 raw_count 写成有效判断依据。所有数字默认引用 valid_count。若必须提原始数据，标注'原始POI，未参与评分'。",
+    "forbidden_anchor_as_competitor": "禁止把客流锚点品牌/业态写成竞品。",
+    "forbidden_substitute_as_direct": "禁止把替代性竞品写成直接竞品。",
+    "forbidden_same_fact_both_sides": "同一事实禁止同时出现在优势和风险中，除非明确拆分为需求端/供给端/执行端并标注边界。",
+    "forbidden_fabricated_numbers": "禁止无依据的精确客流/精确利润数字。若无实测数据，写'缺少实测客流，需线下验证'。",
+    "hypothesis_format": "所有运营建议必须写成'待验证假设 + 验证动作'格式，不得输出推荐/不推荐结论。",
+    "data_insufficient": "数据不足时明确写'数据不足，需线下验证'，不得用 AI 常识补 POI 名称或数字。",
+}
+
+# ── 通用营收假设模板（各业态可覆盖）──
+DEFAULT_REVENUE_MODEL = {
+    "scenario_count": 3,
+    "scenarios": ["保守", "中性", "乐观"],
+    "required_assumptions": ["日客流量", "转化率", "客单价", "毛利率", "人工成本", "月租金", "水电杂费", "库存资金", "爬坡期(月)"],
+    "output_format": "输出三档月营收区间、月净利区间、回本周期区间（禁止单点精确值，如'23.6万'），每档标注置信度和模型假设，标注'估算，不代表承诺，需线下实测验证'。",
+}
+
+# ═══════════════════════════════════════════════════════════════
+# 14 个行业集群 → 严谨度规则
+# ═══════════════════════════════════════════════════════════════
+INDUSTRY_RIGOR = {
+    # ========== 1. 异国/中高端正餐 ==========
+    "异国_中高端正餐": {
+        "direct_competitor_rules": {
+            "amap_codes": ["050100", "050200"],
+            "name_keywords": ["西餐","日料","法餐","意餐","私房","公馆","海鲜","料理","牛扒","铁板烧","omakase","怀石"],
+            "exclude_names": ["快餐","小吃","面馆","食堂","麻辣烫","汉堡","炸鸡","米线","黄焖鸡"],
+        },
+        "substitute_competitor_rules": {
+            "description": "中高端中餐/火锅可能分流部分宴请客群，但不算直接竞品",
+            "amap_codes": ["050100"],
+            "name_keywords": ["酒楼","宴","中餐","湘菜","川菜","粤菜","火锅"],
+        },
+        "traffic_anchor_rules": {
+            "description": "高档商场/写字楼/高端酒店/停车场为客流锚点",
+            "categories": ["shopping","office","hotels","parking"],
+            "name_keywords": ["购物中心","百货","写字楼","国际中心","酒店","希尔顿","万豪","洲际"],
+        },
+        "irrelevant_poi_rules": {
+            "name_blacklist": ["快餐","小吃","面馆","麻辣烫","汉堡","炸鸡","食堂","盒饭","盖浇饭","黄焖鸡","沙县","兰州拉面","桂林米粉"],
+            "categories_excluded": ["schools","hospitals","bus"],
+        },
+        "scoring_rules": {
+            "population_density": "周边1km内住宅+写字楼+酒店的有效人口估算",
+            "traffic_accessibility": "停车场数量+地铁站+主干道可达性（该业态目的性消费，停车权重最高）",
+            "competition": "仅基于 direct_competitors 的密度和品牌势能",
+            "cost_estimate": "按中高端餐饮标准：租金占比≤15%，人工占比25-30%，食材成本30-35%",
+        },
+        "revenue_model": {
+            "logic": "桌数×翻台率×人均消费×月营业天数；晚市占60%+营收",
+            "key_metrics": ["桌数","午市翻台","晚市翻台","人均消费","包厢数","酒水占比"],
+        },
+    },
+
+    # ========== 2. 火锅/烧烤 ==========
+    "火锅_烧烤": {
+        "direct_competitor_rules": {
+            "amap_codes": ["050100"],
+            "name_keywords": ["火锅","烧烤","烤串","烤肉","涮肉","羊蝎子","烤鱼","小龙虾","大排档","串串香","麻辣烫"],
+            "exclude_names": ["快餐","小吃","面馆","包子","食堂","盒饭"],
+        },
+        "substitute_competitor_rules": {
+            "description": "中餐正餐/大排档/夜市可分流部分聚餐需求",
+            "name_keywords": ["中餐","湘菜","川菜","大排档","夜市","排档"],
+        },
+        "traffic_anchor_rules": {
+            "description": "KTV/酒吧/台球厅/酒店为夜经济锚点；停车场为核心加分项",
+            "categories": ["bars","hotels","parking"],
+            "name_keywords": ["KTV","酒吧","酒店","停车场"],
+        },
+        "irrelevant_poi_rules": {
+            "name_blacklist": [],
+            "categories_excluded": [],
+        },
+        "scoring_rules": {
+            "competition": "仅基于 direct_competitors（火锅/烧烤/烤鱼等），餐饮/快餐不计入",
+            "cost_estimate": "火锅：租金≤12%，人工18-22%，食材35-40%；翻台率1.2-1.5",
+        },
+        "revenue_model": {
+            "logic": "桌数×翻台率×人均×天数；晚市+宵夜占70%+；重点核查排烟/燃气/电力",
+        },
+    },
+
+    # ========== 3. 刚需快餐小吃 ==========
+    "刚需快餐小吃": {
+        "direct_competitor_rules": {
+            "amap_codes": ["050300", "050000"],
+            "name_keywords": ["面","皮","粉","饭","包","粥","小吃","麻辣烫","炸鸡","米线","凉皮","肉夹馍","饺子","馄饨","煎饼","便当","盖浇","砂锅","冒菜","串串","卤味","鸭脖","鸡排","汉堡","拉面","拌面","酸辣粉","螺蛳粉","热干面","泡馍","擀面皮","锅贴","生煎","小笼","麻辣拌","烤冷面","手抓饼","鸡蛋灌饼"],
+            "exclude_names": ["酒楼","海鲜","高档西餐","星级酒店","私房菜","公馆","大饭店","自助餐"],
+        },
+        "substitute_competitor_rules": {
+            "description": "便利店鲜食/超市熟食/食堂可替代部分午市刚需",
+            "categories": ["convenience"],
+            "name_keywords": ["便利店","超市","食堂","单位食堂","学校食堂"],
+        },
+        "traffic_anchor_rules": {
+            "description": "写字楼/学校/医院/公交站/地铁站为核心客流锚点",
+            "categories": ["office","schools","hospitals","subway","bus"],
+        },
+        "irrelevant_poi_rules": {
+            "name_blacklist": ["大酒楼","海鲜酒楼","星级酒店","高端西餐","法餐","日料","怀石"],
+            "categories_excluded": [],
+        },
+        "scoring_rules": {
+            "competition": "仅基于 direct_competitors 中同名/同品类门店密度",
+            "cost_estimate": "快餐：租金≤15%，人工15-20%，食材30-35%；外卖占比30-50%",
+        },
+        "revenue_model": {
+            "logic": "日均单量×客单价×30天；午市占60%+；外卖/堂食分算；翻台率3-5次",
+        },
+    },
+
+    # ========== 4. 中餐正餐 ==========
+    "中餐正餐": {
+        "direct_competitor_rules": {
+            "amap_codes": ["050100"],
+            "name_keywords": ["酒楼","宴","中餐","湘菜","川菜","粤菜","西北菜","东北菜","本帮菜","私房","烤鸭","海鲜"],
+            "exclude_names": ["快餐","小吃","面馆","麻辣烫","汉堡","食堂","大排档"],
+        },
+        "substitute_competitor_rules": {
+            "description": "火锅/烧烤可能分流聚餐需求",
+            "name_keywords": ["火锅","烧烤","烤肉"],
+        },
+        "traffic_anchor_rules": {
+            "categories": ["shopping","office","parking","subway"],
+        },
+        "irrelevant_poi_rules": {
+            "name_blacklist": ["快餐","小吃","面馆","麻辣烫","汉堡","炸鸡","米线","食堂","大排档"],
+        },
+        "scoring_rules": {
+            "competition": "仅基于 direct_competitors；停车位数量影响可达性评分",
+        },
+        "revenue_model": {
+            "logic": "桌数×翻台率×人均×天数；晚市占65%+；包厢数≥2为加分项",
+        },
+    },
+
+    # ========== 5. 烘焙甜品 ==========
+    "烘焙甜品": {
+        "direct_competitor_rules": {
+            "amap_codes": ["050600"],
+            "name_keywords": ["烘焙","面包","蛋糕","甜点","泡芙","蛋挞","慕斯","马卡龙","曲奇","冰淇淋","甜品"],
+            "exclude_names": ["包子","馒头","大饼","油条","煎饼","食堂"],
+        },
+        "substitute_competitor_rules": {
+            "description": "咖啡/茶饮店甜品可部分替代",
+            "name_keywords": ["咖啡","茶饮","奶茶"],
+        },
+        "traffic_anchor_rules": {
+            "categories": ["residential","schools","subway","shopping"],
+        },
+        "irrelevant_poi_rules": {
+            "name_blacklist": ["包子铺","馒头店","大饼","油条","食堂","快餐"],
+        },
+        "scoring_rules": {
+            "competition": "仅基于 direct_competitors；学校/地铁口权重加分",
+        },
+        "revenue_model": {
+            "logic": "日均客流×转化率×客单价；冲动消费为主；橱窗展示面≥3米",
+        },
+    },
+
+    # ========== 6. 精品茶饮咖啡 ==========
+    "精品茶饮咖啡": {
+        "direct_competitor_rules": {
+            "amap_codes": ["050500"],
+            "name_keywords": ["奶茶","咖啡","茶饮","果饮","柠檬","酸奶","星巴克","瑞幸","喜茶","奈雪","蜜雪冰城","茶百道","古茗","霸王茶姬","Manner","库迪","幸运咖","一点点","CoCo","书亦","益禾堂"],
+            "exclude_names": ["酒吧","茶馆","棋牌"],
+        },
+        "substitute_competitor_rules": {
+            "description": "便利店饮料/甜品店/冰淇淋可部分替代",
+            "categories": ["convenience"],
+            "name_keywords": ["便利店","超市","甜品","冰淇淋"],
+        },
+        "traffic_anchor_rules": {
+            "categories": ["office","schools","subway","shopping","residential"],
+        },
+        "irrelevant_poi_rules": {
+            "name_blacklist": ["酒吧","KTV","棋牌","网吧"],
+            "categories_excluded": ["hospitals"],
+        },
+        "scoring_rules": {
+            "competition": "仅基于 direct_competitors，便利店/甜品不算直接竞品",
+        },
+        "revenue_model": {
+            "logic": "日均杯量×客单价×30天；外卖占比30-50%；会员储值锁复购",
+        },
+    },
+
+    # ========== 7-8. 酒店/民宿 ==========
+    "商务酒店": {
+        "direct_competitor_rules": {
+            "amap_codes": ["100000"],
+            "name_keywords": ["酒店","宾馆","汉庭","如家","全季","亚朵","希尔顿","万豪","洲际","维也纳","丽枫","锦江","格林豪泰","尚客优"],
+            "exclude_names": ["招待所","农家乐","洗浴","日租房","钟点房","民宿","旅舍","客栈"],
+        },
+        "substitute_competitor_rules": {
+            "description": "民宿/公寓/钟点房可部分替代",
+            "name_keywords": ["民宿","公寓","青旅"],
+        },
+        "traffic_anchor_rules": {
+            "description": "交通枢纽/商务区/医院/会展/景区为客流锚点",
+            "categories": ["office","shopping","subway","hospitals"],
+            "name_keywords": ["火车站","汽车站","机场","会展","医院","商务中心"],
+        },
+        "irrelevant_poi_rules": {
+            "name_blacklist": ["招待所","农家乐","洗浴","日租房","钟点房"],
+        },
+        "scoring_rules": {
+            "competition": "仅基于 direct_competitors 中同档次酒店",
+        },
+        "revenue_model": {
+            "logic": "房间数×入住率×ADR×30天；RevPAR为核心指标",
+        },
+    },
+    "民宿青旅": {
+        "direct_competitor_rules": {
+            "amap_codes": ["100000"],
+            "name_keywords": ["民宿","旅舍","客栈","青旅","背包客","青年旅舍"],
+            "exclude_names": ["星级酒店","希尔顿","万豪","洲际","商务酒店","温泉酒店"],
+        },
+        "substitute_competitor_rules": {
+            "description": "经济型酒店/公寓可替代",
+            "name_keywords": ["汉庭","如家","公寓"],
+        },
+        "traffic_anchor_rules": {
+            "categories": ["subway","shopping"],
+            "name_keywords": ["景区","地铁站","火车站","步行街","大学城"],
+        },
+        "irrelevant_poi_rules": {
+            "name_blacklist": ["星级酒店","希尔顿","万豪","洲际"],
+        },
+        "scoring_rules": {
+            "competition": "仅基于 direct_competitors",
+        },
+        "revenue_model": {
+            "logic": "床位/房间×入住率×客单价×30天；小红书+抖音获客权重高",
+        },
+    },
+
+    # ========== 9. 高频刚需零售（便利店/超市/药店）==========
+    "高频刚需零售": {
+        "direct_competitor_rules": {
+            "note": "★ 通过 subtypes 实现子业态独立规则，超市/生鲜/药店/烟酒/日杂各自独立",
+            "strict_exclude_names": ["会计","律所","律师","广告","装饰","装修","房产","地产","中介","科技","企业服务","SPA","美容","美发","理发","培训","教育","公司","政府","机关","社区服务中心","党群","便民服务中心","彩票","福彩","体彩","充电站","充电桩","旅行社","劳务","人力","家政","搬家","开锁","疏通","驾校","文印","照相","刻章","缝纫","修理","修鞋","配钥匙","干洗","皮具","擦鞋","美甲","纹身","按摩","采耳","洗浴","汗蒸","推拿","艾灸","拔罐","眼镜","养生","足疗","足道","建材","五金","批发","农贸","汽配","家具","灯饰","石材","印刷","旧货","二手","废品","回收"],
+            "subtypes": {
+                "supermarket": {
+                    "match_keywords": ["超市","便利店","小超市","永辉","盒马","711","罗森","全家","便利蜂","美宜佳","大润发","华润万家","物美","沃尔玛","联华"],
+                    "name_keywords": ["便利店","超市","小卖部","便利","永辉","盒马","711","罗森","全家","便利蜂","美宜佳","大润发","华润万家","物美","沃尔玛","联华"],
+                    "exclude_names": ["建材","五金","批发","农贸","汽配","家具","灯饰","石材","旧货","二手","废品","回收"],
+                },
+                "fresh": {
+                    "match_keywords": ["生鲜","水果","蔬菜","肉","禽","蛋","奶","水产","海鲜"],
+                    "name_keywords": ["生鲜","水果","蔬菜","肉","禽","蛋","奶","水产","海鲜","菜市场","农贸","果品","鲜肉"],
+                    "exclude_names": ["超市","便利店","五金","建材","批发"],
+                },
+                "pharmacy2": {
+                    "match_keywords": ["药店","药房","医药","中药"],
+                    "name_keywords": ["药店","药房","大药房","医药","同仁堂","老百姓","益丰","一心堂","健之佳","海王星辰","大参林","国药"],
+                    "exclude_names": ["器械","体验中心","门诊","诊所","医院","体检"],
+                },
+                "tobacco_liquor": {
+                    "match_keywords": ["烟酒","名烟","名酒","酒类","烟"],
+                    "name_keywords": ["烟酒","名烟","名酒","酒行","酒类","烟草","酒庄","1919","酒便利"],
+                    "exclude_names": ["超市","便利店","百货"],
+                },
+                "daily_goods": {
+                    "match_keywords": ["百货","日用","杂货","日杂","副食","粮油"],
+                    "name_keywords": ["百货","日用","杂货","日杂","副食","粮油","两元店","十元店"],
+                    "exclude_names": ["建材","五金","批发","农贸"],
+                },
+            },
+        },
+        "substitute_competitor_rules": {
+            "description": "餐饮/快餐/咖啡/茶饮仅影响便当、饮品、熟食等即时消费品类",
+            "categories": ["fast_food","cafe_tea","restaurants"],
+            "name_keywords": ["快餐","小吃","咖啡","茶饮","奶茶","炸鸡","汉堡"],
+            "impact_scope": "仅限即时鲜食/饮品/熟食子品类，不影响日杂百货核心品类",
+        },
+        "traffic_anchor_rules": {
+            "description": "住宅/学校/写字楼/医院/公交站为社区客流锚点",
+            "categories": ["residential","office","schools","hospitals","subway","bus"],
+            "name_keywords": ["肯德基","麦当劳","瑞幸","星巴克","酒店","汉庭","如家"],
+            "note": "连锁餐饮/酒店品牌仅表示商业活跃度，不是便利店竞品",
+        },
+        "irrelevant_poi_rules": {
+            "name_blacklist": ["会计","律所","律师","广告","装饰","装修","房产","地产","中介","科技","企业服务","SPA","美容","美发","理发","培训","教育","公司","政府","机关","社区服务中心","党群","便民服务中心","彩票","福彩","体彩","充电站","旅行社","劳务","人力","家政","搬家","开锁","疏通","驾校","文印","照相","刻章","缝纫","修理","修鞋","配钥匙","干洗","皮具","擦鞋","美甲","纹身","按摩","采耳","洗浴","汗蒸","推拿","艾灸","拔罐","眼镜","养生","足疗","足道","建材","五金","批发","农贸","汽配","家具","灯饰","石材","印刷","旧货","二手","废品","回收"],
+        },
+        "scoring_rules": {
+            "population_density": "周边500m内住宅+学校+写字楼+医院的有效人口估算",
+            "competition": "★ 仅基于 direct_competitors，餐饮/咖啡/茶饮不得计入竞争维度评分",
+            "complementary_businesses": "学校/写字楼/医院/公交站视为客流锚点，不代表直接竞争",
+        },
+        "revenue_model": {
+            "logic": "日均客流×转化率×客单价×30天；毛利率20-30%；损耗率3-8%；库存周转15-30天；鲜食占比提升毛利率但增加损耗",
+            "key_metrics": ["日均进店人数","转化率","客单价","毛利率","鲜食占比","损耗率","库存资金","日补货频次"],
+        },
+    },
+
+    # ========== 10. 低频目的零售（服装/数码/专卖）==========
+    "低频目的零售": {
+        "direct_competitor_rules": {
+            "amap_codes": ["060100", "060400"],
+            "name_keywords": ["服装","鞋帽","数码","手机","电脑","家电","眼镜","珠宝","名创优品","屈臣氏","优衣库"],
+            "exclude_names": ["批发","建材","五金","农贸","汽配"],
+        },
+        "substitute_competitor_rules": {
+            "description": "电商/综合商场可分流",
+        },
+        "traffic_anchor_rules": {
+            "categories": ["shopping","subway","office"],
+            "name_keywords": ["购物中心","百货","步行街"],
+        },
+        "irrelevant_poi_rules": {
+            "name_blacklist": ["批发","建材","五金","农贸","汽配"],
+        },
+        "scoring_rules": {
+            "competition": "仅基于 direct_competitors；同类聚集（扎堆）为正相关",
+        },
+        "revenue_model": {
+            "logic": "日均进店×转化率×客单价×复购周期；注意库存周转率和资金占用",
+        },
+    },
+
+    # ========== 11. 专业生活服务（美容/宠物/健身）==========
+    "专业生活服务": {
+        "direct_competitor_rules": {
+            "note": "★ 通过 subtypes 实现子业态独立规则，美容/宠物/健身互不污染",
+            "subtypes": {
+                "beauty": {
+                    "match_keywords": ["美容","美发","美甲"],
+                    "name_keywords": ["美容","美发","美甲","SPA","美体","皮肤管理","造型","形象设计"],
+                    "exclude_names": ["宠物","动物"],
+                },
+                "pets": {
+                    "match_keywords": ["宠物"],
+                    "name_keywords": ["宠物","动物医院","宠物医院","宠物店","猫舍","犬舍","宠物美容","宠物用品"],
+                    "exclude_names": ["美容","美发"],
+                },
+                "fitness": {
+                    "match_keywords": ["健身","瑜伽","舞蹈","私教"],
+                    "name_keywords": ["健身","瑜伽","舞蹈","普拉提","私教","游泳","拳击","CrossFit","操课"],
+                    "exclude_names": ["宠物","美容","美发"],
+                },
+            },
+        },
+        "substitute_competitor_rules": {
+            "description": "社区理发/平价快剪可替代部分美发服务；家庭健身/户外替代部分健身房需求",
+            "name_keywords": ["快剪","平价","社区理发"],
+        },
+        "traffic_anchor_rules": {
+            "categories": ["residential","office","shopping","parking"],
+        },
+        "irrelevant_poi_rules": {
+            "name_blacklist": ["快剪","街边理发","10元店","平价"],
+        },
+        "scoring_rules": {
+            "competition": "仅基于同品类 direct_competitors。美容不能把宠物店算竞品。",
+        },
+        "revenue_model": {
+            "logic": "到店频次×项目客单×会员转化率；复购周期决定现金流稳定性",
+        },
+    },
+
+    # ========== 12. 社区基础服务（教育/洗衣/诊所）==========
+    "社区基础服务": {
+        "direct_competitor_rules": {
+            "note": "★ 通过 subtypes 实现子业态独立规则，教育/洗衣/诊所互不污染",
+            "subtypes": {
+                "education": {
+                    "match_keywords": ["培训","教育","琴行","画室","早教","托管","辅导","补习","学校","学"],
+                    "name_keywords": ["培训","教育","琴行","画室","早教","托管","辅导","补习","驾校","职业技能"],
+                    "exclude_names": ["洗衣","诊所","门诊"],
+                },
+                "laundry": {
+                    "match_keywords": ["洗衣","干洗"],
+                    "name_keywords": ["洗衣","干洗","清洗","护理"],
+                    "exclude_names": ["培训","教育","诊所"],
+                },
+                "clinic": {
+                    "match_keywords": ["诊所","门诊","卫生所","医疗"],
+                    "name_keywords": ["诊所","门诊","卫生所","社区卫生","卫生室","医务室"],
+                    "exclude_names": ["培训","教育","洗衣","宠物","动物"],
+                },
+            },
+        },
+        "substitute_competitor_rules": {
+            "description": "学校课后托管可替代培训机构；社区洗衣房/自助洗衣可替代",
+        },
+        "traffic_anchor_rules": {
+            "categories": ["residential","schools","office"],
+        },
+        "irrelevant_poi_rules": {
+            "name_blacklist": ["驾校","职业培训"],
+        },
+        "scoring_rules": {
+            "competition": "仅基于同品类 direct_competitors。培训不能把洗衣店算竞品。",
+        },
+        "revenue_model": {
+            "logic": "教育培训：生源数×客单价×续费率；洗衣：日均订单×客单价×复购率",
+        },
+    },
+
+    # ========== 13. 夜经济娱乐（酒吧/KTV/网吧）==========
+    "夜经济娱乐": {
+        "direct_competitor_rules": {
+            "amap_codes": ["050400", "080000"],
+            "name_keywords": ["酒吧","KTV","网咖","LiveHouse","清吧","精酿","威士忌","电竞","夜店"],
+            "exclude_names": ["网咖","台球","棋牌"],
+        },
+        "substitute_competitor_rules": {
+            "description": "台球/棋牌/夜市/轰趴可分流部分夜间娱乐需求",
+            "name_keywords": ["台球","棋牌","桌游","轰趴","夜市"],
+        },
+        "traffic_anchor_rules": {
+            "categories": ["hotels","parking","subway"],
+            "name_keywords": ["酒店","停车场","地铁站","KTV","酒吧街"],
+        },
+        "irrelevant_poi_rules": {
+            "name_blacklist": ["学校","医院"],
+            "categories_excluded": ["hospitals"],
+        },
+        "scoring_rules": {
+            "competition": "仅基于 direct_competitors；居民噪音投诉风险计入风险维度",
+        },
+        "revenue_model": {
+            "logic": "周末/节假日权重高；人均消费×座位数×翻台率；隔音+消防硬成本",
+        },
+    },
+
+    # ========== 14. 沉浸式社交娱乐（剧本杀/密室/台球）==========
+    "沉浸式社交娱乐": {
+        "direct_competitor_rules": {
+            "name_keywords": ["剧本杀","密室","台球","桌游","轰趴","VR","电玩"],
+            "exclude_names": ["棋牌","麻将馆"],
+        },
+        "substitute_competitor_rules": {
+            "description": "KTV/网吧/酒吧可部分替代社交娱乐需求",
+            "name_keywords": ["KTV","网吧","酒吧"],
+        },
+        "traffic_anchor_rules": {
+            "categories": ["subway","schools","office"],
+            "name_keywords": ["大学城","地铁站","写字楼"],
+        },
+        "irrelevant_poi_rules": {
+            "name_blacklist": ["棋牌","麻将馆"],
+            "categories_excluded": ["hospitals"],
+        },
+        "scoring_rules": {
+            "competition": "仅基于 direct_competitors",
+        },
+        "revenue_model": {
+            "logic": "周末四场×人均×容纳人数；剧本更新频率影响复购",
+        },
+    },
+}
+
+# ═══════════════════════════════════════════════════════════════
+# ★ 严谨度规则查询 API
+# ═══════════════════════════════════════════════════════════════
+
+def _get_rigor(config_key: str) -> dict:
+    """获取指定行业集群的严谨度配置，缺失时返回空字典"""
+    return INDUSTRY_RIGOR.get(config_key, {})
+
+def get_rigor_for_business(business_type: str) -> dict:
+    """通过 business_type（如 奶茶店）获取严谨度配置"""
+    master_key = BUSINESS_TYPE_TO_MASTER.get(business_type, "")
+    return _get_rigor(master_key)
+
+def get_rigor_for_config_key(config_key: str) -> dict:
+    """直接通过 MASTER_TEMPLATES key 获取严谨度配置"""
+    return _get_rigor(config_key)
+
 def get_config(business_type: str) -> dict:
     """通过 business_type（如 奶茶店）→ master_key → 返回配置"""
     return MASTER_TEMPLATES.get(BUSINESS_TYPE_TO_MASTER.get(business_type, ""), DEFAULT_MASTER)
 
-
 def get_config_by_key(config_key: str) -> dict:
     """直接通过 MASTER_TEMPLATES 的 key 获取配置（数据驱动模式下使用）"""
     return MASTER_TEMPLATES.get(config_key, DEFAULT_MASTER)
+
+def get_full_config(business_type: str) -> dict:
+    """合并基础配置 + 严谨度配置 + 通用规则"""
+    base = get_config(business_type)
+    rigor = get_rigor_for_business(business_type)
+    return {
+        **base,
+        "rigor": rigor,
+        "language_rules": COMMON_LANGUAGE_RULES,
+        "revenue_model": rigor.get("revenue_model", DEFAULT_REVENUE_MODEL),
+    }
