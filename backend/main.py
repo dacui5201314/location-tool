@@ -519,7 +519,7 @@ async def analyze_location(req: AnalyzeRequest, user: dict = Depends(get_current
                             ("bus",("公交站","公交线路","公交车"),("个","条")),
                             ("schools",("学校","中小学","大学","学院"),("所","个")),
                             ("hospitals",("医院","医疗机构","三甲"),("家","所","个")),
-                            ("residential",("住宅小区","小区","社区"),("个")),
+                            ("residential",("住宅小区","小区","社区"),("个","座")),
                             ("office",("写字楼","办公楼","商务楼"),("栋","座","幢")),
                         ]:
                             expected = stats_dict.get(cat)

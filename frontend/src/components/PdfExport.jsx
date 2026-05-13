@@ -365,15 +365,17 @@ export default function PdfExport({ selectedLocation, result, businessType, bran
 
           {/* ★ 严谨度：直接竞品 */}
           {(hasRigor || dc1000 > 0) && (
-            <div style={{ background: '#fef2f2', borderRadius: 8, padding: '14px 20px', marginBottom: 12, border: '1px solid #fecaca' }}>
-              <div style={{ fontSize: 14, fontWeight: 700, color: '#dc2626', marginBottom: 8, textAlign: 'center' }}>🎯 直接竞品（同类业态）</div>
-              <div style={{ fontSize: 13, color: '#9a3412', lineHeight: 2.2, marginBottom: 6, textAlign: 'center' }}>
-                200m: <strong style={{ fontSize: 18, color: '#dc2626' }}>{formatCount(dc200)}</strong> ·
-                500m: <strong style={{ fontSize: 18, color: '#dc2626' }}>{formatCount(dc500)}</strong> ·
-                1km: <strong style={{ fontSize: 18, color: '#dc2626' }}>{formatCount(dc1000)}</strong>
+            <div style={{ background: hasRigor ? '#fef2f2' : '#f8fafc', borderRadius: 8, padding: '14px 20px', marginBottom: 12, border: hasRigor ? '1px solid #fecaca' : '1px solid #e2e8f0' }}>
+              <div style={{ fontSize: 14, fontWeight: 700, color: hasRigor ? '#dc2626' : '#64748b', marginBottom: 8, textAlign: 'center' }}>
+                {hasRigor ? '🎯 直接竞品（同类业态 · 严谨口径）' : '📋 旧口径竞品参考（非严谨直接竞品）'}
+              </div>
+              <div style={{ fontSize: 13, color: hasRigor ? '#9a3412' : '#64748b', lineHeight: 2.2, marginBottom: 6, textAlign: 'center' }}>
+                200m: <strong style={{ fontSize: 18, color: hasRigor ? '#dc2626' : '#475569' }}>{formatCount(dc200)}</strong> ·
+                500m: <strong style={{ fontSize: 18, color: hasRigor ? '#dc2626' : '#475569' }}>{formatCount(dc500)}</strong> ·
+                1km: <strong style={{ fontSize: 18, color: hasRigor ? '#dc2626' : '#475569' }}>{formatCount(dc1000)}</strong>
               </div>
               {dcList.length > 0 ? (
-                <div style={{ fontSize: 11, color: '#9a3412', lineHeight: 2, borderTop: '1px solid #fecaca', paddingTop: 8, textAlign: 'center' }}>
+                <div style={{ fontSize: 11, color: hasRigor ? '#9a3412' : '#64748b', lineHeight: 2, borderTop: '1px solid #e2e8f0', paddingTop: 8, textAlign: 'center' }}>
                   {dcList.slice(0, 12).map((c, i) => (
                     <span key={i} style={{ marginRight: 14 }}>· {c.name}（{c.distance}m）</span>
                   ))}
@@ -384,7 +386,9 @@ export default function PdfExport({ selectedLocation, result, businessType, bran
                 </div>
               )}
               {!hasRigor && (
-                <div style={{ fontSize: 10, color: '#b45309', textAlign: 'center', marginTop: 4 }}>⚠️ 该业态暂无完整严谨分类规则，竞品结果仅供兼容参考</div>
+                <div style={{ fontSize: 10, color: '#b45309', textAlign: 'center', marginTop: 4, lineHeight: 1.5 }}>
+                  ⚠️ 旧口径统计，仅供兼容参考，需人工核验直接竞品。
+                </div>
               )}
             </div>
           )}

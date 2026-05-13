@@ -399,21 +399,42 @@ INDUSTRY_RIGOR = {
     # ========== 3. 刚需快餐小吃 ==========
     "刚需快餐小吃": {
         "direct_competitor_rules": {
-            "amap_codes": ["050300", "050000"],
-            "name_keywords": ["面","皮","粉","饭","包","粥","小吃","麻辣烫","炸鸡","米线","凉皮","肉夹馍","饺子","馄饨","煎饼","便当","盖浇","砂锅","冒菜","串串","卤味","鸭脖","鸡排","汉堡","拉面","拌面","酸辣粉","螺蛳粉","热干面","泡馍","擀面皮","锅贴","生煎","小笼","麻辣拌","烤冷面","手抓饼","鸡蛋灌饼"],
-            "exclude_names": ["酒楼","海鲜","高档西餐","星级酒店","私房菜","公馆","大饭店","自助餐"],
+            "amap_codes": ["050300"],
+            "require_name_keyword_for_code": True,  # ★ 050300 是大类，必须同时命中关键词才算 direct
+            "substitute_before_direct": True,  # ★ 鸭脖/卤味/炸鸡/汉堡优先进 substitute，不进 direct
+            # ★ 收紧关键词：不用单字(面/皮/粉/饭/包/粥)，只用明确小吃/快餐品类词组
+            "name_keywords": [
+                "擀面皮","面皮","凉皮","米皮","烙面皮",
+                "米线","酸辣粉","螺蛳粉","热干面","麻辣烫","麻辣拌",
+                "肉夹馍","包子","饺子","馄饨","锅贴","生煎","小笼",
+                "砂锅","冒菜","煎饼","烤冷面","手抓饼","鸡蛋灌饼",
+                "拉面","拌面","刀削面","汤面","干拌","臊子面","油泼面","蘸水面","饸饹",
+                "泡馍","水盆","biangbiang",
+                "快餐","小吃","便当","盖浇","云饺","水饺",
+            ],
+            "exclude_names": [
+                "酒楼","海鲜","西餐","私房菜","公馆","大饭店","自助餐",
+                "火锅","烤肉","烧烤","烤鱼","大排档",
+                "韩国料理","日料","寿司","刺身","韩式","韩餐",
+                "茶饮","咖啡","奶茶","甜品","烘焙","蛋糕",
+                "鸭脖","卤味","串串","炸鸡","汉堡","披萨",
+                "星级酒店","星级",
+            ],
         },
         "substitute_competitor_rules": {
-            "description": "便利店鲜食/超市熟食/食堂可替代部分午市刚需",
+            "description": "便利店鲜食/超市熟食/食堂可替代部分午市刚需。鸭脖/卤味/炸鸡/汉堡为邻近品类替代。",
             "categories": ["convenience"],
-            "name_keywords": ["便利店","超市","食堂","单位食堂","学校食堂"],
+            "name_keywords": ["便利店","超市","食堂","单位食堂","学校食堂","鸭脖","卤味","炸鸡","汉堡","鸡排"],
         },
         "traffic_anchor_rules": {
             "description": "写字楼/学校/医院/公交站/地铁站为核心客流锚点",
             "categories": ["office","schools","hospitals","subway","bus"],
         },
         "irrelevant_poi_rules": {
-            "name_blacklist": ["大酒楼","海鲜酒楼","星级酒店","高端西餐","法餐","日料","怀石"],
+            "name_blacklist": [
+                "大酒楼","海鲜酒楼","星级酒店","高端西餐","法餐","日料","怀石",
+                "火锅","烤肉","韩国料理","寿司","茶饮","咖啡","奶茶","甜品",
+            ],
             "categories_excluded": [],
         },
         "scoring_rules": {
@@ -506,12 +527,15 @@ INDUSTRY_RIGOR = {
     "商务酒店": {
         "direct_competitor_rules": {
             "amap_codes": ["100000"],
-            "name_keywords": ["酒店","宾馆","汉庭","如家","全季","亚朵","希尔顿","万豪","洲际","维也纳","丽枫","锦江","格林豪泰","尚客优"],
-            "exclude_names": ["招待所","农家乐","洗浴","日租房","钟点房","民宿","旅舍","客栈"],
+            "require_name_keyword_for_code": True,  # ★ 100000 是大类，必须同时命中酒店关键词
+            "substitute_before_direct": True,
+            "strict_exclude_names": ["洗浴","足浴","会所","KTV","餐饮","写字楼","公寓销售","日租房","钟点房","农家乐"],
+            "name_keywords": ["酒店","宾馆","汉庭","如家","全季","亚朵","希尔顿","万豪","洲际","维也纳","丽枫","锦江","格林豪泰","尚客优","旅店","快捷酒店","连锁酒店","商务酒店"],
+            "exclude_names": ["招待所","农家乐","洗浴","日租房","钟点房","民宿","旅舍","客栈","公寓","青旅","电竞"],
         },
         "substitute_competitor_rules": {
-            "description": "民宿/公寓/钟点房可部分替代",
-            "name_keywords": ["民宿","公寓","青旅"],
+            "description": "民宿/公寓/钟点房/电竞酒店可部分替代",
+            "name_keywords": ["民宿","公寓","青旅","电竞酒店","日租房"],
         },
         "traffic_anchor_rules": {
             "description": "交通枢纽/商务区/医院/会展/景区为客流锚点",
@@ -519,7 +543,8 @@ INDUSTRY_RIGOR = {
             "name_keywords": ["火车站","汽车站","机场","会展","医院","商务中心"],
         },
         "irrelevant_poi_rules": {
-            "name_blacklist": ["招待所","农家乐","洗浴","日租房","钟点房"],
+            "name_blacklist": ["招待所","农家乐","洗浴","日租房","钟点房","足浴","会所","KTV"],
+            "categories_excluded": ["schools"],
         },
         "scoring_rules": {
             "competition": "仅基于 direct_competitors 中同档次酒店",
@@ -531,19 +556,22 @@ INDUSTRY_RIGOR = {
     "民宿青旅": {
         "direct_competitor_rules": {
             "amap_codes": ["100000"],
-            "name_keywords": ["民宿","旅舍","客栈","青旅","背包客","青年旅舍"],
-            "exclude_names": ["星级酒店","希尔顿","万豪","洲际","商务酒店","温泉酒店"],
+            "require_name_keyword_for_code": True,  # ★ 100000 是大类，必须同时命中民宿/青旅关键词
+            "substitute_before_direct": True,
+            "strict_exclude_names": ["洗浴","足浴","会所","KTV","日租房","钟点房","农家乐","招待所"],
+            "name_keywords": ["民宿","旅舍","客栈","青旅","背包客","青年旅舍","背包旅舍","背包客栈","家庭旅馆"],
+            "exclude_names": ["星级酒店","希尔顿","万豪","洲际","商务酒店","温泉酒店","电竞酒店","公寓","宾馆"],
         },
         "substitute_competitor_rules": {
-            "description": "经济型酒店/公寓可替代",
-            "name_keywords": ["汉庭","如家","公寓"],
+            "description": "经济型酒店/公寓/电竞酒店可替代",
+            "name_keywords": ["汉庭","如家","公寓","电竞酒店","快捷酒店","经济型酒店"],
         },
         "traffic_anchor_rules": {
             "categories": ["subway","shopping"],
             "name_keywords": ["景区","地铁站","火车站","步行街","大学城"],
         },
         "irrelevant_poi_rules": {
-            "name_blacklist": ["星级酒店","希尔顿","万豪","洲际"],
+            "name_blacklist": ["星级酒店","希尔顿","万豪","洲际","洗浴","足浴","KTV"],
         },
         "scoring_rules": {
             "competition": "仅基于 direct_competitors",
@@ -556,33 +584,35 @@ INDUSTRY_RIGOR = {
     # ========== 9. 高频刚需零售（便利店/超市/药店）==========
     "高频刚需零售": {
         "direct_competitor_rules": {
-            "note": "★ 通过 subtypes 实现子业态独立规则，超市/生鲜/药店/烟酒/日杂各自独立",
+            "note": "★ subtypes 实现子业态独立规则，inherit master strict_exclude",
+            "require_name_keyword_for_code": True,   # ★ 所有 subtype 继承
+            "substitute_before_direct": True,
             "strict_exclude_names": ["会计","律所","律师","广告","装饰","装修","房产","地产","中介","科技","企业服务","SPA","美容","美发","理发","培训","教育","公司","政府","机关","社区服务中心","党群","便民服务中心","彩票","福彩","体彩","充电站","充电桩","旅行社","劳务","人力","家政","搬家","开锁","疏通","驾校","文印","照相","刻章","缝纫","修理","修鞋","配钥匙","干洗","皮具","擦鞋","美甲","纹身","按摩","采耳","洗浴","汗蒸","推拿","艾灸","拔罐","眼镜","养生","足疗","足道","建材","五金","批发","农贸","汽配","家具","灯饰","石材","印刷","旧货","二手","废品","回收"],
             "subtypes": {
                 "supermarket": {
                     "match_keywords": ["超市","便利店","小超市","永辉","盒马","711","罗森","全家","便利蜂","美宜佳","大润发","华润万家","物美","沃尔玛","联华"],
-                    "name_keywords": ["便利店","超市","小卖部","便利","永辉","盒马","711","罗森","全家","便利蜂","美宜佳","大润发","华润万家","物美","沃尔玛","联华"],
-                    "exclude_names": ["建材","五金","批发","农贸","汽配","家具","灯饰","石材","旧货","二手","废品","回收"],
+                    "name_keywords": ["便利店","超市","小卖部","便利","永辉","盒马","711","罗森","全家","便利蜂","美宜佳","大润发","华润万家","物美","沃尔玛","联华","社区超市","便民超市"],
+                    "exclude_names": ["建材","五金","批发","农贸","汽配","家具","灯饰","石材","旧货","二手","废品","回收","百货大楼","购物中心","商场","药房","药店","大药房","医院","诊所"],
                 },
                 "fresh": {
-                    "match_keywords": ["生鲜","水果","蔬菜","肉","禽","蛋","奶","水产","海鲜"],
-                    "name_keywords": ["生鲜","水果","蔬菜","肉","禽","蛋","奶","水产","海鲜","菜市场","农贸","果品","鲜肉"],
-                    "exclude_names": ["超市","便利店","五金","建材","批发"],
+                    "match_keywords": ["生鲜","水果","蔬菜","肉禽","蛋奶","水产","海鲜"],
+                    "name_keywords": ["生鲜","水果","蔬菜","鲜肉","水产","海鲜","果品","鲜果","蔬果","果蔬","菜店","菜场","菜市场"],
+                    "exclude_names": ["便利店","百货","五金","建材","批发","冷库","物流","餐饮","饭店","食堂","药房","药店"],
                 },
                 "pharmacy2": {
                     "match_keywords": ["药店","药房","医药","中药"],
                     "name_keywords": ["药店","药房","大药房","医药","同仁堂","老百姓","益丰","一心堂","健之佳","海王星辰","大参林","国药"],
-                    "exclude_names": ["器械","体验中心","门诊","诊所","医院","体检"],
+                    "exclude_names": ["器械","体验中心","门诊","诊所","医院","眼科","视光","助听器","医美","皮肤","理疗","体检","康复","牙科","口腔"],
                 },
                 "tobacco_liquor": {
-                    "match_keywords": ["烟酒","名烟","名酒","酒类","烟"],
-                    "name_keywords": ["烟酒","名烟","名酒","酒行","酒类","烟草","酒庄","1919","酒便利"],
-                    "exclude_names": ["超市","便利店","百货"],
+                    "match_keywords": ["烟酒","名烟","名酒","酒类","酒行"],
+                    "name_keywords": ["烟酒","名烟","名酒","酒行","酒类","烟草","酒庄","1919","酒便利","烟酒店","烟酒行","酒水商行"],
+                    "exclude_names": ["超市","便利店","百货","酒吧","餐厅","KTV","茶叶","茶庄"],
                 },
                 "daily_goods": {
                     "match_keywords": ["百货","日用","杂货","日杂","副食","粮油"],
-                    "name_keywords": ["百货","日用","杂货","日杂","副食","粮油","两元店","十元店"],
-                    "exclude_names": ["建材","五金","批发","农贸"],
+                    "name_keywords": ["百货","日用","杂货","日杂","副食","粮油","两元店","十元店","日用品"],
+                    "exclude_names": ["建材","五金","批发","农贸","商场","购物中心","服装","鞋帽","家电","数码","便利店","超市"],
                 },
             },
         },
@@ -641,36 +671,37 @@ INDUSTRY_RIGOR = {
     "专业生活服务": {
         "direct_competitor_rules": {
             "note": "★ 通过 subtypes 实现子业态独立规则，美容/宠物/健身互不污染",
+            "require_name_keyword_for_code": True,
             "subtypes": {
                 "beauty": {
-                    "match_keywords": ["美容","美发","美甲"],
-                    "name_keywords": ["美容","美发","美甲","SPA","美体","皮肤管理","造型","形象设计"],
-                    "exclude_names": ["宠物","动物"],
+                    "match_keywords": ["美容","美发","美甲","美体","SPA"],
+                    "name_keywords": ["美容","美发","美甲","美睫","美体","SPA","皮肤管理","造型","形象设计","护肤"],
+                    "exclude_names": ["宠物","动物","健身","瑜伽","舞蹈","足疗","按摩","推拿","艾灸","拔罐","洗浴","汗蒸","医美","整形","皮肤科","口腔","牙科"],
                 },
                 "pets": {
-                    "match_keywords": ["宠物"],
-                    "name_keywords": ["宠物","动物医院","宠物医院","宠物店","猫舍","犬舍","宠物美容","宠物用品"],
-                    "exclude_names": ["美容","美发"],
+                    "match_keywords": ["宠物","猫舍","犬舍"],
+                    "name_keywords": ["宠物","宠物店","宠物用品","宠物美容","猫舍","犬舍","宠物生活馆"],
+                    "exclude_names": ["美容","美发","健身","动物医院","宠物医院","兽医","兽药"],
                 },
                 "fitness": {
-                    "match_keywords": ["健身","瑜伽","舞蹈","私教"],
-                    "name_keywords": ["健身","瑜伽","舞蹈","普拉提","私教","游泳","拳击","CrossFit","操课"],
-                    "exclude_names": ["宠物","美容","美发"],
+                    "match_keywords": ["健身","瑜伽","舞蹈","普拉提","私教"],
+                    "name_keywords": ["健身","瑜伽","舞蹈","普拉提","私教","游泳","拳击","CrossFit","操课","体能","力量"],
+                    "exclude_names": ["宠物","美容","美发","足疗","按摩","推拿","体育用品","体育器材","培训","教育","少儿","儿童"],
                 },
             },
         },
         "substitute_competitor_rules": {
             "description": "社区理发/平价快剪可替代部分美发服务；家庭健身/户外替代部分健身房需求",
-            "name_keywords": ["快剪","平价","社区理发"],
+            "name_keywords": ["快剪","平价","社区理发","家庭健身","户外跑步"],
         },
         "traffic_anchor_rules": {
             "categories": ["residential","office","shopping","parking"],
         },
         "irrelevant_poi_rules": {
-            "name_blacklist": ["快剪","街边理发","10元店","平价"],
+            "name_blacklist": ["快剪","街边理发","10元店","平价","足疗","按摩","推拿","洗浴","汗蒸","医美","整形"],
         },
         "scoring_rules": {
-            "competition": "仅基于同品类 direct_competitors。美容不能把宠物店算竞品。",
+            "competition": "仅基于同品类 direct_competitors。美容不能把宠物店/健身/按摩算竞品。",
         },
         "revenue_model": {
             "logic": "到店频次×项目客单×会员转化率；复购周期决定现金流稳定性",
@@ -681,21 +712,22 @@ INDUSTRY_RIGOR = {
     "社区基础服务": {
         "direct_competitor_rules": {
             "note": "★ 通过 subtypes 实现子业态独立规则，教育/洗衣/诊所互不污染",
+            "require_name_keyword_for_code": True,
             "subtypes": {
                 "education": {
-                    "match_keywords": ["培训","教育","琴行","画室","早教","托管","辅导","补习","学校","学"],
-                    "name_keywords": ["培训","教育","琴行","画室","早教","托管","辅导","补习","驾校","职业技能"],
-                    "exclude_names": ["洗衣","诊所","门诊"],
+                    "match_keywords": ["培训","教育","琴行","画室","早教","托管","辅导","补习","学"],
+                    "name_keywords": ["培训","教育","琴行","画室","早教","托管","辅导","补习","驾校","职业技能","语言培训","美术","音乐","舞蹈培训","书法"],
+                    "exclude_names": ["洗衣","诊所","门诊","学校","幼儿园","小学","中学","大学","文具","书店","办公用品"],
                 },
                 "laundry": {
-                    "match_keywords": ["洗衣","干洗"],
-                    "name_keywords": ["洗衣","干洗","清洗","护理"],
-                    "exclude_names": ["培训","教育","诊所"],
+                    "match_keywords": ["洗衣","干洗","洗护"],
+                    "name_keywords": ["洗衣","干洗","清洗","护理","洗护","洗衣店","干洗店"],
+                    "exclude_names": ["培训","教育","诊所","家政","维修","皮具护理","擦鞋"],
                 },
                 "clinic": {
-                    "match_keywords": ["诊所","门诊","卫生所","医疗"],
-                    "name_keywords": ["诊所","门诊","卫生所","社区卫生","卫生室","医务室"],
-                    "exclude_names": ["培训","教育","洗衣","宠物","动物"],
+                    "match_keywords": ["诊所","门诊","卫生所","医务室"],
+                    "name_keywords": ["诊所","门诊","卫生所","社区卫生","卫生室","医务室","中医诊所","中西医结合"],
+                    "exclude_names": ["培训","教育","洗衣","宠物","动物","医院","口腔医院","眼科医院","医美","体检","助听器","药店","大药房"],
                 },
             },
         },
@@ -706,10 +738,10 @@ INDUSTRY_RIGOR = {
             "categories": ["residential","schools","office"],
         },
         "irrelevant_poi_rules": {
-            "name_blacklist": ["驾校","职业培训"],
+            "name_blacklist": ["驾校","职业培训","医院","药店"],
         },
         "scoring_rules": {
-            "competition": "仅基于同品类 direct_competitors。培训不能把洗衣店算竞品。",
+            "competition": "仅基于同品类 direct_competitors。培训不能把洗衣店/诊所/学校算竞品。",
         },
         "revenue_model": {
             "logic": "教育培训：生源数×客单价×续费率；洗衣：日均订单×客单价×复购率",
@@ -719,9 +751,28 @@ INDUSTRY_RIGOR = {
     # ========== 13. 夜经济娱乐（酒吧/KTV/网吧）==========
     "夜经济娱乐": {
         "direct_competitor_rules": {
+            "note": "★ subtypes 实现酒吧/KTV/网吧互不污染。050400/080000 需 keyword 锁。",
             "amap_codes": ["050400", "080000"],
-            "name_keywords": ["酒吧","KTV","网咖","LiveHouse","清吧","精酿","威士忌","电竞","夜店"],
-            "exclude_names": ["网咖","台球","棋牌"],
+            "require_name_keyword_for_code": True,
+            "substitute_before_direct": True,
+            "strict_exclude_names": ["学校","医院","幼儿园","小学","中学"],
+            "subtypes": {
+                "bar": {
+                    "match_keywords": ["酒吧","清吧","酒馆","精酿","威士忌","夜店","LiveHouse"],
+                    "name_keywords": ["酒吧","清吧","酒馆","精酿","威士忌","夜店","LiveHouse","鸡尾酒"],
+                    "exclude_names": ["KTV","网吧","网咖","台球","棋牌","餐厅","咖啡","茶","书店"],
+                },
+                "ktv": {
+                    "match_keywords": ["KTV","歌厅","练歌房"],
+                    "name_keywords": ["KTV","歌厅","练歌房","量贩KTV","卡拉OK"],
+                    "exclude_names": ["酒吧","网吧","网咖","台球","棋牌","餐厅"],
+                },
+                "internet_cafe": {
+                    "match_keywords": ["网吧","网咖","电竞馆","电竞酒店"],
+                    "name_keywords": ["网吧","网咖","电竞馆","电竞酒店","电竞"],
+                    "exclude_names": ["酒吧","KTV","台球","棋牌"],
+                },
+            },
         },
         "substitute_competitor_rules": {
             "description": "台球/棋牌/夜市/轰趴可分流部分夜间娱乐需求",
@@ -729,43 +780,72 @@ INDUSTRY_RIGOR = {
         },
         "traffic_anchor_rules": {
             "categories": ["hotels","parking","subway"],
-            "name_keywords": ["酒店","停车场","地铁站","KTV","酒吧街"],
+            "name_keywords": ["酒店","停车场","地铁站","酒吧街"],
         },
         "irrelevant_poi_rules": {
             "name_blacklist": ["学校","医院"],
             "categories_excluded": ["hospitals"],
         },
         "scoring_rules": {
-            "competition": "仅基于 direct_competitors；居民噪音投诉风险计入风险维度",
+            "competition": "仅基于同品类 direct_competitors。酒吧不能把 KTV/网吧算竞品。",
         },
         "revenue_model": {
             "logic": "周末/节假日权重高；人均消费×座位数×翻台率；隔音+消防硬成本",
         },
     },
 
-    # ========== 14. 沉浸式社交娱乐（剧本杀/密室/台球）==========
+    # ========== 14. 沉浸式社交娱乐（剧本杀/密室/台球/桌游/电玩）==========
     "沉浸式社交娱乐": {
         "direct_competitor_rules": {
-            "name_keywords": ["剧本杀","密室","台球","桌游","轰趴","VR","电玩"],
-            "exclude_names": ["棋牌","麻将馆"],
+            "note": "★ subtypes 实现剧本杀/密室/台球/桌游/电玩 互不污染",
+            "require_name_keyword_for_code": True,
+            "substitute_before_direct": True,
+            "strict_exclude_names": ["麻将馆","KTV","酒吧","网吧","网咖","电竞酒店"],
+            "subtypes": {
+                "jubensha": {
+                    "match_keywords": ["剧本杀","推理馆","谋杀之谜"],
+                    "name_keywords": ["剧本杀","推理馆","谋杀之谜","沉浸式剧场","实景搜证"],
+                    "exclude_names": ["密室","桌游","台球","电玩","VR","KTV","酒吧","网吧"],
+                },
+                "escape_room": {
+                    "match_keywords": ["密室逃脱","密室","沉浸式密室"],
+                    "name_keywords": ["密室逃脱","密室","沉浸式密室","机械密室","恐怖密室"],
+                    "exclude_names": ["剧本杀","桌游","台球","电玩","VR","KTV","酒吧","网吧"],
+                },
+                "billiards": {
+                    "match_keywords": ["台球","桌球","台球厅"],
+                    "name_keywords": ["台球","桌球","台球厅","台球俱乐部","桌球室"],
+                    "exclude_names": ["棋牌","桌游","剧本杀","密室","KTV","酒吧","网吧"],
+                },
+                "board_game": {
+                    "match_keywords": ["桌游","棋牌","轰趴","轰趴馆","棋牌室"],
+                    "name_keywords": ["桌游","棋牌","轰趴","轰趴馆","棋牌室","狼人杀","三国杀","德扑"],
+                    "exclude_names": ["剧本杀","密室","台球","电玩","VR","KTV","酒吧","网吧"],
+                },
+                "arcade_vr": {
+                    "match_keywords": ["电玩","VR","游戏厅","娱乐体验"],
+                    "name_keywords": ["电玩","VR","虚拟现实","游戏厅","娱乐体验馆","主机游戏"],
+                    "exclude_names": ["剧本杀","密室","台球","桌游","KTV","酒吧","网吧","电竞酒店"],
+                },
+            },
         },
         "substitute_competitor_rules": {
-            "description": "KTV/网吧/酒吧可部分替代社交娱乐需求",
-            "name_keywords": ["KTV","网吧","酒吧"],
+            "description": "KTV/网吧/酒吧/电竞酒店可部分替代社交娱乐需求",
+            "name_keywords": ["KTV","网吧","酒吧","电竞酒店"],
         },
         "traffic_anchor_rules": {
             "categories": ["subway","schools","office"],
             "name_keywords": ["大学城","地铁站","写字楼"],
         },
         "irrelevant_poi_rules": {
-            "name_blacklist": ["棋牌","麻将馆"],
+            "name_blacklist": ["麻将馆"],
             "categories_excluded": ["hospitals"],
         },
         "scoring_rules": {
-            "competition": "仅基于 direct_competitors",
+            "competition": "仅基于同品类 direct_competitors。剧本杀不能把密室/台球/KTV/酒吧算竞品。",
         },
         "revenue_model": {
-            "logic": "周末四场×人均×容纳人数；剧本更新频率影响复购",
+            "logic": "周末四场×人均×容纳人数；剧本更新频率影响复购；台球按桌时计费",
         },
     },
 }

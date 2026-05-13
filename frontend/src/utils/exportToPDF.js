@@ -247,8 +247,14 @@ function _buildRealDataHTML(rd, pageOpen, pageClose) {
     const clist = dcList.length
       ? '<div style="font-size:10px;color:#9a3412;line-height:1.8;border-top:1px solid #fecaca;padding-top:8px;margin-top:8px;text-align:center">' + dcList.slice(0, 12).map(c => '<span style="margin-right:12px">· ' + escapeHtml(c.name) + '（' + c.distance + 'm）</span>').join('') + '</div>'
       : (hasRigor ? '<div style="font-size:10px;color:#9a3412;line-height:1.8;border-top:1px solid #fecaca;padding-top:8px;margin-top:8px;text-align:center">1km内暂无直接竞品</div>' : '')
-    const legacyNote = !hasRigor ? '<span style="font-size:10px;color:#b45309;display:block">⚠️ 该业态暂无完整严谨分类规则，竞品结果仅供兼容参考</span>' : ''
-    compHTML = '<div style="background:#fef2f2;border-radius:6px;padding:10px 14px;margin-bottom:8px;border:1px solid #fecaca"><div style="font-size:13px;font-weight:700;color:#dc2626;margin-bottom:6px;text-align:center">🎯 直接竞品（同类业态）</div><div style="font-size:12px;color:#9a3412;line-height:2.2;text-align:center">200m: <strong style="font-size:16px;color:#dc2626">' + _fmt(dc200) + '</strong> · 500m: <strong style="font-size:16px;color:#dc2626">' + _fmt(dc500) + '</strong> · 1km: <strong style="font-size:16px;color:#dc2626">' + _fmt(dc1000) + '</strong></div>' + clist + legacyNote + '</div>'
+    const title = hasRigor ? '🎯 直接竞品（同类业态 · 严谨口径）' : '📋 旧口径竞品参考（非严谨直接竞品）'
+    const bg = hasRigor ? '#fef2f2' : '#f8fafc'
+    const border = hasRigor ? '#fecaca' : '#e2e8f0'
+    const titleColor = hasRigor ? '#dc2626' : '#64748b'
+    const bodyColor = hasRigor ? '#9a3412' : '#64748b'
+    const numColor = hasRigor ? '#dc2626' : '#475569'
+    const legacyNote = !hasRigor ? '<span style="font-size:10px;color:#b45309;display:block;line-height:1.5">⚠️ 旧口径统计，仅供兼容参考，需人工核验直接竞品。</span>' : ''
+    compHTML = '<div style="background:' + bg + ';border-radius:6px;padding:10px 14px;margin-bottom:8px;border:1px solid ' + border + '"><div style="font-size:13px;font-weight:700;color:' + titleColor + ';margin-bottom:6px;text-align:center">' + title + '</div><div style="font-size:12px;color:' + bodyColor + ';line-height:2.2;text-align:center">200m: <strong style="font-size:16px;color:' + numColor + '">' + _fmt(dc200) + '</strong> · 500m: <strong style="font-size:16px;color:' + numColor + '">' + _fmt(dc500) + '</strong> · 1km: <strong style="font-size:16px;color:' + numColor + '">' + _fmt(dc1000) + '</strong></div>' + clist + legacyNote + '</div>'
   }
   // ★ 替代消费压力（三层半径）
   let subHTML = ''
