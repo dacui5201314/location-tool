@@ -533,6 +533,25 @@ async def analyze_location(req: AnalyzeRequest, user: dict = Depends(get_current
                     if big_nums:
                         fact_errors.append(f"{key}中出现异常大数字: {big_nums[:3]}")
 
+                # ★ P0: POI 名称引用校验 (warning-only)
+                from services.poi_name_guard import check_poi_name_hallucination, check_poi_context_mismatch, check_direct_competitor_count_mismatch
+                poi_name_issues = check_poi_name_hallucination(full_text, real_data, strict=False)
+                if poi_name_issues:
+                    print(f"[SSE Guard] POI名称引用告警 ({len(poi_name_issues)}条): {'; '.join(poi_name_issues[:5])}", flush=True)
+                    result["_poi_name_warnings"] = poi_name_issues
+
+                # ★ P2: 竞品语境中 substitute/anchor 误用检测 (warning-only)
+                poi_ctx_issues = check_poi_context_mismatch(full_text, real_data)
+                if poi_ctx_issues:
+                    print(f"[SSE Guard] POI语境告警 ({len(poi_ctx_issues)}条): {'; '.join(poi_ctx_issues[:5])}", flush=True)
+                    result["_poi_context_warnings"] = poi_ctx_issues
+
+                # ★ P3: 直接竞品数量膨胀检测 (warning-only)
+                count_issues = check_direct_competitor_count_mismatch(full_text, real_data)
+                if count_issues:
+                    print(f"[SSE Guard] 竞品数量告警 ({len(count_issues)}条): {'; '.join(count_issues[:5])}", flush=True)
+                    result["_direct_competitor_count_warnings"] = count_issues
+
                 if fact_errors:
                     print(f"[SSE Guard] 事实校验失败: {'; '.join(fact_errors)}", flush=True)
                     _llm_parse_error = True
