@@ -400,6 +400,65 @@ report = "午间客流依赖附近学校，学生群体消费频次高。"
 issues = check_poi_name_hallucination(report, rd)
 check(len(issues) == 0, f"P0F-7 描述性前缀通过: {issues}")
 
+# T-P0F-8: 距离+否定+同类+业态后缀 → 不 warning ("米内无任何同类药店")
+print("=== T-P0F-8: 距离否定同类artifact → 通过 ===")
+rd = {"direct_competitor_list": []}
+report = "500米内无任何同类药店，竞争压力极低。"
+issues = check_poi_name_hallucination(report, rd)
+check(len(issues) == 0, f"P0F-8 距离artifact通过: {issues}")
+
+# T-P0F-9: 距离+商圈内+同类+业态后缀 → 不 warning
+print("=== T-P0F-9: 商圈内同类artifact → 通过 ===")
+rd = {"direct_competitor_list": []}
+report = "1公里商圈内同类药店较少，市场空间充足。"
+issues = check_poi_name_hallucination(report, rd)
+check(len(issues) == 0, f"P0F-9 商圈artifact通过: {issues}")
+
+# T-P0F-10: 否定+大型+商圈/商场泛称 → 不 warning
+print("=== T-P0F-10: 否定大型商圈泛称 → 通过 ===")
+rd = {"direct_competitor_list": []}
+report = "无大型商圈或购物商场，商业配套薄弱。"
+issues = check_poi_name_hallucination(report, rd)
+check(len(issues) == 0, f"P0F-10 否定泛称通过: {issues}")
+
+# T-P0F-11: 具体分店名仍 warning — 避免数字+米内边界截断
+print("=== T-P0F-11: 具体分店名仍触发 ===")
+rd = {"direct_competitor_list": []}
+report = "周边分布有解放路店，同类竞品密集。"
+issues = check_poi_name_hallucination(report, rd)
+check(len(issues) >= 1, f"P0F-11 仍触发: {issues}")
+check(any("解放路店" in i for i in issues), f"P0F-11 包含解放路店: {issues}")
+
+# T-P0F-12: 回归锁 — "米内无" 不得误杀 "米内+具名品牌"
+print("=== T-P0F-12: 米内有具名品牌仍触发 ===")
+rd = {"direct_competitor_list": []}
+report = "500米内聚集了益丰大药房，竞争压力大。"
+issues = check_poi_name_hallucination(report, rd)
+check(len(issues) >= 1, f"P0F-12 仍触发: {issues}")
+check(any("益丰大药房" in i for i in issues), f"P0F-12 包含益丰大药房: {issues}")
+
+# T-P0F-13: "周边客群以高校" 假阳性 → 不 warning（真实句式含"写字楼"）
+print("=== T-P0F-13: 客群描述artifact → 通过 ===")
+rd = {"direct_competitor_list": []}
+report = "周边客群以高校学生和写字楼白领为主。"
+issues = check_poi_name_hallucination(report, rd)
+check(len(issues) == 0, f"P0F-13 客群artifact通过: {issues}")
+
+# T-P0F-14: 具体伪造名仍触发（回归锁）
+print("=== T-P0F-14: 具体伪造名仍触发 ===")
+rd = {"direct_competitor_list": []}
+report = "周边聚集了瑞幸小吃店，竞争压力较强。"
+issues = check_poi_name_hallucination(report, rd)
+check(len(issues) >= 1, f"P0F-14 仍触发: {issues}")
+check(any("瑞幸" in i for i in issues), f"P0F-14 包含瑞幸: {issues}")
+
+# T-P0F-15: 裸泛称回归 — "周边写字楼" → 不 warning
+print("=== T-P0F-15: 裸泛称通过 ===")
+rd = {"direct_competitor_list": []}
+report = "周边写字楼白领客群稳定，带来稳定午市客流。"
+issues = check_poi_name_hallucination(report, rd)
+check(len(issues) == 0, f"P0F-15 裸泛称通过: {issues}")
+
 # T-P3-8: 500m/1000m 半径独立校验
 print("=== T-P3-8: 多半径独立 ===")
 rd = {"direct_competitors_500m": 4, "direct_competitors_1000m": 10}

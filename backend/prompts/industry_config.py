@@ -338,13 +338,14 @@ INDUSTRY_RIGOR = {
     "异国_中高端正餐": {
         "direct_competitor_rules": {
             "amap_codes": ["050100", "050200"],
-            "name_keywords": ["西餐","日料","法餐","意餐","私房","公馆","海鲜","料理","牛扒","铁板烧","omakase","怀石"],
-            "exclude_names": ["快餐","小吃","面馆","食堂","麻辣烫","汉堡","炸鸡","米线","黄焖鸡"],
+            "require_name_keyword_for_code": True,
+            "substitute_before_direct": True,
+            "name_keywords": ["西餐","日料","法餐","意餐","私房","公馆","海鲜","料理","牛扒","铁板烧","omakase","怀石","牛排","披萨","扒房","刺身","天妇罗","韩式","韩国","东南亚","泰国","越南"],
+            "exclude_names": ["快餐","小吃","面馆","食堂","麻辣烫","汉堡","炸鸡","米线","黄焖鸡","烧烤","烤串","大排档","茶饮","咖啡","奶茶","甜品","烘焙"],
         },
         "substitute_competitor_rules": {
             "description": "中高端中餐/火锅可能分流部分宴请客群，但不算直接竞品",
-            "amap_codes": ["050100"],
-            "name_keywords": ["酒楼","宴","中餐","湘菜","川菜","粤菜","火锅"],
+            "name_keywords": ["酒楼","宴","中餐","湘菜","川菜","粤菜","火锅","东北菜","西北菜","本帮菜","烤鸭"],
         },
         "traffic_anchor_rules": {
             "description": "高档商场/写字楼/高端酒店/停车场为客流锚点",
@@ -352,7 +353,7 @@ INDUSTRY_RIGOR = {
             "name_keywords": ["购物中心","百货","写字楼","国际中心","酒店","希尔顿","万豪","洲际"],
         },
         "irrelevant_poi_rules": {
-            "name_blacklist": ["快餐","小吃","面馆","麻辣烫","汉堡","炸鸡","食堂","盒饭","盖浇饭","黄焖鸡","沙县","兰州拉面","桂林米粉"],
+            "name_blacklist": ["快餐","小吃","面馆","麻辣烫","汉堡","炸鸡","食堂","盒饭","盖浇饭","黄焖鸡","沙县","兰州拉面","桂林米粉","米线"],
             "categories_excluded": ["schools","hospitals","bus"],
         },
         "scoring_rules": {
@@ -371,8 +372,9 @@ INDUSTRY_RIGOR = {
     "火锅_烧烤": {
         "direct_competitor_rules": {
             "amap_codes": ["050100"],
+            "require_name_keyword_for_code": True,
             "name_keywords": ["火锅","烧烤","烤串","烤肉","涮肉","羊蝎子","烤鱼","小龙虾","大排档","串串香","麻辣烫"],
-            "exclude_names": ["快餐","小吃","面馆","包子","食堂","盒饭"],
+            "exclude_names": ["快餐","小吃","面馆","包子","食堂","盒饭","茶饮","咖啡","奶茶","西餐","日料","日本料理","寿司"],
         },
         "substitute_competitor_rules": {
             "description": "中餐正餐/大排档/夜市可分流部分聚餐需求",
@@ -384,7 +386,7 @@ INDUSTRY_RIGOR = {
             "name_keywords": ["KTV","酒吧","酒店","停车场"],
         },
         "irrelevant_poi_rules": {
-            "name_blacklist": [],
+            "name_blacklist": ["茶饮","咖啡","奶茶","西餐","日料","日本料理","寿司","快餐","小吃","面馆","包子","食堂"],
             "categories_excluded": [],
         },
         "scoring_rules": {
@@ -450,8 +452,10 @@ INDUSTRY_RIGOR = {
     "中餐正餐": {
         "direct_competitor_rules": {
             "amap_codes": ["050100"],
-            "name_keywords": ["酒楼","宴","中餐","湘菜","川菜","粤菜","西北菜","东北菜","本帮菜","私房","烤鸭","海鲜"],
-            "exclude_names": ["快餐","小吃","面馆","麻辣烫","汉堡","食堂","大排档"],
+            "require_name_keyword_for_code": True,
+            "substitute_before_direct": True,
+            "name_keywords": ["酒楼","宴","中餐","湘菜","川菜","粤菜","西北菜","东北菜","本帮菜","私房","烤鸭","海鲜","鲁菜","苏菜","淮扬","淮扬菜","闽菜","浙菜","徽菜","中式","土菜"],
+            "exclude_names": ["快餐","小吃","面馆","麻辣烫","汉堡","食堂","大排档","茶饮","咖啡","奶茶","西餐","日料","日本料理","韩式","韩国","韩国料理","东南亚","泰国","越南","茶餐厅","简餐"],
         },
         "substitute_competitor_rules": {
             "description": "火锅/烧烤可能分流聚餐需求",
@@ -475,8 +479,10 @@ INDUSTRY_RIGOR = {
     "烘焙甜品": {
         "direct_competitor_rules": {
             "amap_codes": ["050600"],
+            "require_name_keyword_for_code": True,
+            "substitute_before_direct": True,
             "name_keywords": ["烘焙","面包","蛋糕","甜点","泡芙","蛋挞","慕斯","马卡龙","曲奇","冰淇淋","甜品"],
-            "exclude_names": ["包子","馒头","大饼","油条","煎饼","食堂"],
+            "exclude_names": ["包子","馒头","大饼","油条","煎饼","食堂","便利店","超市","火锅","烧烤","茶饮","咖啡","奶茶"],
         },
         "substitute_competitor_rules": {
             "description": "咖啡/茶饮店甜品可部分替代",
@@ -486,7 +492,7 @@ INDUSTRY_RIGOR = {
             "categories": ["residential","schools","subway","shopping"],
         },
         "irrelevant_poi_rules": {
-            "name_blacklist": ["包子铺","馒头店","大饼","油条","食堂","快餐"],
+            "name_blacklist": ["包子铺","馒头店","大饼","油条","食堂","快餐","火锅","烧烤","便利店","超市","煎饼"],
         },
         "scoring_rules": {
             "competition": "仅基于 direct_competitors；学校/地铁口权重加分",
@@ -500,8 +506,10 @@ INDUSTRY_RIGOR = {
     "精品茶饮咖啡": {
         "direct_competitor_rules": {
             "amap_codes": ["050500"],
+            "require_name_keyword_for_code": True,
+            "substitute_before_direct": True,
             "name_keywords": ["奶茶","咖啡","茶饮","果饮","柠檬","酸奶","星巴克","瑞幸","喜茶","奈雪","蜜雪冰城","茶百道","古茗","霸王茶姬","Manner","库迪","幸运咖","一点点","CoCo","书亦","益禾堂"],
-            "exclude_names": ["酒吧","茶馆","棋牌"],
+            "exclude_names": ["酒吧","茶馆","棋牌","甜品","冰淇淋","便利店","超市","火锅","烧烤"],
         },
         "substitute_competitor_rules": {
             "description": "便利店饮料/甜品店/冰淇淋可部分替代",
@@ -646,8 +654,10 @@ INDUSTRY_RIGOR = {
     "低频目的零售": {
         "direct_competitor_rules": {
             "amap_codes": ["060100", "060400"],
+            "require_name_keyword_for_code": True,
+            "substitute_before_direct": True,
             "name_keywords": ["服装","鞋帽","数码","手机","电脑","家电","眼镜","珠宝","名创优品","屈臣氏","优衣库"],
-            "exclude_names": ["批发","建材","五金","农贸","汽配"],
+            "exclude_names": ["批发","建材","五金","农贸","汽配","超市","便利店","水果","生鲜","菜市场","杂货","维修","彩票"],
         },
         "substitute_competitor_rules": {
             "description": "电商/综合商场可分流",
@@ -657,7 +667,7 @@ INDUSTRY_RIGOR = {
             "name_keywords": ["购物中心","百货","步行街"],
         },
         "irrelevant_poi_rules": {
-            "name_blacklist": ["批发","建材","五金","农贸","汽配"],
+            "name_blacklist": ["批发","建材","五金","农贸","汽配","超市","便利店","水果","生鲜","菜市场","杂货","维修","彩票","美甲","快递","手机维修","黄金回收"],
         },
         "scoring_rules": {
             "competition": "仅基于 direct_competitors；同类聚集（扎堆）为正相关",

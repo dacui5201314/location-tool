@@ -1,63 +1,67 @@
-# 当前工作集
+# 最新工作集（2026-05-15 C-2 收口，以本节为准）
+
+## C-2 已完成
+
+- 业态：刚需快餐小吃 | 地址：北京市海淀区中关村大街19号
+- AMap/LLM 链路跑通，报告保存 id=22, score=50
+- fact_errors=0，退款未触发
+- P0 初始 1 条假阳性 → 已二次收窄修复
+- P2/P3=0
+
+## 当前有效基线
+
+- python -m compileall backend：PASS
+- python backend/tests/check_industry_rigor_rules.py：1876 PASS, 0 FAIL
+- python backend/tests/check_report_fact_guard.py：61 PASS, 0 FAIL
+- KNOWN_RULE_GAPS：(none)
+
+## 不要处理
+
+- frontend/vite.config.js 既有 diff
+- tmp_latest_report_text.txt / tmp_report_images / tmp_report_pages
+- 不提交、不 push
+- 不调用 AMap/LLM 除非用户再次授权
 
 ## 当前目标
 
-当前阶段已经完成规则体系重构主线的大部分工作，并建立了 Sample Bank v1 partial baseline。
+Phase 3B 已完成并通过 Codex 复核。Sample Bank 已从打印状态表升级为结构化、可校验台账。C-2 已通过。下一步等待用户授权新任务或下一次真实报告。
 
-## 2026-05-14 最新工作集更新（P0-FIX + id=21 离线验收收口，以本节为准）
+## 当前有效基线
 
-当前 Sample Bank 保守补样本已经收口，报告事实校验层 P0/P2/P3 已完成，P0 泛称/描述性前缀假阳性已修补，并用本地历史记录 `analysis_records.id=21` 完成离线复验。旧章节中的 `42 PASS`、`17 PASS`、`1511 PASS`、`1391 PASS`、`1291 PASS`、Laundry 下一步、P2 下一步等均为历史信息；继续工作以本节为准。
+- python -m compileall backend：PASS
+- check_industry_rigor_rules.py：1876 PASS, 0 FAIL
+- check_report_fact_guard.py：61 PASS, 0 FAIL
+- KNOWN_RULE_GAPS: (none)
+- P0/P2/P3：warning-only
+- P1：暂缓
 
-最新基线：
+## 锁住的 invariant
 
-- `python -m compileall backend` 通过。
-- `python backend/tests/check_report_fact_guard.py` 通过：`50 PASS, 0 FAIL`。
-- `python backend/tests/check_industry_rigor_rules.py` 通过。
-- canonical：`1598 PASS, 0 FAIL`。
-- `KNOWN_RULE_GAPS: (none)`。
-- id=21 离线复验：`P0=0 / P2=0 / P3=0`。
-- 未生成新的真实报告。
-- 未调用 AMap API。
-- 未调用 LLM API。
-- 未启动前端。
-- 未提交、未 push。
+- Section A：43 entries / 14 masters / 14 rigor / 四类规则齐全（硬断言）
+- Section AB：逐 source (master+subtype) 扫描 forbidden/risky codes
+- Section AC：低频目的零售 real chain sim_full_chain invariant
+- Sample Bank Ledger：8 个 complete_candidate 全量硬断言，14 个 partial 硬断言 d/nd/a/i 且必须有 partial_reason
+- partial_reason：当前业态无稳定全国通用 substitute 规则时，不为凑数污染 direct/substitute 边界
 
-当前报告事实校验层状态：
+## 本轮相关改动文件
 
-- P0 已完成：POI 名称引用校验，warning-only。
-  - 函数：`check_poi_name_hallucination(full_text, real_data, strict=False)`
-  - 写入：`result["_poi_name_warnings"]`
-- P0-FIX 已完成：泛称/描述性前缀假阳性修补，warning-only。
-  - 覆盖 `周边/附近 + 泛称 POI 后缀`。
-  - 覆盖 `晚间客流依赖周边酒店` 这类长候选误提取。
-  - 保留具体伪造名称检测能力，例如 `瑞幸咖啡门店` 仍 warning。
-- P1 暂缓：旧口径 `competitors_*` 误用检测。
-- P2 已完成：substitute/anchor 被误写成竞品语境，warning-only。
-  - 函数：`check_poi_context_mismatch(full_text, real_data)`
-  - 写入：`result["_poi_context_warnings"]`
-- P3 已完成：直接竞品数量膨胀，warning-only。
-  - 函数：`check_direct_competitor_count_mismatch(full_text, real_data)`
-  - 写入：`result["_direct_competitor_count_warnings"]`
-  - 仅在 reported > expected 时 warning，不抓少报。
+后端规则/链路：
+- backend/prompts/industry_config.py
+- backend/services/amap_service.py
+- backend/services/poi_name_guard.py
 
-当前活跃文件：
+测试：
+- backend/tests/check_industry_rigor_rules.py
+- backend/tests/check_report_fact_guard.py
 
-- `backend/services/poi_name_guard.py`
-  - P0/P0-FIX/P2/P3 warning-only 纯函数。
-- `backend/tests/check_report_fact_guard.py`
-  - P0/P0-FIX/P2/P3 自测，当前 `50 PASS, 0 FAIL`。
-- `backend/main.py`
-  - 已接入 P0/P2/P3，接入点均在 `if fact_errors:` 之前。
-  - 三类 warning 均只写入 `result`，不加入 `fact_errors`，不 `raise`。
+## 不要处理
 
-工作区提醒：
+- frontend/vite.config.js 既有 diff
+- tmp_latest_report_text.txt / tmp_report_images / tmp_report_pages
+- 不提交、不 push
+- 不调用 AMap/LLM API（未授权）
 
-- `backend/tests/check_industry_rigor_rules.py` 有既有 diff，不要处理。
-- `backend/prompts/industry_config.py` 有既有 diff，不要处理。
-- `frontend/vite.config.js` 有既有 diff，不要处理。
-- `PROJECT_*.md`、`WORKING_SET.md`、`NEXT_SESSION_PROMPT.md` 属于交接文档，可由 Codex 更新。
-- `tmp_latest_report_text.txt`、`tmp_report_images/`、`tmp_report_pages/` 等临时产物不要处理。
-- 不要保留临时 `_offline/_recheck/_trace/id21` 脚本；离线复验用 inline python。
+## 2026-05-14 历史（已过期）
 
 角色边界：
 
@@ -68,7 +72,7 @@
 
 建议下一步 Claude Code 指令主题：
 
-`方案 C：一次最小端到端真实报告验收（需用户授权）`
+`方案 C：一次最小端到端真实报告验收`（历史，C-1 + C-2 均已完成，勿执行）
 
 执行边界：
 
@@ -97,7 +101,7 @@
 - `python -m compileall backend` 通过。
 - `python backend/tests/check_report_fact_guard.py` 通过：`42 PASS, 0 FAIL`。
 - `python backend/tests/check_industry_rigor_rules.py` 通过。
-- canonical：`1598 PASS, 0 FAIL`。
+- canonical（历史）：1598 PASS, 0 FAIL（当前 1876 PASS）。
 - `KNOWN_RULE_GAPS: (none)`。
 - 未生成真实报告。
 - 未启动前端。
@@ -172,7 +176,7 @@
 
 - `python -m compileall backend` 通过。
 - `python backend/tests/check_industry_rigor_rules.py` 通过。
-- canonical：`1598 PASS, 0 FAIL`。
+- canonical（历史）：1598 PASS, 0 FAIL（当前 1876 PASS）。
 - `KNOWN_RULE_GAPS: (none)`。
 - `python backend/tests/check_report_fact_guard.py` 通过：`17 PASS, 0 FAIL`。
 - 未生成真实报告。

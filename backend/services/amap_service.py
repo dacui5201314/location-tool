@@ -273,6 +273,26 @@ def is_real_shopping(name: str) -> bool:
             return True
     return False
 
+# 低频目的零售脱水（服装/数码/眼镜/品牌零售，不污染 shopping 大类）
+LOW_FREQ_RETAIL_KEEP = [
+    "服装", "鞋帽", "数码", "手机", "电脑", "家电", "眼镜", "珠宝",
+    "屈臣氏", "优衣库", "名创优品",
+]
+LOW_FREQ_RETAIL_DROP = [
+    "维修", "彩票", "快递", "手机维修", "黄金回收",
+    "批发", "建材", "五金", "农贸", "汽配",
+    "超市", "便利店", "水果", "生鲜", "菜市场", "杂货",
+]
+
+def is_real_low_freq_retail(name: str) -> bool:
+    for kw in LOW_FREQ_RETAIL_DROP:
+        if kw in name:
+            return False
+    for kw in LOW_FREQ_RETAIL_KEEP:
+        if kw in name:
+            return True
+    return False
+
 # 住宅小区脱水
 RESIDENTIAL_KEEP = ["小区", "社区", "家属院", "家属楼", "住宅", "居民楼", "公寓", "新村", "花园", "家园", "苑", "庭", "邸"]
 RESIDENTIAL_DROP = [
@@ -425,6 +445,7 @@ ALL_CATEGORY_KEYS = [
     "beauty", "pets",
     "education_training", "laundry", "clinics",
     "fitness", "fresh_retail", "tobacco_liquor",
+    "low_freq_retail",
     "immersive_entertainment",
 ]
 
@@ -458,6 +479,7 @@ CATEGORY_LABELS = {
     "fitness": "健身房",
     "fresh_retail": "生鲜零售",
     "tobacco_liquor": "烟酒零售",
+    "low_freq_retail": "低频目的零售",
     "immersive_entertainment": "沉浸式娱乐",
 }
 
@@ -896,6 +918,9 @@ class AmapService:
                     elif any(kw in business_type for kw in ("烟酒","名烟","名酒","酒行","酒类")):
                         if is_real_tobacco_liquor_retail(name):
                             cat = "tobacco_liquor"
+                    elif any(kw in business_type for kw in ("零售店","服装店","数码店")):
+                        if is_real_low_freq_retail(name):
+                            cat = "low_freq_retail"
 
                 # === 四类数据脱水：写字楼/商场/住宅/酒店 ===
                 if cat == "office" and not is_real_office(name):
@@ -945,6 +970,8 @@ class AmapService:
                 if cat == "tobacco_liquor" and not is_real_tobacco_liquor_retail(name):
                     dewater_excluded += 1; continue
                 if cat == "immersive_entertainment" and not is_real_immersive_entertainment(name):
+                    dewater_excluded += 1; continue
+                if cat == "low_freq_retail" and not is_real_low_freq_retail(name):
                     dewater_excluded += 1; continue
 
                 poi_counts[cat] += 1

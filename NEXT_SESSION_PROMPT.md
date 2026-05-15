@@ -1,13 +1,25 @@
-# 新窗口无缝交接提示词
+# 新窗口无缝交接提示词（2026-05-15 C-2 收口）
 
-你是 Codex，项目路径：`C:\Users\admin\location-tool`，产品名“址得选”。
+项目路径：C:/Users/admin/location-tool，产品名址得选。
 
-请先读取并遵守：
+## C-2 已通过
 
-1. `PROJECT_RULES.md`
-2. `PROJECT_STATE.md`
-3. `WORKING_SET.md`
-4. `NEXT_SESSION_PROMPT.md`
+- 业态：刚需快餐小吃 | 地址：北京市海淀区中关村大街19号
+- 报告保存 id=22, score=50，fact_errors=0
+- P0 假阳性已二次收窄，fact guard 61 PASS
+
+## 最新基线
+
+- compileall backend：PASS
+- check_industry_rigor_rules.py：1876 PASS, 0 FAIL
+- check_report_fact_guard.py：61 PASS, 0 FAIL
+- KNOWN_RULE_GAPS：(none)
+
+## 下一步
+
+等待用户明确授权下一次真实报告或新任务。
+不调用 AMap/LLM 除非用户再次授权。
+不提交、不 push。
 
 ## 角色分工
 
@@ -42,9 +54,9 @@
 
 UI、PDF、页脚、端口清理暂时降级，除非阻塞报告精准度验证。
 
-## 2026-05-14 最新交接状态（P0-FIX + id=21 离线验收收口，以本节为准）
+## 2026-05-15 历史交接状态（方案 C + P0 小修补强，已过期）
 
-旧内容中出现的 `42 PASS, 0 FAIL`、`17 PASS, 0 FAIL`、`1511 PASS, 0 FAIL`、`1391 PASS, 0 FAIL`、`1291 PASS, 0 FAIL`、Laundry/Convenience/P2 下一步等信息已经过期。新窗口先以本节为准，再读下方历史脉络。
+旧内容中出现的 `50 PASS`、id=21 离线复验、P0-FIX 等信息可能已过期。新窗口先以本节为准。
 
 ### 角色边界（非常重要）
 
@@ -54,25 +66,36 @@ UI、PDF、页脚、端口清理暂时降级，除非阻塞报告精准度验证
 - Codex 只读审计、复核 Claude Code 的 diff/测试结果，并给下一步 Claude Code 指令。
 - 交接文档类修改可由 Codex 直接完成。
 
+### 方案 C 已执行
+
+- 业态：药店 | 地址：陕西省宝鸡市渭滨区经二路138号 | lng=107.148, lat=34.362
+- AMap 采集/脱水成功，LLM 8维评分生成成功
+- **报告未保存**：fact_errors 拦截 `stats_200m.residential=0 but report says 7个`
+- 退款链路触发正常，Guard hard-error 有效
+- Guard: P0=4条(1真+3假)，P2=0，P3=0
+
+### P0 假阳性小修已完成
+
+- `_DESCRIPTIVE_MARKERS`：`米内无`/`商圈内`/`无任何` + `无大型` 开头
+- 用 `"米内无"` 而非 `"米内"`，避免误杀 `"米内有XX店"`
+- 锁回归：T-P0F-12 `"500米内聚集了益丰大药房"` 仍 warning
+
 ### 当前最新基线
 
-- `python -m compileall backend` 已通过。
-- `python backend/tests/check_report_fact_guard.py` 已通过：`50 PASS, 0 FAIL`。
-- `python backend/tests/check_industry_rigor_rules.py` 已通过。
-- Sample Bank canonical：`1598 PASS, 0 FAIL`。
+- `python -m compileall backend` 通过。
+- `python backend/tests/check_report_fact_guard.py`：**61 PASS, 0 FAIL**。
+- `python backend/tests/check_industry_rigor_rules.py`（历史）：1598 PASS, 0 FAIL（当前 1876 PASS）。
 - `KNOWN_RULE_GAPS: (none)`。
-- id=21 离线复验：`P0=0 / P2=0 / P3=0`。
-- 未生成新的真实报告。
-- 未调用 AMap API。
-- 未调用 LLM API。
+- 未调用 AMap/LLM API（C-1 以后，C-2 前）。
 - 未启动前端。
 - 未提交、未 push。
 
-### Sample Bank 收口状态
+### 下一步
 
-`complete_candidate` 仍只有 7 个：
+C-2 已完成并通过。下一步等待用户授权新任务。
+C-2 中 fact_errors=0，residential 幻觉未复现。
 
-- Snack Shop：`d=13 nd=10 s=5 a=5 i=5`
+## 2026-05-14 历史交接状态（已过期）
 - Tea/Coffee：`d=10 nd=10 s=5 a=5 i=5`
 - Chinese Restaurant：`d=10 nd=10 s=5 a=5 i=5`
 - Hotpot/BBQ：`d=11 nd=13 s=5 a=5 i=5`
@@ -184,7 +207,7 @@ UI、PDF、页脚、端口清理暂时降级，除非阻塞报告精准度验证
 - `python -m compileall backend` 已通过。
 - `python backend/tests/check_report_fact_guard.py` 已通过：`42 PASS, 0 FAIL`。
 - `python backend/tests/check_industry_rigor_rules.py` 已通过。
-- Sample Bank canonical：`1598 PASS, 0 FAIL`。
+- Sample Bank canonical（历史）：1598 PASS, 0 FAIL（当前 1876 PASS）。
 - `KNOWN_RULE_GAPS: (none)`。
 - 未生成真实报告。
 - 未启动前端。
@@ -293,7 +316,7 @@ UI、PDF、页脚、端口清理暂时降级，除非阻塞报告精准度验证
 
 - `python -m compileall backend` 已通过。
 - `python backend/tests/check_industry_rigor_rules.py` 已通过。
-- Sample Bank canonical：`1598 PASS, 0 FAIL`。
+- Sample Bank canonical（历史）：1598 PASS, 0 FAIL（当前 1876 PASS）。
 - `KNOWN_RULE_GAPS: (none)`。
 - `python backend/tests/check_report_fact_guard.py` 已通过：`17 PASS, 0 FAIL`。
 - 未生成真实报告。

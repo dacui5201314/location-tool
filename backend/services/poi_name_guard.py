@@ -83,6 +83,8 @@ _GENERIC_BLACKLIST = {
     # "X米内" 距离描述 artifact（含否定/数量干扰字）
     "米内无写字楼","米内无便利店","米内无超市","米内无商场",
     "米内无酒店","米内无学校","米内无医院","米内无小区",
+    # 裸 POI 后缀 — 无前缀修饰的泛称，非具体 POI 名
+    "写字楼","高校",
 }
 
 
@@ -97,12 +99,24 @@ _GENERIC_REFERENTS = {
 }
 
 
+# 描述性标记 — 候选名包含以下子串即判定为纯描述性短语
+# 注意: 只用 "米内无" 而非 "米内"，避免误杀 "米内有XX店" 这类含具体品牌名的候选
+_DESCRIPTIVE_MARKERS = (
+    "米内无",    # "500米内无XX" 纯描述否定（不匹配 "米内有XX店"）
+    "商圈内",    # "X公里商圈内..." 商业区域描述
+    "无任何",    # "无任何同类..." 否定强化
+)
+
+
 def _is_generic_candidate(candidate: str) -> bool:
     """检测候选名是否为泛称/描述性短语而非具体 POI 名称。
 
     规则:
     1. 命中 exact blacklist
     2. 包含 "周边" 或 "附近" 且其后为泛称 POI 指代（描述性前缀未被边界切断时）
+    3. 包含描述性标记: "米内无"/"商圈内"/"无任何"（纯描述否定/区域/强化 artifact，不误杀"米内+具名品牌"）
+    4. 以否定+程度描述开头: "无大型"
+    5. 以 "客群" 开头（"周边"边界截断后的客群描述片段）
     """
     if candidate in _GENERIC_BLACKLIST:
         return True
@@ -114,15 +128,30 @@ def _is_generic_candidate(candidate: str) -> bool:
         referent = candidate[idx + len(marker):]
         if not referent:
             return True
+        # "周边/附近 + ...客群..." → 客群描述短语，非 POI 名
+        if "客群" in referent:
+            return True
         if referent in _GENERIC_REFERENTS:
             return True
-        # 前缀匹配: "酒店住宿" starts with "酒店" (generic)
         for gr in sorted(_GENERIC_REFERENTS, key=len, reverse=True):
             if referent.startswith(gr):
                 rest = referent[len(gr):]
                 if not rest or len(rest) <= 3:
                     return True
                 break
+
+    # Rule 3: 描述性标记 — 候选名含这些子串必为描述
+    for marker in _DESCRIPTIVE_MARKERS:
+        if marker in candidate:
+            return True
+
+    # Rule 4: 否定+程度描述开头 — "无大型商圈..."
+    if candidate.startswith("无大型"):
+        return True
+
+    # Rule 5: "客群" 开头 — "周边"边界截断后的客群描述片段
+    if candidate.startswith("客群"):
+        return True
 
     return False
 

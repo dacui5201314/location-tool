@@ -14,7 +14,7 @@ from services.amap_service import (
     is_real_training, is_real_laundry, is_real_clinic,
     is_real_fitness, is_real_fresh_retail, is_real_tobacco_liquor_retail,
     is_real_shopping, is_real_hotel, is_real_immersive_entertainment,
-    is_real_office, is_real_school,
+    is_real_office, is_real_school, is_real_low_freq_retail,
 )
 
 p, f = 0, 0
@@ -29,6 +29,11 @@ _nd = lambda rigor, n, c, b="", cat="fast_food": _cr(n, cat, c, rigor, b) != "di
 
 # ===== A. Completeness =====
 print("=== A. Completeness ===")
+check(len(BUSINESS_TYPE_TO_MASTER) == 43, f"43 entries: got {len(BUSINESS_TYPE_TO_MASTER)}")
+check(len(MASTER_TEMPLATES) == 14, f"14 masters: got {len(MASTER_TEMPLATES)}")
+check(len(INDUSTRY_RIGOR) == 14, f"14 rigor: got {len(INDUSTRY_RIGOR)}")
+check(set(MASTER_TEMPLATES.keys()) == set(INDUSTRY_RIGOR.keys()),
+    f"MASTER_TEMPLATES keys == INDUSTRY_RIGOR keys")
 for bt in sorted(BUSINESS_TYPE_TO_MASTER):
     mk = BUSINESS_TYPE_TO_MASTER[bt]
     ok = mk in MASTER_TEMPLATES and mk in INDUSTRY_RIGOR
@@ -634,11 +639,14 @@ def sim_full_chain(name, type_code, rigor_key, bt):
             cat = "fresh_retail"
         elif any(kw in bt for kw in ("烟酒","名烟","名酒","酒行","酒类")) and is_real_tobacco_liquor_retail(name):
             cat = "tobacco_liquor"
+        elif any(kw in bt for kw in ("零售店","服装店","数码店")) and is_real_low_freq_retail(name):
+            cat = "low_freq_retail"
     dew_map = {
         "office": is_real_office, "shopping": is_real_shopping, "residential": is_real_residential,
         "hotels": is_real_hotel, "convenience": is_real_convenience, "pharmacy": is_real_pharmacy,
         "fitness": is_real_fitness, "fresh_retail": is_real_fresh_retail,
         "tobacco_liquor": is_real_tobacco_liquor_retail, "immersive_entertainment": is_real_immersive_entertainment,
+        "low_freq_retail": is_real_low_freq_retail,
         "education_training": is_real_training, "laundry": is_real_laundry, "clinics": is_real_clinic,
         "schools": is_real_school,
     }
@@ -659,6 +667,14 @@ def check_sub(rigor_key, name, tc, bt):
     r = sim_full_chain(name, tc, rigor_key, bt)
     check(r == "substitute", f"{rigor_key}/{bt} substitute: {name} -> {r}")
 
+def check_anchor(rigor_key, name, tc, bt):
+    r = sim_full_chain(name, tc, rigor_key, bt)
+    check(r == "anchor", f"{rigor_key}/{bt} anchor: {name} -> {r}")
+
+def check_irrelevant(rigor_key, name, tc, bt):
+    r = sim_full_chain(name, tc, rigor_key, bt)
+    check(r == "irrelevant", f"{rigor_key}/{bt} irrelevant: {name} -> {r}")
+
 known_gaps = []
 
 def gap(rigor_key, bt, name, tc, issue):
@@ -670,70 +686,233 @@ for name in ["擀面皮","凉皮店","米线馆","酸辣粉","肉夹馍","砂锅
     check_direct("刚需快餐小吃", "某某"+name, "050300", "小吃店")
 for name in ["肯德基","麦当劳","华莱士","汉堡王","必胜客","海底捞","星巴克","茶百道","韩国料理","寿司店"]:
     check_not_direct("刚需快餐小吃", "某某"+name, "050300", "小吃店")
-for name in ["绝味鸭脖","正新鸡排","便利店","单位食堂"]:
+for name in ["绝味鸭脖","正新鸡排","便利店","单位食堂","卤味店"]:
     check_sub("刚需快餐小吃", "某某"+name, "050300", "小吃店")
+for name, code in [("写字楼","120200"),("商务中心","120200"),("人民医院","090100"),("地铁站","150500"),("公交站","150200")]:
+    check_anchor("刚需快餐小吃", "某某"+name, code, "小吃店")
+for name, code in [("大酒楼","050100"),("海鲜酒楼","050100"),("法餐厅","050200"),("怀石料理","050200"),("韩国料理店","050200")]:
+    check_irrelevant("刚需快餐小吃", "某某"+name, code, "小吃店")
 
-# ===== X2. Tea/Coffee [partial] =====
-print("\n=== X2. Sample Bank - Tea/Coffee [partial] ===")
+# ===== X2. Tea/Coffee [complete_candidate] =====
+print()
+print("=== X2. Sample Bank - Tea/Coffee [complete_candidate] ===")
 for name in ["奶茶店","咖啡店","茶饮店","果饮店","星巴克","瑞幸咖啡","喜茶","奈雪的茶","蜜雪冰城","茶百道"]:
     check_direct("精品茶饮咖啡", "某某"+name, "050500", "咖啡店")
 for name in ["酒吧","茶馆","棋牌室"]:
     check_not_direct("精品茶饮咖啡", "某某"+name, "050500", "咖啡店")
-gap("精品茶饮咖啡","咖啡店","甜品店/冰淇淋店/便利店/火锅店/烧烤店","050500","should be NOT direct or substitute, current exclude insufficient")
+for name in ["甜品店","冰淇淋店"]:
+    check_sub("精品茶饮咖啡", "某某"+name, "050500", "咖啡店")
+for name in ["便利店","超市","小超市"]:
+    check_sub("精品茶饮咖啡", "某某"+name, "060200", "咖啡店")
+for name, code in [("火锅店","050100"),("火锅店","050500"),("烧烤店","050100"),("烧烤店","050500")]:
+    check_not_direct("精品茶饮咖啡", "某某"+name, code, "咖啡店")
+for name, code in [("中餐馆","050100"),("西餐厅","050200"),("日料店","050200")]:
+    check_not_direct("精品茶饮咖啡", "某某"+name, code, "咖啡店")
+for name, code in [("写字楼","120200"),("商务中心","120200"),("购物中心","060100"),("阳光小区","120300"),("地铁站","150500")]:
+    check_anchor("精品茶饮咖啡", "某某"+name, code, "咖啡店")
+for name, code in [("KTV","体育休闲服务;KTV"),("网吧","体育休闲服务;网吧"),("棋牌室","体育休闲服务;娱乐场所"),("人民医院","090100"),("酒吧","餐饮服务;酒吧")]:
+    check_irrelevant("精品茶饮咖啡", "某某"+name, code, "咖啡店")
 
-# ===== X3. Chinese Restaurant [partial] =====
-print("\n=== X3. Sample Bank - Chinese Restaurant [partial] ===")
+# ===== X3. Chinese Restaurant [complete_candidate] =====
+print()
+print("=== X3. Sample Bank - Chinese Restaurant [complete_candidate] ===")
 for name in ["湘菜馆","川菜馆","粤菜馆","东北菜馆","本帮菜馆","私房菜馆","海鲜酒楼","烤鸭店","宴会厅","大酒店中餐厅"]:
     check_direct("中餐正餐", "某某"+name, "050100", "中餐")
-for name in ["快餐店","小吃店","面馆","麻辣烫","汉堡店","大排档"]:
+for name in ["快餐店","小吃店","面馆","麻辣烫","汉堡店","大排档","西餐厅","日料店","韩国料理","茶餐厅","简餐店"]:
     check_not_direct("中餐正餐", "某某"+name, "050100", "中餐")
-gap("中餐正餐","中餐","火锅店/烧烤店/茶饮店/咖啡店","050100","should be NOT direct (exclude) or substitute, current rule insufficient")
+for name in ["火锅店","烧烤店","烤肉店","毛肚火锅","韩式烤肉"]:
+    check_sub("中餐正餐", "某某"+name, "050100", "中餐")
+for name in ["茶饮店","咖啡店"]:
+    check_not_direct("中餐正餐", "某某"+name, "050500", "中餐")
+    check_not_direct("中餐正餐", "某某"+name, "050100", "中餐")
+for name, code in [("购物中心","060100"),("购物广场","060100"),("写字楼","120200"),("商务中心","120200"),("停车场","150900")]:
+    check_anchor("中餐正餐", "某某"+name, code, "中餐")
+for name, code in [("炸鸡店","050300"),("米线店","050300"),("食堂","050100"),("面馆","050300"),("麻辣烫店","050300")]:
+    check_irrelevant("中餐正餐", "某某"+name, code, "中餐")
 
-# ===== X4. Hotpot/BBQ [partial] =====
-print("\n=== X4. Sample Bank - Hotpot/BBQ [partial] ===")
+# ===== X3b. Foreign Premium Dining [complete_candidate] =====
+print()
+print("=== X3b. Sample Bank - Foreign Premium Dining [complete_candidate] ===")
+# direct: 异国/高端正餐 (code 050100 or 050200 + keyword match)
+for name in ["西餐厅","日料店","法餐厅","意餐厅","铁板烧","怀石料理","omakase","海鲜私房","韩国料理","牛排馆","披萨店"]:
+    code = "050200" if name in ("日料店","法餐厅","怀石料理","omakase","韩国料理","披萨店") else "050100"
+    check_direct("异国_中高端正餐", "某某"+name, code, "西餐")
+# not-direct: 非异国品类不应进 direct
+for name in ["烧烤店","茶饮店","咖啡店","奶茶店","甜品店","烘焙店"]:
+    check_not_direct("异国_中高端正餐", "某某"+name, "050100", "西餐")
+for name in ["快餐店","小吃店","米线店","面馆"]:
+    check_not_direct("异国_中高端正餐", "某某"+name, "050300", "西餐")
+# substitute: 中餐/火锅应进 substitute（sub_first拦截）
+for name in ["中餐馆","湘菜馆","川菜馆","火锅店","海鲜酒楼"]:
+    check_sub("异国_中高端正餐", "某某"+name, "050100", "西餐")
+# anchor
+for name, code in [("购物中心","060100"),("百货大楼","060100"),("写字楼","120200"),("希尔顿酒店","100000"),("停车场","150900")]:
+    check_anchor("异国_中高端正餐", "某某"+name, code, "西餐")
+# irrelevant
+for name in ["快餐店","米线店","面馆","炸鸡店","麻辣烫"]:
+    check_irrelevant("异国_中高端正餐", "某某"+name, "050300", "西餐")
+
+# ===== X4. Hotpot/BBQ [complete_candidate] =====
+print()
+print("=== X4. Sample Bank - Hotpot/BBQ [complete_candidate] ===")
 for name in ["火锅店","毛肚火锅","川味火锅","烧烤店","烤肉店","烤串店","涮肉馆","羊蝎子火锅","烤鱼店","小龙虾馆","大排档"]:
     check_direct("火锅_烧烤", "某某"+name, "050100", "火锅店")
 for name in ["快餐店","小吃店","面馆","包子铺","食堂"]:
     check_not_direct("火锅_烧烤", "某某"+name, "050100", "火锅店")
-gap("火锅_烧烤","火锅店","茶饮店/咖啡店/西餐/日料/中餐馆","050100","should be NOT direct, current exclude insufficient")
+for name in ["中餐馆","湘菜馆","川菜馆","夜市","排档"]:
+    check_sub("火锅_烧烤", "某某"+name, "050100", "火锅店")
+for name in ["茶饮店","咖啡店"]:
+    check_not_direct("火锅_烧烤", "某某"+name, "050500", "火锅店")
+    check_not_direct("火锅_烧烤", "某某"+name, "050100", "火锅店")
+for name in ["西餐厅","日料店"]:
+    check_not_direct("火锅_烧烤", "某某"+name, "050200", "火锅店")
+    check_not_direct("火锅_烧烤", "某某"+name, "050100", "火锅店")
+for name, code in [("KTV","体育休闲服务;KTV"),("酒吧","体育休闲服务;酒吧"),("酒店","住宿服务"),("连锁酒店","住宿服务"),("停车场","150900")]:
+    check_anchor("火锅_烧烤", "某某"+name, code, "火锅店")
+for name, code in [("茶饮店","050500"),("咖啡店","050500"),("西餐厅","050200"),("日料店","050200"),("快餐店","050300")]:
+    check_irrelevant("火锅_烧烤", "某某"+name, code, "火锅店")
 
-# ===== X5. Bakery/Dessert [partial] =====
-print("\n=== X5. Sample Bank - Bakery/Dessert [partial] ===")
+# ===== X5. Bakery/Dessert [complete_candidate] =====
+print()
+print("=== X5. Sample Bank - Bakery/Dessert [complete_candidate] ===")
 for name in ["面包店","蛋糕店","烘焙坊","甜品店","泡芙店","蛋挞店","慕斯蛋糕","马卡龙店","曲奇店","冰淇淋店"]:
     check_direct("烘焙甜品", "某某"+name, "050600", "甜品店")
 for name in ["包子铺","馒头店","大饼店","油条摊","煎饼摊","食堂","快餐店"]:
     check_not_direct("烘焙甜品", "某某"+name, "050600", "甜品店")
-gap("烘焙甜品","甜品店","便利店/火锅店/烧烤店/茶饮店","050600","should be NOT direct or substitute, current exclude insufficient")
+for name in ["茶饮店","咖啡店","奶茶店","咖啡厅","奶茶铺"]:
+    check_sub("烘焙甜品", "某某"+name, "050600", "甜品店")
+for name, code in [("便利店","060200"),("便利店","050600"),("火锅店","050100"),("火锅店","050600"),("烧烤店","050100"),("烧烤店","050600")]:
+    check_not_direct("烘焙甜品", "某某"+name, code, "甜品店")
+for name, code in [("阳光小区","120300"),("住宅小区","120300"),("地铁站","150500"),("购物中心","060100"),("百货商场","060100")]:
+    check_anchor("烘焙甜品", "某某"+name, code, "甜品店")
+for name in ["包子铺","馒头店","大饼摊","油条摊","食堂","火锅店","烧烤店","便利店","超市"]:
+    check_irrelevant("烘焙甜品", "某某"+name, "050600", "甜品店")
 
-# ===== Y1. Convenience [partial] =====
-print("\n=== Y1. Sample Bank - Convenience [partial] ===")
-for name in ["社区便利店","便民超市","小卖部","生活超市","便利店"]:
+# ===== X5b. Low Frequency Retail [partial] =====
+# 注: 个体零售店(服装/数码/眼镜)名不通过 is_real_shopping 脱水(SHOPPING_KEEP 只含商场/百货/步行街)。
+# 因此本段用 classify_poi_rigor 直调(cat="shopping")，避过 sim_full_chain 的 shopping 脱水。
+print()
+print("=== X5b. Sample Bank - Low Frequency Retail [partial] ===")
+rig_lfr = get_rigor_for_config_key("低频目的零售")
+# direct: 低频目的零售 (code 060100/060400 + keyword match)
+for name in ["服装店","鞋帽店","数码店","手机店","电脑城","家电城","眼镜店","珠宝店","屈臣氏","优衣库","名创优品"]:
+    code = "060400" if name in ("服装店","家电城") else "060100"
+    r = _cr("某某"+name, "shopping", code, rig_lfr, "零售店")
+    check(r == "direct", f"低频目的零售/零售店 direct: 某某{name} -> {r}")
+# not-direct: 高频/非目的零售不应进 direct
+for name in ["超市","便利店","水果店","生鲜店","菜市场","杂货铺"]:
+    r = _cr("某某"+name, "shopping", "060400", rig_lfr, "零售店")
+    check(r != "direct", f"低频目的零售/零售店 NOT direct: 某某{name} -> {r}")
+for name in ["建材市场","五金店","批发市场","汽配城"]:
+    r = _cr("某某"+name, "shopping", "060100", rig_lfr, "零售店")
+    check(r != "direct", f"低频目的零售/零售店 NOT direct: 某某{name} -> {r}")
+# substitute: 本轮不补，s=0
+# anchor (cat=shopping 匹配 anchor categories 中的 "shopping")
+for name, code in [("购物中心","060100"),("百货大楼","060100"),("地铁站","150500"),("写字楼","120200"),("步行街","060100")]:
+    cat = classify_poi_type(code) if code not in ("060100","060400") else "shopping"
+    r = _cr("某某"+name, cat, code, rig_lfr, "零售店")
+    check(r == "anchor", f"低频目的零售/零售店 anchor: 某某{name} -> {r}")
+# irrelevant
+for name in ["批发市场","建材市场","农贸市场","维修店","彩票店"]:
+    code = "060400" if name in ("维修店","彩票店") else "060100"
+    r = _cr("某某"+name, "shopping", code, rig_lfr, "零售店")
+    check(r == "irrelevant", f"低频目的零售/零售店 irrelevant: 某某{name} -> {r}")
+
+# ===== X5c. Low Frequency Retail Real Chain [partial] =====
+# 走 sim_full_chain，不得绕过 is_real_low_freq_retail 脱水
+print()
+print("=== X5c. Sample Bank - Low Frequency Retail Real Chain [partial] ===")
+# direct: 个体低频零售走真实链路通入 classify_poi_rigor
+for name, tc in [
+    ("服装店","购物服务;服装鞋帽店"),("数码店","购物服务;数码电子"),
+    ("手机店","购物服务;数码电子"),("家电城","购物服务;数码电子"),
+    ("眼镜店","购物服务;服装鞋帽店"),("珠宝店","购物服务;服装鞋帽店"),
+    ("屈臣氏","购物服务;购物中心"),("优衣库","购物服务;服装鞋帽店"),
+    ("名创优品","购物服务;购物中心"),
+]:
+    r = sim_full_chain("某某"+name, tc, "低频目的零售", "零售店")
+    check(r == "direct", f"LFR real-chain direct: 某某{name} -> {r}")
+# not-direct
+for name, tc in [
+    ("超市","购物服务;超市"),("便利店","购物服务;便利店"),
+    ("水果店","购物服务;综合市场"),("生鲜店","购物服务;综合市场"),
+    ("建材市场","购物服务;家居建材市场"),("五金店","购物服务;专卖店"),
+]:
+    r = sim_full_chain("某某"+name, tc, "低频目的零售", "零售店")
+    check(r != "direct", f"LFR real-chain NOT direct: 某某{name} -> {r}")
+# anchor: 购物中心/百货/步行街走真实链路
+for name, tc in [
+    ("购物中心","购物服务;购物中心"),("百货大楼","购物服务;百货商场"),
+    ("步行街","购物服务;特色商业街"),
+]:
+    r = sim_full_chain("某某"+name, tc, "低频目的零售", "零售店")
+    check(r == "anchor", f"LFR real-chain anchor: 某某{name} -> {r}")
+
+# ===== Y1. Convenience [complete_candidate] =====
+print()
+print("=== Y1. Sample Bank - Convenience [complete_candidate] ===")
+for name in ["社区便利店","便民超市","小卖部","生活超市","便利店","24小时便利店","社区超市","便民生活超市","连锁便利店","小区小卖部"]:
     check_direct("高频刚需零售", "某某"+name, "060200", "便利店")
 for name in ["美甲沙龙","手机快修","体育彩票","黄金回收","OPPO体验店","美发店","按摩店","足疗店","药房","百货大楼"]:
     check_not_direct("高频刚需零售", "某某"+name, "060200", "便利店")
-gap("sample_bank_convenience","便利店","快餐/咖啡/茶饮/炸鸡","060200","sub check: type routing mismatch")
+for name, code in [("快餐店","050300"),("咖啡店","050500"),("茶饮店","050500"),("炸鸡店","050300"),("汉堡店","050300")]:
+    check_sub("高频刚需零售", "某某"+name, code, "便利店")
+for name, code in [("住宅小区","120300"),("写字楼","120200"),("人民医院","090100"),("地铁站","150500"),("公交站","150200")]:
+    check_anchor("高频刚需零售", "某某"+name, code, "便利店")
+for name, code in [("美容院","生活服务;美容美发"),("理发店","生活服务;美容美发"),("美甲店","生活服务;美容美发"),("SPA会所","生活服务;美容美发"),("纹身店","生活服务;美容美发")]:
+    check_irrelevant("高频刚需零售", "某某"+name, code, "便利店")
 
-# ===== Y2-Y5. Retail Subtypes [partial] =====
-print("\n=== Y2-Y5. Sample Bank - Retail Subtypes [partial] ===")
-for name in ["生鲜超市","水果店","蔬菜店","鲜果店","菜店","果品店","鲜肉店"]:
+# ===== Y2. Fresh Produce [complete_candidate] =====
+print("\n=== Y2. Sample Bank - Fresh Produce [complete_candidate] ===")
+for name in ["生鲜超市","水果店","蔬菜店","鲜果店","菜店","果品店","鲜肉店","菜场","菜市场","果蔬店"]:
     check_direct("高频刚需零售", "某某"+name, "购物服务", "生鲜店")
-for name in ["百货超市","便利店","大药房","餐饮店","火锅店","冷库","批发市场","五金建材"]:
+for name in ["百货超市","便利店","大药房","餐饮店","火锅店","冷库","批发市场","五金建材","药房","饭店"]:
     check_not_direct("高频刚需零售", "某某"+name, "购物服务", "生鲜店")
+for name, code in [("快餐店","050300"),("咖啡店","050500"),("茶饮店","050500"),("炸鸡店","050300"),("汉堡店","050300")]:
+    check_sub("高频刚需零售", "某某"+name, code, "生鲜店")
+for name, code in [("住宅小区","120300"),("写字楼","120200"),("人民医院","090100"),("地铁站","150500"),("公交站","150200")]:
+    check_anchor("高频刚需零售", "某某"+name, code, "生鲜店")
+for name, code in [("美容院","生活服务;美容美发"),("理发店","生活服务;美容美发"),("美甲店","生活服务;美容美发"),("SPA会所","生活服务;美容美发"),("纹身店","生活服务;美容美发")]:
+    check_irrelevant("高频刚需零售", "某某"+name, code, "生鲜店")
 
+# ===== Y3-Y5. Retail Subtypes [partial] =====
+print("\n=== Y3-Y5. Sample Bank - Retail Subtypes [partial] ===")
 for name in ["大药房","药店","医药连锁","同仁堂","老百姓药房","益丰大药房","一心堂","健之佳","海王星辰","国药药店"]:
     check_direct("高频刚需零售", "某某"+name, "090400", "药店")
 for name in ["人民医院","口腔诊所","牙科诊所","眼科医院","体检中心","医美中心","助听器店","康复中心","理疗馆","美容院"]:
     check_not_direct("高频刚需零售", "某某"+name, "090400", "药店")
+# Pharmacy anchor: real-chain via residential/office/hospitals/subway/bus
+for name, code in [("住宅小区","120300"),("写字楼","120200"),("人民医院","090100"),("地铁站","150500"),("公交站","150200")]:
+    check_anchor("高频刚需零售", "某某"+name, code, "药店")
+# Pharmacy irrelevant: real-chain via beauty category + name_blacklist hit
+for name, code in [("美容院","生活服务;美容美发"),("美发店","生活服务;美容美发"),("美甲店","生活服务;美容美发"),("按摩店","生活服务;美容美发"),("足疗店","生活服务;美容美发")]:
+    check_irrelevant("高频刚需零售", "某某"+name, code, "药店")
 
 for name in ["烟酒店","烟酒行","名烟名酒","酒水商行","酒行","酒庄","1919酒类","酒便利","烟草专卖","酒类直供"]:
     check_direct("高频刚需零售", "某某"+name, "购物服务", "烟酒店")
 for name in ["酒吧","KTV","火锅店","餐厅","超市","便利店","茶叶店","茶庄","咖啡厅","百货店"]:
     check_not_direct("高频刚需零售", "某某"+name, "购物服务", "烟酒店")
+# Tobacco/Liquor anchor: real-chain via residential/office/hotels/subway/bus
+for name, code in [("住宅小区","120300"),("写字楼","120200"),("酒店","住宿服务"),("地铁站","150500"),("公交站","150200")]:
+    check_anchor("高频刚需零售", "某某"+name, code, "烟酒店")
+# Tobacco/Liquor irrelevant: real-chain via beauty category + name_blacklist hit
+for name, code in [("美容院","生活服务;美容美发"),("美发店","生活服务;美容美发"),("美甲店","生活服务;美容美发"),("按摩店","生活服务;美容美发"),("足疗店","生活服务;美容美发")]:
+    check_irrelevant("高频刚需零售", "某某"+name, code, "烟酒店")
 
-for name in ["百货店"]:  # other samples removed: dewater via is_real_shopping
+# Daily Goods direct: 购物服务 path (百货 in SHOPPING_KEEP) + 060200 path (日杂/杂货/粮油/副食 in CONVENIENCE_KEEP)
+for name in ["百货店","日用百货","百货商行","百货铺","百货行"]:
     check_direct("高频刚需零售", "某某"+name, "购物服务", "日用百货")
-for name in ["建材市场","五金店","购物中心","服装店","家电城","便利店","超市","数码店","家具城"]:
+for name in ["日杂店","杂货铺","粮油店","副食店","副食百货"]:
+    check_direct("高频刚需零售", "某某"+name, "060200", "日用百货")
+# Daily Goods not-direct: dewater + exclude_names paths
+for name in ["建材市场","五金店","购物中心","服装店","家电城","便利店","超市","数码店","家具城","商场"]:
     check_not_direct("高频刚需零售", "某某"+name, "购物服务", "日用百货")
+# Daily Goods anchor: real-chain via residential/office/hotels/subway/bus
+for name, code in [("住宅小区","120300"),("写字楼","120200"),("酒店","住宿服务"),("地铁站","150500"),("公交站","150200")]:
+    check_anchor("高频刚需零售", "某某"+name, code, "日用百货")
+# Daily Goods irrelevant: real-chain via beauty category + name_blacklist hit
+for name, code in [("美容院","生活服务;美容美发"),("美发店","生活服务;美容美发"),("美甲店","生活服务;美容美发"),("按摩店","生活服务;美容美发"),("足疗店","生活服务;美容美发")]:
+    check_irrelevant("高频刚需零售", "某某"+name, code, "日用百货")
 
 # ===== Z1-Z3. Life Services [partial] =====
 print("\n=== Z1-Z3. Sample Bank - Life Services [partial] ===")
@@ -741,16 +920,34 @@ for name in ["美容院","美发店","美甲店","SPA会所","美睫店","皮肤
     check_direct("专业生活服务", "某某"+name, "050300", "美容美发")
 for name in ["宠物店","动物医院","健身房","瑜伽馆","足疗店","按摩店","医美诊所","口腔诊所","牙科诊所","舞蹈培训"]:
     check_not_direct("专业生活服务", "某某"+name, "050300", "美容美发")
+# Beauty anchor: categories residential/office/shopping/parking (2×residential to fill 5 with 4 categories)
+for name, code in [("住宅小区","120300"),("公寓","120300"),("写字楼","120200"),("购物中心","060100"),("停车场","150900")]:
+    check_anchor("专业生活服务", "某某"+name, code, "美容美发")
+# Beauty irrelevant: real-chain via beauty category + irrelevant name_blacklist hit
+for name, code in [("足疗店","生活服务;美容美发"),("按摩店","生活服务;美容美发"),("洗浴中心","生活服务;美容美发"),("汗蒸馆","生活服务;美容美发"),("医美诊所","生活服务;美容美发")]:
+    check_irrelevant("专业生活服务", "某某"+name, code, "美容美发")
 
-for name in ["宠物店","宠物用品店","猫舍","犬舍","宠物生活馆","宠物寄养","宠物训练"]:
+for name in ["宠物店","宠物用品店","猫舍","犬舍","宠物生活馆","宠物寄养","宠物训练","宠物乐园","宠物会馆","宠物商城"]:
     check_direct("专业生活服务", "某某"+name, "050300", "宠物店")
 for name in ["美容院","美发店","动物医院","宠物医院","健身房","兽药店","足疗店","按摩店","SPA会所","医美诊所"]:
     check_not_direct("专业生活服务", "某某"+name, "050300", "宠物店")
+# Pet anchor: categories residential/office/shopping/parking (same as Beauty)
+for name, code in [("住宅小区","120300"),("公寓","120300"),("写字楼","120200"),("购物中心","060100"),("停车场","150900")]:
+    check_anchor("专业生活服务", "某某"+name, code, "宠物店")
+# Pet irrelevant: real-chain via beauty category + irrelevant name_blacklist hit
+for name, code in [("足疗店","生活服务;美容美发"),("按摩店","生活服务;美容美发"),("洗浴中心","生活服务;美容美发"),("汗蒸馆","生活服务;美容美发"),("医美诊所","生活服务;美容美发")]:
+    check_irrelevant("专业生活服务", "某某"+name, code, "宠物店")
 
-for name in ["健身房","健身中心","瑜伽馆","普拉提馆","私教工作室","游泳馆","拳击馆","体能训练","操课中心"]:
+for name in ["健身房","健身中心","瑜伽馆","普拉提馆","私教工作室","游泳馆","拳击馆","体能训练","操课中心","CrossFit"]:
     check_direct("专业生活服务", "某某"+name, "体育休闲服务;运动场馆", "健身房")
 for name in ["体育用品店","足疗按摩","舞蹈培训班","美容院","宠物店","推拿艾灸","洗浴中心","汗蒸馆","少儿培训","医美中心"]:
     check_not_direct("专业生活服务", "某某"+name, "体育休闲服务;运动场馆", "健身房")
+# Fitness anchor: categories residential/office/shopping/parking (same as Beauty/Pet)
+for name, code in [("住宅小区","120300"),("公寓","120300"),("写字楼","120200"),("购物中心","060100"),("停车场","150900")]:
+    check_anchor("专业生活服务", "某某"+name, code, "健身房")
+# Fitness irrelevant: real-chain via beauty category + irrelevant name_blacklist hit
+for name, code in [("足疗店","生活服务;美容美发"),("按摩店","生活服务;美容美发"),("洗浴中心","生活服务;美容美发"),("汗蒸馆","生活服务;美容美发"),("医美诊所","生活服务;美容美发")]:
+    check_irrelevant("专业生活服务", "某某"+name, code, "健身房")
 
 # ===== Z4-Z6. Community Services [partial] =====
 print("\n=== Z4-Z6. Sample Bank - Community Services [partial] ===")
@@ -758,33 +955,69 @@ for name in ["教育培训中心","琴行","画室","早教中心","托管班","
     check_direct("社区基础服务", "某某"+name, "141200", "教育培训")
 for name in ["小学","幼儿园","文具店","书店","洗衣店","干洗店","诊所","卫生所","家政公司","办公用品店"]:
     check_not_direct("社区基础服务", "某某"+name, "141200", "教育培训")
+# Education anchor: categories residential/schools/office
+for name, code in [("住宅小区","120300"),("公寓","120300"),("写字楼","120200"),("小学","科教文化服务;学校"),("中学","科教文化服务;学校")]:
+    check_anchor("社区基础服务", "某某"+name, code, "教育培训")
+# Education irrelevant: 050300 bypass + irrelevant name_blacklist hit
+for name, code in [("驾校","050300"),("职业培训","050300"),("职业培训学校","050300"),("医院","050300"),("药店","050300")]:
+    check_irrelevant("社区基础服务", "某某"+name, code, "教育培训")
 
-for name in ["洗衣店","干洗店","洗护中心","衣物护理","干洗连锁","洗衣连锁","衣物清洗"]:
+for name in ["洗衣店","干洗店","洗护中心","衣物护理","干洗连锁","洗衣连锁","衣物清洗","洗衣房","洗衣馆","干洗馆"]:
     check_direct("社区基础服务", "某某"+name, "生活服务;洗衣店", "洗衣店")
 for name in ["家政公司","手机维修","皮具护理","擦鞋店","教育培训","开锁公司","疏通管道","搬家公司","美容院","美发店"]:
     check_not_direct("社区基础服务", "某某"+name, "生活服务;洗衣店", "洗衣店")
+# Laundry anchor: categories residential/schools/office (same as Education)
+for name, code in [("住宅小区","120300"),("公寓","120300"),("写字楼","120200"),("小学","科教文化服务;学校"),("中学","科教文化服务;学校")]:
+    check_anchor("社区基础服务", "某某"+name, code, "洗衣店")
+# Laundry irrelevant: 050300 bypass + irrelevant name_blacklist hit
+for name, code in [("驾校","050300"),("职业培训","050300"),("职业培训学校","050300"),("医院","050300"),("药店","050300")]:
+    check_irrelevant("社区基础服务", "某某"+name, code, "洗衣店")
 
-for name in ["中医诊所","中西医结合门诊","社区卫生室","医务室","卫生所","内科门诊","儿科门诊","妇科门诊"]:
+for name in ["中医诊所","中西医结合门诊","社区卫生室","医务室","卫生所","内科门诊","儿科门诊","妇科门诊","门诊部","社区卫生服务站"]:
     check_direct("社区基础服务", "某某"+name, "090300", "诊所")
 for name in ["综合医院","口腔医院","眼科医院","体检中心","大药房","医美中心","助听器","康复医院","月子中心","养老院"]:
     check_not_direct("社区基础服务", "某某"+name, "090300", "诊所")
+# Clinic anchor: categories residential/schools/office (same as Education/Laundry)
+for name, code in [("住宅小区","120300"),("公寓","120300"),("写字楼","120200"),("小学","科教文化服务;学校"),("中学","科教文化服务;学校")]:
+    check_anchor("社区基础服务", "某某"+name, code, "诊所")
+# Clinic irrelevant: 050300 bypass + irrelevant name_blacklist hit
+for name, code in [("驾校","050300"),("职业培训","050300"),("职业培训学校","050300"),("医院","050300"),("药店","050300")]:
+    check_irrelevant("社区基础服务", "某某"+name, code, "诊所")
 
 # ===== AA1-AA4. Nightlife/Immersive [partial] =====
 print("\n=== AA. Sample Bank - Nightlife/Immersive [partial] ===")
-for name in ["酒吧","清吧","精酿酒馆","LiveHouse","威士忌吧","鸡尾酒吧"]:
+for name in ["酒吧","清吧","精酿酒馆","LiveHouse","威士忌吧","鸡尾酒吧","夜店","酒馆","精酿酒吧","音乐酒吧"]:
     check_direct("夜经济娱乐", "某某"+name, "体育休闲服务;酒吧", "酒吧")
-for name in ["KTV","网吧","网咖","台球厅","棋牌室","咖啡厅","餐厅"]:
+for name in ["KTV","网吧","网咖","台球厅","棋牌室","咖啡厅","餐厅","书店","茶社","茶庄"]:
     check_not_direct("夜经济娱乐", "某某"+name, "体育休闲服务;酒吧", "酒吧")
+# Bar anchor: categories hotels/parking/subway
+for name, code in [("酒店","住宿服务"),("快捷酒店","住宿服务"),("停车场","150900"),("地下车库","150900"),("地铁站","150500")]:
+    check_anchor("夜经济娱乐", "某某"+name, code, "酒吧")
+# Bar irrelevant: 050300 bypass + name_blacklist hit
+for name, code in [("学校","050300"),("培训学校","050300"),("医院","050300"),("人民医院","050300"),("中心医院","050300")]:
+    check_irrelevant("夜经济娱乐", "某某"+name, code, "酒吧")
 
-for name in ["KTV","歌厅","练歌房","量贩KTV","卡拉OK","主题KTV"]:
+for name in ["KTV","歌厅","练歌房","量贩KTV","卡拉OK","主题KTV","KTV歌厅","练歌厅","KTV练歌房","量贩歌厅"]:
     check_direct("夜经济娱乐", "某某"+name, "体育休闲服务;KTV", "KTV")
-for name in ["酒吧","清吧","网吧","网咖","台球厅","棋牌室","餐厅"]:
+for name in ["酒吧","清吧","网吧","网咖","台球厅","棋牌室","餐厅","电影院","茶馆","迪厅"]:
     check_not_direct("夜经济娱乐", "某某"+name, "体育休闲服务;KTV", "KTV")
+# KTV anchor: categories hotels/parking/subway (same as Bar)
+for name, code in [("酒店","住宿服务"),("快捷酒店","住宿服务"),("停车场","150900"),("地下车库","150900"),("地铁站","150500")]:
+    check_anchor("夜经济娱乐", "某某"+name, code, "KTV")
+# KTV irrelevant: 050300 bypass + name_blacklist hit
+for name, code in [("学校","050300"),("培训学校","050300"),("医院","050300"),("人民医院","050300"),("中心医院","050300")]:
+    check_irrelevant("夜经济娱乐", "某某"+name, code, "KTV")
 
-for name in ["网吧","网咖","电竞馆","电竞酒店","电竞中心"]:
+for name in ["网吧","网咖","电竞馆","电竞酒店","电竞中心","网吧连锁","网咖电竞","电竞网咖","电竞体验馆","网咖会所"]:
     check_direct("夜经济娱乐", "某某"+name, "体育休闲服务;网吧", "网吧")
-for name in ["酒吧","KTV","台球厅","棋牌室","宾馆","餐厅","咖啡厅"]:
+for name in ["酒吧","KTV","台球厅","棋牌室","宾馆","餐厅","咖啡厅","电影院","茶馆","甜品店"]:
     check_not_direct("夜经济娱乐", "某某"+name, "体育休闲服务;网吧", "网吧")
+# Internet Cafe anchor: categories hotels/parking/subway (same as Bar/KTV)
+for name, code in [("酒店","住宿服务"),("快捷酒店","住宿服务"),("停车场","150900"),("地下车库","150900"),("地铁站","150500")]:
+    check_anchor("夜经济娱乐", "某某"+name, code, "网吧")
+# Internet Cafe irrelevant: 050300 bypass + name_blacklist hit
+for name, code in [("学校","050300"),("培训学校","050300"),("医院","050300"),("人民医院","050300"),("中心医院","050300")]:
+    check_irrelevant("夜经济娱乐", "某某"+name, code, "网吧")
 
 for name in ["剧本杀馆","推理馆","谋杀之谜","沉浸式剧场","实景搜证"]:
     check_direct("沉浸式社交娱乐", "某某"+name, "体育休闲服务;娱乐场所", "剧本杀")
@@ -798,6 +1031,67 @@ for name in ["电玩城","VR体验馆","虚拟现实馆","游戏厅"]:
     check_direct("沉浸式社交娱乐", "某某"+name, "体育休闲服务;娱乐场所", "电玩/VR")
 for name in ["KTV","酒吧","网吧","电竞酒店","麻将馆","健身房","瑜伽馆","足疗店","洗浴中心","按摩店"]:
     check_not_direct("沉浸式社交娱乐", "某某"+name, "体育休闲服务;娱乐场所", "剧本杀")
+# Immersive anchor: categories subway/schools/office + name_keywords 大学城/地铁站/写字楼
+for name, code in [("地铁站","150500"),("写字楼","120200"),("大学城","050300"),("小学","科教文化服务;学校"),("中学","科教文化服务;学校")]:
+    check_anchor("沉浸式社交娱乐", "某某"+name, code, "剧本杀")
+# Immersive irrelevant: name_blacklist 麻将馆 + categories_excluded hospitals
+for name, code in [("麻将馆","050300"),("棋牌麻将馆","050300"),("医院","090100"),("人民医院","090100"),("中心医院","090100")]:
+    check_irrelevant("沉浸式社交娱乐", "某某"+name, code, "剧本杀")
+
+# ===== AB. Code Safety Invariants =====
+# 逐 source 扫描：master + subtype 的 amap_codes，forbidden 不容忍，risky 必须防御
+print()
+print("=== AB. Code Safety Invariants ===")
+_forbidden_codes = {"050000","060000","070000","090000","120000"}
+_risky_codes = {"050100","050200","050300","050600","060100","060400","100000"}
+for mk, rig in INDUSTRY_RIGOR.items():
+    dc = rig.get("direct_competitor_rules", {})
+    # -- Gather code sources: (label, codes, eff_req_kw, eff_defense) --
+    sources = []
+    master_req_kw = dc.get("require_name_keyword_for_code", False)
+    master_codes = dc.get("amap_codes", [])
+    if master_codes:
+        eff_def = bool(master_req_kw or dc.get("name_keywords") or dc.get("exclude_names") or dc.get("strict_exclude_names"))
+        sources.append((f"{mk}/master", set(master_codes), master_req_kw, eff_def))
+    for sub_key, sub_rules in dc.get("subtypes", {}).items():
+        sub_codes = sub_rules.get("amap_codes", [])
+        if not sub_codes:
+            continue
+        sub_req_kw = sub_rules.get("require_name_keyword_for_code", master_req_kw)
+        sub_def = bool(sub_req_kw or sub_rules.get("name_keywords") or sub_rules.get("exclude_names") or sub_rules.get("strict_exclude_names"))
+        sources.append((f"{mk}/subtype:{sub_key}", set(sub_codes), sub_req_kw, sub_def))
+    # -- Check each source --
+    for label, codes, req_kw, eff_def in sources:
+        for fc in _forbidden_codes:
+            check(fc not in codes, f"{label}: forbidden code {fc}")
+        for rc in _risky_codes:
+            if rc in codes:
+                check(eff_def, f"{label}: risky code {rc} req_kw={req_kw} defense={eff_def}")
+
+# ===== AC. Low Freq Retail Real Chain Invariants =====
+# 锁住：个体零售走 low_freq_retail, 购物中心/百货/步行街走 shopping anchor, 超市/便利店不进 direct
+print()
+print("=== AC. Low Freq Retail Real Chain Invariants ===")
+# 个体零售 direct 走 low_freq_retail
+for name, tc in [
+    ("服装店","购物服务;服装鞋帽店"),("数码店","购物服务;数码电子"),
+    ("手机店","购物服务;数码电子"),("眼镜店","购物服务;服装鞋帽店"),
+]:
+    r = sim_full_chain("某某"+name, tc, "低频目的零售", "零售店")
+    check(r == "direct", f"LFR invariant direct: 某某{name} -> {r}")
+# 购物中心/百货/步行街 → anchor (走 shopping, is_real_shopping 保留)
+for name, tc in [
+    ("购物中心","购物服务;购物中心"),("百货大楼","购物服务;百货商场"),
+]:
+    r = sim_full_chain("某某"+name, tc, "低频目的零售", "零售店")
+    check(r == "anchor", f"LFR invariant anchor: 某某{name} -> {r}")
+# 超市/便利店/水果/生鲜/建材/五金 → not direct
+for name, tc in [
+    ("超市","购物服务;超市"),("便利店","购物服务;便利店"),
+    ("水果店","购物服务;综合市场"),("建材市场","购物服务;家居建材市场"),
+]:
+    r = sim_full_chain("某某"+name, tc, "低频目的零售", "零售店")
+    check(r != "direct", f"LFR invariant NOT direct: 某某{name} -> {r}")
 
 # ===== KNOWN_RULE_GAPS =====
 print("\n=== KNOWN_RULE_GAPS ===")
@@ -807,31 +1101,58 @@ if known_gaps:
 else:
     print("  (none)")
 
-# ===== Sample Bank Status =====
-print("\n=== Sample Bank Status (target: direct>=10, not-direct>=10, sub>=5, anchor>=5, irr>=5) ===")
-for label, d, nd, s, a, i, status in [
-    ("Snack Shop",13,10,4,0,0,"partial"),
-    ("Tea/Coffee",10,3,0,0,0,"known_gap"),
-    ("Chinese Restaurant",10,6,0,0,0,"known_gap"),
-    ("Hotpot/BBQ",11,5,0,0,0,"known_gap"),
-    ("Bakery/Dessert",10,7,0,0,0,"known_gap"),
-    ("Convenience",5,10,4,0,0,"known_gap"),
-    ("Fresh Produce",7,8,0,0,0,"partial"),
-    ("Pharmacy",10,10,0,0,0,"partial"),
-    ("Tobacco/Liquor",10,10,0,0,0,"partial"),
-    ("Daily Goods",6,9,0,0,0,"known_gap"),
-    ("Beauty",10,10,0,0,0,"partial"),
-    ("Pet",8,10,0,0,0,"partial"),
-    ("Fitness",9,10,0,0,0,"partial"),
-    ("Education",10,10,0,0,0,"partial"),
-    ("Laundry",7,10,0,0,0,"partial"),
-    ("Clinic",8,10,0,0,0,"partial"),
-    ("Bar",6,7,0,0,0,"partial"),
-    ("KTV",6,7,0,0,0,"partial"),
-    ("Internet Cafe",5,7,0,0,0,"partial"),
-    ("Immersive Social",22,10,0,0,0,"partial"),
-]:
+# ===== Sample Bank Ledger (structured, verifiable) =====
+_PARTIAL_NO_SUB_REASON = (
+    "当前业态无稳定全国通用 substitute 规则，避免为凑数污染 direct/substitute 边界"
+)
+_SAMPLE_BANK = [
+    # (label, d, nd, s, a, i, status, partial_reason)
+    ("Snack Shop",        13,10,5,5,5, "complete_candidate", ""),
+    ("Tea/Coffee",        10,10,5,5,5, "complete_candidate", ""),
+    ("Chinese Restaurant",10,15,5,5,5, "complete_candidate", ""),
+    ("Foreign Premium Dining",11,10,5,5,5,"complete_candidate",""),
+    ("Hotpot/BBQ",        11,13,5,5,5, "complete_candidate", ""),
+    ("Bakery/Dessert",    10,13,5,5,9, "complete_candidate", ""),
+    ("Low Frequency Retail",11,10,0,5,5,"partial",_PARTIAL_NO_SUB_REASON),
+    ("Convenience",       10,10,5,5,5, "complete_candidate", ""),
+    ("Fresh Produce",     10,10,5,5,5, "complete_candidate", ""),
+    ("Pharmacy",          10,10,0,5,5, "partial", _PARTIAL_NO_SUB_REASON),
+    ("Tobacco/Liquor",    10,10,0,5,5, "partial", _PARTIAL_NO_SUB_REASON),
+    ("Daily Goods",       10,10,0,5,5, "partial", _PARTIAL_NO_SUB_REASON),
+    ("Beauty",            10,10,0,5,5, "partial", _PARTIAL_NO_SUB_REASON),
+    ("Pet",               10,10,0,5,5, "partial", _PARTIAL_NO_SUB_REASON),
+    ("Fitness",           10,10,0,5,5, "partial", _PARTIAL_NO_SUB_REASON),
+    ("Education",         10,10,0,5,5, "partial", _PARTIAL_NO_SUB_REASON),
+    ("Laundry",           10,10,0,5,5, "partial", _PARTIAL_NO_SUB_REASON),
+    ("Clinic",            10,10,0,5,5, "partial", _PARTIAL_NO_SUB_REASON),
+    ("Bar",               10,10,0,5,5, "partial", _PARTIAL_NO_SUB_REASON),
+    ("KTV",               10,10,0,5,5, "partial", _PARTIAL_NO_SUB_REASON),
+    ("Internet Cafe",     10,10,0,5,5, "partial", _PARTIAL_NO_SUB_REASON),
+    ("Immersive Social",  22,10,0,5,5, "partial", _PARTIAL_NO_SUB_REASON),
+]
+
+print("\n=== Sample Bank Ledger ===")
+complete_n, partial_n = 0, 0
+for entry in _SAMPLE_BANK:
+    label, d, nd, s, a, i, status, reason = entry
     print(f"  {label}: d={d} nd={nd} s={s} a={a} i={i} [{status}]")
+    if status == "complete_candidate":
+        complete_n += 1
+        check(d >= 10, f"{label}: d={d} < 10")
+        check(nd >= 10, f"{label}: nd={nd} < 10")
+        check(s >= 5, f"{label}: s={s} < 5")
+        check(a >= 5, f"{label}: a={a} < 5")
+        check(i >= 5, f"{label}: i={i} < 5")
+    elif status == "partial":
+        partial_n += 1
+        check(d >= 10, f"{label}: d={d} < 10")
+        check(nd >= 10, f"{label}: nd={nd} < 10")
+        check(a >= 5, f"{label}: a={a} < 5")
+        check(i >= 5, f"{label}: i={i} < 5")
+        check(len(reason) > 0, f"{label}: partial without reason")
+    else:
+        check(False, f"{label}: unknown status {status}")
+print(f"  complete={complete_n} partial={partial_n}")
 
 
 # ===== Summary =====

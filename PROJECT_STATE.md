@@ -1,93 +1,173 @@
+# 项目状态（2026-05-15 C-2 收口，以本节为准）
+
+## C-2 后端真实报告复验
+
+C-2 已完成并通过 Codex 复核。
+
+### C-2 请求参数
+
+| 参数 | 值 |
+|---|---|
+| 业态 | 刚需快餐小吃 |
+| 地址 | 北京市海淀区中关村大街19号 |
+| Provider | deepseek |
+
+### C-2 结果
+
+- AMap 采集：成功
+- LLM 生成：成功（8 维评分，平均分=50）
+- 报告保存：analysis_records id=22, score=50
+- fact_errors：0（C-1 的 residential 幻觉问题未复现）
+- 退款/失败链路：未触发
+- P2：0，P3：0
+- P0：初始 1 条假阳性「周边客群以高校」
+
+### P0 假阳性二次收窄
+
+- 移除全局「客群」marker
+- 新增窄规则：周边/附近+客群、客群开头截断片段、裸泛称「写字楼/高校」
+- 新增 T-P0F-13 / T-P0F-14 / T-P0F-15
+- fact guard 从 57 PASS 增至 61 PASS
+
+### 最新基线
+
+- python -m compileall backend：PASS
+- python backend/tests/check_industry_rigor_rules.py：1876 PASS, 0 FAIL
+- python backend/tests/check_report_fact_guard.py：61 PASS, 0 FAIL
+- KNOWN_RULE_GAPS：(none)
+- P0/P2/P3：warning-only，P1 暂缓
+
+### 当前状态
+
+- 未提交、不 push
+- 前端未启动
+- 不要再次调用 AMap/LLM，除非用户明确授权下一次真实报告
+- 既有 diff (vite.config.js) 不处理
+- 临时产物 (tmp_report_*) 不处理
+
+## Phase 2 历史（餐饮+零售裸奔收口，已过期）
+
+已完成 7/7 master req_kw=True 收口 + 低频目的零售 low_freq_retail 通车。
+Phase 2B: 中餐正餐 050100；Phase 2D: 异国_中高端正餐 050100/050200；
+Phase 2F: 烘焙甜品 050600；Phase 2H/2J: 低频目的零售 060100/060400。
+## Phase 2J 审核状态
+
+当前处于“报告精准度规则体系 + 样本库 + 真实链路脱水校验”阶段。
+
+已完成：
+- 方案 C 最小端到端真实报告验收已跑过 1 次：AMap/LLM 链路可用，fact_errors 正确拦截 `stats_200m.residential=0 but report says 7个小区`，报告未保存并触发退款链路。
+- P0/P2/P3 继续保持 warning-only；P1 暂缓。
+- P0 泛称/描述性前缀假阳性已修补，并增加“米内无”不误杀“米内+具名品牌”的回归用例。
+- 餐饮与零售高风险 code 裸奔已收口：中餐正餐、异国_中高端正餐、烘焙甜品、低频目的零售均已启用 `require_name_keyword_for_code=True`。
+- 低频目的零售 Phase 2J 已打通真实链路：新增 `low_freq_retail` category、脱水函数、business_type rewrite、真实链路 X5c 样本。
+
+最新 Claude Code 验证结果：
+- `python -m compileall backend`：PASS
+- `python backend/tests/check_industry_rigor_rules.py`：1876 PASS, 0 FAIL, `KNOWN_RULE_GAPS: (none)`
+- `python backend/tests/check_report_fact_guard.py`：61 PASS, 0 FAIL
+
+Codex 审核结论：
+- Phase 2J 的方向正确：没有扩大 `SHOPPING_KEEP`，而是通过独立 `low_freq_retail` 避免污染 shopping 大类。
+- 真实链路测试 X5c 使用 `sim_full_chain()`，覆盖从 AMap type 到 rewrite、dewater、rigor 分类的关键路径。
+- 当前 Codex PowerShell 环境没有 `python`/`py` 命令，无法独立复跑测试；以 Claude Code 已跑通结果为当前基线，并建议新窗口优先复跑。
+
+当前禁止/未做事项：
+- Phase 2J 未调用 AMap API。
+- Phase 2J 未调用 LLM API。
+- 未启动前端。
+- 未提交，不 push。
+- 不处理 `frontend/vite.config.js` 既有 diff。
+- 不处理 `tmp_latest_report_text.txt`、`tmp_report_images/`、`tmp_report_pages/` 等临时产物。
+
+下一步建议：
+1. 新窗口先复核 Phase 2J diff 并复跑三项验证。
+2. 若验证保持通过，进入 Phase 3A：业务入口映射完整性测试和高风险 invariant 测试。
+3. 真实报告复验 C-2 只有在用户再次明确授权 AMap API 和 LLM API 后才执行。
+
 # 址得选项目状态
 
 ## 当前阶段
 
-项目处于“报告精准度规则体系重构 + 样本库建设”阶段。当前最高优先级仍是报告精准度。
+项目处于”报告精准度规则体系重构 + 样本库建设”阶段。当前最高优先级仍是报告精准度。
+
+Guard 体系（v1.1.2）已推送 GitHub。方案 C 最小端到端真实报告验收已完成。
 
 当前不生成真实报告，不启动前端，不改 UI/PDF/端口/数据库 schema，不改 AMap API 调用方式，除非用户明确要求进入对应验收。
 
-产品定位必须保持：**址得选是全国商铺选址初筛参考工具，不是决策平台**。所有报告必须强调“初筛参考、需线下验证”，禁止“推荐/不推荐/建议推进”等替用户做决策表达。
+产品定位必须保持：**址得选是全国商铺选址初筛参考工具，不是决策平台**。
 
-## 2026-05-14 最新阶段更新（P0-FIX + id=21 离线验收收口，以本节为准）
+## 2026-05-15 历史：方案 C 端到端验收 + P0 小修补强（已过期）
 
-本轮在 P0/P2/P3 收口后，又完成了 P0 名称引用校验的真实历史样本假阳性修补，并用本地 `analysis_records.id=21` 按 `backend/main.py` 当前 `full_text` 拼接逻辑做了离线复验。当前仍未生成新的真实报告、未调用 AMap API、未调用 LLM API、未启动前端、未提交、不 push。
+### 方案 C 执行记录
 
-最新 Codex / Claude Code 复核确认：
+| 项目 | 值 |
+|---|---|
+| 业态 | 药店 |
+| 地址 | 陕西省宝鸡市渭滨区经二路138号 |
+| 经纬度 | lng=107.148, lat=34.362 |
+| AMap API | 已调用，采集/脱水成功 |
+| LLM API | 已调用，8维评分生成成功 |
+| 前端 | 未启动 |
+| 提交/push | 未执行 |
 
-- `python -m compileall backend` 通过。
-- `python backend/tests/check_report_fact_guard.py` 通过：`50 PASS, 0 FAIL`。
-- `python backend/tests/check_industry_rigor_rules.py` 通过：`1598 PASS, 0 FAIL`。
-- `KNOWN_RULE_GAPS: (none)`。
-- id=21 离线复验（按 `main.py` full_text 逻辑）：`P0=0 / P2=0 / P3=0`。
-- 未调用 AMap API。
-- 未调用 LLM API。
-- 未启动前端。
-- 未修改数据库。
-- 未生成新的真实报告。
+### 方案 C 结果
 
-报告事实校验层当前状态：
+- AMap/LLM 链路跑通。
+- **报告未保存** — fact_errors hard-error 正确拦截。
+- hard-error 内容：`stats_200m.residential=0 but report says 7个小区`（LLM 数字幻觉）。
+- 退款/失败链路已触发，user_id=23 退款成功。
+- **结论：Guard hard-error 链路有效，真实报告未通过保存验收。**
 
-- P0 已完成：POI 名称引用校验，warning-only。
-  - 函数：`check_poi_name_hallucination(full_text, real_data, strict=False)`
-  - 写入：`result["_poi_name_warnings"]`
-- P0-FIX 已完成：泛称/描述性前缀假阳性修补，warning-only。
-  - 覆盖：`周边/附近 + 酒店/学校/写字楼/便利店/超市/医院/小区/商场` 等泛称。
-  - 覆盖：`晚间客流依赖周边酒店` 这类“描述性前缀 + 周边/附近 + 泛称 POI 后缀”。
-  - 保留：`瑞幸咖啡门店` 等具体伪造名称仍会 warning。
-- P1 暂缓：旧口径 `competitors_*` 误用检测。当前不实现，待无-rigor 业态或旧字段再次暴露时再处理。
-- P2 已完成：`substitute_list` / `traffic_anchor_list` 被报告误写成竞品语境的校验，warning-only。
-  - 函数：`check_poi_context_mismatch(full_text, real_data)`
-  - 写入：`result["_poi_context_warnings"]`
-- P3 已完成：直接竞品数量膨胀校验，warning-only。
-  - 函数：`check_direct_competitor_count_mismatch(full_text, real_data)`
-  - 只检查 `direct_competitors_200m/500m/1000m`
-  - 只在“竞品语境 + 明确半径 + 精确阿拉伯数字 + reported > expected”时 warning
-  - 不抓少报
-  - 写入：`result["_direct_competitor_count_warnings"]`
+### Guard 表现
 
-三类 guard 均保持 warning-only：
+- **P0**：4 条 warning（1 真阳性 + 3 假阳性）
+  - 真阳性：`公园路店`
+  - 假阳性：`米内无任何同类药店` / `公里商圈内同类药店` / `无大型商圈或购物商场`
+- **P2**：0 条
+- **P3**：0 条
+- P0/P2/P3 继续 warning-only。
 
-- 打印 warning 日志。
-- 写入 `result` JSON。
-- 不加入 `fact_errors`。
-- 不 `raise ValueError`。
-- 不影响报告保存/退款链路。
+### P0 假阳性小修（已完成）
 
-当前 guard 相关文件：
+- 修改：`backend/services/poi_name_guard.py` + `backend/tests/check_report_fact_guard.py`
+- 新增：`_DESCRIPTIVE_MARKERS`（`米内无`/`商圈内`/`无任何`）+ `无大型` 开头检测
+- 关键设计：用 `”米内无”` 而非 `”米内”`，避免误杀 `”米内有XX店”` 含具名品牌候选
+- 新增测试：T-P0F-8 ~ T-P0F-12（5 个）
 
-- 新增/修改：`backend/services/poi_name_guard.py`
-- 新增/修改：`backend/tests/check_report_fact_guard.py`
-- 修改：`backend/main.py`
+### 最新测试基线
 
-当前工作区提醒：
+- `python -m compileall backend`：通过
+- `python backend/tests/check_report_fact_guard.py`：**61 PASS, 0 FAIL**
+- `python backend/tests/check_industry_rigor_rules.py`（历史）：1598 PASS, 0 FAIL（当前 1876 PASS）
+- `KNOWN_RULE_GAPS`：(none)
 
-- `backend/tests/check_industry_rigor_rules.py` 有既有 diff，不要处理、不要回滚、不要格式化。
-- `backend/prompts/industry_config.py` 有既有 diff，不要处理、不要回滚、不要格式化。
-- `frontend/vite.config.js` 有既有 diff，不要处理。
-- `PROJECT_RULES.md`、`PROJECT_STATE.md`、`WORKING_SET.md`、`NEXT_SESSION_PROMPT.md` 是交接文档，可由 Codex 更新。
-- `tmp_latest_report_text.txt`、`tmp_report_images/`、`tmp_report_pages/` 等临时报告产物不要处理。
-- 不要创建或保留临时 `_offline/_recheck/_trace/id21` 脚本；如需离线复验，用 inline python。
+### 当前仍未处理
 
-下一阶段建议：
+- 未再次生成真实报告
+- 未再次调用 AMap/LLM API
+- 未启动前端
+- 未提交，不 push
+- 不处理既有 diff：`industry_config.py` / `check_industry_rigor_rules.py` / `vite.config.js`
+- 不处理临时产物：`tmp_latest_report_text.txt` / `tmp_report_images/` / `tmp_report_pages/`
 
-等待用户明确授权后，进入“方案 C：一次最小端到端真实报告验收”。建议不启动前端，仅启动后端或使用已有后端，用 curl/httpx 发起 1 次真实分析请求，观察：
+### 下一步建议
 
-- `_poi_name_warnings`
-- `_poi_context_warnings`
-- `_direct_competitor_count_warnings`
-- `fact_errors`
-- 报告是否保存成功
-- 是否触发退款/失败链路
+- 等待用户明确授权后，进入”方案 C-2：第二次最小端到端真实报告复验”
+- C-2 已完成：P0 初始 1 条假阳性已二次收窄修复
+- C-2 已执行 1 次真实请求，报告保存 id=22
+- 如再次出现 residential 或 stats hard-error，优先记录为 LLM 数字幻觉
 
-方案 C 执行前必须由用户确认：
+## 2026-05-14 历史：用户十节精准度框架 + 差距分析（已过期）
 
-- 是否允许调用 AMap API。
-- 是否允许调用 LLM API。
-- 使用哪个业态和地址。
-- 是否允许启动后端服务。
-- 明确不启动前端。
+用户已给出完整的精准度目标拆解（十节框架）。Claude Code 逐项对照当前进展，核心发现：
 
-注意：下方旧章节中的 `42 PASS`、P2 下一步、`17 PASS`、`1511 PASS`、`1391 PASS`、`1291 PASS`、Laundry 下一步等均为历史状态；继续工作时以本节最新状态为准。
+**四层目标已有规则，但精准度参差不齐。** `classify_poi_rigor()` 四分类已实现，14 master 各有四套规则。
+
+**最大结构性风险**：餐饮 5 组 master（中餐正餐/火锅_烧烤/异国风味/茶饮咖啡/烘焙甜品）的 amap_codes 仍用宽 code（050100/050200/050500/050600），未启用 `require_name_keyword_for_code=True`。
+
+**Sample Bank 现状**：20 业态中 6 个 complete_candidate，14 个 partial（缺 substitute 样本）。canonical 1598 PASS 0 FAIL。
+
+**下一步最有效动作**：先给餐饮剩余 5 组 master 加上 `require_name_keyword_for_code=True` 或收窄 code，再补 14 组样本库的 substitute 列。
 
 ## 2026-05-14 历史阶段更新（P0/P2/P3 收口，已过期）
 
@@ -97,7 +177,7 @@
 
 - `python -m compileall backend` 通过。
 - `python backend/tests/check_report_fact_guard.py` 通过：`42 PASS, 0 FAIL`。
-- `python backend/tests/check_industry_rigor_rules.py` 通过：`1598 PASS, 0 FAIL`。
+- `python backend/tests/check_industry_rigor_rules.py`（历史）：1598 PASS, 0 FAIL。当前：1876 PASS。
 - `KNOWN_RULE_GAPS: (none)`。
 - 未生成真实报告。
 - 未启动前端。
@@ -162,7 +242,7 @@
 
 - `python -m compileall backend` 通过。
 - `python backend/tests/check_industry_rigor_rules.py` 通过。
-- Sample Bank canonical：`1598 PASS, 0 FAIL`。
+- Sample Bank canonical（历史）：1598 PASS, 0 FAIL。
 - `KNOWN_RULE_GAPS: (none)`。
 - `python backend/tests/check_report_fact_guard.py` 通过：`17 PASS, 0 FAIL`。
 - P0 POI 名称引用校验已接入 `backend/main.py`，当前为 warning-only：
