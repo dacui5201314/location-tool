@@ -205,6 +205,9 @@ def _sse(step, msg, result=None):
     return f"data: {json.dumps(payload, ensure_ascii=False)}\n\n"
 
 
+from report_fact_guard import validate_report_fact_consistency
+
+
 @app.post("/api/analyze")
 async def analyze_location(req: AnalyzeRequest, user: dict = Depends(get_current_user)):
     """SSE 流式选址分析 — 四步进度推送 + 最终报告 JSON"""
@@ -434,104 +437,17 @@ async def analyze_location(req: AnalyzeRequest, user: dict = Depends(get_current
             result["real_data"] = real_data
 
             # ★ 报告事实校验：分句校验，杜绝半径交叉误伤
-            import re as _re
             if real_data and isinstance(real_data, dict):
-                fact_errors = []
-                dims = result.get("dimension_scores", [])
-                if not isinstance(dims, list) or len(dims) < 8:
-                    fact_errors.append(f"dimension_scores 不足8维(仅{len(dims) if isinstance(dims, list) else 0}维)")
-                details = result.get("details", {}) or {}
-                exec_summary = result.get("executive_summary", {}) or {}
+                # ── 事实一致性校验（纯函数，可单测）──
+                fact_errors = validate_report_fact_consistency(result, real_data)
                 full_text = (
-                    json.dumps(details, ensure_ascii=False) + " " +
+                    json.dumps(result.get("details", {}) or {}, ensure_ascii=False) + " " +
                     json.dumps(result.get("advantages", []), ensure_ascii=False) + " " +
                     json.dumps(result.get("disadvantages", []), ensure_ascii=False) + " " +
-                    json.dumps(exec_summary, ensure_ascii=False) + " " +
+                    json.dumps(result.get("executive_summary", {}) or {}, ensure_ascii=False) + " " +
                     json.dumps(result.get("action_plan", []), ensure_ascii=False) + " " +
                     str(result.get("summary", ""))
                 )
-                # ── 分句 ──
-                sentences = _re.split(r'[。，；;、\n]+', full_text)
-                sentences = [s.strip() for s in sentences if s.strip()]
-
-                # ── 半径识别规则 ──
-                R200 = _re.compile(r'200米|200m|贴身')
-                R500 = _re.compile(r'500米|500m|步行圈')
-                R1K  = _re.compile(r'1km|1000米|1000m')
-                GENERIC = _re.compile(r'附近|周边|区域内|范围内|周围')
-
-                def _get_radius(sentence):
-                    """返回句子对应的半径：200m/500m/1000m/None"""
-                    if R200.search(sentence):
-                        return "200m"
-                    if R500.search(sentence):
-                        return "500m"
-                    if R1K.search(sentence):
-                        return "1000m"
-                    # 无明确半径但有泛半径词 → 视为 1000m 层
-                    if GENERIC.search(sentence):
-                        return "1000m"
-                    return None
-
-                def _check_sentence(sentence, field_path, expected, radius, subject_kw, units):
-                    """在单个句子内校验数字与 expected 是否冲突。radius 必须匹配才校验。"""
-                    sent_radius = _get_radius(sentence)
-                    if sent_radius != radius:
-                        return []  # 半径不匹配，跳过
-                    # 检查句内是否有目标主题词
-                    if not any(kw in sentence for kw in subject_kw):
-                        return []
-                    # 提取句内所有数字+单位对
-                    unit_pat = "|".join(units)
-                    for m in _re.finditer(rf'(\d+)\s*({unit_pat})', sentence, _re.IGNORECASE):
-                        reported = int(m.group(1))
-                        if expected == 0 and reported > 0:
-                            return [f"{field_path}={expected} but report says {reported}{m.group(2)} in '{sentence[:40]}'"]
-                        elif expected > 0 and reported > expected * 3:
-                            return [f"{field_path}={expected} but report says {reported}{m.group(2)} (>3x) in '{sentence[:40]}'"]
-                    return []
-
-                s2 = real_data.get("stats_200m", {}) or {}
-                s5 = real_data.get("stats_500m", {}) or {}
-                s10 = real_data.get("stats_1000m", {}) or {}
-
-                # 逐句扫描
-                for sent in sentences:
-                    # 直接竞品
-                    for radius, dc_field in [("200m","direct_competitors_200m"),("500m","direct_competitors_500m"),("1000m","direct_competitors_1000m")]:
-                        expected = real_data.get(dc_field)
-                        if expected is not None:
-                            fact_errors += _check_sentence(sent, dc_field, int(expected), radius, ("直接竞品","同类竞品","同品类竞品"), ("家",))
-                    # 替代竞品
-                    for radius, sc_field in [("200m","substitute_competitors_200m"),("500m","substitute_competitors_500m"),("1000m","substitute_competitors_1000m")]:
-                        expected = real_data.get(sc_field)
-                        if expected is not None:
-                            fact_errors += _check_sentence(sent, sc_field, int(expected), radius, ("替代消费","替代业态","替代压力"), ("家",))
-                    # 客流锚点
-                    for radius, ta_field in [("200m","traffic_anchors_200m"),("500m","traffic_anchors_500m"),("1000m","traffic_anchors_1000m")]:
-                        expected = real_data.get(ta_field)
-                        if expected is not None:
-                            fact_errors += _check_sentence(sent, ta_field, int(expected), radius, ("客流锚点",), ("个",))
-                    # 基础设施 POI
-                    for radius, stats_dict in [("200m",s2),("500m",s5),("1000m",s10)]:
-                        for cat, keywords, units in [
-                            ("subway",("地铁站","地铁","轨道交通"),("个","座","条")),
-                            ("bus",("公交站","公交线路","公交车"),("个","条")),
-                            ("schools",("学校","中小学","大学","学院"),("所","个")),
-                            ("hospitals",("医院","医疗机构","三甲"),("家","所","个")),
-                            ("residential",("住宅小区","小区","社区"),("个","座")),
-                            ("office",("写字楼","办公楼","商务楼"),("栋","座","幢")),
-                        ]:
-                            expected = stats_dict.get(cat)
-                            if expected is not None:
-                                fact_errors += _check_sentence(sent, f"stats_{radius}.{cat}", int(expected), radius, keywords, units)
-
-                # 异常大数字检查
-                for key in ("competition","population_density","traffic_accessibility","traffic_flow"):
-                    txt = str(details.get(key, ""))
-                    big_nums = _re.findall(r'(\d{4,})\s*(家|个|所|栋|条|辆)', txt)
-                    if big_nums:
-                        fact_errors.append(f"{key}中出现异常大数字: {big_nums[:3]}")
 
                 # ★ P0: POI 名称引用校验 (warning-only)
                 from services.poi_name_guard import check_poi_name_hallucination, check_poi_context_mismatch, check_direct_competitor_count_mismatch

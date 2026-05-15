@@ -1,18 +1,61 @@
-# 新窗口无缝交接提示词（2026-05-15 C-2 收口）
+# 新窗口无缝交接提示词（短版入口）
+
+新窗口优先只读取：
+
+1. `PROJECT_RULES.md`
+2. `PROJECT_PROGRESS.yml`
+3. `CURRENT_HANDOFF.md`
+
+`PROJECT_STATE.md` / `WORKING_SET.md` 仅作参考资料。
+
+当前状态：**Phase 4B-1 code_review_passed**，以 `CURRENT_HANDOFF.md` 为准。
+
+---
+
+# 历史长版交接（仅参考）
 
 项目路径：C:/Users/admin/location-tool，产品名址得选。
+
+## Phase 4B-1 已完成代码侧审核
+
+- latest commit: `8e06ec5`（Phase 4B-1），未 push
+- previous: `579b004`（Phase 4A）
+- `backend/report_fact_guard.py` 新增纯函数（仅 json/re），`main.py` 内联逻辑已抽取
+- fact guard: 76 PASS, 0 FAIL / industry: 1876 PASS, 0 FAIL
+- 轻量测试边界：check_report_fact_guard.py 不 import main
+- 待 Codex/用户决定是否提交
+
+新窗口第一步：
+
+1. 读取 `PROJECT_RULES.md` / `PROJECT_PROGRESS.yml` / `CURRENT_HANDOFF.md`
+2. 运行 `git status --short`
+3. 复跑：
+   - `python -m compileall backend`
+   - `python backend/tests/check_industry_rigor_rules.py`
+   - `python backend/tests/check_report_fact_guard.py`
+4. 若全部通过，进入等待态（Phase 4B-1 已完成，不要继续实现）。
+
+## 历史记录
+
+- 只允许围绕 `backend/main.py` 和 `backend/tests/check_report_fact_guard.py`
+- 不调用 AMap/LLM
+- 不启动前端
+- 不真实请求
+- 不 push
+- 不处理临时产物
+- 不继续扩 Sample Bank 或 POI 关键词
 
 ## C-2 已通过
 
 - 业态：刚需快餐小吃 | 地址：北京市海淀区中关村大街19号
 - 报告保存 id=22, score=50，fact_errors=0
-- P0 假阳性已二次收窄，fact guard 61 PASS
+- P0 假阳性已二次收窄，fact guard 76 PASS
 
 ## 最新基线
 
 - compileall backend：PASS
 - check_industry_rigor_rules.py：1876 PASS, 0 FAIL
-- check_report_fact_guard.py：61 PASS, 0 FAIL
+- check_report_fact_guard.py：76 PASS, 0 FAIL
 - KNOWN_RULE_GAPS：(none)
 
 ## 下一步

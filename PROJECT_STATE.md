@@ -1,4 +1,28 @@
-# 项目状态（2026-05-15 C-2 收口，以本节为准）
+# 项目状态（2026-05-15，以本节为准）
+
+## Phase 4B-1 已完成代码侧审核
+
+- latest commit: `8e06ec5`（Phase 4B-1），未 push
+- previous: `579b004`（Phase 4A）
+- `backend/report_fact_guard.py` 新增 `validate_report_fact_consistency` 纯函数（仅 json/re）
+- `backend/main.py` 内联逻辑抽取完成
+- `backend/tests/check_report_fact_guard.py` P4 段 10 用例，importlib 加载
+- **fact guard: 76 PASS, 0 FAIL** / industry: 1876 PASS, 0 FAIL / KNOWN_RULE_GAPS: (none)
+- 待 Codex/用户决定是否提交
+
+## 历史记录（C-2 及更早，已过期）
+
+- 方向正确：继续从“规则修补”升级到“real_data 与 LLM 正文对账”。
+- 现有 `backend/main.py` 已有 hard-error 逻辑，覆盖：
+  - `direct_competitors_200m/500m/1000m`
+  - `substitute_competitors_200m/500m/1000m`
+  - `traffic_anchors_200m/500m/1000m`
+  - `stats_*.subway/bus/schools/hospitals/residential/office`
+  - 异常大数字
+- Phase 4B-1 已完成：抽成 `report_fact_guard.py` 纯函数 + subject 关键词补强 + 旧口径检测 + P4 10 用例
+- fact guard: 76 PASS, 0 FAIL
+- 不处理临时产物
+- 不继续补 POI 关键词或 Sample Bank，除非用户另行授权
 
 ## C-2 后端真实报告复验
 
@@ -27,13 +51,13 @@ C-2 已完成并通过 Codex 复核。
 - 移除全局「客群」marker
 - 新增窄规则：周边/附近+客群、客群开头截断片段、裸泛称「写字楼/高校」
 - 新增 T-P0F-13 / T-P0F-14 / T-P0F-15
-- fact guard 从 57 PASS 增至 61 PASS
+- fact guard 从 57 PASS 增至 61 PASS（C-2 时）→ 76 PASS（Phase 4B-1）
 
-### 最新基线
+### 历史基线
 
 - python -m compileall backend：PASS
 - python backend/tests/check_industry_rigor_rules.py：1876 PASS, 0 FAIL
-- python backend/tests/check_report_fact_guard.py：61 PASS, 0 FAIL
+- python backend/tests/check_report_fact_guard.py：76 PASS, 0 FAIL
 - KNOWN_RULE_GAPS：(none)
 - P0/P2/P3：warning-only，P1 暂缓
 
@@ -44,6 +68,15 @@ C-2 已完成并通过 Codex 复核。
 - 不要再次调用 AMap/LLM，除非用户明确授权下一次真实报告
 - 既有 diff (vite.config.js) 不处理
 - 临时产物 (tmp_report_*) 不处理
+
+
+## Phase 4B-1 代码侧审核通过
+
+- report_fact_guard.py 新增 validate_report_fact_consistency 纯函数（仅依赖 json/re）
+- main.py 内联逻辑抽取完毕，残留 import re as _re 已清除
+- check_report_fact_guard.py P4 10 用例，importlib 加载，不 import main
+- fact guard: 76 PASS, 0 FAIL
+- industry: 1876 PASS, 0 FAIL
 
 ## Phase 2 历史（餐饮+零售裸奔收口，已过期）
 

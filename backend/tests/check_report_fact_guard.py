@@ -470,6 +470,117 @@ check(any("500m" in i for i in issues), f"P3-8 含500m: {issues}")
 check(not any("1000m" in i for i in issues), f"P3-8 不含1000m: {issues}")
 
 # ═══════════════════════════════════════════════════════════════
+# P4: 报告事实一致性校验（validate_report_fact_consistency 纯函数）
+# ═══════════════════════════════════════════════════════════════
+
+# 通过 importlib 从文件路径加载 report_fact_guard，避免触发 main.py 的 FastAPI/AMap 依赖
+_rfg_path = os.path.join(os.path.dirname(__file__), "..", "report_fact_guard.py")
+_rfg_path = os.path.abspath(_rfg_path)
+_rfg_spec = importlib.util.spec_from_file_location("report_fact_guard", _rfg_path)
+_rfg = importlib.util.module_from_spec(_rfg_spec)
+_rfg_spec.loader.exec_module(_rfg)
+validate_report_fact_consistency = _rfg.validate_report_fact_consistency
+
+def _result_with_text(text, dims=None):
+    """构造最小 result dict，把 text 分布在 advantages/disadvantages/summary 中"""
+    return {
+        "dimension_scores": dims or [{"key":f"d{i}"} for i in range(8)],
+        "details": {},
+        "advantages": [text],
+        "disadvantages": [],
+        "executive_summary": {},
+        "action_plan": [],
+        "summary": "",
+    }
+
+# T-P4-1: direct expected=0, report says 3 -> fact_error
+print("=== T-P4-1: direct 数量膨胀=0→3 -> error ===")
+rd = {"direct_competitors_200m": 0, "stats_200m": {}, "stats_500m": {}, "stats_1000m": {}}
+result = _result_with_text("200米内3家直接竞品，竞争压力大。")
+issues = validate_report_fact_consistency(result, rd)
+check(len(issues) >= 1, f"P4-1 error: {issues}")
+check(any("direct_competitors_200m=0" in i for i in issues), f"P4-1 内容: {issues}")
+
+# T-P4-2: direct expected=5, report says 2 -> 不触发
+print("=== T-P4-2: direct 少报=5→2 -> 不触发 ===")
+rd = {"direct_competitors_200m": 5, "stats_200m": {}, "stats_500m": {}, "stats_1000m": {}}
+result = _result_with_text("200米内仅2家直接竞品，竞争压力可控。")
+issues = validate_report_fact_consistency(result, rd)
+check(len(issues) == 0, f"P4-2 不触发: {issues}")
+
+# T-P4-3: substitute expected=1, report says 5 "替代竞争" -> fact_error
+print("=== T-P4-3: substitute 数量膨胀=1→5 -> error ===")
+rd = {"substitute_competitors_200m": 1, "stats_200m": {}, "stats_500m": {}, "stats_1000m": {}}
+result = _result_with_text("200米内5家替代竞争分流，压力较大。")
+issues = validate_report_fact_consistency(result, rd)
+check(len(issues) >= 1, f"P4-3 error: {issues}")
+check(any("substitute_competitors_200m=1" in i for i in issues), f"P4-3 内容: {issues}")
+
+# T-P4-4: anchor expected=1, report says 5 "客流来源" -> fact_error
+print("=== T-P4-4: anchor 数量膨胀=1→5 -> error ===")
+rd = {"traffic_anchors_200m": 1, "stats_200m": {}, "stats_500m": {}, "stats_1000m": {}}
+result = _result_with_text("200米内5个客流来源，导流能力较强。")
+issues = validate_report_fact_consistency(result, rd)
+check(len(issues) >= 1, f"P4-4 error: {issues}")
+check(any("traffic_anchors_200m=1" in i for i in issues), f"P4-4 内容: {issues}")
+
+# T-P4-5: rigor=True, report text 含 competitors_200m -> fact_error
+print("=== T-P4-5: 旧口径 competitors_200m -> error ===")
+rd = {"rigor_enabled": True, "stats_200m": {}, "stats_500m": {}, "stats_1000m": {}}
+result = _result_with_text("周边 competitors_200m 为 8 家，竞争激烈。")
+issues = validate_report_fact_consistency(result, rd)
+check(len(issues) >= 1, f"P4-5 error: {issues}")
+check(any("competitors_200m" in i for i in issues), f"P4-5 内容: {issues}")
+
+# T-P4-6: rigor=False, report text 含 competitors_200m -> 不触发旧口径 error
+print("=== T-P4-6: rigor=False 旧口径 -> 不触发 ===")
+rd = {"rigor_enabled": False, "stats_200m": {}, "stats_500m": {}, "stats_1000m": {}}
+result = _result_with_text("周边 competitors_200m 为 8 家。")
+issues = validate_report_fact_consistency(result, rd)
+check(len(issues) == 0, f"P4-6 不触发: {issues}")
+
+# T-P4-7: schools expected=0, report says 4 "高校校区" -> fact_error
+print("=== T-P4-7: schools 数字幻觉 -> error ===")
+rd = {"stats_200m": {"schools": 0}, "stats_500m": {}, "stats_1000m": {}}
+result = _result_with_text("200米内4所高校校区，学生客流充沛。")
+issues = validate_report_fact_consistency(result, rd)
+check(len(issues) >= 1, f"P4-7 error: {issues}")
+check(any("schools=0" in i for i in issues), f"P4-7 内容: {issues}")
+
+# T-P4-8: 模糊表述 -> 不触发
+print("=== T-P4-8: 模糊表述 -> 不触发 ===")
+rd = {"direct_competitors_200m": 2, "stats_200m": {}, "stats_500m": {}, "stats_1000m": {}}
+result = _result_with_text("周边约有七八家便利店，日常消费便捷。")
+issues = validate_report_fact_consistency(result, rd)
+check(len(issues) == 0, f"P4-8 不触发: {issues}")
+
+# T-P4-9: 多半径独立 — 全部精确一致或略少 -> 不触发
+print("=== T-P4-9: 多半径精确一致 -> 不触发 ===")
+rd = {
+    "direct_competitors_200m": 3, "direct_competitors_500m": 8,
+    "substitute_competitors_1000m": 2, "traffic_anchors_500m": 5,
+    "stats_200m": {"schools": 1}, "stats_500m": {}, "stats_1000m": {},
+}
+result = _result_with_text(
+    "200米内3家直接竞品，分布密集。500米内8家同品类门店，选择丰富。"
+    "1000米内周边约有2家替代竞争，分流有限。500米范围内5个客流来源，导流能力强。"
+    "200米内1所高校校区，午间客流可观。"
+)
+issues = validate_report_fact_consistency(result, rd)
+check(len(issues) == 0, f"P4-9 不触发: {issues}")
+
+# T-P4-10: real_data 中有 competitors_* 旧字段，但 report text 不含 -> 不触发旧口径 error
+print("=== T-P4-10: real_data旧字段不触发 -> 通过 ===")
+rd = {
+    "rigor_enabled": True,
+    "competitors_200m": 9,  # 旧字段在 real_data 中，但不在 report text 中
+    "stats_200m": {}, "stats_500m": {}, "stats_1000m": {},
+}
+result = _result_with_text("200米内5家直接竞品，竞争激烈。")
+issues = validate_report_fact_consistency(result, rd)
+check(len(issues) == 0, f"P4-10 不触发: {issues}")
+
+# ═══════════════════════════════════════════════════════════════
 print(f"\n{'='*50}")
 print(f"TOTAL: {p} PASS, {f} FAIL")
 if f == 0:
