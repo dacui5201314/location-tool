@@ -134,7 +134,8 @@ npx vite --host
 
 ## 版本历史
 
-- **v1.1.2** (2026-05-14) — 报告事实校验 Guard 体系上线：P0 POI 名称引用校验（含泛称/描述性前缀假阳性修补）、P2 竞品语境误用检测、P3 竞品数量膨胀检测，三层 warning-only；离线验收样本 id=21 P0/P2/P3 归零；`_is_generic_candidate()` 函数识别"描述性前缀+周边/附近+泛称POI后缀"假阳性模式；`_GENERIC_REFERENTS` + `_GENERIC_BLACKLIST` 双重过滤；check_report_fact_guard.py 50 PASS 0 FAIL；check_industry_rigor_rules.py 1598 PASS 0 FAIL
+- **v1.2.0** (2026-05-15) — 报告精准度体系化收口：7/7 master req_kw=True 消除高风险 code 裸奔 direct；新增 `low_freq_retail` category + `is_real_low_freq_retail` 脱水函数；P0 假阳性窄规则修补（`_DESCRIPTIVE_MARKERS` + 周边/附近客群 + 裸泛称过滤）；fact_errors 一致性校验抽取为 `report_fact_guard.py` 纯函数 + subject 关键词补强 + 旧口径 `competitors_*` 检测；C-1/C-2 两次真实报告端到端验收；check_industry_rigor_rules.py 1876 PASS 0 FAIL / check_report_fact_guard.py 86 PASS 0 FAIL
+- **v1.1.2** (2026-05-14) — 报告事实校验 Guard 体系上线：P0 POI 名称引用校验、P2 竞品语境误用检测、P3 竞品数量膨胀检测，三层 warning-only；离线验收样本 id=21 P0/P2/P3 归零；check_report_fact_guard.py 50 PASS；check_industry_rigor_rules.py 1598 PASS
 - **v1.1.1** (2026-05-13) — POI 分类精准度全面整改：医院归并去重、住宅/便利店/药店/酒店名称脱水全量覆盖、14业态 subtype 深化(高频刚需零售/专业生活服务/社区基础服务/夜经济娱乐/沉浸式社交娱乐)、6 个新 category 打通真实采集链路(education_training/laundry/clinics/fitness/fresh_retail/tobacco_liquor/immersive_entertainment)、商务酒店/民宿青旅 100000 裸 direct 风险消除、anchor 显式测试补强、报告 prompt 产品定位强化(初筛参考/不构成投资建议)、canonical 测试 1291 PASS 0 FAIL
 - **v1.0.0** (2026-05-09) — 正式生产版：34 种业态深度适配、SSE 流式分析、高保真 PDF 导出、双重计费系统、管理后台、UUID 混淆路由、全量安全加固、Canvas 硬件指纹防刷、全栈死代码清零
 - **v0.9** (2026-05-07) — 业态专属规则引擎：数据库驱动业态配置 + Admin 可视化管理 + 34 套专属 Prompt
