@@ -6,7 +6,7 @@ unpushed: true
 
 validation:
   compileall: PASS
-  fact_guard: "76 PASS, 0 FAIL"
+  fact_guard: "86 PASS, 0 FAIL"
   industry: "1876 PASS, 0 FAIL"
   known_rule_gaps: none
 

@@ -580,6 +580,56 @@ result = _result_with_text("200米内5家直接竞品，竞争激烈。")
 issues = validate_report_fact_consistency(result, rd)
 check(len(issues) == 0, f"P4-10 不触发: {issues}")
 
+# T-P4-11: direct=0, 500m半径, "同业竞品"关键词 -> error
+print("=== T-P4-11: 500m direct=0 同业竞品 -> error ===")
+rd = {"direct_competitors_500m": 0, "stats_200m": {}, "stats_500m": {}, "stats_1000m": {}}
+result = _result_with_text("500米内有2家同业竞品，竞争压力较大。")
+issues = validate_report_fact_consistency(result, rd)
+check(len(issues) >= 1, f"P4-11 error: {issues}")
+check(any("direct_competitors_500m=0" in i for i in issues), f"P4-11 内容: {issues}")
+
+# T-P4-12: direct=1, 1000m半径, >3x膨胀 -> error
+print("=== T-P4-12: 1000m direct 膨胀1->5 -> error ===")
+rd = {"direct_competitors_1000m": 1, "stats_200m": {}, "stats_500m": {}, "stats_1000m": {}}
+result = _result_with_text("1000米内5家竞争品牌，竞争态势严峻。")
+issues = validate_report_fact_consistency(result, rd)
+check(len(issues) >= 1, f"P4-12 error: {issues}")
+check(any("direct_competitors_1000m=1" in i for i in issues), f"P4-12 内容: {issues}")
+
+# T-P4-13: 模糊表达"不少于4家" expected=2 -> 不触发（4不超3x2=6）
+print("=== T-P4-13: 不少于模糊表达 -> 不触发 ===")
+rd = {"direct_competitors_500m": 2, "stats_200m": {}, "stats_500m": {}, "stats_1000m": {}}
+result = _result_with_text("500米内不少于4家直接竞品，需要差异化。")
+issues = validate_report_fact_consistency(result, rd)
+check(len(issues) == 0, f"P4-13 不触发: {issues}")
+
+# T-P4-14: rigor=True, 报告含 competitors_500m -> error
+print("=== T-P4-14: 旧口径 competitors_500m -> error ===")
+rd = {"rigor_enabled": True, "stats_200m": {}, "stats_500m": {}, "stats_1000m": {}}
+result = _result_with_text("周边 competitors_500m 为 5 家，竞争激烈。")
+issues = validate_report_fact_consistency(result, rd)
+check(len(issues) >= 1, f"P4-14 error: {issues}")
+check(any("competitors_500m" in i for i in issues), f"P4-14 内容: {issues}")
+
+# T-P4-15: rigor=True, 报告含 competitors_1000m -> error
+print("=== T-P4-15: 旧口径 competitors_1000m -> error ===")
+rd = {"rigor_enabled": True, "stats_200m": {}, "stats_500m": {}, "stats_1000m": {}}
+result = _result_with_text("周边 competitors_1000m 为 10 家。")
+issues = validate_report_fact_consistency(result, rd)
+check(len(issues) >= 1, f"P4-15 error: {issues}")
+check(any("competitors_1000m" in i for i in issues), f"P4-15 内容: {issues}")
+
+# T-P4-16: real_data 含 competitors_500m/1000m 旧字段，但 report text 不含 -> 不触发
+print("=== T-P4-16: real_data旧字段500m/1000m不触发 -> 通过 ===")
+rd = {
+    "rigor_enabled": True,
+    "competitors_500m": 3, "competitors_1000m": 7,
+    "stats_200m": {}, "stats_500m": {}, "stats_1000m": {},
+}
+result = _result_with_text("500米内3家直接竞品，1000米内8家同品类门店。")
+issues = validate_report_fact_consistency(result, rd)
+check(len(issues) == 0, f"P4-16 不触发: {issues}")
+
 # ═══════════════════════════════════════════════════════════════
 print(f"\n{'='*50}")
 print(f"TOTAL: {p} PASS, {f} FAIL")
