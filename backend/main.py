@@ -511,10 +511,23 @@ async def analyze_location(req: AnalyzeRequest, user: dict = Depends(get_current
                                 result = retry_result
                                 result["_fact_retry_passed"] = True
                                 fact_errors = []
+                                # ★ 基于最终报告重算 P0/P2/P3 warning
+                                retry_full_text = (
+                                    json.dumps(retry_result.get("details", {}) or {}, ensure_ascii=False) + " " +
+                                    json.dumps(retry_result.get("advantages", []), ensure_ascii=False) + " " +
+                                    json.dumps(retry_result.get("disadvantages", []), ensure_ascii=False) + " " +
+                                    json.dumps(retry_result.get("executive_summary", {}) or {}, ensure_ascii=False) + " " +
+                                    json.dumps(retry_result.get("action_plan", []), ensure_ascii=False) + " " +
+                                    str(retry_result.get("summary", ""))
+                                )
+                                result["_poi_name_warnings"] = check_poi_name_hallucination(retry_full_text, real_data, strict=False)
+                                result["_poi_context_warnings"] = check_poi_context_mismatch(retry_full_text, real_data)
+                                result["_direct_competitor_count_warnings"] = check_direct_competitor_count_mismatch(retry_full_text, real_data)
                             else:
                                 print(f"[SSE Guard] 重试仍失败: {'; '.join(retry_fe[:3])}", flush=True)
                                 result["_fact_retry_failed"] = True
                                 result["_fact_errors_after_retry"] = retry_fe
+                                fact_errors = retry_fe  # ★ 最终 raise 使用 retry 后的错误
                     except Exception:
                         print(f"[SSE Guard] 重试异常，回退至原始错误", flush=True)
 
