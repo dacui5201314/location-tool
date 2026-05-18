@@ -2,7 +2,7 @@ current_phase: Phase 6F
 phase_status: retry_fallback_validated
 latest_code_commit: 01ef4de
 latest_code_commit_message: "fix: keep fact retry audit metadata"
-latest_docs_commit: a6dfb77
+latest_docs_commit: 422e824
 unpushed: true
 
 validation:
