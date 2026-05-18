@@ -1,50 +1,38 @@
-current_phase: Phase 5D
-phase_status: ready_for_codex_audit_then_claude_prompt
-latest_code_commit: 7cbba83
-latest_code_commit_message: "test: audit remaining subtype coverage"
+current_phase: Phase 6F
+phase_status: retry_fallback_validated
+latest_code_commit: 01ef4de
+latest_code_commit_message: "fix: keep fact retry audit metadata"
+latest_docs_commit: a6dfb77
 unpushed: true
 
 validation:
   compileall: PASS
   industry: "1902 PASS, 0 FAIL"
-  fact_guard: "86 PASS, 0 FAIL"
+  fact_guard: "92 PASS, 0 FAIL"
   known_rule_gaps: none
 
-recent_commits:
-  - sha: 7cbba83
-    message: "test: audit remaining subtype coverage"
-  - sha: cea6414
-    message: "test: strengthen restaurant sample bank"
-  - sha: 8db18da
-    message: "prompt: avoid uncertain poi count ranges"
-  - sha: 837cbaa
-    message: "prompt: tighten report numeric grounding"
-  - sha: 26198c0
-    message: "docs: record C-3 real report validation"
-  - sha: 2384293
-    message: "feat: extract report fact consistency guard"
+real_report_validation:
+  total_runs: 18
+  fact_errors_triggered: 5
+  fact_errors_rate: "28%"
+  retry_salvaged: 3
+  actual_refunds: 2
+  actual_refund_rate: "11%"
+  saved_successfully: 16
+  key_findings:
+    - "LLM 数字幻觉是随机的，与业态/地址组合相关，非固有特性"
+    - "retry fallback 将退款率从 28% 降至 11%"
+    - "fact guard 不应放宽"
 
 sample_bank:
   complete_candidate: 8
   partial: 14
   latest_industry_test_total: "1902 PASS, 0 FAIL"
 
-real_report_validation:
-  c1: "blocked by fact_errors"
-  c2: "saved successfully"
-  c3: "blocked by fact_errors: stats_1000m.hospitals=14 but report says 57 (>3x)"
-
-next_step:
-  audit_first: "Codex audit commit 7cbba83"
-  phase: Phase 5D
-  task: "Batch-strengthen substitute sample coverage for partial master groups without changing rules unless tests expose a real bug"
+next_step: Phase 7 — 抽检已保存 16 份报告的内容质量、结构一致性和用户可读性，不再无限跑真实样本
 
 boundaries:
   no_push: true
   no_frontend_ui_pdf: true
   no_database_schema_changes: true
   do_not_process_tmp_artifacts: true
-  tmp_artifacts:
-    - tmp_latest_report_text.txt
-    - tmp_report_images/
-    - tmp_report_pages/

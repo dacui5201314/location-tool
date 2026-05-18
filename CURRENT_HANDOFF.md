@@ -1,5 +1,12 @@
 # Current Handoff - 2026-05-18
 
+## Phase 6 总结
+
+retry fallback 已上线并真实验证有效。18 次真实报告：fact_errors 5 次 (28%)，retry 挽救 3 次，实际退款率 11%。
+**不建议放宽 fact guard。下一步进入 Phase 7：抽检已保存报告的文本质量，不再无限跑真实样本。**
+
+最新代码 commit: `01ef4de` | 最新文档 commit: 本轮
+
 ## Phase 6E 扩大回归（2026-05-18）
 
 5/5 保存成功。2 次 retry 触发并全部挽救成功。0 退款。
