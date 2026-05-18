@@ -1,8 +1,8 @@
-current_phase: Phase 7
-phase_status: quality_audit_complete
+current_phase: Phase 7D
+phase_status: ready_for_product_acceptance
 latest_code_commit: 660e5b2
 latest_code_commit_message: "prompt: require report boundary disclaimer"
-latest_docs_commit: 37c33b3
+latest_docs_commit: 548c4a1
 unpushed: true
 
 validation:
@@ -12,27 +12,23 @@ validation:
   known_rule_gaps: none
 
 real_report_validation:
-  total_runs: 18
+  total_runs: 19
   fact_errors_triggered: 5
-  fact_errors_rate: "28%"
+  fact_errors_rate: "26%"
   retry_salvaged: 3
   actual_refunds: 2
   actual_refund_rate: "11%"
-  saved_successfully: 16
+  saved_successfully: 17
+  latest: "P7C: id=38 snack, boundary disclaimer verified"
   key_findings:
-    - "LLM 数字幻觉是随机的，与业态/地址组合相关，非固有特性"
-    - "retry fallback 将退款率从 28% 降至 11%"
+    - "LLM 数字幻觉随机，非业态固有"
+    - "retry fallback 将退款率从约 28% 降至 11%"
     - "fact guard 不应放宽"
+    - "报告边界声明 prompt 已验证生效"
 
 sample_bank:
   complete_candidate: 8
   partial: 14
   latest_industry_test_total: "1902 PASS, 0 FAIL"
 
-next_step: Phase 7B — 在 prompt output 尾部强制加"本报告为选址初筛参考，需线下实地核验"声明
-
-boundaries:
-  no_push: true
-  no_frontend_ui_pdf: true
-  no_database_schema_changes: true
-  do_not_process_tmp_artifacts: true
+next_step: "等待产品负责人决定 push / 部署 / 下一验收方向；默认不继续跑样本"
