@@ -134,7 +134,8 @@ npx vite --host
 
 ## 版本历史
 
-- **v1.2.0** (2026-05-15) — 报告精准度体系化收口：7/7 master req_kw=True 消除高风险 code 裸奔 direct；新增 `low_freq_retail` category + `is_real_low_freq_retail` 脱水函数；P0 假阳性窄规则修补（`_DESCRIPTIVE_MARKERS` + 周边/附近客群 + 裸泛称过滤）；fact_errors 一致性校验抽取为 `report_fact_guard.py` 纯函数 + subject 关键词补强 + 旧口径 `competitors_*` 检测；C-1/C-2 两次真实报告端到端验收；check_industry_rigor_rules.py 1876 PASS 0 FAIL / check_report_fact_guard.py 86 PASS 0 FAIL
+- **v1.3.0** (2026-05-18) — 报告精准度防线加固与真实回归：fact_errors 后免费重试 fallback（退款率 28%→11%，真实验证挽救 3 次）；报告边界声明强制要求"本报告为选址初筛参考，需线下实地核验"；餐饮 Sample Bank 加厚至 1902 PASS；Phase 6 累计 19 次真实报告回归；check_industry_rigor_rules.py 1902 PASS 0 FAIL / check_report_fact_guard.py 92 PASS 0 FAIL
+- **v1.2.0** (2026-05-15) — 报告精准度体系化收口：7/7 master req_kw=True 消除高风险 code 裸奔 direct；新增 `low_freq_retail` category + 脱水函数；P0 假阳性窄规则修补；fact_errors 抽取为纯函数 + 旧口径检测；C-1/C-2 真实报告验收；industry 1876 PASS / fact guard 86 PASS
 - **v1.1.2** (2026-05-14) — 报告事实校验 Guard 体系上线：P0 POI 名称引用校验、P2 竞品语境误用检测、P3 竞品数量膨胀检测，三层 warning-only；离线验收样本 id=21 P0/P2/P3 归零；check_report_fact_guard.py 50 PASS；check_industry_rigor_rules.py 1598 PASS
 - **v1.1.1** (2026-05-13) — POI 分类精准度全面整改：医院归并去重、住宅/便利店/药店/酒店名称脱水全量覆盖、14业态 subtype 深化(高频刚需零售/专业生活服务/社区基础服务/夜经济娱乐/沉浸式社交娱乐)、6 个新 category 打通真实采集链路(education_training/laundry/clinics/fitness/fresh_retail/tobacco_liquor/immersive_entertainment)、商务酒店/民宿青旅 100000 裸 direct 风险消除、anchor 显式测试补强、报告 prompt 产品定位强化(初筛参考/不构成投资建议)、canonical 测试 1291 PASS 0 FAIL
 - **v1.0.0** (2026-05-09) — 正式生产版：34 种业态深度适配、SSE 流式分析、高保真 PDF 导出、双重计费系统、管理后台、UUID 混淆路由、全量安全加固、Canvas 硬件指纹防刷、全栈死代码清零
@@ -189,7 +190,7 @@ location-tool/
 
 # 宝塔面板生产环境部署指南
 
-> 适用版本：宝塔 Linux 面板 9.x | 项目版本：v1.1.1 | 更新日期：2026-05-13
+> 适用版本：宝塔 Linux 面板 9.x | 项目版本：v1.3.0 | 更新日期：2026-05-18
 >
 > 本指南假设你已经在服务器上安装好宝塔面板，并且已经打开了宝塔面板的网页后台。
 
