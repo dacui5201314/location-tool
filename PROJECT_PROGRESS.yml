@@ -1,8 +1,8 @@
-current_phase: Phase 6F
-phase_status: retry_fallback_validated
+current_phase: Phase 7
+phase_status: quality_audit_complete
 latest_code_commit: 01ef4de
 latest_code_commit_message: "fix: keep fact retry audit metadata"
-latest_docs_commit: ffadda1
+latest_docs_commit: 04ce1dc
 unpushed: true
 
 validation:
@@ -29,7 +29,7 @@ sample_bank:
   partial: 14
   latest_industry_test_total: "1902 PASS, 0 FAIL"
 
-next_step: Phase 7 — 抽检已保存 16 份报告的内容质量、结构一致性和用户可读性，不再无限跑真实样本
+next_step: Phase 7B — 在 prompt output 尾部强制加"本报告为选址初筛参考，需线下实地核验"声明
 
 boundaries:
   no_push: true
