@@ -1,5 +1,27 @@
 # Current Handoff - 2026-05-18
 
+## Phase 6D 真实 fallback 验证（2026-05-18）
+
+3/3 保存成功。低频目的零售触发 1 次 retry 并挽救成功。
+
+| # | 业态 | 地址 | id | score | retry | 结果 |
+|---|---|---|---|---|---|---|
+| P6D-1 | 精品茶饮咖啡 | 淮海中路999号 | 31 | 54 | 无 | 保存 |
+| P6D-2 | 药店 | 淮海中路999号 | 30 | 61 | 无 | 保存 |
+| P6D-3 | 低频目的零售 | 建国路88号 | 32 | 44 | **触发→通过** | 保存 |
+
+### id=32 retry 详情
+
+- 第一次 fact_errors: `stats_500m.schools=1 but report says 13 (>3x)`
+- retry 后 fact_errors 修正 → 正常保存
+- 元数据完整: `_fact_retry=True`, `_fact_retry_passed=True`, `_fact_errors_before_retry` 已记录
+
+### fallback 真实验证结论
+
+retry fallback 在真实链路中成功挽救一次 LLM 数字幻觉 (schools 1→13)。
+正常报告 (茶饮/药店) 未受影响，无 retry 触发。
+累计真实报告 13 次，3 次 fact_errors (23%)，其中 1 次被 retry 挽救。
+
 ## Phase 6B 定向回归（2026-05-18）
 
 4/4 全部保存成功。C-1/C-3 幻觉业态（药店/茶饮）在不同地址下均未复现。
