@@ -1,5 +1,15 @@
 # 当前交接状态（2026-05-15）
 
+## C-3 真实报告复验（2026-05-18）
+
+- 业态：精品茶饮咖啡 | 地址：上海市徐汇区淮海中路999号
+- AMap 采集成功，LLM 8维评分生成（平均分=54）
+- **报告未保存** — fact_errors hard-error 拦截：stats_1000m.hospitals=14 but report says 57 (>3x)
+- 退款链路触发，user_id=25
+- P0 warnings: 3条（医院名/住宅小区名/茶饮店名幻觉）
+- P2/P3: 0
+- 三项验证：compileall PASS / fact guard 86 PASS / industry 1876 PASS
+
 ## Phase 4B-1：code_review_passed
 
 Phase 4B-1（报告事实一致性 Guard 可测化 + 最小补强）代码侧已完成并通过 Codex 审核。**待 Codex/用户决定是否提交。**
