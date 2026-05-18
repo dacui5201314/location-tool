@@ -508,8 +508,13 @@ async def analyze_location(req: AnalyzeRequest, user: dict = Depends(get_current
                             retry_fe = validate_report_fact_consistency(retry_result, real_data)
                             if not retry_fe:
                                 print(f"[SSE Guard] 重试通过，fact_errors 已修正", flush=True)
+                                _saved_retry_meta = {
+                                    "_fact_retry": True,
+                                    "_fact_retry_passed": True,
+                                    "_fact_errors_before_retry": fact_errors.copy(),
+                                }
                                 result = retry_result
-                                result["_fact_retry_passed"] = True
+                                result.update(_saved_retry_meta)
                                 fact_errors = []
                                 # ★ 基于最终报告重算 P0/P2/P3 warning
                                 retry_full_text = (
