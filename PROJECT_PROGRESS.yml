@@ -1,33 +1,50 @@
-current_phase: Phase 4B-1
-phase_status: committed_unpushed
-latest_commit: 8e06ec5
-previous_commit: 579b004
+current_phase: Phase 5D
+phase_status: ready_for_codex_audit_then_claude_prompt
+latest_code_commit: 7cbba83
+latest_code_commit_message: "test: audit remaining subtype coverage"
 unpushed: true
 
 validation:
   compileall: PASS
+  industry: "1902 PASS, 0 FAIL"
   fact_guard: "86 PASS, 0 FAIL"
-  industry: "1876 PASS, 0 FAIL"
   known_rule_gaps: none
 
-changed_code_files:
-  - backend/report_fact_guard.py
-  - backend/main.py
-  - backend/tests/check_report_fact_guard.py
+recent_commits:
+  - sha: 7cbba83
+    message: "test: audit remaining subtype coverage"
+  - sha: cea6414
+    message: "test: strengthen restaurant sample bank"
+  - sha: 8db18da
+    message: "prompt: avoid uncertain poi count ranges"
+  - sha: 837cbaa
+    message: "prompt: tighten report numeric grounding"
+  - sha: 26198c0
+    message: "docs: record C-3 real report validation"
+  - sha: 2384293
+    message: "feat: extract report fact consistency guard"
 
-changed_doc_files:
-  - CURRENT_HANDOFF.md
-  - PROJECT_STATE.md
-  - WORKING_SET.md
-  - NEXT_SESSION_PROMPT.md
-  - PROJECT_PROGRESS.yml
+sample_bank:
+  complete_candidate: 8
+  partial: 14
+  latest_industry_test_total: "1902 PASS, 0 FAIL"
 
-invariants:
-  - check_report_fact_guard_does_not_import_main
-  - report_fact_guard_only_depends_on_json_re
-  - P0_P2_P3_warning_only
-  - no_AMap_LLM_without_user_auth
-  - no_frontend_started
-  - no_push
+real_report_validation:
+  c1: "blocked by fact_errors"
+  c2: "saved successfully"
+  c3: "blocked by fact_errors: stats_1000m.hospitals=14 but report says 57 (>3x)"
 
-next_step: decide Phase 4B-2 or real report validation
+next_step:
+  audit_first: "Codex audit commit 7cbba83"
+  phase: Phase 5D
+  task: "Batch-strengthen substitute sample coverage for partial master groups without changing rules unless tests expose a real bug"
+
+boundaries:
+  no_push: true
+  no_frontend_ui_pdf: true
+  no_database_schema_changes: true
+  do_not_process_tmp_artifacts: true
+  tmp_artifacts:
+    - tmp_latest_report_text.txt
+    - tmp_report_images/
+    - tmp_report_pages/

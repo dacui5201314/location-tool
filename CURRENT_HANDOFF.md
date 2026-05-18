@@ -1,61 +1,58 @@
-# 当前交接状态（2026-05-15）
+# Current Handoff - 2026-05-18
 
-## C-3 真实报告复验（2026-05-18）
+## Current State
 
-- 业态：精品茶饮咖啡 | 地址：上海市徐汇区淮海中路999号
-- AMap 采集成功，LLM 8维评分生成（平均分=54）
-- **报告未保存** — fact_errors hard-error 拦截：stats_1000m.hospitals=14 but report says 57 (>3x)
-- 退款链路触发，user_id=25
-- P0 warnings: 3条（医院名/住宅小区名/茶饮店名幻觉）
-- P2/P3: 0
-- 三项验证：compileall PASS / fact guard 86 PASS / industry 1876 PASS
+- Latest code commit to audit: `7cbba83` - `test: audit remaining subtype coverage`
+- Previous key commits:
+  - `cea6414` - `test: strengthen restaurant sample bank`
+  - `8db18da` - `prompt: avoid uncertain poi count ranges`
+  - `837cbaa` - `prompt: tighten report numeric grounding`
+  - `26198c0` - `docs: record C-3 real report validation`
+  - `2384293` - `feat: extract report fact consistency guard`
+- Not pushed.
+- Worktree should only have untracked temp artifacts:
+  - `tmp_latest_report_text.txt`
+  - `tmp_report_images/`
+  - `tmp_report_pages/`
 
-## Phase 4B-1：code_review_passed
+## Validation Baseline
 
-Phase 4B-1（报告事实一致性 Guard 可测化 + 最小补强）代码侧已完成并通过 Codex 审核。**待 Codex/用户决定是否提交。**
+- `python -m compileall backend`: PASS
+- `python backend/tests/check_industry_rigor_rules.py`: `1902 PASS, 0 FAIL`
+- `python backend/tests/check_report_fact_guard.py`: `86 PASS, 0 FAIL`
+- `KNOWN_RULE_GAPS`: `(none)`
 
-### 最新 commit
+## Completed Since Phase 4B
 
-- `8e06ec5` — `feat: extract report fact consistency guard`（latest，未 push）
-- `579b004` — `feat: improve report accuracy guards and sample bank rigor`（Phase 4A）
+- Phase 4B-1: extracted `backend/report_fact_guard.py` as a lightweight fact guard module.
+- Phase 4B-2: extended report fact guard coverage to `86 PASS, 0 FAIL`.
+- C-3: real report validation for `精品茶饮咖啡` at `上海市徐汇区淮海中路999号`.
+  - AMap and LLM succeeded.
+  - Report was not saved because `fact_errors` correctly blocked: `stats_1000m.hospitals=14 but report says 57 (>3x)`.
+  - Refund path triggered.
+- Phase 4C-1: tightened prompt numeric grounding; POI counts must come from provided data and must not be expressed as uncertain ranges.
+- Phase 5B: strengthened restaurant sample bank coverage.
+- Phase 5C: Claude added an audit note for the 9 remaining non-subtyped masters; no rule change.
 
-### 未提交代码文件
+## Main-Line Assessment
 
-- `backend/report_fact_guard.py` — 新增 `validate_report_fact_consistency` 纯函数（仅依赖 json/re）
-- `backend/main.py` — 内联逻辑抽取为 import；残留 `import re as _re` 已清除
-- `backend/tests/check_report_fact_guard.py` — P4 段 10 用例，importlib 加载，不 import main
+- The core four-way classification framework is in place: `direct`, `substitute`, `anchor`, `irrelevant`.
+- High-risk code naked-direct risk is guarded by `require_name_keyword_for_code`, `substitute_before_direct`, and Section AB invariants.
+- Remaining main-line work is breadth:
+  - sample bank still has partial groups, especially substitute coverage.
+  - real report validation is sparse: C-1 and C-3 were blocked by fact guard, C-2 saved successfully.
+  - PDF/HTML/page口径一致性 is intentionally deferred.
 
-### 未提交文档文件
+## Next Recommended Flow
 
-- `CURRENT_HANDOFF.md`
-- `PROJECT_STATE.md`
-- `WORKING_SET.md`
-- `NEXT_SESSION_PROMPT.md`
-- `PROJECT_PROGRESS.yml`
+1. New Codex window first audits commit `7cbba83`.
+2. If accepted, send Claude Code the Phase 5D prompt in `NEXT_SESSION_PROMPT.md`.
+3. Phase 5D should batch-strengthen substitute samples for partial master groups without widening direct rules.
 
-### 验证基线
+## Hard Boundaries
 
-| 项目 | 结果 |
-|---|---|
-| `compileall backend` | PASS |
-| `check_report_fact_guard.py` | **76 PASS, 0 FAIL** |
-| `check_industry_rigor_rules.py` | **1876 PASS, 0 FAIL** |
-| `KNOWN_RULE_GAPS` | (none) |
-
-### 轻量测试边界
-
-- `check_report_fact_guard.py` 不 `import main`
-- `report_fact_guard.py` 仅依赖 `json` / `re`
-- fact guard 测试不依赖 FastAPI / dotenv / amap_service / LLM provider
-
-### 不变条件
-
-- P0/P2/P3 warning-only，P1 暂缓
-- 不调用 AMap/LLM 除非用户明确授权
-- 不启动前端
-- 不 push
-- 不处理 `tmp_latest_report_text.txt` / `tmp_report_images/` / `tmp_report_pages/`
-
-### 下一步
-
-**等待用户/Codex 决定 Phase 4B-2 或新一轮真实报告验收。**
+- Do not push.
+- Do not modify frontend / UI / PDF.
+- Do not modify database schema.
+- Do not process temp artifacts.
+- Claude Code may implement, test, and commit within a phase; Codex audits commits afterward.
