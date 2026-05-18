@@ -1101,6 +1101,22 @@ if known_gaps:
 else:
     print("  (none)")
 
+# ===== Subtype Coverage Audit (Phase 5C) =====
+# 14 masters: 5 have subtypes, 9 do not.
+# All 9 un-subtyped masters have req_kw=True — the code-gate is already locked.
+# Conclusion: no subtype forced this round. Each assessment below.
+#
+# 刚需快餐小吃 (3 entries): NO subtype needed. 42 kw + 32 excl, req_kw=True, sub_first=True. Rules tight.
+# 精品茶饮咖啡 (3 entries): LOW priority. 奶茶/咖啡/饮品 share 050500 code and competitor profile.
+# 中餐正餐 (2 entries): LOW priority. req_kw=True with 21 kw. 中餐/酒楼 distinction captured by keywords.
+# 火锅_烧烤 (2 entries): NO subtype needed. Single competitive dimension.
+# 异国_中高端正餐 (2 entries): MEDIUM priority. 西餐/日餐 have different keywords but both use 050100/050200.
+#   → Future: could split into western (steak/pizza/意餐) and japanese (sushi/omakase/怀石) subtypes.
+# 烘焙甜品 (2 entries): NO subtype needed. Single competitive dimension.
+# 商务酒店 (1 entry): NO subtype needed. Single entry master.
+# 民宿青旅 (2 entries): LOW priority. 民宿/青旅 share 100000 code.
+# 低频目的零售 (3 entries): LOW priority. req_kw=True + is_real_low_freq_retail dewatering already gates.
+
 # ===== Sample Bank Ledger (structured, verifiable) =====
 _PARTIAL_NO_SUB_REASON = (
     "当前业态无稳定全国通用 substitute 规则，避免为凑数污染 direct/substitute 边界"
