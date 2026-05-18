@@ -470,8 +470,57 @@ async def analyze_location(req: AnalyzeRequest, user: dict = Depends(get_current
 
                 if fact_errors:
                     print(f"[SSE Guard] 事实校验失败: {'; '.join(fact_errors)}", flush=True)
-                    _llm_parse_error = True
-                    raise ValueError(f"报告事实校验失败: {'; '.join(fact_errors[:3])}")
+                    # ★ 内部免费重试一次：用同一份 real_data + fact_errors 摘要，要求 LLM 修正数字
+                    print(f"[SSE Guard] 启动内部重试，修正数字幻觉...", flush=True)
+                    result["_fact_retry"] = True
+                    result["_fact_errors_before_retry"] = fact_errors.copy()
+
+                    # 构建修正提示
+                    correction_lines = []
+                    for fe in fact_errors[:8]:  # 最多带 8 条错误提示
+                        correction_lines.append(f"  - {fe}")
+                    correction_hint = "\n".join(correction_lines)
+
+                    retry_prompt = prompt + f"""
+
+⚠️ 上一版报告存在以下数据错误，请根据错误提示严格对照上方 POI 数据表格和竞品字段修正数字：
+
+{correction_hint}
+
+修正要求：
+- 报告中所有 POI 数量必须与上方数据表格中的数字完全一致
+- 不得自行估算、放大或缩小任何数字
+- 不确定的数字改用"需线下核验"替代
+- 其他内容保持不变"""
+
+                    try:
+                        retry_raw = await generate_llm_response(retry_prompt)
+                        retry_raw = _extract_json(retry_raw)
+                        retry_result = json.loads(retry_raw)
+                        valid2, fail_reason2 = _validate_report_payload(retry_result)
+                        if not valid2:
+                            print(f"[SSE Guard] 重试后报告结构仍无效: {fail_reason2}", flush=True)
+                        else:
+                            retry_result = normalize_report_result(retry_result, weights=industry_config.get("radar_weights") if industry_config else None)
+                            retry_result["provider"] = runtime_llm.get("provider", req.provider)
+                            retry_result["error"] = None
+                            retry_result["real_data"] = real_data
+                            retry_fe = validate_report_fact_consistency(retry_result, real_data)
+                            if not retry_fe:
+                                print(f"[SSE Guard] 重试通过，fact_errors 已修正", flush=True)
+                                result = retry_result
+                                result["_fact_retry_passed"] = True
+                                fact_errors = []
+                            else:
+                                print(f"[SSE Guard] 重试仍失败: {'; '.join(retry_fe[:3])}", flush=True)
+                                result["_fact_retry_failed"] = True
+                                result["_fact_errors_after_retry"] = retry_fe
+                    except Exception:
+                        print(f"[SSE Guard] 重试异常，回退至原始错误", flush=True)
+
+                    if fact_errors:  # 重试未通过或异常 → 原路径
+                        _llm_parse_error = True
+                        raise ValueError(f"报告事实校验失败(含重试): {'; '.join(fact_errors[:3])}")
 
             # 保存到数据库
             db = SessionLocal()

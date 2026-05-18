@@ -631,6 +631,37 @@ issues = validate_report_fact_consistency(result, rd)
 check(len(issues) == 0, f"P4-16 不触发: {issues}")
 
 # ═══════════════════════════════════════════════════════════════
+# P5: fact_errors 重试 fallback 纯函数测试
+# 注: 真实 LLM 重试链路在 main.py SSE 中，需集成测试。本段验证校验函数稳定性。
+# ═══════════════════════════════════════════════════════════════
+
+# T-P5-1: fact_errors detected -> retry correction hint 包含真实值
+print("=== T-P5-1: fact_errors 可生成修正提示 ===")
+rd = {"direct_competitors_200m": 0, "stats_200m": {}, "stats_500m": {}, "stats_1000m": {}}
+result = _result_with_text("200米内3家直接竞品，竞争激烈。")
+issues = validate_report_fact_consistency(result, rd)
+check(len(issues) >= 1, f"P5-1 应触发: {issues}")
+# 修正提示应包含字段名和真实值
+hint = "; ".join(issues)
+check("direct_competitors_200m=0" in hint, f"P5-1 hint包含字段: {hint}")
+check("3" in hint, f"P5-1 hint包含声称值: {hint}")
+
+# T-P5-2: 修正后报告通过 -> 不触发 fact_errors
+print("=== T-P5-2: 修正后报告通过 ===")
+rd = {"direct_competitors_200m": 2, "stats_200m": {}, "stats_500m": {}, "stats_1000m": {}}
+result = _result_with_text("200米内仅2家直接竞品，竞争压力可控。")
+issues = validate_report_fact_consistency(result, rd)
+check(len(issues) == 0, f"P5-2 不触发: {issues}")
+
+# T-P5-3: 旧口径 competitors_* retry 提示覆盖
+print("=== T-P5-3: 旧口径 error 可生成修正提示 ===")
+rd = {"rigor_enabled": True, "stats_200m": {}, "stats_500m": {}, "stats_1000m": {}}
+result = _result_with_text("周边 competitors_200m 为 8 家。")
+issues = validate_report_fact_consistency(result, rd)
+check(len(issues) >= 1, f"P5-3 应触发: {issues}")
+check(any("competitors_200m" in i for i in issues), f"P5-3 包含旧口径: {issues}")
+
+# ═══════════════════════════════════════════════════════════════
 print(f"\n{'='*50}")
 print(f"TOTAL: {p} PASS, {f} FAIL")
 if f == 0:
