@@ -1,8 +1,8 @@
 current_phase: Phase 7
 phase_status: quality_audit_complete
-latest_code_commit: 01ef4de
-latest_code_commit_message: "fix: keep fact retry audit metadata"
-latest_docs_commit: 04ce1dc
+latest_code_commit: 660e5b2
+latest_code_commit_message: "prompt: require report boundary disclaimer"
+latest_docs_commit: 37c33b3
 unpushed: true
 
 validation:
