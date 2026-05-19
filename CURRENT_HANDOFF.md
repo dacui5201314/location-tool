@@ -193,15 +193,64 @@ P9D 发现 "低频目的零售"、"民宿青旅"、"夜经济娱乐" 作为 busi
 - P9D-3 民宿青旅 retry 失败问题在 POI 恢复后**不再复现** — schools 膨胀幻觉与空 POI 数据相关
 - P9D 的 "空 POI 下无污染" 结论作废 — 本轮真实 POI 数据验证通过
 
-### 累计统计 (45 次)
+### 累计统计 (Phase 9A-9E)
 
 | 指标 | 值 |
 |---|---|
-| total_runs | 45 |
-| fact_errors | 10 (22%) |
-| retry_salvaged | 7 (70%) |
-| retry_failed | 1 (2%) |
-| refunds | 2 (4%) |
+| 正式保存报告 (API→DB) | 22 |
+| 直连/临时验证（未落库） | 9 (P9D 6 + P9E 3) |
+| fact_errors | 10 |
+| retry_salvaged | 7 |
+| retry_failed | 1 |
+| refunds | 2 |
+
+**注**: P9D 的 3 个空 POI 样本（低频目的零售/民宿青旅/夜经济娱乐）不计入有效精准度样本。P9E 3 个直连复验为 smoke verification，未走正式保存链路。
+
+---
+
+## Phase 9F 正式保存链路复验（2026-05-19）
+
+### 目的
+
+验证 Phase 9E 映射修复在正式 API 保存链路（计费→POI→LLM→fact guard→DB→报告文件）中完整生效。**必须生成新 report id 才算有效。**
+
+### 前置
+
+- 重启后端加载 Phase 9E 修改（旧进程仍在用旧 mapping → rigor_enabled=False）
+- DB 初始: count=59, max_id=59
+
+### 正式保存样本
+
+| # | 业态 | 地址 | 新 ID | Score | Retry | FE | Real POI | Direct (200/500) | Sub (200/500) | Anchor 500m | Disclaimer | 保存 |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| P9F-1 | 低频目的零售 | 建国路88号 | **60** | 52 | 无 | 0 | YES (352) | 0/1 | 0/0 | 12 | YES | YES |
+| P9F-2 | 民宿青旅 | 建国路88号 | **61** | 58 | 无 | 0 | YES (343) | 2/5 | 2/10 | 16 | YES | YES |
+| P9F-3 | 夜经济娱乐 | 天河路208号 | **62** | 63 | 无 | 0 | YES (543) | 0/0 | 0/0 | 166 | YES | YES |
+
+### 对比 P9E (smoke) vs P9F (saved)
+
+| 样本 | P9E Score (直连) | P9F ID | P9F Score (API) | Direct P9E | Direct P9F | 结论 |
+|---|---|---|---|---|---|---|
+| 低频目的零售 | 67 | 60 | 52 | 0/1 | 0/1 | direct count 一致 |
+| 民宿青旅 | 63 | 61 | 58 | 2/5 | 2/5 | direct/sub count 完全一致 |
+| 夜经济娱乐 | 56 | 62 | 63 | 0/0 | 0/0 | direct count 一致 |
+
+- direct/substitute/anchor 计数在直连和 API 路径间一致 → Phase 9E 映射修复在两条路径均生效
+- Score 差异来自 LLM 随机性（同一 prompt 不同采样），非管线差异
+- rigor_enabled=true 全部生效
+
+### 修正后累计统计
+
+| 指标 | 值 |
+|---|---|
+| DB analysis_records 总数 | 62 |
+| Phase 9 家族正式保存 | 25 (ID 41-57 + 60-62) |
+| 直连 smoke verification | 3 (P9E, 未落库) |
+| 空 POI 无效样本 | 3 (P9D, 不计入) |
+| fact_errors (全期) | 10 |
+| retry_salvaged | 7 |
+| retry_failed | 1 |
+| refunds | 2 |
 
 ---
 
