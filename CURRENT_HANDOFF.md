@@ -54,6 +54,32 @@ The report-accuracy mainline is still active. Current goal is to optimize toward
 
 fact_errors 7 (22%), retry 挽救 5 (71%), 退款 2 (6%), 保存 30 (94%)
 
+## Phase 9C 追加扩样（2026-05-19）
+
+4/6 保存成功。1 次 retry 挽救。0 退款。建国路88号 2 样本超时未完成。
+
+| # | 业态 | 地址 | id | score | retry | 结果 |
+|---|---|---|---|---|---|---|
+| P9C-1 | 低频零售 | 建国路88号 | — | — | — | 超时 |
+| P9C-2 | 低频零售 | 淮海中路999号 | 54 | 50 | 无 | 保存 |
+| P9C-3 | 诊所 | 天河路208号 | 55 | 50 | 无 | 保存 |
+| P9C-4 | 诊所 | 春熙路1号 | 56 | 41 | 无 | 保存 |
+| P9C-5 | 洗衣店 | 建国路88号 | — | — | — | 超时 |
+| P9C-6 | 商务酒店 | 淮海中路999号 | 57 | 50 | **触发→通过** | 保存 |
+
+### id=57 retry: stats_500m.schools=7 but report says 57 (>3x) — retry 修正后保存
+
+### 重点观察
+
+- 低频零售 @ 淮海中路: 无购物中心/便利店/维修误写成 direct ✓
+- 诊所 ×2: 无医院/药店/体检/医美误写成 direct ✓
+- 商务酒店 @ 淮海中路: schools 膨胀幻觉被 retry 挽救 ✓
+- 全部含边界声明 ✓
+
+### 累计 36 次
+
+fact_errors 8 (22%), retry 挽救 6 (75%), 退款 2 (6%), 保存 34 (94%)
+
 ## Current Baseline
 
 | Check | Result |
