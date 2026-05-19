@@ -151,6 +151,60 @@ fact_errors 8 (22%), retry 挽救 6 (75%), 退款 2 (6%), 保存 34 (94%)
 
 ---
 
+## Phase 9E master 业态名映射修复（2026-05-19）
+
+### 问题
+
+P9D 发现 "低频目的零售"、"民宿青旅"、"夜经济娱乐" 作为 business_type 传入时，BUSINESS_TYPE_TO_MASTER 无自映射 → config_key 为空 → get_config() 返回 DEFAULT_MASTER → competitor_amap_types 为空 → POI 数据全为 0。
+
+### 修复内容
+
+1. **BUSINESS_TYPE_TO_MASTER** (`prompts/industry_config.py`): 新增 14 个 master 业态名自映射
+   - `"低频目的零售" → "低频目的零售"` 等全部 14 个 master key
+   - entries 从 43 → 57
+
+2. **BUSINESS_TYPE_TO_AMAP** (`main.py`): 新增 3 个 master 业态名 fallback
+   - `"低频目的零售": "060100|060400"`
+   - `"民宿青旅": "100000"`
+   - `"夜经济娱乐": "050400|080000"`
+   - 主路径仍走 `get_config().competitor_amap_types`，AMAP 仅作安全网兜底
+
+3. **check_industry_rigor_rules.py**: 新增 Section A2 + AE
+   - A2: 所有 14 个 MASTER_TEMPLATES key 自映射断言
+   - AE: 8 个 master 业态的真实链路回归（config_key/amap_types/rigor 非空）
+   - 测试从 1961 PASS → 2158 PASS
+
+### 3 个真实报告复验（POI 恢复后）
+
+| # | 业态 | 地址 | Score | Retry | FE | Real POI | Direct | Anchor | 结果 |
+|---|---|---|---|---|---|---|---|---|---|
+| P9E-1 | 低频目的零售 | 建国路88号 | 67 | 无 | 0 | YES (369) | 0/1 | 12 | 成功 |
+| P9E-2 | 民宿青旅 | 建国路88号 | 63 | 无 | 0 | YES (361) | 2/5 | 16 | 成功 |
+| P9E-3 | 夜经济娱乐 | 天河路208号 | 56 | 无 | 0 | YES (553) | 0/0 | 165 | 成功 |
+
+### 对比 P9D
+
+| 样本 | P9D Score | P9D POI | P9D Retry | P9E Score | P9E POI | P9E Retry |
+|---|---|---|---|---|---|---|
+| 低频目的零售@建国路 | 60 | 空 (0) | 无 | 67 | 实 (369) | 无 |
+| 民宿青旅@建国路 | 60 | 空 (0) | **FAIL** | 63 | 实 (361) | **无** |
+| 夜经济娱乐@天河路 | 49 | 空 (0) | 无 | 56 | 实 (553) | 无 |
+
+- P9D-3 民宿青旅 retry 失败问题在 POI 恢复后**不再复现** — schools 膨胀幻觉与空 POI 数据相关
+- P9D 的 "空 POI 下无污染" 结论作废 — 本轮真实 POI 数据验证通过
+
+### 累计统计 (45 次)
+
+| 指标 | 值 |
+|---|---|
+| total_runs | 45 |
+| fact_errors | 10 (22%) |
+| retry_salvaged | 7 (70%) |
+| retry_failed | 1 (2%) |
+| refunds | 2 (4%) |
+
+---
+
 Worktree should only contain untracked temp artifacts:
 - `tmp_latest_report_text.txt`
 - `tmp_report_images/`

@@ -29,7 +29,7 @@ _nd = lambda rigor, n, c, b="", cat="fast_food": _cr(n, cat, c, rigor, b) != "di
 
 # ===== A. Completeness =====
 print("=== A. Completeness ===")
-check(len(BUSINESS_TYPE_TO_MASTER) == 43, f"43 entries: got {len(BUSINESS_TYPE_TO_MASTER)}")
+check(len(BUSINESS_TYPE_TO_MASTER) == 57, f"57 entries (43 sub + 14 master self-maps): got {len(BUSINESS_TYPE_TO_MASTER)}")
 check(len(MASTER_TEMPLATES) == 14, f"14 masters: got {len(MASTER_TEMPLATES)}")
 check(len(INDUSTRY_RIGOR) == 14, f"14 rigor: got {len(INDUSTRY_RIGOR)}")
 check(set(MASTER_TEMPLATES.keys()) == set(INDUSTRY_RIGOR.keys()),
@@ -43,6 +43,20 @@ for bt in sorted(BUSINESS_TYPE_TO_MASTER):
         for fld in ("direct_competitor_rules","substitute_competitor_rules","traffic_anchor_rules","irrelevant_poi_rules"):
             check(fld in rigor, f"{mk}.{fld}")
 print(f"  Entries: {len(BUSINESS_TYPE_TO_MASTER)}, Masters: {len(MASTER_TEMPLATES)}, Rigor: {len(INDUSTRY_RIGOR)}")
+
+# ★ Phase 9E: 验证所有 MASTER_TEMPLATES key 在 BUSINESS_TYPE_TO_MASTER 中存在自映射
+print("\n=== A2. Master Self-Mapping (Phase 9E) ===")
+for mk in sorted(MASTER_TEMPLATES.keys()):
+    mapped = BUSINESS_TYPE_TO_MASTER.get(mk, "")
+    check(mapped == mk, f"MASTER self-map: {mk} -> {mapped}")
+    if mapped == mk:
+        # 确认 config 可解析
+        from prompts.industry_config import get_config, get_config_by_key
+        cfg = get_config(mk)
+        check(cfg is not None, f"get_config({mk}) is not None")
+        check(cfg.get("label","") != "", f"get_config({mk}).label not empty")
+        cfg2 = get_config_by_key(mk)
+        check(cfg2 is not None, f"get_config_by_key({mk}) is not None")
 
 # ===== B. Snack Shop =====
 print("\n=== B. Snack Shop Tests ===")
@@ -1183,6 +1197,45 @@ for name in ["手机维修","皮具护理","擦鞋店"]:
 # Fitness: 动感单车命中 substitute_keywords 后不得进入 direct，即使 type_code 落在 master code
 r = _cr("某某动感单车", "fitness", "体育休闲服务;运动场馆", rig_pls, "健身房")
 check(r == "substitute", f"AD sub_first inherited: 某某动感单车 -> {r} (not direct)")
+
+# ===== AE. Master Config Key Real-Chain Regression (Phase 9E) =====
+print("\n=== AE. Master Config Key Real-Chain (Phase 9E) ===")
+from prompts.industry_config import get_config, get_config_by_key, get_rigor_for_config_key
+
+for bt in ["低频目的零售", "民宿青旅", "夜经济娱乐", "商务酒店", "专业生活服务", "社区基础服务", "高频刚需零售", "沉浸式社交娱乐"]:
+    mk = BUSINESS_TYPE_TO_MASTER.get(bt, "")
+    check(mk != "", f"AE {bt}: config_key not empty -> '{mk}'")
+
+    cfg = get_config(bt)
+    check(cfg is not None, f"AE {bt}: get_config() not None")
+    check(cfg.get("label","") != "", f"AE {bt}: label not empty -> '{cfg.get('label','')}'")
+
+    ck = get_config_by_key(mk) if mk else {}
+    check(ck is not None, f"AE {bt}: get_config_by_key('{mk}') not None")
+
+    # competitor_amap_types 必须来自 config（主路径），不依赖 BUSINESS_TYPE_TO_AMAP 兜底
+    amap_types = cfg.get("competitor_amap_types", "")
+    check(amap_types != "", f"AE {bt}: config.competitor_amap_types not empty -> '{amap_types}'")
+
+    # rigor 可访问
+    rigor = get_rigor_for_config_key(mk) if mk else {}
+    check(isinstance(rigor, dict), f"AE {bt}: rigor is dict")
+    if rigor:
+        dc = rigor.get("direct_competitor_rules", {})
+        check(isinstance(dc, dict), f"AE {bt}: direct_competitor_rules exists")
+
+# 跨 master key 一致性：所有 14 个 master 自映射后都能拿到非空 config
+print("  --- all 14 masters ---")
+all_masters_ok = True
+for mk in sorted(MASTER_TEMPLATES.keys()):
+    c = get_config(mk)
+    ok = c is not None and c.get("label","") != ""
+    if not ok:
+        print(f"  FAIL: master {mk} config resolution failed")
+        all_masters_ok = False
+    amap = c.get("competitor_amap_types", "")
+    check(amap != "", f"AE master {mk}: competitor_amap_types not empty -> '{amap}'")
+check(all_masters_ok, "all 14 masters resolve config via self-map")
 
 # ===== KNOWN_RULE_GAPS =====
 print("\n=== KNOWN_RULE_GAPS ===")
