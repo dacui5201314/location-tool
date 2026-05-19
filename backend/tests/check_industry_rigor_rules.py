@@ -1128,6 +1128,62 @@ for name, tc in [
     r = sim_full_chain("某某"+name, tc, "低频目的零售", "零售店")
     check(r != "direct", f"LFR invariant NOT direct: 某某{name} -> {r}")
 
+# ===== AD. Subtype Substitute Real-Chain Regression =====
+# 验证 Phase 8B subtype 级 substitute_keywords 引擎不污染 direct/substitute 边界
+print()
+print("=== AD. Subtype Substitute Real-Chain Regression ===")
+
+# -- Pet: 规则层验证（宠物医院代用词不触发 dewater）--
+rig_pls = get_rigor_for_config_key("专业生活服务")
+# Pet substitute → substitute
+for name in ["宠物医院","宠物美容"]:
+    r = _cr("某某"+name, "convenience", "050300", rig_pls, "宠物店")
+    check(r == "substitute", f"AD Pet sub: 某某{name} -> {r}")
+# Pet direct → direct (不受 substitute 污染)
+for name in ["宠物店","宠物用品店"]:
+    r = _cr("某某"+name, "convenience", "050300", rig_pls, "宠物店")
+    check(r == "direct", f"AD Pet direct: 某某{name} -> {r}")
+# Pet anti-regression → not direct, not substitute
+for name in ["美容院","健身房"]:
+    r = _cr("某某"+name, "convenience", "050300", rig_pls, "宠物店")
+    check(r != "direct", f"AD Pet NOT direct: 某某{name} -> {r}")
+    check(r != "substitute", f"AD Pet NOT substitute: 某某{name} -> {r}")
+
+# -- Fitness: 规则层验证 --
+# Fitness substitute → substitute
+for name in ["动感单车","搏击馆","跆拳道"]:
+    r = _cr("某某"+name, "fitness", "体育休闲服务;运动场馆", rig_pls, "健身房")
+    check(r == "substitute", f"AD Fit sub: 某某{name} -> {r}")
+# Fitness direct → direct
+for name in ["健身房","瑜伽馆"]:
+    r = _cr("某某"+name, "fitness", "体育休闲服务;运动场馆", rig_pls, "健身房")
+    check(r == "direct", f"AD Fit direct: 某某{name} -> {r}")
+# Fitness anti-regression → not direct, not substitute
+for name in ["体育用品店","足疗按摩"]:
+    r = _cr("某某"+name, "fitness", "体育休闲服务;运动场馆", rig_pls, "健身房")
+    check(r != "direct", f"AD Fit NOT direct: 某某{name} -> {r}")
+    check(r != "substitute", f"AD Fit NOT substitute: 某某{name} -> {r}")
+
+# -- Laundry: 规则层验证 --
+rig_cs = get_rigor_for_config_key("社区基础服务")
+# Laundry substitute → substitute
+r = _cr("某某家政服务", "laundry", "生活服务;洗衣店", rig_cs, "洗衣店")
+check(r == "substitute", f"AD Laundry sub: 某某家政服务 -> {r}")
+# Laundry direct → direct
+for name in ["洗衣店","干洗店"]:
+    r = _cr("某某"+name, "laundry", "生活服务;洗衣店", rig_cs, "洗衣店")
+    check(r == "direct", f"AD Laundry direct: 某某{name} -> {r}")
+# Laundry anti-regression → not direct, not substitute
+for name in ["手机维修","皮具护理","擦鞋店"]:
+    r = _cr("某某"+name, "laundry", "生活服务;洗衣店", rig_cs, "洗衣店")
+    check(r != "direct", f"AD Laundry NOT direct: 某某{name} -> {r}")
+    check(r != "substitute", f"AD Laundry NOT substitute: 某某{name} -> {r}")
+
+# -- Subtype sub_first 继承验证 --
+# Fitness: 动感单车命中 substitute_keywords 后不得进入 direct，即使 type_code 落在 master code
+r = _cr("某某动感单车", "fitness", "体育休闲服务;运动场馆", rig_pls, "健身房")
+check(r == "substitute", f"AD sub_first inherited: 某某动感单车 -> {r} (not direct)")
+
 # ===== KNOWN_RULE_GAPS =====
 print("\n=== KNOWN_RULE_GAPS ===")
 if known_gaps:
