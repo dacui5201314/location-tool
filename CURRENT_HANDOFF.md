@@ -375,3 +375,38 @@ Do not run random samples. Do not continue forcing Sample Bank completion. Do no
 - Do not process `tmp_*` artifacts.
 - Do not relax `report_fact_guard.py`.
 - Do not weaken `require_name_keyword_for_code`, `substitute_before_direct`, `strict_exclude_names`, or `exclude_names`.
+
+---
+
+## Next Window Priority - Phase 10 Quick Wrapup
+
+Stop broad Phase 9 expansion. The main repair path has already been handled:
+
+- Code fix: `3484608` maps master business types to real POI config.
+- Latest docs: `a365727` records Phase 9G post-fix saved-chain regression.
+- Baseline: compileall PASS / industry `2158 PASS, 0 FAIL` / fact guard `92 PASS, 0 FAIL`.
+- DB after Phase 9G: `analysis_records` count/max id = `70/70`.
+- Worktree should still only have untracked `tmp_*` artifacts.
+
+Phase 9G verified official API save path after the mapping fix:
+- IDs `63-70` saved.
+- `rigor_enabled=True` for 8/8.
+- real POI non-empty for 8/8.
+- retry passed 2/2.
+- no known blocking direct/substitute/anchor/irrelevant issue remains.
+
+Next window should quickly run Phase 10 subtype saved-chain checks, then summarize acceptance. Do not keep expanding samples.
+
+Suggested Phase 10 samples:
+1. `洗衣店 | 天河路208号`
+2. `诊所 | 建国路88号`
+3. `宠物店 | 淮海中路999号`
+4. `健身房 | 春熙路1号`
+
+After those 4 samples, write the acceptance summary:
+- Whether direct/substitute/anchor/irrelevant has any blocking issue.
+- Keep fact guard hard-error.
+- Keep retry fallback.
+- Whether product acceptance / small traffic can begin.
+
+Suggested commit: `docs: summarize Phase 10 accuracy acceptance`.

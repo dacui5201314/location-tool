@@ -1,42 +1,43 @@
-current_phase: Phase 8C
-phase_status: subtype_substitute_boundaries_validated
-latest_code_commit: 1b5d313
-latest_code_commit_message: "test: cover subtype substitute real-chain boundaries"
-latest_docs_commit: pending
+current_phase: Phase 10
+phase_status: ready_for_accuracy_acceptance_wrapup
+latest_code_commit: 3484608
+latest_code_commit_message: "fix: map master business types to real POI config"
+latest_docs_commit: a365727
 unpushed: true
 
 validation:
   compileall: PASS
-  industry: "1961 PASS, 0 FAIL"
+  industry: "2158 PASS, 0 FAIL"
   fact_guard: "92 PASS, 0 FAIL"
   known_rule_gaps: none
 
 real_report_validation:
-  total_runs: 19
-  fact_errors_triggered: 5
-  fact_errors_rate: "26%"
-  retry_salvaged: 3
+  db_analysis_records_total: 70
+  phase9_saved_reports: 33
+  direct_smoke_verification: 3
+  invalid_empty_poi_samples: 3
+  fact_errors_triggered: 12
+  retry_salvaged: 9
+  retry_failed: 1
   actual_refunds: 2
-  actual_refund_rate: "11%"
-  saved_successfully: 17
-  latest: "P7C: id=38 snack, boundary disclaimer verified"
+  latest: "Phase 9G: post-fix saved-chain regression IDs 63-70, rigor_enabled 8/8"
   key_findings:
-    - "LLM numeric hallucination is random, not industry-inherent"
-    - "retry fallback reduced refund rate from about 28% to 11%"
-    - "fact guard should not be relaxed"
-    - "report boundary disclaimer prompt is verified in a real report"
+    - "Phase 9E fixed master business type self-mapping so direct master names collect real POI data."
+    - "Phase 9F/9G verified the fix through official API save path; DB max id is 70."
+    - "Remaining observed errors are mostly LLM numeric inflation caught by fact guard and retry."
+    - "No current direct/substitute/anchor/irrelevant blocking issue is known."
 
 sample_bank:
   complete_candidate: 12
   partial: 10
-  latest_industry_test_total: "1961 PASS, 0 FAIL"
+  latest_industry_test_total: "2158 PASS, 0 FAIL"
   notes:
     - "Phase 8 added stable nightlife/immersive substitute coverage"
     - "Phase 8B added subtype substitute support for Pet/Fitness/Laundry"
     - "Laundry repair boundary tightened: repair services are not substitute"
     - "Remaining partial groups must not be forced complete without stable national substitutes"
 
-next_step: "Phase 9 targeted real report expansion to 30-40 total samples, focused on low-coverage and newly changed subtype substitute areas"
+next_step: "Phase 10 quick wrapup: run four subtype saved-chain checks, summarize accuracy acceptance, then prepare for product acceptance/small traffic. Do not keep expanding samples."
 
 boundaries:
   no_push: true
