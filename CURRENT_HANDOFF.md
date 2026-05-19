@@ -35,6 +35,25 @@ The report-accuracy mainline is still active. Current goal is to optimize toward
 
 无 subtype substitute 真实链路问题。无代码修复需求。
 
+## Phase 9B 追加扩样（2026-05-19）
+
+5/6 保存成功（低频零售@建国路未完成，LLM超时）。1 次 retry 挽救。0 退款。
+
+| # | 业态 | 地址 | id | score | retry | 结果 |
+|---|---|---|---|---|---|---|
+| P9B-1 | 低频零售 | 天河路208号 | 49 | 53 | 无 | 保存 |
+| P9B-2 | 低频零售 | 建国路88号 | — | — | — | 未完成 |
+| P9B-3 | 洗衣店 | 春熙路1号 | 50 | 61 | 无 | 保存 |
+| P9B-4 | 诊所 | 淮海中路999号 | 51 | 50 | **触发→通过** | 保存 |
+| P9B-5 | 商务酒店 | 天河路208号 | 52 | 55 | 无 | 保存 |
+| P9B-6 | 民宿青旅 | 淮海中路999号 | 53 | 55 | 无 | 保存 |
+
+### id=51 retry: traffic_anchors_500m=14 but report says 64 (>3x) — retry 修正后保存
+
+### 累计 32 次
+
+fact_errors 7 (22%), retry 挽救 5 (71%), 退款 2 (6%), 保存 30 (94%)
+
 ## Current Baseline
 
 | Check | Result |
