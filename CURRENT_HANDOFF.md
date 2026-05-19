@@ -254,6 +254,83 @@ P9D 发现 "低频目的零售"、"民宿青旅"、"夜经济娱乐" 作为 busi
 
 ---
 
+## Phase 9G 映射修复后正式保存链路扩样（2026-05-19）
+
+### 目的
+
+验证 Phase 9E 映射修复后，master 业态自映射在 4 个地址 × 多个业态组合的正式 API 保存链路中稳定。
+
+### 前置
+
+- DB: count=62, max_id=62
+
+### 8 个正式保存样本
+
+| # | 业态 | 地址 | ID | Score | Rigor | Retry | FE | POI | D200/500 | S200/500 | A500 | Irr | Disc | Note |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| G1 | 低频目的零售 | 天河路208号 | 63 | 65 | Y | 无 | 0/0 | 528 | 0/0 | 0/0 | 25 | 0 | Y | |
+| G2 | 低频目的零售 | 春熙路1号 | 64 | 51 | Y | PASS | 1/0 | 394 | 0/0 | 0/0 | 5 | 0 | Y | retry-passed |
+| G3 | 民宿青旅 | 天河路208号 | 65 | 62 | Y | 无 | 0/0 | 516 | **6/29** | 4/15 | 32 | 4 | Y | direct 丰富，均为真实青旅/民宿 |
+| G4 | 民宿青旅 | 春熙路1号 | 66 | 57 | Y | 无 | 0/0 | 411 | 1/9 | 2/16 | 28 | 0 | Y | |
+| G5 | 夜经济娱乐 | 建国路88号 | 67 | 55 | Y | 无 | 0/0 | 370 | 0/0 | 1/1 | 111 | 6 | Y | a500=111 为大量酒店+地铁+停车场 |
+| G6 | 夜经济娱乐 | 淮海中路999号 | 68 | 58 | Y | PASS | 1/0 | 534 | 0/0 | 0/0 | 151 | **46** | Y | irr=46 脱水效果明显 |
+| G7 | 社区基础服务 | 建国路88号 | 69 | 48 | Y | 无 | 0/0 | 348 | 0/0 | 0/0 | 5 | 0 | Y | * |
+| G8 | 专业生活服务 | 天河路208号 | 70 | 35 | Y | 无 | 0/0 | 532 | 0/0 | 0/0 | 76 | 3 | Y | * |
+
+\* G7/G8 direct=0 原因：master 级无 name_keywords（全部在 subtypes 里）。business_type="社区基础服务"/"专业生活服务" 不匹配任何 subtype match_keyword → 无 direct 候选。需用子业态名（如"洗衣店"/"宠物店"）才能触发 subtype 规则。
+
+### 重点观察
+
+**低频目的零售 (G1/G2)**:
+- direct_list 全部为空 — 无购物中心/便利店/维修类误写成 direct
+- 边界关键词"购物中心/便利店"仅出现在互补业态/周边环境描述中
+- G2 retry: 1 fact error → retry 修正后保存
+
+**民宿青旅 (G3/G4)**:
+- G3 (天河路): direct=6/29, 均为真实青旅/民宿/客栈，无商务酒店混入
+- substitute=4/15, 为经济型酒店/公寓替代
+- irrelevant_excluded=4，边界清晰
+- 数字无膨胀（schools 等无异常）
+
+**夜经济娱乐 (G5/G6)**:
+- direct 均为 0 — 无酒吧/KTV/网吧互污染
+- G5 边界关键词"KTV/网吧"出现在报告文本中，但 direct_list 为空 → 未误分类
+- G6 irr=46 — 淮海中路999号周围无关 POI 大量剔除
+- G6 retry: 1 fact error → retry 修正后保存
+
+**社区基础服务/专业生活服务 (G7/G8)**:
+- direct=0 是预期行为：master 级无 name_keywords（keywords 全部在 subtype 里）
+- 真实场景应用子业态名：洗衣店/诊所/教育培训 → 社区基础服务；宠物店/健身房/美容美发 → 专业生活服务
+- 不做 subtype fallback 是设计决策（不盲猜用户意图）
+
+### 本轮统计
+
+| 指标 | 值 |
+|---|---|
+| 正式保存 | 8/8 (IDs 63-70) |
+| retry 触发 | 2/8 |
+| retry 挽救 | 2/2 (100%) |
+| retry 失败 | 0 |
+| timeout | 0 |
+| refund | 0 |
+| rigor_enabled | 8/8 |
+| disclaimer | 8/8 |
+
+### 全期累计统计
+
+| 指标 | 值 |
+|---|---|
+| DB analysis_records 总数 | **70** |
+| Phase 9 家族正式保存 | **33** (IDs 41-57 + 60-70) |
+| 直连 smoke verification | 3 (P9E) |
+| 空 POI 无效样本 | 3 (P9D) |
+| fact_errors (全期) | 12 |
+| retry_salvaged | **9** (75%) |
+| retry_failed | 1 (8%) |
+| refunds | 2 |
+
+---
+
 Worktree should only contain untracked temp artifacts:
 - `tmp_latest_report_text.txt`
 - `tmp_report_images/`
