@@ -738,7 +738,7 @@ INDUSTRY_RIGOR = {
                     "name_keywords": ["洗衣","干洗","清洗","护理","洗护","洗衣店","干洗店"],
                     "exclude_names": ["培训","教育","诊所","家政","维修","皮具护理","擦鞋"],
                     "substitute_before_direct": True,
-                    "substitute_keywords": ["家政","维修"],
+                    "substitute_keywords": ["家政"],
                 },
                 "clinic": {
                     "match_keywords": ["诊所","门诊","卫生所","医务室"],

@@ -975,10 +975,16 @@ for name in ["洗衣店","干洗店","洗护中心","衣物护理","干洗连锁
     check_direct("社区基础服务", "某某"+name, "生活服务;洗衣店", "洗衣店")
 for name in ["家政公司","手机维修","皮具护理","擦鞋店","教育培训","开锁公司","疏通管道","搬家公司","美容院","美发店"]:
     check_not_direct("社区基础服务", "某某"+name, "生活服务;洗衣店", "洗衣店")
-# Laundry substitute: 家政/维修分流社区服务预算
-for name in ["家政服务","手机维修"]:
+# Laundry substitute: 家政分流社区服务预算（维修类不得进入）
+for name in ["家政服务"]:
     r = _cr("某某"+name, "laundry", "生活服务;洗衣店", get_rigor_for_config_key("社区基础服务"), "洗衣店")
     check(r == "substitute", f"社区基础服务/洗衣店 substitute: 某某{name} -> {r}")
+# Laundry 反例: 维修类不得进入 direct 或 substitute
+rig_cs = get_rigor_for_config_key("社区基础服务")
+for name in ["手机维修","家电维修","电脑维修"]:
+    r = _cr("某某"+name, "laundry", "生活服务;洗衣店", rig_cs, "洗衣店")
+    check(r != "direct", f"社区基础服务/洗衣店 NOT direct: 某某{name} -> {r}")
+    check(r != "substitute", f"社区基础服务/洗衣店 NOT substitute: 某某{name} -> {r}")
 # Laundry anchor: categories residential/schools/office (same as Education)
 for name, code in [("住宅小区","120300"),("公寓","120300"),("写字楼","120200"),("小学","科教文化服务;学校"),("中学","科教文化服务;学校")]:
     check_anchor("社区基础服务", "某某"+name, code, "洗衣店")
@@ -1168,7 +1174,7 @@ _SAMPLE_BANK = [
     ("Pet",               10,10,2,5,5, "partial", "substitute keywords added, need more samples"),
     ("Fitness",           10,10,3,5,5, "partial", "substitute keywords added, need more samples"),
     ("Education",         10,10,0,5,5, "partial", _PARTIAL_NO_SUB_REASON),
-    ("Laundry",           10,10,2,5,5, "partial", "substitute keywords added, need more samples"),
+    ("Laundry",           10,10,1,5,5, "partial", "家政 only; 维修类 excluded from substitute"),
     ("Clinic",            10,10,0,5,5, "partial", "substitute blocked by master irr"),
     ("Bar",               10,10,5,5,5, "complete_candidate", ""),
     ("KTV",               10,10,5,5,5, "complete_candidate", ""),
