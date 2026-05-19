@@ -920,6 +920,7 @@ for name in ["美容院","美发店","美甲店","SPA会所","美睫店","皮肤
     check_direct("专业生活服务", "某某"+name, "050300", "美容美发")
 for name in ["宠物店","动物医院","健身房","瑜伽馆","足疗店","按摩店","医美诊所","口腔诊所","牙科诊所","舞蹈培训"]:
     check_not_direct("专业生活服务", "某某"+name, "050300", "美容美发")
+# Beauty substitute: 当前 master irr 拦截足疗/按摩/推拿，暂不补 substitute 样本
 # Beauty anchor: categories residential/office/shopping/parking (2×residential to fill 5 with 4 categories)
 for name, code in [("住宅小区","120300"),("公寓","120300"),("写字楼","120200"),("购物中心","060100"),("停车场","150900")]:
     check_anchor("专业生活服务", "某某"+name, code, "美容美发")
@@ -931,6 +932,10 @@ for name in ["宠物店","宠物用品店","猫舍","犬舍","宠物生活馆","
     check_direct("专业生活服务", "某某"+name, "050300", "宠物店")
 for name in ["美容院","美发店","动物医院","宠物医院","健身房","兽药店","足疗店","按摩店","SPA会所","医美诊所"]:
     check_not_direct("专业生活服务", "某某"+name, "050300", "宠物店")
+# Pet substitute: 宠物医院/宠物美容分流宠物消费
+for name in ["宠物医院","宠物美容"]:
+    r = _cr("某某"+name, "convenience", "050300", get_rigor_for_config_key("专业生活服务"), "宠物店")
+    check(r == "substitute", f"专业生活服务/宠物店 substitute: 某某{name} -> {r}")
 # Pet anchor: categories residential/office/shopping/parking (same as Beauty)
 for name, code in [("住宅小区","120300"),("公寓","120300"),("写字楼","120200"),("购物中心","060100"),("停车场","150900")]:
     check_anchor("专业生活服务", "某某"+name, code, "宠物店")
@@ -942,6 +947,10 @@ for name in ["健身房","健身中心","瑜伽馆","普拉提馆","私教工作
     check_direct("专业生活服务", "某某"+name, "体育休闲服务;运动场馆", "健身房")
 for name in ["体育用品店","足疗按摩","舞蹈培训班","美容院","宠物店","推拿艾灸","洗浴中心","汗蒸馆","少儿培训","医美中心"]:
     check_not_direct("专业生活服务", "某某"+name, "体育休闲服务;运动场馆", "健身房")
+# Fitness substitute: 动感单车/搏击/跆拳道分流健身预算
+for name in ["动感单车","搏击馆","跆拳道"]:
+    r = _cr("某某"+name, "fitness", "体育休闲服务;运动场馆", get_rigor_for_config_key("专业生活服务"), "健身房")
+    check(r == "substitute", f"专业生活服务/健身房 substitute: 某某{name} -> {r}")
 # Fitness anchor: categories residential/office/shopping/parking (same as Beauty/Pet)
 for name, code in [("住宅小区","120300"),("公寓","120300"),("写字楼","120200"),("购物中心","060100"),("停车场","150900")]:
     check_anchor("专业生活服务", "某某"+name, code, "健身房")
@@ -966,6 +975,10 @@ for name in ["洗衣店","干洗店","洗护中心","衣物护理","干洗连锁
     check_direct("社区基础服务", "某某"+name, "生活服务;洗衣店", "洗衣店")
 for name in ["家政公司","手机维修","皮具护理","擦鞋店","教育培训","开锁公司","疏通管道","搬家公司","美容院","美发店"]:
     check_not_direct("社区基础服务", "某某"+name, "生活服务;洗衣店", "洗衣店")
+# Laundry substitute: 家政/维修分流社区服务预算
+for name in ["家政服务","手机维修"]:
+    r = _cr("某某"+name, "laundry", "生活服务;洗衣店", get_rigor_for_config_key("社区基础服务"), "洗衣店")
+    check(r == "substitute", f"社区基础服务/洗衣店 substitute: 某某{name} -> {r}")
 # Laundry anchor: categories residential/schools/office (same as Education)
 for name, code in [("住宅小区","120300"),("公寓","120300"),("写字楼","120200"),("小学","科教文化服务;学校"),("中学","科教文化服务;学校")]:
     check_anchor("社区基础服务", "某某"+name, code, "洗衣店")
@@ -977,6 +990,7 @@ for name in ["中医诊所","中西医结合门诊","社区卫生室","医务室
     check_direct("社区基础服务", "某某"+name, "090300", "诊所")
 for name in ["综合医院","口腔医院","眼科医院","体检中心","大药房","医美中心","助听器","康复医院","月子中心","养老院"]:
     check_not_direct("社区基础服务", "某某"+name, "090300", "诊所")
+# Clinic substitute: 药店/保健被 master irr 拦截，暂不补 substitute 样本
 # Clinic anchor: categories residential/schools/office (same as Education/Laundry)
 for name, code in [("住宅小区","120300"),("公寓","120300"),("写字楼","120200"),("小学","科教文化服务;学校"),("中学","科教文化服务;学校")]:
     check_anchor("社区基础服务", "某某"+name, code, "诊所")
@@ -1150,12 +1164,12 @@ _SAMPLE_BANK = [
     ("Pharmacy",          10,10,0,5,5, "partial", _PARTIAL_NO_SUB_REASON),
     ("Tobacco/Liquor",    10,10,0,5,5, "partial", _PARTIAL_NO_SUB_REASON),
     ("Daily Goods",       10,10,0,5,5, "partial", _PARTIAL_NO_SUB_REASON),
-    ("Beauty",            10,10,0,5,5, "partial", _PARTIAL_NO_SUB_REASON),
-    ("Pet",               10,10,0,5,5, "partial", _PARTIAL_NO_SUB_REASON),
-    ("Fitness",           10,10,0,5,5, "partial", _PARTIAL_NO_SUB_REASON),
+    ("Beauty",            10,10,0,5,5, "partial", "substitute blocked by master irr"),
+    ("Pet",               10,10,2,5,5, "partial", "substitute keywords added, need more samples"),
+    ("Fitness",           10,10,3,5,5, "partial", "substitute keywords added, need more samples"),
     ("Education",         10,10,0,5,5, "partial", _PARTIAL_NO_SUB_REASON),
-    ("Laundry",           10,10,0,5,5, "partial", _PARTIAL_NO_SUB_REASON),
-    ("Clinic",            10,10,0,5,5, "partial", _PARTIAL_NO_SUB_REASON),
+    ("Laundry",           10,10,2,5,5, "partial", "substitute keywords added, need more samples"),
+    ("Clinic",            10,10,0,5,5, "partial", "substitute blocked by master irr"),
     ("Bar",               10,10,5,5,5, "complete_candidate", ""),
     ("KTV",               10,10,5,5,5, "complete_candidate", ""),
     ("Internet Cafe",     10,10,5,5,5, "complete_candidate", ""),

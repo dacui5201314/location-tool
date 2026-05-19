@@ -547,6 +547,7 @@ def classify_poi_rigor(name: str, cat: str, type_code: str, rigor: dict, busines
                         "exclude_names": list(set(master_dc.get("exclude_names", []) + sub_rules.get("exclude_names", []))),
                         "name_keywords": sub_rules.get("name_keywords", []),
                         "amap_codes": sub_rules.get("amap_codes", master_dc.get("amap_codes", [])),
+                        "substitute_keywords": sub_rules.get("substitute_keywords", []),
                     }
                     matched = True
                     break
@@ -564,6 +565,10 @@ def classify_poi_rigor(name: str, cat: str, type_code: str, rigor: dict, busines
     sub = rules.get("substitute_competitor_rules", {})
     sub_first = dc.get("substitute_before_direct", False)
     if sub_first:
+        # subtype 级 substitute_keywords（优先于 master 级）
+        sub_kw = dc.get("substitute_keywords", [])
+        if sub_kw and _match_name(name, sub_kw):
+            return "substitute"
         if _match_name(name, sub.get("name_keywords", [])):
             return "substitute"
         if _match_code(sub.get("amap_codes", []), type_code):
