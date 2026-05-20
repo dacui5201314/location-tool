@@ -2,7 +2,7 @@ current_phase: Phase 10
 phase_status: accuracy_acceptance_complete_recommend_go
 latest_code_commit: 3484608
 latest_code_commit_message: "fix: map master business types to real POI config"
-latest_docs_commit: f73be4c
+latest_docs_commit: 39e4466
 unpushed: true
 
 validation:
