@@ -10,7 +10,7 @@
 - **双层 POI 数据采集**：高德 Web API + JS API 双通道，28 大类别 6 层数据脱水过滤，最大 550 条周边数据
 - **AI 选址分析引擎**：动态 System Prompt 拼接 + 14 套 Master 专属规则 + subtype 子业态分流 + Python 层互斥预判 + 维度平均锁定总分
 - **财务精算模型**：基于门店面积自动推算租金、人工、盈亏平衡点
-- **报告事实校验 Guard**：P0 POI 名称引用校验 + P2 竞品语境误用检测 + P3 竞品数量膨胀检测 + fact_errors 硬阻断 + 免费内部 retry 挽救（退款率从 28% 降至 8%）
+- **报告事实校验 Guard**：P0 POI 名称引用校验 + P2 竞品语境误用检测 + P3 竞品数量膨胀检测 → 全部 hard-error → retry fallback → 仍失败退款/不保存（退款率从 28% 降至 5%）；新增禁止推荐/不推荐决策语言检测 + 财务单点精确数字检测
 - **SSE 实时流式分析**：四步进度推送 + 前端逐帧动画回放，免疫代理缓冲
 - **高保真 PDF 报告**：html2pdf.js 分页引擎 + 评分环 + 纯 SVG 雷达图 + POI 数据表格 + 品牌引流 Footer
 - **双重计费系统**：会员订阅制（月度/季度/年度）+ 点数余额制 + CDK 兑换码激活
@@ -134,7 +134,8 @@ npx vite --host
 
 ## 版本历史
 
-- **v1.4.0** (2026-05-19) — Master 业态映射修复与正式保存链路扩样：修复 BUSINESS_TYPE_TO_MASTER 14 个 master 业态名自映射缺失（+ 3 个 BUSINESS_TYPE_TO_AMAP fallback），消除低频目的零售/民宿青旅/夜经济娱乐 POI 数据为空的链路缺陷；Phase 9D-9G 累计 33 次正式 API 保存链路真实报告（DB max_id 70），retry 挽救 9 次（75% 成功率），退款 2 次（6%）；check_industry_rigor_rules.py 2158 PASS 0 FAIL（新增 A2 master 自映射断言 + AE 真实链路回归 + 15 个新增 pass）；全 14 master direct_competitor_rules 审计；34 个业态入口全部可解析到正确 config_key
+- **v1.5.0** (2026-05-20) — 上线前精准度全线收口：P0/P2/P3 从 warning-only 升级为 hard-error（编造 POI 名称/substitute 写成 direct/竞品数量膨胀 → retry → 仍失败则退款/不保存）；7 个高风险 master 新增 strict_exclude_names（18 项跨行业强排除词）；火锅_烧烤 sub_first 修复；_check_sentence 容忍从 3x 收窄为 max(expected+3, expected*2)；新增禁止推荐/不推荐决策语言检测 + 财务单点精确数字检测 → fact_errors 硬阻断；AB invariant 锁定未来高风险 code 裸奔风险；5 个 master 补齐 categories_excluded；累计 37 次正式 API 保存报告（DB 74 条），retry 挽救 9/12（75%），退款 2 次（5%）；check_industry_rigor_rules.py 2168 PASS 0 FAIL / check_report_fact_guard.py 101 PASS 0 FAIL
+- **v1.4.0** (2026-05-19) — Master 业态映射修复与正式保存链路扩样：修复 BUSINESS_TYPE_TO_MASTER 14 个 master 业态名自映射缺失，消除低频目的零售/民宿青旅/夜经济娱乐 POI 数据为空的链路缺陷；Phase 9D-9G 累计 33 次正式 API 保存链路真实报告（DB max_id 70），retry 挽救 9 次（75%），退款 2 次（6%）；industry 2158 PASS / fact guard 92 PASS
 - **v1.3.0** (2026-05-18) — 报告精准度防线加固与真实回归：fact_errors 后免费重试 fallback（退款率 28%→11%，真实验证挽救 3 次）；报告边界声明强制要求"本报告为选址初筛参考，需线下实地核验"；餐饮 Sample Bank 加厚至 1902 PASS；Phase 6 累计 19 次真实报告回归；check_industry_rigor_rules.py 1902 PASS 0 FAIL / check_report_fact_guard.py 92 PASS 0 FAIL
 - **v1.2.0** (2026-05-15) — 报告精准度体系化收口：7/7 master req_kw=True 消除高风险 code 裸奔 direct；新增 `low_freq_retail` category + 脱水函数；P0 假阳性窄规则修补；fact_errors 抽取为纯函数 + 旧口径检测；C-1/C-2 真实报告验收；industry 1876 PASS / fact guard 86 PASS
 - **v1.1.2** (2026-05-14) — 报告事实校验 Guard 体系上线：P0 POI 名称引用校验、P2 竞品语境误用检测、P3 竞品数量膨胀检测，三层 warning-only；离线验收样本 id=21 P0/P2/P3 归零；check_report_fact_guard.py 50 PASS；check_industry_rigor_rules.py 1598 PASS
@@ -191,7 +192,7 @@ location-tool/
 
 # 宝塔面板生产环境部署指南
 
-> 适用版本：宝塔 Linux 面板 9.x | 项目版本：v1.4.0 | 更新日期：2026-05-19
+> 适用版本：宝塔 Linux 面板 9.x | 项目版本：v1.5.0 | 更新日期：2026-05-20
 >
 > 本指南假设你已经在服务器上安装好宝塔面板，并且已经打开了宝塔面板的网页后台。
 
