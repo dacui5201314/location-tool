@@ -400,7 +400,7 @@ Phase 6-8 为规则引擎、样本库与 LLM 护栏建设期。正式 API 保存
 #### LLM 防污染
 
 - fact_errors 硬阻断 + retry — 退款率从 28% 降至 5%
-- P0/P2/P3 三层 warning（不阻塞保存）
+- P0/P2/P3 已在 Phase 11 升级为 hard-error，retry 后仍失败则退款/不保存
 - _check_sentence 3x 容忍（允许 expected×3 以内偏差）
 - "附近""周边"默认回退 1000m 半径
 - **结论：硬阻断有效（75% retry 成功率）。3x 容忍和半径回退是已知精度损失，非阻塞。**
@@ -420,7 +420,7 @@ Phase 6-8 为规则引擎、样本库与 LLM 护栏建设期。正式 API 保存
 | fact guard 是否应保持 hard-error | **是，不可放松** |
 | retry fallback 是否继续保留 | **是（75% 挽救率）** |
 | 是否建议进入产品验收/小流量 | **建议进入。** 37 次真实 API 保存报告（DB 74 条），0 次本次 retry 失败，0 次本次 refund。核心分类、映射、LLM 护栏均已就位。 |
-| 是否还有必须先修的代码问题 | **无。** 已知 gap（2 master 缺 sub_first、6 master 缺 categories_excluded、P0/P2/P3 warning-only、3x 容忍）属后续优化项，非阻塞。 |
+| 是否还有必须先修的代码问题 | **无。** P0/P2/P3 hard-error 已完成；剩余 3x 容忍、radius fallback、少数 sub_first/categories_excluded 为后续优化项，非阻塞。 |
 
 ---
 
@@ -458,7 +458,7 @@ Phase 6-8 为规则引擎、样本库与 LLM 护栏建设期。正式 API 保存
 
 **Product acceptance / small traffic.** Phase 6-8 built the rules/sample-bank/guard foundation. Phase 9-10 delivered 37 formal API-saved reports (DB max id 74) across 5 master groups and 4 subtype groups, with 0 Phase 10 retry failures and 0 Phase 10 refunds.
 
-Next window should observe real user reports for quality, not expand random samples. Known non-blocking gaps (sub_first on a few masters, categories_excluded gaps, P0/P2/P3 warning-only) can be addressed in subsequent optimization phases.
+Next window should observe real user reports for quality, not expand random samples. Remaining non-blocking gaps (3x tolerance, radius fallback, sub_first on a few masters, categories_excluded gaps) can be addressed in subsequent optimization phases. P0/P2/P3 hard-error is complete.
 
 ## Hard Boundaries (for subsequent phases)
 
