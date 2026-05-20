@@ -1,9 +1,13 @@
-current_phase: Phase 10
-phase_status: accuracy_acceptance_complete_recommend_go
-latest_code_commit: 3484608
-latest_code_commit_message: "fix: map master business types to real POI config"
-latest_docs_commit: 39e4466
+current_phase: Phase 11
+phase_status: pre_launch_blockers_addressed
+latest_code_commit: a848d88
+latest_code_commit_message: "feat: upgrade P0/P2/P3 to hard-error, add strict_exclude to 7 masters"
+latest_docs_commit: a848d88
 unpushed: true
+latest_phase11_changes:
+  - "P0/P2/P3 upgraded from warning-only to hard-error with retry fallback (main.py)"
+  - "strict_exclude_names added to 7 high-risk masters (industry_config.py)"
+  - "Display chain verified: DB/HTML/frontend pages/API proxy all consistent"
 
 validation:
   compileall: PASS
@@ -29,9 +33,9 @@ real_report_validation:
     - "Recommendation: GO for product acceptance / small traffic."
     - "Retry fallback saved 9/12 fact errors (75%); refund rate reduced to 5%."
   known_gaps_not_blocking:
-    - "Some masters/subtype-only groups still lack master-level substitute_before_direct; non-blocking for current accepted flows."
+    - "Some masters/subtype-only groups still lack master-level substitute_before_direct; non-blocking."
     - "6/14 masters lack categories_excluded in irrelevant_poi_rules"
-    - "P0/P2/P3 are warning-only (not hard-block)"
+    - "P0/P2/P3 now hard-error (Phase 11 fix) - resolved"
     - "_check_sentence has 3x tolerance on numeric deviation"
     - "'nearby/around' radius default fallback to 1000m"
 
@@ -46,7 +50,7 @@ sample_bank:
     - "Remaining partial groups must not be forced complete without stable national substitutes"
     - "Section A2 (master self-mapping) + AE (real-chain regression) added in Phase 9E"
 
-next_step: "Product acceptance / small traffic. Do not expand random samples. Address known gaps (sub_first, categories_excluded, P2 upgrade) in subsequent phases after acceptance."
+next_step: "Product acceptance / small traffic. Phase 11 resolved P0/P2/P3 hard-error + strict_exclude_names for 7 high-risk masters + display chain verified. Remaining gaps (3x tolerance, radius fallback, sub_first on few masters) are optimization items for post-launch."
 
 boundaries:
   no_push: true

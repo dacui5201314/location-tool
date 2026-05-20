@@ -464,3 +464,55 @@ Next window should observe real user reports for quality, not expand random samp
 
 - Do not relax `report_fact_guard.py`.
 - Do not weaken `require_name_keyword_for_code`, `substitute_before_direct`, `strict_exclude_names`, or `exclude_names`.
+
+---
+
+## Phase 11 上线前阻塞项收口（2026-05-20）
+
+### 1. P0/P2/P3 warning → hard-error (`main.py`)
+
+P0（POI 名称幻觉）、P2（substitute/anchor 写成 direct）、P3（竞品数量膨胀）从 warning-only 升级为硬阻断：
+
+- P0: `check_poi_name_hallucination(strict=True)` — 编造不存在于 real_data 的 POI 名称 → 加入 fact_errors → 触发 retry → retry 仍失败 → 退款/不保存
+- P2: `check_poi_context_mismatch` — substitute/anchor 在竞品语境中被写成 direct → 同上
+- P3: `check_direct_competitor_count_mismatch` — 竞品数量与 real_data 不一致 → 同上
+- Retry prompt 新增 P0/P2/P3 修正引导
+- Post-retry 重检 P0/P2/P3，有残留 → retry 失败
+
+### 2. 高风险 master 补 strict_exclude_names (`prompts/industry_config.py`)
+
+| Master | 新增 strict_exclude count | 内容 |
+|---|---|---|
+| 异国_中高端正餐 | 18 | 洗浴/足浴/会所/彩票/驾校/建材/五金/批发/农贸/维修/中介/房产/体检/医美/网吧/网咖 |
+| 火锅_烧烤 | 18 | 同上 |
+| 刚需快餐小吃 | 18 | 同上 |
+| 中餐正餐 | 18 | 同上 |
+| 烘焙甜品 | 18 | 同上 |
+| 精品茶饮咖啡 | 18 | 同上 |
+| 低频目的零售 | 17 | 洗浴/足浴/会所/驾校/中介/房产/体检/医美/建材/五金/农贸/汽配/维修/彩票/美甲/快递/黄金回收 |
+
+已有 strict_exclude 的 master 未修改（商务酒店、民宿青旅、高频刚需零售、夜经济娱乐、沉浸式社交娱乐）。专业生活服务/社区基础服务已有 subtype 级 exclude，未补 master 级。
+
+### 3. 展示链路验收
+
+| 链路 | 检查结果 |
+|---|---|
+| DB 记录 (report_json) | direct/sub/anchor/irr/rigor/disc 全部有值 ✓ |
+| HTML 报告文件 | "直接竞品（严谨口径）" + "客流锚点（非竞品）" + 数据质量/严谨度剔除数量 + 免责声明 ✓ |
+| 前端首页 (/) | 正常加载 ✓ |
+| 历史记录页 (/records) | 正常加载 ✓ |
+| 管理后台 (/admin) | 正常加载 ✓ |
+| API 代理 (/api/health) | 正常 ✓ |
+| PDF 下载 | 客户端 html2pdf.js 生成，同数据源 ✓ |
+
+口径一致：direct 数量、substitute 标注、anchor 标注、irrelevant 剔除、disclaimer 在所有展示链路中统一。
+
+### 验证
+
+| Check | Result |
+|---|---|
+| `compileall` | PASS |
+| `check_industry_rigor_rules.py` | 2158 PASS, 0 FAIL |
+| `check_report_fact_guard.py` | 92 PASS, 0 FAIL |
+
+---

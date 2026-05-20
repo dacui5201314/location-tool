@@ -454,24 +454,30 @@ async def analyze_location(req: AnalyzeRequest, user: dict = Depends(get_current
                     str(result.get("summary", ""))
                 )
 
-                # ★ P0: POI 名称引用校验 (warning-only)
+                # ★ P0: POI 名称引用校验 → hard-error (Phase 11)
                 from services.poi_name_guard import check_poi_name_hallucination, check_poi_context_mismatch, check_direct_competitor_count_mismatch
-                poi_name_issues = check_poi_name_hallucination(full_text, real_data, strict=False)
+                poi_name_issues = check_poi_name_hallucination(full_text, real_data, strict=True)
                 if poi_name_issues:
                     print(f"[SSE Guard] POI名称引用告警 ({len(poi_name_issues)}条): {'; '.join(poi_name_issues[:5])}", flush=True)
                     result["_poi_name_warnings"] = poi_name_issues
+                    for issue in poi_name_issues[:5]:
+                        fact_errors.append(f"[P0-NAME] {issue}")
 
-                # ★ P2: 竞品语境中 substitute/anchor 误用检测 (warning-only)
+                # ★ P2: 竞品语境中 substitute/anchor 误用检测 → hard-error (Phase 11)
                 poi_ctx_issues = check_poi_context_mismatch(full_text, real_data)
                 if poi_ctx_issues:
                     print(f"[SSE Guard] POI语境告警 ({len(poi_ctx_issues)}条): {'; '.join(poi_ctx_issues[:5])}", flush=True)
                     result["_poi_context_warnings"] = poi_ctx_issues
+                    for issue in poi_ctx_issues[:5]:
+                        fact_errors.append(f"[P2-CTX] {issue}")
 
-                # ★ P3: 直接竞品数量膨胀检测 (warning-only)
+                # ★ P3: 直接竞品数量膨胀检测 → hard-error (Phase 11)
                 count_issues = check_direct_competitor_count_mismatch(full_text, real_data)
                 if count_issues:
                     print(f"[SSE Guard] 竞品数量告警 ({len(count_issues)}条): {'; '.join(count_issues[:5])}", flush=True)
                     result["_direct_competitor_count_warnings"] = count_issues
+                    for issue in count_issues[:5]:
+                        fact_errors.append(f"[P3-COUNT] {issue}")
 
                 if fact_errors:
                     print(f"[SSE Guard] 事实校验失败: {'; '.join(fact_errors)}", flush=True)
@@ -488,11 +494,14 @@ async def analyze_location(req: AnalyzeRequest, user: dict = Depends(get_current
 
                     retry_prompt = prompt + f"""
 
-⚠️ 上一版报告存在以下数据错误，请根据错误提示严格对照上方 POI 数据表格和竞品字段修正数字：
+⚠️ 上一版报告存在以下数据错误，请根据错误提示严格对照上方 POI 数据表格和竞品字段修正：
 
 {correction_hint}
 
 修正要求：
+- [P0-NAME] 报告中引用的POI名称必须在数据源(poi_lists/direct_competitor_list/substitute_list/traffic_anchor_list/hot_brands)中真实存在，不得凭自身知识编造名称
+- [P2-CTX] 替代性竞品(substitute)和客流锚点(anchor)不得在竞品语境中被写成直接竞品，必须标注"非直接竞品"或"客流锚点"
+- [P3-COUNT] 报告中声称的直接竞品/替代竞品/锚点数量不得大于real_data中对应字段的数值
 - 报告中所有 POI 数量必须与上方数据表格中的数字完全一致
 - 不得自行估算、放大或缩小任何数字
 - 不确定的数字改用"需线下核验"替代
@@ -512,16 +521,7 @@ async def analyze_location(req: AnalyzeRequest, user: dict = Depends(get_current
                             retry_result["real_data"] = real_data
                             retry_fe = validate_report_fact_consistency(retry_result, real_data)
                             if not retry_fe:
-                                print(f"[SSE Guard] 重试通过，fact_errors 已修正", flush=True)
-                                _saved_retry_meta = {
-                                    "_fact_retry": True,
-                                    "_fact_retry_passed": True,
-                                    "_fact_errors_before_retry": fact_errors.copy(),
-                                }
-                                result = retry_result
-                                result.update(_saved_retry_meta)
-                                fact_errors = []
-                                # ★ 基于最终报告重算 P0/P2/P3 warning
+                                # ★ Phase 11: retry 后重新检查 P0/P2/P3，有残留则 retry 失败
                                 retry_full_text = (
                                     json.dumps(retry_result.get("details", {}) or {}, ensure_ascii=False) + " " +
                                     json.dumps(retry_result.get("advantages", []), ensure_ascii=False) + " " +
@@ -530,9 +530,33 @@ async def analyze_location(req: AnalyzeRequest, user: dict = Depends(get_current
                                     json.dumps(retry_result.get("action_plan", []), ensure_ascii=False) + " " +
                                     str(retry_result.get("summary", ""))
                                 )
-                                result["_poi_name_warnings"] = check_poi_name_hallucination(retry_full_text, real_data, strict=False)
-                                result["_poi_context_warnings"] = check_poi_context_mismatch(retry_full_text, real_data)
-                                result["_direct_competitor_count_warnings"] = check_direct_competitor_count_mismatch(retry_full_text, real_data)
+                                retry_p0 = check_poi_name_hallucination(retry_full_text, real_data, strict=True)
+                                retry_p2 = check_poi_context_mismatch(retry_full_text, real_data)
+                                retry_p3 = check_direct_competitor_count_mismatch(retry_full_text, real_data)
+                                # ★ P0/P2/P3 残留 → 合并进 retry_fe 触发失败
+                                if retry_p0:
+                                    for issue in retry_p0[:3]:
+                                        retry_fe.append(f"[P0-NAME] {issue}")
+                                if retry_p2:
+                                    for issue in retry_p2[:3]:
+                                        retry_fe.append(f"[P2-CTX] {issue}")
+                                if retry_p3:
+                                    for issue in retry_p3[:3]:
+                                        retry_fe.append(f"[P3-COUNT] {issue}")
+
+                            if not retry_fe:
+                                print(f"[SSE Guard] 重试通过，所有 fact_errors/P0/P2/P3 已修正", flush=True)
+                                _saved_retry_meta = {
+                                    "_fact_retry": True,
+                                    "_fact_retry_passed": True,
+                                    "_fact_errors_before_retry": fact_errors.copy(),
+                                }
+                                result = retry_result
+                                result.update(_saved_retry_meta)
+                                result["_poi_name_warnings"] = retry_p0
+                                result["_poi_context_warnings"] = retry_p2
+                                result["_direct_competitor_count_warnings"] = retry_p3
+                                fact_errors = []
                             else:
                                 print(f"[SSE Guard] 重试仍失败: {'; '.join(retry_fe[:3])}", flush=True)
                                 result["_fact_retry_failed"] = True
