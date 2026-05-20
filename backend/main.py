@@ -501,7 +501,7 @@ async def analyze_location(req: AnalyzeRequest, user: dict = Depends(get_current
 修正要求：
 - [P0-NAME] 报告中引用的POI名称必须在数据源(poi_lists/direct_competitor_list/substitute_list/traffic_anchor_list/hot_brands)中真实存在，不得凭自身知识编造名称
 - [P2-CTX] 替代性竞品(substitute)和客流锚点(anchor)不得在竞品语境中被写成直接竞品，必须标注"非直接竞品"或"客流锚点"
-- [P3-COUNT] 报告中声称的直接竞品/替代竞品/锚点数量不得大于real_data中对应字段的数值
+- [P3-COUNT] 报告中声称的直接竞品数量不得大于 real_data 中对应 direct_competitors_* 字段的数值
 - 报告中所有 POI 数量必须与上方数据表格中的数字完全一致
 - 不得自行估算、放大或缩小任何数字
 - 不确定的数字改用"需线下核验"替代

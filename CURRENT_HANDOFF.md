@@ -475,7 +475,7 @@ P0（POI 名称幻觉）、P2（substitute/anchor 写成 direct）、P3（竞品
 
 - P0: `check_poi_name_hallucination(strict=True)` — 编造不存在于 real_data 的 POI 名称 → 加入 fact_errors → 触发 retry → retry 仍失败 → 退款/不保存
 - P2: `check_poi_context_mismatch` — substitute/anchor 在竞品语境中被写成 direct → 同上
-- P3: `check_direct_competitor_count_mismatch` — 竞品数量与 real_data 不一致 → 同上
+- P3: `check_direct_competitor_count_mismatch` — 报告中直接竞品数量大于 real_data 对应字段 → 同上
 - Retry prompt 新增 P0/P2/P3 修正引导
 - Post-retry 重检 P0/P2/P3，有残留 → retry 失败
 
