@@ -1,4 +1,4 @@
-# Current Handoff - 2026-05-20
+# Current Handoff - 2026-05-19
 
 ## Phase 8C Status
 
@@ -349,13 +349,9 @@ P9D 发现 "低频目的零售"、"民宿青旅"、"夜经济娱乐" 作为 busi
 - **宠物店 (P10-3)**: direct=0，无跨行业污染。美容/美发/健身未误入宠物 direct。
 - **健身房 (P10-4)**: direct=0，irrelevant_excluded=1。动感单车/搏击/跆拳道未误入 direct；美容/宠物/洗衣/诊所未跨行业污染。
 
-**P10 结果**: 4/4 saved (IDs 71-74), 0 retry, 0 retry_failed, 0 refund, 0 timeout.
-
 ### Phase 6-10 全量验收总结
 
-Phase 6-8 为规则引擎、样本库与 LLM 护栏建设期。正式 API 保存统计以 Phase 9-10 DB 新增 id 为准。
-
-#### 正式保存报告统计 (Phase 9-10)
+#### 正式保存报告统计
 
 | 指标 | 值 |
 |---|---|
@@ -379,10 +375,10 @@ Phase 6-8 为规则引擎、样本库与 LLM 护栏建设期。正式 API 保存
 
 #### 替代消费准确
 
-- 多数 master 已具备 substitute_before_direct，少数为 subtype-only 或后续优化项；非阻塞
+- 12/14 master 拥有 substitute_before_direct（火锅_烧烤缺失，专业生活服务/社区基础服务仅 subtype 级）
 - subtype 级 substitute_keywords 生效（宠物美容→substitute、家政→substitute、动感单车→substitute）
 - P2 检查（POI 语境误用）存在但仅 warning
-- **结论：核心路径可用，少数 master/subtype-only 的 sub_first gap 属后续优化项，不阻塞现有业态。**
+- **结论：核心路径可用，sub_first 缺失在 2 master 属已知 gap，不阻塞现有业态。**
 
 #### 客流锚点准确
 
@@ -444,23 +440,71 @@ Phase 6-8 为规则引擎、样本库与 LLM 护栏建设期。正式 API 保存
 - Phase 9F: verified mapping fix through formal API save chain (IDs 60-62); rigor_enabled=true confirmed.
 - Phase 9G: 8-sample post-fix expansion (IDs 63-70); 4 addresses × 5 business types; 0 retry failures, 0 refunds.
 - Phase 10: 4 subtype boundary clean check (IDs 71-74); acceptance recommendation: **go for product acceptance / small traffic.**
+- Phase 8B added subtype-level `substitute_keywords` support for Pet/Fitness/Laundry.
+- Phase 8B-fix removed Laundry `维修` pollution; phone/home appliance/computer repair are not direct and not substitute.
+- Phase 8C added Section AD subtype substitute boundary regression tests.
+
+Important nuance: Phase 8C Section AD is mostly rule-layer regression via `_cr`, with comments where it bypasses dewatering. It validates subtype substitute boundaries, but does not replace real report expansion.
 
 ## Current Product Accuracy State
 
-- High-risk direct classification guarded by `require_name_keyword_for_code` + `substitute_before_direct` + Section AB invariants; all amap_codes masters enforce keyword lock.
-- fact guard remains hard-error; do not relax. Retry fallback salvaged 9/12 fact errors (75%). Observed refund rate ~5% (2/37 Phase 9-10 saved reports).
-- Report boundary disclaimer ("本报告为选址初筛参考，需线下实地核验") is prompt-enforced and confirmed in all 37 Phase 9-10 reports.
-- Phase 9E master self-mapping fix ensures 43 entry types → 14 masters all resolve correctly; no empty-POI regression.
-- Sample Bank: 12 complete + 10 partial (2158 PASS). Remaining partial groups should not be forced complete without stable national substitutes.
-- Phase 10 recommendation: **go for product acceptance / small traffic.** No blocking direct/substitute/anchor/irrelevant issues remain.
+- High-risk direct classification is guarded by `require_name_keyword_for_code`, `substitute_before_direct`, and Section AB invariants.
+- fact guard remains hard-error; do not relax it.
+- retry fallback has already saved 3 real reports and reduced observed refund rate from about 28% to 11%.
+- Report boundary disclaimer is prompt-enforced and verified in a real report.
+- Remaining Sample Bank partial groups should not be forced complete without stable national substitute definitions.
 
 ## Next Recommended Phase
 
-**Product acceptance / small traffic.** Phase 6-8 built the rules/sample-bank/guard foundation. Phase 9-10 delivered 37 formal API-saved reports (DB max id 74) across 5 master groups and 4 subtype groups, with 0 Phase 10 retry failures and 0 Phase 10 refunds.
+Phase 9: targeted real report expansion to 30-40 total real samples.
 
-Next window should observe real user reports for quality, not expand random samples. Known non-blocking gaps (sub_first on a few masters, categories_excluded gaps, P0/P2/P3 warning-only) can be addressed in subsequent optimization phases.
+Focus areas:
+- newly changed subtype substitute areas: Pet, Fitness, Laundry
+- low-coverage areas: Low Frequency Retail, Community Services, Night Economy, Hotels
+- retry/fact_errors monitoring
 
-## Hard Boundaries (for subsequent phases)
+Do not run random samples. Do not continue forcing Sample Bank completion. Do not push.
 
+## Hard Boundaries
+
+- No push.
+- No frontend / UI / PDF changes.
+- No database schema changes.
+- Do not process `tmp_*` artifacts.
 - Do not relax `report_fact_guard.py`.
 - Do not weaken `require_name_keyword_for_code`, `substitute_before_direct`, `strict_exclude_names`, or `exclude_names`.
+
+---
+
+## Next Window Priority - Phase 10 Quick Wrapup
+
+Stop broad Phase 9 expansion. The main repair path has already been handled:
+
+- Code fix: `3484608` maps master business types to real POI config.
+- Latest docs: `a365727` records Phase 9G post-fix saved-chain regression.
+- Baseline: compileall PASS / industry `2158 PASS, 0 FAIL` / fact guard `92 PASS, 0 FAIL`.
+- DB after Phase 9G: `analysis_records` count/max id = `70/70`.
+- Worktree should still only have untracked `tmp_*` artifacts.
+
+Phase 9G verified official API save path after the mapping fix:
+- IDs `63-70` saved.
+- `rigor_enabled=True` for 8/8.
+- real POI non-empty for 8/8.
+- retry passed 2/2.
+- no known blocking direct/substitute/anchor/irrelevant issue remains.
+
+Next window should quickly run Phase 10 subtype saved-chain checks, then summarize acceptance. Do not keep expanding samples.
+
+Suggested Phase 10 samples:
+1. `洗衣店 | 天河路208号`
+2. `诊所 | 建国路88号`
+3. `宠物店 | 淮海中路999号`
+4. `健身房 | 春熙路1号`
+
+After those 4 samples, write the acceptance summary:
+- Whether direct/substitute/anchor/irrelevant has any blocking issue.
+- Keep fact guard hard-error.
+- Keep retry fallback.
+- Whether product acceptance / small traffic can begin.
+
+Suggested commit: `docs: summarize Phase 10 accuracy acceptance`.

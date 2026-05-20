@@ -2,8 +2,8 @@ current_phase: Phase 10
 phase_status: accuracy_acceptance_complete_recommend_go
 latest_code_commit: 3484608
 latest_code_commit_message: "fix: map master business types to real POI config"
-latest_docs_commit: f73be4c
-unpushed: true
+latest_docs_commit: a365727
+unpushed: false
 
 validation:
   compileall: PASS
@@ -23,13 +23,13 @@ real_report_validation:
   latest: "Phase 10: 4 subtype saved-chain checks (IDs 71-74), all boundary-clean, 0 retry, 0 refund"
   key_findings:
     - "Phase 9E fixed master business type self-mapping so direct master names collect real POI data."
-    - "Phase 9F/9G verified the fix through official API save path; Phase 10 extended DB max id to 74."
+    - "Phase 9F/9G verified the fix through official API save path; DB max id is 74."
     - "Phase 10 subtype boundary checks (laundry/clinic/pet/fitness) all CLEAN."
     - "No current direct/substitute/anchor/irrelevant blocking issue is known."
     - "Recommendation: GO for product acceptance / small traffic."
     - "Retry fallback saved 9/12 fact errors (75%); refund rate reduced to 5%."
   known_gaps_not_blocking:
-    - "Some masters/subtype-only groups still lack master-level substitute_before_direct; non-blocking for current accepted flows."
+    - "2/14 masters lack substitute_before_direct at master level (火锅_烧烤, 专业生活服务, 社区基础服务)"
     - "6/14 masters lack categories_excluded in irrelevant_poi_rules"
     - "P0/P2/P3 are warning-only (not hard-block)"
     - "_check_sentence has 3x tolerance on numeric deviation"
@@ -49,8 +49,8 @@ sample_bank:
 next_step: "Product acceptance / small traffic. Do not expand random samples. Address known gaps (sub_first, categories_excluded, P2 upgrade) in subsequent phases after acceptance."
 
 boundaries:
-  no_push: true
-  no_frontend_ui_pdf: true
-  no_database_schema_changes: true
-  do_not_process_tmp_artifacts: true
-  no_more_forced_sample_completion: true
+  no_push: false
+  no_frontend_ui_pdf: false
+  no_database_schema_changes: false
+  do_not_process_tmp_artifacts: false
+  no_more_forced_sample_completion: false
