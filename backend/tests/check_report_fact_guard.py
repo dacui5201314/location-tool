@@ -662,6 +662,40 @@ check(len(issues) >= 1, f"P5-3 应触发: {issues}")
 check(any("competitors_200m" in i for i in issues), f"P5-3 包含旧口径: {issues}")
 
 # ═══════════════════════════════════════════════════════════════
+# Phase 12: 收窄容忍 + 禁止决策语言 + 财务单点检测
+# ═══════════════════════════════════════════════════════════════
+
+# T-P12-1: 收窄 3x 容忍 — expected=8, reported=23 必须 fail
+print("=== T-P12-1: 收窄容忍 (max(e+3, e*2)) ===")
+rd_p12 = {"rigor_enabled": False, "stats_200m": {}, "stats_500m": {"schools": 8}, "stats_1000m": {}}
+result_p12 = _result_with_text("500米内23所学校，学区属性突出。")
+issues_p12 = validate_report_fact_consistency(result_p12, rd_p12)
+check(len(issues_p12) >= 1, f"P12-1 expected=8 reported=23 > max(11,16)=16 应触发: {issues_p12}")
+
+# T-P12-1b: expected=8, reported=15 should pass (15 <= max(11,16))
+rd_p12b = {"rigor_enabled": False, "stats_200m": {}, "stats_500m": {"schools": 8}, "stats_1000m": {}}
+result_p12b = _result_with_text("500米内15所学校，学区属性突出。")
+issues_p12b = validate_report_fact_consistency(result_p12b, rd_p12b)
+# 15 > max(8+3, 8*2) = max(11, 16) = 16? No, 15 <= 16. So should pass.
+# Wait, max(8+3, 8*2) = max(11, 16) = 16. 15 <= 16 → should NOT trigger
+check(len(issues_p12b) == 0, f"P12-1b expected=8 reported=15 <= max(11,16)=16 不应触发: {issues_p12b}")
+
+# T-P12-2: 禁止推荐语言
+print("=== T-P12-2: 禁止推荐/不推荐决策语言 ===")
+check_prohibited_decision_language = _rfg.check_prohibited_decision_language
+check_single_point_financial = _rfg.check_single_point_financial
+check(len(check_prohibited_decision_language("建议推荐开店，此处适合投资。")) >= 1, "P12-2 推荐开店应触发")
+check(len(check_prohibited_decision_language("强烈建议在此开店。")) >= 1, "P12-2 强烈建议应触发")
+check(len(check_prohibited_decision_language("本报告为选址初筛参考，需线下实地核验。")) == 0, "P12-2 安全措辞不应触发")
+check(len(check_prohibited_decision_language("适合作为候选点继续核验，风险点包括...")) == 0, "P12-2 候选点+风险点不应触发")
+
+# T-P12-3: 财务单点精确数字
+print("=== T-P12-3: 财务单点精确数字检测 ===")
+check(len(check_single_point_financial("月净利 4.7 万元，回本 124 天。")) >= 1, "P12-3 单点财务应触发")
+check(len(check_single_point_financial("月净利 3-5 万元，回本周期约 6-9 个月。")) == 0, "P12-3 区间财务不应触发")
+check(len(check_single_point_financial("月净利约 5 万（模型假设，需核验）。")) == 0, "P12-3 模型假设标注不应触发")
+
+# ═══════════════════════════════════════════════════════════════
 print(f"\n{'='*50}")
 print(f"TOTAL: {p} PASS, {f} FAIL")
 if f == 0:

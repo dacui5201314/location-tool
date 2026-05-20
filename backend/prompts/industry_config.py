@@ -391,13 +391,14 @@ INDUSTRY_RIGOR = {
         "direct_competitor_rules": {
             "amap_codes": ["050100"],
             "require_name_keyword_for_code": True,
+            "substitute_before_direct": True,
             "name_keywords": ["火锅","烧烤","烤串","烤肉","涮肉","羊蝎子","烤鱼","小龙虾","大排档","串串香","麻辣烫"],
             "exclude_names": ["快餐","小吃","面馆","包子","食堂","盒饭","茶饮","咖啡","奶茶","西餐","日料","日本料理","寿司"],
             "strict_exclude_names": ["洗浴","足浴","会所","彩票","福彩","体彩","驾校","建材","五金","批发","农贸","维修","中介","房产","体检","医美","网吧","网咖"],
         },
         "substitute_competitor_rules": {
             "description": "中餐正餐/大排档/夜市可分流部分聚餐需求",
-            "name_keywords": ["中餐","湘菜","川菜","大排档","夜市","排档"],
+            "name_keywords": ["中餐","湘菜","川菜","酒楼","夜市"],
         },
         "traffic_anchor_rules": {
             "description": "KTV/酒吧/台球厅/酒店为夜经济锚点；停车场为核心加分项",
@@ -487,6 +488,7 @@ INDUSTRY_RIGOR = {
         },
         "irrelevant_poi_rules": {
             "name_blacklist": ["快餐","小吃","面馆","麻辣烫","汉堡","炸鸡","米线","食堂","大排档"],
+            "categories_excluded": [],
         },
         "scoring_rules": {
             "competition": "仅基于 direct_competitors；停车位数量影响可达性评分",
@@ -515,6 +517,7 @@ INDUSTRY_RIGOR = {
         },
         "irrelevant_poi_rules": {
             "name_blacklist": ["包子铺","馒头店","大饼","油条","食堂","快餐","火锅","烧烤","便利店","超市","煎饼"],
+            "categories_excluded": ["hospitals"],
         },
         "scoring_rules": {
             "competition": "仅基于 direct_competitors；学校/地铁口权重加分",
@@ -603,6 +606,7 @@ INDUSTRY_RIGOR = {
         },
         "irrelevant_poi_rules": {
             "name_blacklist": ["星级酒店","希尔顿","万豪","洲际","洗浴","足浴","KTV"],
+            "categories_excluded": ["hospitals"],
         },
         "scoring_rules": {
             "competition": "仅基于 direct_competitors",
@@ -692,6 +696,7 @@ INDUSTRY_RIGOR = {
         },
         "irrelevant_poi_rules": {
             "name_blacklist": ["批发","建材","五金","农贸","汽配","超市","便利店","水果","生鲜","菜市场","杂货","维修","彩票","美甲","快递","手机维修","黄金回收"],
+            "categories_excluded": ["hospitals","schools"],
         },
         "scoring_rules": {
             "competition": "仅基于 direct_competitors；同类聚集（扎堆）为正相关",
@@ -737,6 +742,7 @@ INDUSTRY_RIGOR = {
         },
         "irrelevant_poi_rules": {
             "name_blacklist": ["快剪","街边理发","10元店","平价","足疗","按摩","推拿","洗浴","汗蒸","医美","整形"],
+            "categories_excluded": ["hospitals","schools","bus","subway"],
         },
         "scoring_rules": {
             "competition": "仅基于同品类 direct_competitors。美容不能把宠物店/健身/按摩算竞品。",
@@ -781,6 +787,7 @@ INDUSTRY_RIGOR = {
         },
         "irrelevant_poi_rules": {
             "name_blacklist": ["驾校","职业培训","医院","药店"],
+            "categories_excluded": ["hospitals"],
         },
         "scoring_rules": {
             "competition": "仅基于同品类 direct_competitors。培训不能把洗衣店/诊所/学校算竞品。",

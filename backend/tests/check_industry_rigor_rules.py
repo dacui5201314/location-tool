@@ -773,7 +773,7 @@ for name in ["火锅店","毛肚火锅","川味火锅","烧烤店","烤肉店","
     check_direct("火锅_烧烤", "某某"+name, "050100", "火锅店")
 for name in ["快餐店","小吃店","面馆","包子铺","食堂","奶茶店","咖啡店"]:
     check_not_direct("火锅_烧烤", "某某"+name, "050100", "火锅店")
-for name in ["中餐馆","湘菜馆","川菜馆","夜市","排档"]:
+for name in ["中餐馆","湘菜馆","川菜馆","酒楼","夜市"]:
     check_sub("火锅_烧烤", "某某"+name, "050100", "火锅店")
 for name in ["茶饮店","咖啡店"]:
     check_not_direct("火锅_烧烤", "某某"+name, "050500", "火锅店")
@@ -1089,8 +1089,21 @@ for name, code in [("麻将馆","050300"),("棋牌麻将馆","050300"),("医院"
 
 # ===== AB. Code Safety Invariants =====
 # 逐 source 扫描：master + subtype 的 amap_codes，forbidden 不容忍，risky 必须防御
+# Phase 12 追加：所有带 amap_codes 的 master/subtype 必须显式 require_name_keyword_for_code=True
 print()
 print("=== AB. Code Safety Invariants ===")
+for mk, rig in INDUSTRY_RIGOR.items():
+    dc = rig.get("direct_competitor_rules", {})
+    codes = dc.get("amap_codes", [])
+    if codes:
+        check(dc.get("require_name_keyword_for_code") == True,
+              f"Phase12 {mk}/master: amap_codes={codes} require_name_keyword_for_code != True")
+    for sk, sr in dc.get("subtypes", {}).items():
+        sc = sr.get("amap_codes", [])
+        if sc:
+            req = sr.get("require_name_keyword_for_code", dc.get("require_name_keyword_for_code"))
+            check(req == True,
+                  f"Phase12 {mk}/subtype:{sk}: amap_codes={sc} require_name_keyword_for_code != True")
 _forbidden_codes = {"050000","060000","070000","090000","120000"}
 _risky_codes = {"050100","050200","050300","050600","060100","060400","100000"}
 for mk, rig in INDUSTRY_RIGOR.items():

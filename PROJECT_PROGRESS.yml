@@ -1,19 +1,29 @@
-current_phase: Phase 11
-phase_status: pre_launch_blockers_addressed
+current_phase: Phase 12
+phase_status: launch_ready_gaps_cleared
 latest_code_commit: c9443d9
 latest_code_commit_message: "feat: upgrade P0/P2/P3 to hard-error, add strict_exclude to 7 masters"
 latest_docs_commit: dba27f1
 unpushed: true
-latest_phase11_changes:
-  - "P0/P2/P3 upgraded from warning-only to hard-error with retry fallback (main.py)"
-  - "strict_exclude_names added to 7 high-risk masters (industry_config.py)"
-  - "Display chain verified: DB/HTML/frontend pages/API proxy all consistent"
 
 validation:
   compileall: PASS
-  industry: "2158 PASS, 0 FAIL"
-  fact_guard: "92 PASS, 0 FAIL"
+  industry: "2168 PASS, 0 FAIL"
+  fact_guard: "101 PASS, 0 FAIL"
   known_rule_gaps: none
+
+phase12_changes:
+  - "火锅_烧烤 sub_first fixed: removed 大排档/排档 from substitute, added 酒楼"
+  - "AB invariant: all masters/subtypes with amap_codes must explicitly req_kw=True"
+  - "categories_excluded added to 6 masters (中餐/烘焙/民宿/低频零售/专业生活/社区基础)"
+  - "_check_sentence tolerance narrowed: 3x -> max(e+3, e*2)"
+  - "Prohibited decision language detection added (7 patterns -> fact_errors)"
+  - "Single-point financial number detection added (-> fact_errors)"
+  - "Display chain verified: DB/HTML/frontend/API proxy consistent"
+
+intentionally_partial:
+  - "10 sample bank groups lack sufficient substitute samples (stable national definitions unavailable)"
+  - "radius fallback (1000m default) noted as future optimization"
+  - "Few masters still lack master-level sub_first (non-blocking)"
 
 real_report_validation:
   db_analysis_records_total: 74
@@ -24,33 +34,13 @@ real_report_validation:
   retry_salvaged: 9
   retry_failed: 1
   actual_refunds: 2
-  latest: "Phase 10: 4 subtype saved-chain checks (IDs 71-74), all boundary-clean, 0 retry, 0 refund"
-  key_findings:
-    - "Phase 9E fixed master business type self-mapping so direct master names collect real POI data."
-    - "Phase 9F/9G verified the fix through official API save path; Phase 10 extended DB max id to 74."
-    - "Phase 10 subtype boundary checks (laundry/clinic/pet/fitness) all CLEAN."
-    - "No current direct/substitute/anchor/irrelevant blocking issue is known."
-    - "Recommendation: GO for product acceptance / small traffic."
-    - "Retry fallback saved 9/12 fact errors (75%); refund rate reduced to 5%."
-  known_gaps_not_blocking:
-    - "Some masters/subtype-only groups still lack master-level substitute_before_direct; non-blocking."
-    - "6/14 masters lack categories_excluded in irrelevant_poi_rules"
-    - "P0/P2/P3 now hard-error (Phase 11 fix) - resolved"
-    - "_check_sentence has 3x tolerance on numeric deviation"
-    - "'nearby/around' radius default fallback to 1000m"
 
 sample_bank:
   complete_candidate: 12
   partial: 10
-  latest_industry_test_total: "2158 PASS, 0 FAIL"
-  notes:
-    - "Phase 8 added stable nightlife/immersive substitute coverage"
-    - "Phase 8B added subtype substitute support for Pet/Fitness/Laundry"
-    - "Laundry repair boundary tightened: repair services are not substitute"
-    - "Remaining partial groups must not be forced complete without stable national substitutes"
-    - "Section A2 (master self-mapping) + AE (real-chain regression) added in Phase 9E"
+  latest_industry_test_total: "2168 PASS, 0 FAIL"
 
-next_step: "Product acceptance / small traffic. Phase 11 resolved P0/P2/P3 hard-error + strict_exclude_names for 7 high-risk masters + display chain verified. Remaining gaps (3x tolerance, radius fallback, sub_first on few masters) are optimization items for post-launch."
+next_step: "Product acceptance / small traffic. All known blocking gaps cleared. 10 partial sample bank groups are intentionally partial due to lack of stable national substitute definitions."
 
 boundaries:
   no_push: true

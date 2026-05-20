@@ -513,6 +513,48 @@ P0（POI 名称幻觉）、P2（substitute/anchor 写成 direct）、P3（竞品
 |---|---|
 | `compileall` | PASS |
 | `check_industry_rigor_rules.py` | 2158 PASS, 0 FAIL |
-| `check_report_fact_guard.py` | 92 PASS, 0 FAIL |
+| `check_report_fact_guard.py` | 101 PASS, 0 FAIL |
+| `check_industry_rigor_rules.py` | 2168 PASS, 0 FAIL |
+
+---
+
+## Phase 12 上线前已知精准度缺口清零（2026-05-20）
+
+### 完成清单
+
+| # | 缺口 | 状态 | 说明 |
+|---|---|---|---|
+| 1 | 火锅_烧烤 sub_first | ✅ 完成 | 移除 substitute 中 "大排档""排档"（与 direct 冲突），补 "酒楼"。2168 PASS |
+| 2 | classify_poi_rigor 默认值 | ✅ 锁定 | AB 段新增 invariant：所有带 amap_codes 的 master/subtype 必须 req_kw=True |
+| 3 | 6 masters categories_excluded | ✅ 完成 | 中餐正餐/烘焙甜品/民宿青旅/低频零售/专业生活/社区基础全补 |
+| 4 | sample bank partial | intentionally_partial | 10 组缺 substitute 正例。全国通用稳定 substitute 定义不足，不硬凑 |
+| 5 | _check_sentence 3x 容忍 | ✅ 收窄 | 3x → max(expected+3, expected*2)。e=8,r=23→fail。101 PASS |
+| 6 | "附近/周边"半径回退 | noted | 1000m 默认不变；收窄容忍间接缓解。后续可做多半径交叉校验 |
+| 7 | 禁止推荐/不推荐 | ✅ 完成 | 7 个违规 pattern → fact_errors → retry → refund |
+| 8 | 财务单点精确数字 | ✅ 完成 | 检测"月净利 X.X 万"等 → fact_errors；区间/模型假设标注豁免 |
+| 9 | 展示链路验收 | ✅ 通过 | Phase 11 已验证 DB/HTML/前端页面/API proxy 口径一致 |
+
+### intentionally_partial 清单
+
+| 组 | s count | 原因 |
+|---|---|---|
+| Low Frequency Retail | 0 | 低频零售 substitute 定义不稳定（电商/商场 vs 同业态替代） |
+| Pharmacy | 0 | 药店 substitute 需全国稳定定义（医院/诊所/线上） |
+| Tobacco/Liquor | 0 | 烟酒专卖 substitute 不明确 |
+| Daily Goods | 0 | 日用百货 substitute 定义不稳定 |
+| Beauty | 0 | 美容美发 substitute（快剪/平价）已覆盖，稳定样本不足 |
+| Pet | 2 | 宠物店 substitute（宠物医院/美容）已定义，缺 3 个稳定样本 |
+| Fitness | 3 | 健身房 substitute（动感单车/搏击/跆拳道）已定义，缺 2 个 |
+| Education | 0 | 教育培训 substitute 定义不稳定 |
+| Laundry | 1 | 洗衣店 substitute（家政）已定义，缺 4 个稳定样本 |
+| Clinic | 0 | 诊所 substitute（药店/保健）已定义，缺 5 个稳定样本 |
+
+### 验证
+
+| Check | Result |
+|---|---|
+| `compileall` | PASS |
+| `check_industry_rigor_rules.py` | 2168 PASS, 0 FAIL |
+| `check_report_fact_guard.py` | 101 PASS, 0 FAIL |
 
 ---

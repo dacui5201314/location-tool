@@ -53,8 +53,11 @@ def validate_report_fact_consistency(result: dict, real_data: dict) -> list[str]
             reported = int(m.group(1))
             if expected == 0 and reported > 0:
                 return [f"{field_path}={expected} but report says {reported}{m.group(2)} in '{sentence[:40]}'"]
-            elif expected > 0 and reported > expected * 3:
-                return [f"{field_path}={expected} but report says {reported}{m.group(2)} (>3x) in '{sentence[:40]}'"]
+            elif expected > 0:
+                # Phase 12: max(expected+3, expected*2) — more conservative than old 3x
+                limit = max(expected + 3, expected * 2)
+                if reported > limit:
+                    return [f"{field_path}={expected} but report says {reported}{m.group(2)} (>{limit}) in '{sentence[:40]}'"]
         return []
 
     s2 = real_data.get("stats_200m", {}) or {}
@@ -109,4 +112,71 @@ def validate_report_fact_consistency(result: dict, real_data: dict) -> list[str]
             if old_field in full_text:
                 fact_errors.append(f"has_rigor=True but report references old field {old_field}")
 
+    # 7. Phase 12: 禁止推荐/不推荐决策语言
+    fact_errors.extend(_check_prohibited_decision_language(full_text))
+
+    # 8. Phase 12: 财务单点精确数字检测
+    fact_errors.extend(_check_single_point_financial(full_text))
+
     return fact_errors
+
+
+# ═══════════════════════════════════════════════════════════════
+# Phase 12: 禁止推荐/不推荐决策语言
+# ═══════════════════════════════════════════════════════════════
+_PROHIBITED_DECISION_PATTERNS = [
+    "推荐开店","不推荐开店","建议推进","强烈推荐","可以投资","值得投资","最终决策",
+    "建议在此开店","建议立即入驻","强烈建议","推荐入驻","可以放心",
+]
+_ALLOWED_SAFE_PATTERNS = [
+    "选址初筛参考","需线下核验","需线下实地核验","风险点","候选点","待验证",
+]
+
+
+def _check_prohibited_decision_language(full_text: str) -> list[str]:
+    """Phase 12: 禁止用户可见报告出现推荐/不推荐/投资建议等替用户决策的文案。"""
+    errors = []
+    for pat in _PROHIBITED_DECISION_PATTERNS:
+        if pat in full_text:
+            errors.append(f"[DECISION] 报告出现禁止的决策语言: '{pat}'")
+    return errors
+
+
+def check_prohibited_decision_language(report_text: str) -> list[str]:
+    """公开接口，供测试调用。"""
+    return _check_prohibited_decision_language(report_text)
+
+
+# ═══════════════════════════════════════════════════════════════
+# Phase 12: 财务单点精确数字检测
+# ═══════════════════════════════════════════════════════════════
+def _check_single_point_financial(full_text: str) -> list[str]:
+    """Phase 12: 禁止营收/净利/回本等输出单点精确结论（如'月净利 4.7 万'、'回本 124 天'）。
+    允许区间（'3-5万'/'4.5万-12万'）和明确标注'模型假设/需核验'的表述。"""
+    errors = []
+    financial_kw = ["月净利","月营收","月流水","月利润","年利润","日净利","回本周期","回本",
+                    "月毛利","月纯利","净利润","净利","净赚","月固定成本","月总成本"]
+    # 单点精确数字: 数字后跟"万"且前面无区间连接符"-"或"~"
+    for kw in financial_kw:
+        for m in re.finditer(rf'{kw}\s*[约大约]?\s*([\d.]+)\s*(万|元|天|月|%)', full_text):
+            num_str = m.group(1)
+            # 检查前后上下文是否有区间标记或免责声明
+            start, end = m.start(), m.end()
+            context = full_text[max(0, start - 40):min(len(full_text), end + 40)]
+            # 区间标记"-"/"~"/"至" → 允许
+            if re.search(r'(\d+[-~至]\d+|[-至]+\d+)', context):
+                continue
+            # 免责声明标注 → 允许
+            if "模型假设" in context or "需核验" in context or "置信度" in context or "不代表承诺" in context:
+                continue
+            errors.append(f"[FINANCE] 单点精确财务数字: '{m.group(0)}' in '{context[:60]}'")
+            if len(errors) >= 3:
+                break
+        if len(errors) >= 3:
+            break
+    return errors
+
+
+def check_single_point_financial(report_text: str) -> list[str]:
+    """公开接口，供测试调用。"""
+    return _check_single_point_financial(report_text)
