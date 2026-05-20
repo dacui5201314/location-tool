@@ -331,17 +331,115 @@ P9D 发现 "低频目的零售"、"民宿青旅"、"夜经济娱乐" 作为 busi
 
 ---
 
-Worktree should only contain untracked temp artifacts:
-- `tmp_latest_report_text.txt`
-- `tmp_report_images/`
-- `tmp_report_pages/`
+## Phase 10 报告精准度主线验收收口（2026-05-20）
 
-Not pushed.
+### 子业态保存链路确认（4 样本）
+
+| # | 业态 | 地址 | ID | Score | Rigor | Retry | FE | POI | D200/500 | S200/500 | A500 | Irr | Disc | Boundary |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| P10-1 | 洗衣店 | 天河路208号 | 71 | 55 | Y | 无 | 0/0 | 498 | 0/0 | 0/0 | 6 | 0 | Y | CLEAN |
+| P10-2 | 诊所 | 建国路88号 | 72 | 50 | Y | 无 | 0/0 | 389 | 2/5 | 0/0 | 5 | 0 | Y | CLEAN |
+| P10-3 | 宠物店 | 淮海中路999号 | 73 | 49 | Y | 无 | 0/0 | 541 | 0/0 | 0/0 | 82 | 0 | Y | CLEAN |
+| P10-4 | 健身房 | 春熙路1号 | 74 | 40 | Y | 无 | 0/0 | 396 | 0/0 | 0/0 | 81 | 1 | Y | CLEAN |
+
+### 子业态边界验收
+
+- **洗衣店 (P10-1)**: direct_list 为空。无家政/维修/皮具护理/擦鞋误入 direct 或 substitute。
+- **诊所 (P10-2)**: direct=2/5，5 个 direct 均为真实诊所/门诊部（维康门诊、久久康迈中医门诊部、清风博士...诊所、城建道桥门诊部、麒阳诊所）。无医院/药店/体检/医美/眼科/助听器/口腔误入 direct。substitute=0。
+- **宠物店 (P10-3)**: direct=0，无跨行业污染。美容/美发/健身未误入宠物 direct。
+- **健身房 (P10-4)**: direct=0，irrelevant_excluded=1。动感单车/搏击/跆拳道未误入 direct；美容/宠物/洗衣/诊所未跨行业污染。
+
+### Phase 6-10 全量验收总结
+
+#### 正式保存报告统计
+
+| 指标 | 值 |
+|---|---|
+| DB analysis_records 总数 | **74** |
+| Phase 9-10 正式 API 保存 | **37** (IDs 41-57 + 60-74) |
+| 直连 smoke verification | 3 (P9E, 未落库) |
+| 空 POI 无效样本 | 3 (P9D, 不计入) |
+| fact_errors 触发 | 12 |
+| retry 挽救 | **9** (75%) |
+| retry 失败 | **1** (8%) |
+| actual_refunds | **2** (5%) |
+
+#### 直接竞品准确
+
+- 14/14 master 拥有 direct_competitor_rules
+- 所有使用 amap_codes 的 master 强制 `require_name_keyword_for_code=true`
+- 060000/070000/090000/120000 宽泛 code 未被任何 master 用作 amap_codes
+- 050300/100000 等高风险 code 有 name_keywords + exclude_names 双层防护
+- 43 个前台入口 → 14 个 master 映射完整（Phase 9E 修复）
+- **结论：无已知 direct 阻塞。代码穿透风险已消除。**
+
+#### 替代消费准确
+
+- 12/14 master 拥有 substitute_before_direct（火锅_烧烤缺失，专业生活服务/社区基础服务仅 subtype 级）
+- subtype 级 substitute_keywords 生效（宠物美容→substitute、家政→substitute、动感单车→substitute）
+- P2 检查（POI 语境误用）存在但仅 warning
+- **结论：核心路径可用，sub_first 缺失在 2 master 属已知 gap，不阻塞现有业态。**
+
+#### 客流锚点准确
+
+- 14/14 master 拥有 traffic_anchor_rules
+- P2 可检测 anchor 被写成竞品（warning-only）
+- **结论：核心路径可用。P2 warning 不阻塞保存但应后续升级为 hard-error。**
+
+#### 无关 POI 剔除
+
+- 8/14 master 拥有 categories_excluded
+- 高频刚需零售 strict_exclude_names 72 条为最完整
+- 6 master 缺 categories_excluded（中餐正餐、烘焙甜品、民宿青旅、低频目的零售、专业生活服务、社区基础服务）
+- **结论：核心业态覆盖充足。缺失的 6 master 依赖 name_blacklist 补偿，不阻塞。**
+
+#### LLM 防污染
+
+- fact_errors 硬阻断 + retry — 退款率从 28% 降至 5%
+- P0/P2/P3 三层 warning（不阻塞保存）
+- _check_sentence 3x 容忍（允许 expected×3 以内偏差）
+- "附近""周边"默认回退 1000m 半径
+- **结论：硬阻断有效（75% retry 成功率）。3x 容忍和半径回退是已知精度损失，非阻塞。**
+
+#### 样本库
+
+- 12 complete_candidate + 10 partial
+- 2158 PASS, 0 FAIL
+- Section AD subtype substitute 回归 + AE master 真实链路回归
+- **结论：核心 sample bank 可供 CI 回归，10 partial 组缺 substitute 正例。**
+
+### 产品验收/小流量建议
+
+| 判断 | 结论 |
+|---|---|
+| direct/substitute/anchor/irrelevant 是否仍有已知阻塞 | **无** |
+| fact guard 是否应保持 hard-error | **是，不可放松** |
+| retry fallback 是否继续保留 | **是（75% 挽救率）** |
+| 是否建议进入产品验收/小流量 | **建议进入。** 37 次真实 API 保存报告（DB 74 条），0 次本次 retry 失败，0 次本次 refund。核心分类、映射、LLM 护栏均已就位。 |
+| 是否还有必须先修的代码问题 | **无。** 已知 gap（2 master 缺 sub_first、6 master 缺 categories_excluded、P0/P2/P3 warning-only、3x 容忍）属后续优化项，非阻塞。 |
+
+---
+
+## Current Baseline (Phase 10)
+
+| Check | Result |
+|---|---|
+| `python -m compileall backend` | PASS |
+| `python backend/tests/check_industry_rigor_rules.py` | 2158 PASS, 0 FAIL |
+| `python backend/tests/check_report_fact_guard.py` | 92 PASS, 0 FAIL |
+| `KNOWN_RULE_GAPS` | none |
 
 ## What Changed Since Phase 7
 
-- Phase 8 added stable substitute samples for nightlife / immersive social groups.
-- Sample Bank improved from `8 complete + 14 partial` to `12 complete + 10 partial`.
+- Phase 8: stable substitute samples for nightlife / immersive social groups; Sample Bank 8→12 complete.
+- Phase 8B: subtype substitute support for Pet/Fitness/Laundry; laundry repair boundary tightened.
+- Phase 8C: Section AD subtype substitute boundary regression tests.
+- Phase 9A-9C: 17 formal API saved reports (IDs 41-57); retry fallback established at 75% salvage rate.
+- Phase 9D: 6 smoke samples; discovered master self-mapping gap (3 types with empty POI); 建国路88号 timeout confirmed as transient LLM issue.
+- Phase 9E: **fixed** 14 master self-mappings in BUSINESS_TYPE_TO_MASTER + 3 AMAP fallbacks; 43→57 entries; industry test 1961→2158 PASS.
+- Phase 9F: verified mapping fix through formal API save chain (IDs 60-62); rigor_enabled=true confirmed.
+- Phase 9G: 8-sample post-fix expansion (IDs 63-70); 4 addresses × 5 business types; 0 retry failures, 0 refunds.
+- Phase 10: 4 subtype boundary clean check (IDs 71-74); acceptance recommendation: **go for product acceptance / small traffic.**
 - Phase 8B added subtype-level `substitute_keywords` support for Pet/Fitness/Laundry.
 - Phase 8B-fix removed Laundry `维修` pollution; phone/home appliance/computer repair are not direct and not substitute.
 - Phase 8C added Section AD subtype substitute boundary regression tests.

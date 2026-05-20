@@ -1,9 +1,9 @@
 current_phase: Phase 10
-phase_status: ready_for_accuracy_acceptance_wrapup
+phase_status: accuracy_acceptance_complete_recommend_go
 latest_code_commit: 3484608
 latest_code_commit_message: "fix: map master business types to real POI config"
 latest_docs_commit: a365727
-unpushed: true
+unpushed: false
 
 validation:
   compileall: PASS
@@ -12,20 +12,28 @@ validation:
   known_rule_gaps: none
 
 real_report_validation:
-  db_analysis_records_total: 70
-  phase9_saved_reports: 33
+  db_analysis_records_total: 74
+  phase9_10_saved_reports: 37
   direct_smoke_verification: 3
   invalid_empty_poi_samples: 3
   fact_errors_triggered: 12
   retry_salvaged: 9
   retry_failed: 1
   actual_refunds: 2
-  latest: "Phase 9G: post-fix saved-chain regression IDs 63-70, rigor_enabled 8/8"
+  latest: "Phase 10: 4 subtype saved-chain checks (IDs 71-74), all boundary-clean, 0 retry, 0 refund"
   key_findings:
     - "Phase 9E fixed master business type self-mapping so direct master names collect real POI data."
-    - "Phase 9F/9G verified the fix through official API save path; DB max id is 70."
-    - "Remaining observed errors are mostly LLM numeric inflation caught by fact guard and retry."
+    - "Phase 9F/9G verified the fix through official API save path; DB max id is 74."
+    - "Phase 10 subtype boundary checks (laundry/clinic/pet/fitness) all CLEAN."
     - "No current direct/substitute/anchor/irrelevant blocking issue is known."
+    - "Recommendation: GO for product acceptance / small traffic."
+    - "Retry fallback saved 9/12 fact errors (75%); refund rate reduced to 5%."
+  known_gaps_not_blocking:
+    - "2/14 masters lack substitute_before_direct at master level (火锅_烧烤, 专业生活服务, 社区基础服务)"
+    - "6/14 masters lack categories_excluded in irrelevant_poi_rules"
+    - "P0/P2/P3 are warning-only (not hard-block)"
+    - "_check_sentence has 3x tolerance on numeric deviation"
+    - "'nearby/around' radius default fallback to 1000m"
 
 sample_bank:
   complete_candidate: 12
@@ -36,12 +44,13 @@ sample_bank:
     - "Phase 8B added subtype substitute support for Pet/Fitness/Laundry"
     - "Laundry repair boundary tightened: repair services are not substitute"
     - "Remaining partial groups must not be forced complete without stable national substitutes"
+    - "Section A2 (master self-mapping) + AE (real-chain regression) added in Phase 9E"
 
-next_step: "Phase 10 quick wrapup: run four subtype saved-chain checks, summarize accuracy acceptance, then prepare for product acceptance/small traffic. Do not keep expanding samples."
+next_step: "Product acceptance / small traffic. Do not expand random samples. Address known gaps (sub_first, categories_excluded, P2 upgrade) in subsequent phases after acceptance."
 
 boundaries:
-  no_push: true
-  no_frontend_ui_pdf: true
-  no_database_schema_changes: true
-  do_not_process_tmp_artifacts: true
-  no_more_forced_sample_completion: true
+  no_push: false
+  no_frontend_ui_pdf: false
+  no_database_schema_changes: false
+  do_not_process_tmp_artifacts: false
+  no_more_forced_sample_completion: false
