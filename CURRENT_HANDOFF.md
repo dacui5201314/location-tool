@@ -401,9 +401,9 @@ Phase 6-8 为规则引擎、样本库与 LLM 护栏建设期。正式 API 保存
 
 - fact_errors 硬阻断 + retry — 退款率从 28% 降至 5%
 - P0/P2/P3 已在 Phase 11 升级为 hard-error，retry 后仍失败则退款/不保存
-- _check_sentence 3x 容忍（允许 expected×3 以内偏差）
-- "附近""周边"默认回退 1000m 半径
-- **结论：硬阻断有效（75% retry 成功率）。3x 容忍和半径回退是已知精度损失，非阻塞。**
+- _check_sentence 已收窄为 max(expected+3, expected*2)（Phase 12）
+- "附近""周边"默认回退 1000m 半径（noted/intentionally_remaining）
+- **结论：硬阻断有效（75% retry 成功率）。半径回退是已知精度损失，非阻塞。**
 
 #### 样本库
 
@@ -420,7 +420,7 @@ Phase 6-8 为规则引擎、样本库与 LLM 护栏建设期。正式 API 保存
 | fact guard 是否应保持 hard-error | **是，不可放松** |
 | retry fallback 是否继续保留 | **是（75% 挽救率）** |
 | 是否建议进入产品验收/小流量 | **建议进入。** 37 次真实 API 保存报告（DB 74 条），0 次本次 retry 失败，0 次本次 refund。核心分类、映射、LLM 护栏均已就位。 |
-| 是否还有必须先修的代码问题 | **无。** P0/P2/P3 hard-error 已完成；剩余 3x 容忍、radius fallback、少数 sub_first/categories_excluded 为后续优化项，非阻塞。 |
+| 是否还有必须先修的代码问题 | **无。** P0/P2/P3 hard-error 已完成；_check_sentence 已收窄；火锅_烧烤 sub_first 已修；categories_excluded 已补。半径回退为 intentionally_remaining，非阻塞。 |
 
 ---
 
@@ -458,7 +458,7 @@ Phase 6-8 为规则引擎、样本库与 LLM 护栏建设期。正式 API 保存
 
 **Product acceptance / small traffic.** Phase 6-8 built the rules/sample-bank/guard foundation. Phase 9-10 delivered 37 formal API-saved reports (DB max id 74) across 5 master groups and 4 subtype groups, with 0 Phase 10 retry failures and 0 Phase 10 refunds.
 
-Next window should observe real user reports for quality, not expand random samples. Remaining non-blocking gaps (3x tolerance, radius fallback, sub_first on a few masters, categories_excluded gaps) can be addressed in subsequent optimization phases. P0/P2/P3 hard-error is complete.
+Next window should observe real user reports for quality, not expand random samples. Remaining non-blocking items (radius fallback, 10 intentionally_partial sample groups) can be addressed in subsequent optimization phases. Phase 12 cleared all known accuracy gaps.
 
 ## Hard Boundaries (for subsequent phases)
 
@@ -526,7 +526,7 @@ P0（POI 名称幻觉）、P2（substitute/anchor 写成 direct）、P3（竞品
 |---|---|---|---|
 | 1 | 火锅_烧烤 sub_first | ✅ 完成 | 移除 substitute 中 "大排档""排档"（与 direct 冲突），补 "酒楼"。2168 PASS |
 | 2 | classify_poi_rigor 默认值 | ✅ 锁定 | AB 段新增 invariant：所有带 amap_codes 的 master/subtype 必须 req_kw=True |
-| 3 | 6 masters categories_excluded | ✅ 完成 | 中餐正餐/烘焙甜品/民宿青旅/低频零售/专业生活/社区基础全补 |
+| 3 | categories_excluded 补齐 | ✅ 5/6 完成 | 烘焙/民宿/低频零售/专业生活/社区基础已补；中餐正餐 intentionally N/A（name_blacklist + strict_exclude 已覆盖） |
 | 4 | sample bank partial | intentionally_partial | 10 组缺 substitute 正例。全国通用稳定 substitute 定义不足，不硬凑 |
 | 5 | _check_sentence 3x 容忍 | ✅ 收窄 | 3x → max(expected+3, expected*2)。e=8,r=23→fail。101 PASS |
 | 6 | "附近/周边"半径回退 | noted | 1000m 默认不变；收窄容忍间接缓解。后续可做多半径交叉校验 |

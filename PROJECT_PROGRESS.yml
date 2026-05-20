@@ -1,8 +1,8 @@
 current_phase: Phase 12
 phase_status: launch_ready_gaps_cleared
-latest_code_commit: c9443d9
-latest_code_commit_message: "feat: upgrade P0/P2/P3 to hard-error, add strict_exclude to 7 masters"
-latest_docs_commit: dba27f1
+latest_code_commit: 52cc749
+latest_code_commit_message: "feat: complete pre-launch accuracy hardening"
+latest_docs_commit: f92d78b
 unpushed: true
 
 validation:
@@ -14,7 +14,7 @@ validation:
 phase12_changes:
   - "火锅_烧烤 sub_first fixed: removed 大排档/排档 from substitute, added 酒楼"
   - "AB invariant: all masters/subtypes with amap_codes must explicitly req_kw=True"
-  - "categories_excluded added to 6 masters (中餐/烘焙/民宿/低频零售/专业生活/社区基础)"
+  - "categories_excluded added to 5 masters (烘焙/民宿/低频零售/专业生活/社区基础); 中餐 intentionally N/A"
   - "_check_sentence tolerance narrowed: 3x -> max(e+3, e*2)"
   - "Prohibited decision language detection added (7 patterns -> fact_errors)"
   - "Single-point financial number detection added (-> fact_errors)"

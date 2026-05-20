@@ -488,7 +488,8 @@ INDUSTRY_RIGOR = {
         },
         "irrelevant_poi_rules": {
             "name_blacklist": ["快餐","小吃","面馆","麻辣烫","汉堡","炸鸡","米线","食堂","大排档"],
-            "categories_excluded": [],
+            # ★ categories_excluded intentionally omitted: all common categories
+            # (schools/hospitals/office/shopping) are valid anchors for 中餐
         },
         "scoring_rules": {
             "competition": "仅基于 direct_competitors；停车位数量影响可达性评分",
