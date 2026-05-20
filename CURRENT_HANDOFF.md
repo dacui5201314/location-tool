@@ -382,7 +382,7 @@ Phase 6-8 为规则引擎、样本库与 LLM 护栏建设期。正式 API 保存
 - 多数 master 已具备 substitute_before_direct，少数为 subtype-only 或后续优化项；非阻塞
 - subtype 级 substitute_keywords 生效（宠物美容→substitute、家政→substitute、动感单车→substitute）
 - P2 检查（POI 语境误用）存在但仅 warning
-- **结论：核心路径可用，少数 master/subtype-only 的 sub_first gap 属后续优化项，不阻塞现有业态。**
+- **结论：火锅_烧烤 sub_first 已在 Phase 12 修复；如未来新增 subtype，继续按 AB invariant 回归。**
 
 #### 客流锚点准确
 
@@ -392,10 +392,10 @@ Phase 6-8 为规则引擎、样本库与 LLM 护栏建设期。正式 API 保存
 
 #### 无关 POI 剔除
 
-- 8/14 master 拥有 categories_excluded
+- categories_excluded 已补至 5 个原缺口 master（烘焙甜品/民宿青旅/低频目的零售/专业生活服务/社区基础服务）
+- 中餐正餐 intentionally N/A：schools/hospitals/office/shopping 等常见 category 对中餐可作为有效 anchor，不做 category-level 剔除，依赖 name_blacklist + strict_exclude_names
 - 高频刚需零售 strict_exclude_names 72 条为最完整
-- 6 master 缺 categories_excluded（中餐正餐、烘焙甜品、民宿青旅、低频目的零售、专业生活服务、社区基础服务）
-- **结论：核心业态覆盖充足。缺失的 6 master 依赖 name_blacklist 补偿，不阻塞。**
+- **结论：核心业态覆盖充足。中餐 N/A 和 name_blacklist 补偿不阻塞。**
 
 #### LLM 防污染
 
@@ -458,7 +458,7 @@ Phase 6-8 为规则引擎、样本库与 LLM 护栏建设期。正式 API 保存
 
 **Product acceptance / small traffic.** Phase 6-8 built the rules/sample-bank/guard foundation. Phase 9-10 delivered 37 formal API-saved reports (DB max id 74) across 5 master groups and 4 subtype groups, with 0 Phase 10 retry failures and 0 Phase 10 refunds.
 
-Next window should observe real user reports for quality, not expand random samples. Remaining non-blocking items (radius fallback, 10 intentionally_partial sample groups) can be addressed in subsequent optimization phases. Phase 12 cleared all known accuracy gaps.
+Next window should observe real user reports for quality, not expand random samples. Phase 12 cleared all known launch-blocking accuracy gaps. Remaining items are intentionally_partial sample groups and radius fallback observation, for post-launch optimization.
 
 ## Hard Boundaries (for subsequent phases)
 

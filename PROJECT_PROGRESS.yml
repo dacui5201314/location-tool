@@ -2,7 +2,7 @@ current_phase: Phase 12
 phase_status: launch_ready_gaps_cleared
 latest_code_commit: 52cc749
 latest_code_commit_message: "feat: complete pre-launch accuracy hardening"
-latest_docs_commit: f92d78b
+latest_docs_commit: e2c80b8
 unpushed: true
 
 validation:
@@ -40,7 +40,7 @@ sample_bank:
   partial: 10
   latest_industry_test_total: "2168 PASS, 0 FAIL"
 
-next_step: "Product acceptance / small traffic. All known blocking gaps cleared. 10 partial sample bank groups are intentionally partial due to lack of stable national substitute definitions."
+next_step: "Product acceptance / small traffic. Launch-blocking accuracy gaps cleared; 10 sample groups intentionally partial and radius fallback remain post-launch observation items."
 
 boundaries:
   no_push: true
