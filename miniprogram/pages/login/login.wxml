@@ -1,0 +1,16 @@
+<view class="container">
+  <view class="card">
+    <view class="title">址得选</view>
+    <view class="subtitle">AI 选址助手 · 小程序版</view>
+
+    <button class="login-btn" type="primary" bindtap="handleLogin" loading="{{loading}}" disabled="{{loading}}">
+      {{ loading ? '登录中...' : '微信一键登录' }}
+    </button>
+
+    <view class="error" wx:if="{{errorMsg}}">{{errorMsg}}</view>
+
+    <view class="hint">
+      <text>登录即表示同意服务条款和隐私政策</text>
+    </view>
+  </view>
+</view>

@@ -1,0 +1,16 @@
+{
+  "description": "址得选 AI 选址助手小程序",
+  "appid": "你的小程序AppID",
+  "projectname": "zhidexuan-mini",
+  "miniprogramRoot": "./",
+  "compileType": "miniprogram",
+  "libVersion": "3.6.0",
+  "setting": {
+    "urlCheck": false,
+    "es6": true,
+    "enhance": true,
+    "postcss": true,
+    "minified": true
+  },
+  "condition": {}
+}

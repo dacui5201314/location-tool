@@ -874,3 +874,43 @@ id=65，民宿青旅@天河路208号，score=62，rigor_enabled=True，direct=6/
 - PDF parity smoke 三端一致
 
 ---
+
+## Phase 21 微信小程序最小客户端（2026-05-21）
+
+### 新增
+
+```
+miniprogram/
+├── app.json / app.js / app.wxss     # 全局配置，默认登录页
+├── project.config.json              # 开发者工具项目配置
+├── sitemap.json
+├── utils/config.js                  # API_BASE_URL 占位
+├── utils/api.js                     # wx.request 封装 + Auth 头
+├── pages/login/                     # 微信登录页：wx.login → /api/auth/wechat/mini → JWT
+├── pages/index/                     # 首页：用户信息 + 健康检查 + 记录查询
+└── README.md                        # 导入/配置/常见错误说明
+```
+
+14 个文件，全部新增于 `miniprogram/`，不影响 backend / frontend React。
+
+### MVP 功能
+
+- 微信登录：`wx.login()` → code → `/api/auth/wechat/mini` → 保存 token/user
+- 503/400/409 错误分别提示
+- 首页显示余额、openid 脱敏、新用户赠点提示
+- 健康检查、记录查询测试按钮
+- 退出登录
+
+### 联调前置
+
+- 管理后台填 `wx_mini_appid` / `wx_mini_secret`
+- 后端公网 HTTPS
+- 开发者工具可勾选"不校验合法域名"跳过
+- 真机预览需 request 合法域名 + HTTPS
+
+### 静态检查
+
+- 14 文件齐全
+- 无真实密钥泄露（`secret` 仅出现在 README 配置指引中）
+
+---
