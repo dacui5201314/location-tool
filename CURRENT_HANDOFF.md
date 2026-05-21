@@ -690,3 +690,36 @@ count=74, max_id=74（未变更）。
 - compileall PASS | industry 2168 PASS | fact_guard **147** PASS | DB count=74, max_id=74 | 未 push。
 
 ---
+
+## Phase 17 小流量上线前最小验收（2026-05-21）
+
+### 基线
+
+- `git status`: 仅 untracked `tmp_*`
+- `git log`: `63a15b4` → `237eccb` → `3000436` → `490604c` → `048e8f3`
+- DB: count=74, max_id=74
+
+### 验证结果
+
+| 检查项 | 结果 |
+|---|---|
+| `compileall` | PASS |
+| `check_industry_rigor_rules.py` | 2168 PASS, 0 FAIL |
+| `check_report_fact_guard.py` | 147 PASS, 0 FAIL |
+| `npm run build` | ✓ 4.29s |
+| `GET /api/health` | ✅ 200 `{"status":"ok"}` |
+| `POST /api/auth/token` | ✅ 200, JWT 签发 |
+| `POST /api/admin/login` | ✅ 200, admin JWT |
+| `GET /api/admin/logs` | ✅ 200, deprecated 占位 |
+| `POST /api/auth/wechat/mini` (缺少配置) | ✅ 503 "小程序未配置..." |
+| `wechat/mini` response 不含 `session_key` | ✅ |
+
+### 上线阻塞项判定
+
+**无阻塞。** 所有核心 API 路径正常，前端可构建，测试全绿。
+
+### 下一步建议
+
+进入真实产品验收 / 小流量。只观察真实用户报告质量，不再主动扩样本。已知 intentionally_partial 项（radius fallback、10 partial sample groups）为上线后优化项。
+
+---
