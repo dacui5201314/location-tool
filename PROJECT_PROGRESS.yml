@@ -1,7 +1,7 @@
-current_phase: Phase 23G
-phase_status: uniapp_pre_integration_self_check_in_progress
-latest_code_commit: e0f0146
-latest_code_commit_message: "fix: clear uni-app loading states and pre-integration copy"
+current_phase: Phase 23H
+phase_status: uniapp_pre_integration_self_check_complete
+latest_code_commit: 83c3d6f
+latest_code_commit_message: "chore: complete Phase 23G self-check with result page placeholder"
 latest_docs_commit: e5933e7
 unpushed: true
 
@@ -40,7 +40,7 @@ sample_bank:
   partial: 10
   latest_industry_test_total: "2168 PASS, 0 FAIL"
 
-next_step: "Phase 23G: uni-app pre-integration self-check and minor polish. Check routes/tabBar/component refs are complete; check loading/error/empty/login states consistent across all pages; verify no misleading copy remains; fix minor display issues found. Still no /api/analyze/payment/unlock/download."
+next_step: "Phase 23H: WeChat devtools integration prep — verify dist/build/mp-weixin import path, manifest/pages/package config for devtools, add devtools README if missing. Do not connect real analyze/payment/unlock/download."
 
 boundaries:
   no_push: true
@@ -57,7 +57,7 @@ phase23_uniapp:
   web_master: "frontend/ remains product master/reference; do not modify unless explicitly requested"
   native_miniprogram: "frozen for new feature work; keep only as WeChat login reference"
   accepted_baseline: "a3cc115 chore: fix uni-app build dependencies with pinned alpha versions"
-  latest_uniapp_commit: "e0f0146 fix: clear uni-app loading states and pre-integration copy"
+  latest_uniapp_commit: "83c3d6f chore: complete Phase 23G self-check with result page placeholder"
   completed:
     - "Web parity refinement across home/records/favorites/profile/result/report-detail"
     - "uni.request API wrapper, token injection, normalizeError"
@@ -66,6 +66,7 @@ phase23_uniapp:
     - "Report-detail read-only report_json display"
     - "Home pre-integration form validation and dynamic industry loading"
     - "Phase 23F: home 生成中 copy removed; records/favorites 401 loading reset with finally"
+    - "Phase 23G: result page mock cleared to placeholder; all 6 pages state audited; routing/components verified"
   verified_no_calls:
     - "/api/analyze"
     - "requestPayment"
@@ -78,4 +79,4 @@ phase23_uniapp:
     copy_scan: "PASS: no misleading 生成中/扣点/支付/下载 PDF 报告/消耗 1 点 in uniapp/src"
   current_worktree_caveat:
     - "Expected untracked: tmp_latest_report_text.txt, tmp_report_images/, tmp_report_pages/, miniprogram/pages/profile/profile.json."
-  next_step: "Phase 23G: uni-app pre-integration self-check — verify routes/tabBar/components are complete; check all page states (loading/empty/error/login) are consistent; fix minor display issues found."
+  next_step: "Phase 23H: WeChat devtools integration prep — verify dist/build/mp-weixin importable, add devtools README notes, check manifest/pages/package config for devtools compatibility. Code self-check complete; remaining gap is real-device WeChat login + backend HTTPS + request domain."

@@ -1033,9 +1033,20 @@ miniprogram/
 
 Do not include these in uni-app commits unless the user explicitly asks.
 
-### Next recommended task
+### Phase 23G complete（~85%）
 
-Phase 23G: uni-app pre-integration self-check — verify routes/tabBar/components complete, all page states (loading/empty/error/login) consistent, fix minor display issues. Phase 23F is complete: home "生成中" copy removed, records/favorites 401 loading reset, all scans pass. Still no /api/analyze/payment/unlock/download.
+- 6 页面全部状态审计通过：home/records/favorites/profile/report-detail/result
+- `result` 页从全量 mock（178 行虚假数据）缩减为最小占位，引导用户去「记录」页
+- 路由 + tabBar + 6 组件引用完整性验证通过
+- 文案/禁区/密钥扫描全部 PASS
+- 剩余 15%：真机联调（需微信开发者工具+后端运行），不属代码自检范围
+
+### Phase 23H 微信开发者工具联调准备
+
+- 构建产物：`dist/build/mp-weixin`，微信开发者工具直接导入
+- 导入路径已在 `uniapp/README.md` 中说明
+- 联调前提：后端 HTTPS、管理后台配 `wx_mini_appid/secret`、request 合法域名配置
+- 仍未接 `/api/analyze`、支付、unlock-pdf、/download
 
 ### Hard reminder
 
