@@ -25,7 +25,7 @@
     </view>
 
     <!-- Loading -->
-    <view class="loading" v-if="loading"><text>...</text><text>加载中...</text></view>
+    <view class="loading" v-if="loading"><text class="ld-dots">...</text><text class="ld-text">加载中...</text></view>
 
     <!-- Error -->
     <view class="error-box" v-if="!loading && errMsg && isLoggedIn">
@@ -162,7 +162,7 @@ export default {
 .summary-card { background:linear-gradient(135deg,#0f172a,#1e40af); border-radius:20rpx; padding:28rpx; color:#fff; margin-bottom:20rpx; }
 .sc-text { font-size:30rpx; font-weight:700; display:block; } .sc-sub { font-size:24rpx; color:rgba(255,255,255,0.7); display:block; margin-top:6rpx; }
 .tabs { display:flex; gap:10rpx; margin-bottom:18rpx; } .tab { padding:12rpx 22rpx; border-radius:20rpx; background:#f1f5f9; font-size:26rpx; color:#475569; } .tab.active { background:#0f172a; color:#fff; }
-.loading { text-align:center; padding:60rpx 0; font-size:26rpx; color:#94a3b8; }
+.loading { text-align:center; padding:60rpx 0; } .ld-dots { font-size:60rpx; letter-spacing:12rpx; color:#94a3b8; display:block; } .ld-text { font-size:26rpx; color:#94a3b8; display:block; margin-top:8rpx; }
 .error-box { text-align:center; padding:60rpx 0; } .error-box text { display:block; font-size:26rpx; color:#dc2626; margin-bottom:16rpx; } .err-btn { background:#f1f5f9; color:#475569; border-radius:14rpx; padding:16rpx 40rpx; font-size:28rpx; }
 .empty { text-align:center; padding:80rpx 0; } .emp-icon { font-size:72rpx; display:block; } .emp-title { font-size:30rpx; font-weight:700; color:#475569; display:block; margin:16rpx 0 8rpx; } .emp-desc { font-size:26rpx; color:#94a3b8; }
 .list { padding-top:8rpx; }

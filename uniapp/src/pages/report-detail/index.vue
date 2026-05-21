@@ -39,7 +39,7 @@
       <!-- Empty content -->
       <view class="content-box" v-if="!hasContent">
         <text class="cb-title">📊 报告内容</text>
-        <text class="cb-text">暂无完整报告内容。该记录可能是旧版格式或报告数据尚未生成。</text>
+        <text class="cb-text">暂无完整报告内容。该记录可能是旧版格式或报告数据尚未生成。</text><text class="cb-hint">元数据（地址/业态/评分）可正常查看</text>
       </view>
 
       <!-- Disclaimer -->
@@ -224,6 +224,7 @@ export default {
 .ms-badge { display:inline-block; margin-top:6rpx; font-size:22rpx; padding:4rpx 14rpx; border-radius:10rpx; } .ms-badge.free { background:#dcfce7; color:#166534; } .ms-badge.locked { background:#fef3c7; color:#92400e; }
 .disc { background:#fefce8; border:1rpx solid #fde68a; border-radius:14rpx; padding:20rpx; margin:20rpx 24rpx 0; font-size:24rpx; color:#92400e; }
 .warn { background:#fef2f2; border:1rpx solid #fecaca; border-radius:14rpx; padding:20rpx; margin:16rpx 24rpx 0; font-size:26rpx; color:#dc2626; } .warn-bold { font-weight:700; }
+.content-box { background:#fff; margin:20rpx 24rpx 0; border-radius:20rpx; padding:32rpx; box-shadow:0 2rpx 16rpx rgba(0,0,0,0.04); } .cb-title { font-size:28rpx; font-weight:700; color:#1e293b; display:block; margin-bottom:12rpx; } .cb-text { font-size:26rpx; color:#64748b; line-height:1.8; } .cb-hint { font-size:24rpx; color:#94a3b8; display:block; }
 .section { background:#fff; margin:20rpx 24rpx 0; border-radius:20rpx; padding:28rpx; box-shadow:0 2rpx 16rpx rgba(0,0,0,0.04); }
 .sec-title { font-size:28rpx; font-weight:700; color:#1e293b; margin-bottom:16rpx; } .sec-title.green { color:#047857; } .sec-title.red { color:#b91c1c; } .sec-title.orange { color:#d97706; }
 .sec-text { font-size:26rpx; color:#475569; line-height:1.7; }
