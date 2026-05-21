@@ -1,32 +1,19 @@
 {
   "name": "址得选",
-  "appid": "__UNI__ZHIDEXUAN",
+  "appid": "",
   "description": "AI 选址初筛参考工具",
   "versionName": "1.0.0",
   "versionCode": "100",
   "transformPx": false,
   "mp-weixin": {
-    "appid": "wx3e2e1bbabfa164dd",
-    "setting": {
-      "urlCheck": false,
-      "es6": true,
-      "postcss": true,
-      "minified": true
-    }
+    "appid": "",
+    "setting": { "urlCheck": false, "es6": true, "postcss": true, "minified": true }
   },
   "mp-toutiao": {
     "appid": "",
-    "setting": {
-      "urlCheck": false,
-      "es6": true,
-      "postcss": true,
-      "minified": true
-    }
+    "setting": { "urlCheck": false, "es6": true, "postcss": true, "minified": true }
   },
   "app-plus": {
-    "distribute": {
-      "android": {},
-      "ios": {}
-    }
+    "distribute": { "android": {}, "ios": {} }
   }
 }
