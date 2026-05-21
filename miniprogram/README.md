@@ -21,7 +21,7 @@ AI 选址助手 · 小程序版 MVP
 
 ### 2. `utils/config.js`
 ```js
-const API_BASE_URL = 'https://你的域名.com'
+const API_BASE_URL = 'http://127.0.0.1:8000'
 ```
 
 ## 管理后台配置（服务端）

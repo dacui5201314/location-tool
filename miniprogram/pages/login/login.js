@@ -27,7 +27,7 @@ Page({
             if (wx_mini_openid) wx.setStorageSync('wx_mini_openid', wx_mini_openid)
             if (wx_unionid) wx.setStorageSync('wx_unionid', wx_unionid)
 
-            wx.reLaunch({ url: '/pages/index/index' })
+            wx.switchTab({ url: '/pages/profile/profile' })
           } else {
             const statusCode = result.statusCode
             const detail = result.data?.detail || ''

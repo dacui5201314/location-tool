@@ -1,13 +1,34 @@
 {
   "pages": [
-    "pages/login/login",
-    "pages/index/index"
+    "pages/index/index",
+    "pages/profile/profile",
+    "pages/login/login"
   ],
   "window": {
     "navigationBarTitleText": "址得选",
     "navigationBarBackgroundColor": "#0f172a",
     "navigationBarTextStyle": "white",
     "backgroundColor": "#f1f5f9"
+  },
+  "tabBar": {
+    "color": "#94a3b8",
+    "selectedColor": "#0f172a",
+    "backgroundColor": "#ffffff",
+    "borderStyle": "black",
+    "list": [
+      {
+        "pagePath": "pages/index/index",
+        "text": "首页",
+        "iconPath": "",
+        "selectedIconPath": ""
+      },
+      {
+        "pagePath": "pages/profile/profile",
+        "text": "我的",
+        "iconPath": "",
+        "selectedIconPath": ""
+      }
+    ]
   },
   "style": "v2",
   "sitemapLocation": "sitemap.json"

@@ -1,0 +1,47 @@
+<!-- 未登录态 -->
+<view class="container" wx:if="{{!loggedIn}}">
+  <view class="hero">
+    <view class="brand">我的</view>
+    <view class="desc">登录后查看余额、历史报告和 PDF 下载权限</view>
+  </view>
+
+  <view class="card">
+    <button class="login-btn" type="primary" bindtap="handleLogin" loading="{{loading}}" disabled="{{loading}}">
+      {{ loading ? '登录中...' : '微信一键登录' }}
+    </button>
+    <view class="error" wx:if="{{errorMsg}}">{{errorMsg}}</view>
+  </view>
+</view>
+
+<!-- 已登录态 -->
+<view class="container" wx:if="{{loggedIn}}">
+  <view class="header">
+    <view class="title">我的</view>
+    <view class="status online">已登录</view>
+  </view>
+
+  <view class="card">
+    <view class="section-title">账户信息</view>
+    <view class="info-row">
+      <text class="label">余额</text>
+      <text class="value">{{balanceCredits}} 点</text>
+    </view>
+    <view class="info-row">
+      <text class="label">OpenID</text>
+      <text class="value muted">{{maskedOpenid}}</text>
+    </view>
+    <view class="gift-note" wx:if="{{giftNote}}">{{giftNote}}</view>
+  </view>
+
+  <view class="card actions">
+    <button class="action-btn" bindtap="checkHealth">检查后端健康</button>
+    <view class="action-result" wx:if="{{healthResult}}">{{healthResult}}</view>
+
+    <button class="action-btn" bindtap="fetchRecords">获取我的记录</button>
+    <view class="action-result" wx:if="{{recordsResult}}">{{recordsResult}}</view>
+  </view>
+
+  <view class="card actions">
+    <button class="logout-btn" bindtap="handleLogout">退出登录</button>
+  </view>
+</view>

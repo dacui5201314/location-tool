@@ -1,0 +1,152 @@
+.container {
+  padding: 32rpx;
+}
+
+.hero {
+  text-align: center;
+  padding: 60rpx 0 40rpx;
+}
+
+.brand {
+  font-size: 48rpx;
+  font-weight: 700;
+  color: #0f172a;
+  margin-bottom: 16rpx;
+}
+
+.desc {
+  font-size: 28rpx;
+  color: #94a3b8;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 24rpx 0;
+  margin-bottom: 32rpx;
+}
+
+.title {
+  font-size: 48rpx;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.status {
+  font-size: 24rpx;
+  padding: 8rpx 20rpx;
+  border-radius: 20rpx;
+}
+
+.status.online {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.status.offline {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.card {
+  background: #fff;
+  border-radius: 20rpx;
+  padding: 32rpx;
+  margin-bottom: 24rpx;
+  box-shadow: 0 2rpx 16rpx rgba(0,0,0,0.04);
+}
+
+.section-title {
+  font-size: 28rpx;
+  font-weight: 600;
+  color: #64748b;
+  margin-bottom: 20rpx;
+}
+
+.info-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 16rpx 0;
+  border-bottom: 1rpx solid #f1f5f9;
+}
+
+.label {
+  color: #64748b;
+  font-size: 28rpx;
+}
+
+.value {
+  font-size: 28rpx;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.value.muted {
+  color: #94a3b8;
+  font-size: 24rpx;
+}
+
+.gift-note {
+  margin-top: 20rpx;
+  padding: 16rpx;
+  background: #fefce8;
+  border: 1rpx solid #fde68a;
+  border-radius: 12rpx;
+  font-size: 24rpx;
+  color: #92400e;
+}
+
+.login-btn {
+  width: 100%;
+  border-radius: 16rpx;
+  font-size: 32rpx;
+  padding: 24rpx 0;
+  background-color: #07c160;
+  color: #fff;
+}
+
+.login-btn[disabled] {
+  background-color: #86dba9;
+}
+
+.error {
+  margin-top: 24rpx;
+  padding: 20rpx;
+  background: #fef2f2;
+  border: 1rpx solid #fecaca;
+  border-radius: 12rpx;
+  color: #dc2626;
+  font-size: 26rpx;
+  text-align: center;
+}
+
+.actions {
+  display: flex;
+  flex-direction: column;
+  gap: 16rpx;
+}
+
+.action-btn {
+  width: 100%;
+  background: #e2e8f0;
+  color: #334155;
+  border-radius: 14rpx;
+  font-size: 28rpx;
+  padding: 20rpx 0;
+}
+
+.action-result {
+  font-size: 24rpx;
+  color: #64748b;
+  padding: 8rpx 0;
+}
+
+.logout-btn {
+  width: 100%;
+  background: #fee2e2;
+  color: #dc2626;
+  border-radius: 14rpx;
+  font-size: 28rpx;
+  padding: 20rpx 0;
+}

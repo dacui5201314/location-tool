@@ -1,37 +1,16 @@
 <view class="container">
-  <view class="header">
-    <view class="title">址得选</view>
-    <view class="status {{loggedIn ? 'online' : 'offline'}}">
-      {{ loggedIn ? '已登录' : '未登录' }}
-    </view>
+  <view class="hero">
+    <view class="brand">址得选</view>
+    <view class="tagline">AI 选址初筛参考工具</view>
+    <view class="desc">商业选址初筛报告 · 多业态深度分析 · 10 维度 AI 评估</view>
   </view>
 
-  <view class="card" wx:if="{{loggedIn}}">
-    <view class="section-title">账户信息</view>
-    <view class="info-row">
-      <text class="label">余额</text>
-      <text class="value">{{balanceCredits}} 点</text>
-    </view>
-    <view class="info-row">
-      <text class="label">OpenID</text>
-      <text class="value muted">{{maskedOpenid}}</text>
-    </view>
-    <view class="gift-note" wx:if="{{giftNote}}">{{giftNote}}</view>
+  <view class="card">
+    <button class="primary-btn" bindtap="startAnalysis">开始选址分析</button>
+    <button class="outline-btn" bindtap="viewReports">查看我的报告</button>
   </view>
 
-  <view class="card actions">
-    <button class="action-btn" bindtap="checkHealth">检查后端健康</button>
-    <view class="action-result" wx:if="{{healthResult}}">{{healthResult}}</view>
-
-    <button class="action-btn" bindtap="fetchRecords">获取我的记录</button>
-    <view class="action-result" wx:if="{{recordsResult}}">{{recordsResult}}</view>
-  </view>
-
-  <view class="card actions" wx:if="{{loggedIn}}">
-    <button class="logout-btn" bindtap="handleLogout">退出登录</button>
-  </view>
-
-  <view class="card" wx:if="{{!loggedIn}}">
-    <button class="login-link" bindtap="goLogin">去登录</button>
+  <view class="footer-note">
+    报告仅作初筛参考，需线下实地核验
   </view>
 </view>
