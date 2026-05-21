@@ -192,6 +192,6 @@ export default {
 
 .trust-row { display:flex; justify-content:space-around; margin-top:28rpx; padding-top:20rpx; border-top:1rpx solid #f1f5f9; }
 .trust-item { display:flex; flex-direction:column; align-items:center; }
-.ti-icon { font-size:32rpx; color:#246bff; } .ti-title { font-size:22rpx; font-weight:600; color:#334155; margin-top:4rpx; } .ti-desc { font-size:20rpx; color:#667085; margin-top:2rpx; }
+.ti-icon { font-size:32rpx; color:#246bff; } .ti-title { font-size:22rpx; font-weight:600; color:#334155; margin-top:4rpx; } .ti-desc { font-size:22rpx; color:#667085; margin-top:4rpx; }
 .footer { text-align:center; font-size:20rpx; color:#94a3b8; padding:20rpx 32rpx; line-height:1.6; }
 </style>
