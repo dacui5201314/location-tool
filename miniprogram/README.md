@@ -7,8 +7,10 @@ AI 选址助手 · 小程序版 MVP
 1. 下载[微信开发者工具](https://developers.weixin.qq.com/miniprogram/dev/devtools/download.html)
 2. 打开工具 → 导入项目
 3. 目录选择 `miniprogram/`
-4. AppID 填入你的小程序 AppID（测试可用"测试号"）
+4. AppID 使用默认 `touristappid`（可用于游客模式/测试导入，无需注册）
 5. 点击确定
+
+> **注意**：`touristappid` 仅支持开发者工具游客模式。微信登录联调（`wx.login` 获取真实 openid）必须替换为正式小程序 AppID。在 `project.config.json` 中将 `"appid": "touristappid"` 改为你的实际 AppID。
 
 ## 修改项目配置
 
