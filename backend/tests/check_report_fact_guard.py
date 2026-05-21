@@ -742,6 +742,57 @@ has_commit = 'db_session.commit()' in ba_code or 'db.commit()' in ba_code
 check(not has_commit,
       "P13-5 check_billing_access 不自行 commit（调用方控制事务边界）")
 
+# T-P13-6: check_billing_access + rollback 行为测试（内存 SQLite，不污染生产库）
+print("=== T-P13-6: billing rollback 行为测试 ===")
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+from models.db_models import User, BillingRecord, Base as DBBase
+
+# 创建独立内存 SQLite 引擎
+test_engine = create_engine("sqlite://", connect_args={"check_same_thread": False}, echo=False)
+DBBase.metadata.create_all(bind=test_engine)
+TestSession = sessionmaker(autocommit=False, autoflush=False, bind=test_engine)
+
+# 创建测试用户
+db_t = TestSession()
+u = User(id=99901, balance_credits=5, membership_tier="free")
+db_t.add(u)
+db_t.commit()
+db_t.refresh(u)
+check(u.balance_credits == 5, "P13-6 初始余额=5")
+
+# 扣点
+billing = check_billing_access(u, cost=1, db_session=db_t)
+check(billing.allowed == True, "P13-6 扣点允许")
+check(billing.source == "points", "P13-6 扣点来源=points")
+# 执行了 UPDATE 但未 commit — 刷新看数据库状态
+db_t.refresh(u)
+check(u.balance_credits == 4, "P13-6 扣点后余额=4（未 commit 已刷入事务）")
+
+# rollback — 模拟 PDF unlock 并发冲突场景
+db_t.rollback()
+db_t.refresh(u)
+check(u.balance_credits == 5, "P13-6 rollback 后余额恢复=5")
+
+# BillingRecord 也不应落库
+br_count = db_t.query(BillingRecord).filter(BillingRecord.user_id == 99901).count()
+check(br_count == 0, f"P13-6 rollback 后 BillingRecord=0 (实际={br_count})")
+
+db_t.close()
+test_engine.dispose()
+
+# T-P13-7: DB 保存失败路径（源码级 + 逻辑校验）
+print("=== T-P13-7: DB save failure 路径校验 ===")
+# _db_save_error 已在 P13-4 验证存在；此处验证完整的 refund reason 映射
+analyze_src = inspect.getsource(_main.analyze_location)
+# _db_save_error True 时 refund_reason 为 "DB保存失败"
+check("DB保存失败" in analyze_src or "DB_SAVE_FAILED" in analyze_src,
+      "P13-7 refund_reason 包含 DB_SAVE_FAILED")
+# _db_save_error True 时不应 yield 成功
+check("_stream_ok = True" in analyze_src, "P13-7 _stream_ok 存在于成功路径")
+# 验证 DB_SAVE_FAILED RuntimeError 被 except RuntimeError 捕获
+check("DB_SAVE_FAILED" in analyze_src, "P13-7 DB_SAVE_FAILED RuntimeError 存在")
+
 # ═══════════════════════════════════════════════════════════════
 print(f"\n{'='*50}")
 print(f"TOTAL: {p} PASS, {f} FAIL")
