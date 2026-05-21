@@ -2,25 +2,13 @@
   <view class="industry-picker">
     <view class="label" v-if="!hideLabel">选择业态</view>
     <scroll-view scroll-x class="cat-scroll">
-      <view
-        v-for="cat in categories"
-        :key="cat.key"
-        class="cat-tile"
-        :class="{ active: activeCat === cat.key }"
-        @tap="selectCat(cat.key)"
-      >
+      <view v-for="cat in displayCats" :key="cat.key" class="cat-tile" :class="{ active: activeCat === cat.key }" @tap="selectCat(cat.key)">
         <text class="cat-icon">{{ cat.icon }}</text>
         <text class="cat-name">{{ cat.label }}</text>
       </view>
     </scroll-view>
     <view class="sub-panel" v-if="activeCat && subTypes.length">
-      <view
-        v-for="st in subTypes"
-        :key="st.name"
-        class="chip"
-        :class="{ selected: selected === st.name }"
-        @tap="onSelect(st.name)"
-      >{{ st.name }}</view>
+      <view v-for="st in subTypes" :key="st.name" class="chip" :class="{ selected: selected === st.name }" @tap="onSelect(st.name)">{{ st.name }}</view>
     </view>
   </view>
 </template>
@@ -35,6 +23,21 @@ const mockIndustries = [
   { key:'entertainment', icon:'🎮', label:'休闲娱乐', subTypes:['酒吧','KTV','剧本杀','网吧','台球厅'] }
 ]
 
+// 扁平后端数组 → picker 分类结构
+function groupIndustries (flat) {
+  if (!Array.isArray(flat) || !flat.length) return null
+  const catMap = {}
+  const seen = new Set()
+  flat.forEach(item => {
+    const name = item.name; if (!name) return
+    const cat = item.category || '其他'
+    if (!catMap[cat]) catMap[cat] = { key: cat, label: cat, icon: '📌', subTypes: [] }
+    if (!seen.has(name)) { catMap[cat].subTypes.push(name); seen.add(name) }
+  })
+  const cats = Object.values(catMap)
+  return cats.length ? cats : null
+}
+
 export default {
   name: 'IndustryPicker',
   props: {
@@ -43,21 +46,17 @@ export default {
     industries: { type: Array, default: () => [] },
     disabled: { type: Boolean, default: false }
   },
-  data () {
-    return {
-      activeCat: '',
-      categories: mockIndustries,
-      subTypes: []
+  data () { return { activeCat: '', subTypes: [] } },
+  computed: {
+    displayCats () {
+      return groupIndustries(this.industries) || mockIndustries
     }
   },
   methods: {
     selectCat (key) {
       if (this.disabled) return
       this.activeCat = key
-      // 优先使用传入 industries prop；fallback mock
-      const list = this.industries && this.industries.length
-        ? this.industries
-        : mockIndustries
+      const list = this.displayCats
       const cat = list.find(c => c.key === key)
       this.subTypes = cat && cat.subTypes ? cat.subTypes.map(s => ({ name: s })) : []
     },
@@ -73,19 +72,12 @@ export default {
 .industry-picker { margin: 24rpx 0; }
 .label { font-size: 28rpx; font-weight: 600; color: #334155; margin-bottom: 16rpx; }
 .cat-scroll { white-space: nowrap; padding-bottom: 8rpx; }
-.cat-tile {
-  display: inline-flex; flex-direction: column; align-items: center;
-  width: 120rpx; padding: 16rpx 8rpx; margin-right: 12rpx;
-  border-radius: 14rpx; background: #f8fafc; transition: all 0.2s;
-}
+.cat-tile { display: inline-flex; flex-direction: column; align-items: center; width: 120rpx; padding: 16rpx 8rpx; margin-right: 12rpx; border-radius: 14rpx; background: #f8fafc; }
 .cat-tile.active { background: #0f172a; }
 .cat-tile.active .cat-name { color: #fff; }
 .cat-icon { font-size: 36rpx; }
 .cat-name { font-size: 22rpx; color: #475569; margin-top: 6rpx; }
 .sub-panel { margin-top: 16rpx; display: flex; flex-wrap: wrap; gap: 12rpx; }
-.chip {
-  padding: 12rpx 24rpx; border-radius: 20rpx; background: #f1f5f9;
-  font-size: 26rpx; color: #475569; border: 2rpx solid transparent;
-}
+.chip { padding: 12rpx 24rpx; border-radius: 20rpx; background: #f1f5f9; font-size: 26rpx; color: #475569; border: 2rpx solid transparent; }
 .chip.selected { background: #0f172a; color: #fff; border-color: #0f172a; }
 </style>

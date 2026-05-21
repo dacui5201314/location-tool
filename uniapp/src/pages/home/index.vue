@@ -62,7 +62,7 @@
       </view>
 
       <!-- 分析按钮 -->
-      <button class="analyze-btn" :disabled="!canAnalyze" @tap="onAnalyze">
+      <button class="analyze-btn" :disabled="analyzing" @tap="onAnalyze">
         <text class="ab-mark">✦</text>
         <view class="ab-text">
           <text class="ab-strong">{{ analyzing ? 'AI 选址报告生成中...' : '立即生成选址报告' }}</text>
