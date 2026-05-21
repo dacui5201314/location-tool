@@ -861,54 +861,64 @@ cols = [c.name for c in UserModel.__table__.columns]
 for fld in ["wx_mini_openid", "wx_unionid", "wx_openid"]:
     check(fld in cols, f"P16-4 {fld} 字段已存在于 User 表（无需 migrate）")
 
-# T-P16-5: wx_mini_openid 冲突 — 用户 B 回填已被 A 占用的 openid 时应抛出异常
-print("=== T-P16-5: wx_mini_openid 冲突抛异常 ===")
+# T-P16-5: wx_mini_openid 冲突 — _find_or_create_user 真实 helper 路径应 409
+print("=== T-P16-5: _find_or_create_user 身份冲突 409 ===")
 te3 = _sa_create_engine("sqlite://", connect_args={"check_same_thread": False}, echo=False)
 DBBase.metadata.create_all(bind=te3)
 TS3 = _sa_sessionmaker(autocommit=False, autoflush=False, bind=te3)
 
 db3 = TS3()
-# 用户 A 已通过小程序登录，持有 o_test_conflict
+# 用户 A：小程序登录，持有 o_test_conflict
 uA, isA, _ = _find_or_create_user(db3, wx_mini_openid="o_test_conflict", channel="mini_program")
-check(isA, "P16-5a 用户 A 创建成功")
+check(isA, "P16-5a 用户 A 创建成功（wx_mini_openid=o_test_conflict）")
 
-# 用户 B 通过 unionid 匹配到另一个用户，尝试回填 o_test_conflict → 冲突
+# 用户 B：以其他身份创建（不同 unionid）
 uB, isB, _ = _find_or_create_user(db3, wx_unionid="u_other", channel="mini_program")
-check(isB, "P16-5b 用户 B 创建成功（不同 identity）")
+check(isB, "P16-5b 用户 B 创建成功（wx_unionid=u_other）")
 
-# 强制尝试回填已被 A 占用的 openid → 应抛 HTTPException 409
-caught = False
+# 关键路径：通过 unionid 匹配到用户 B，但尝试回填已被 A 占用的 wx_mini_openid
+# _find_or_create_user 应检测到 IntegrityError → rollback → HTTPException(409)
+caught_409 = False
 try:
-    uB.wx_mini_openid = "o_test_conflict"
-    db3.flush()
+    _find_or_create_user(
+        db3,
+        wx_unionid="u_other",
+        wx_mini_openid="o_test_conflict",
+        channel="mini_program",
+    )
 except Exception as e:
-    caught = True
+    caught_409 = True
     status = getattr(e, 'status_code', 0)
-    check(status == 409 or "unique" in str(e).lower() or "IntegrityError" in type(e).__name__,
-          f"P16-5c 冲突应抛异常 (got {type(e).__name__}: {str(e)[:80]})")
-db3.rollback()
-check(caught, "P16-5d 冲突确实触发了异常")
+    detail = getattr(e, 'detail', '')
+    check(status == 409, f"P16-5c status_code=409 (got {status})")
+    check("微信身份已绑定其他账号" in detail,
+          f"P16-5d detail 含明确提示 (got '{detail[:60]}')")
+check(caught_409, "P16-5e _find_or_create_user 真实路径抛出 409")
 db3.close()
 te3.dispose()
 
-# T-P16-6: wechat_mini_login 返回体不包含 session_key
+# T-P16-6: wechat_mini_login 返回体不包含 session_key（源码级）
 print("=== T-P16-6: mini login 不返回 session_key ===")
-mini_src = inspect.getsource(_main.wechat_mini_login) if hasattr(_main, 'wechat_mini_login') else ""
 from routers.auth import wechat_mini_login
 mini_src = inspect.getsource(wechat_mini_login)
-check("session_key" not in [l.strip() for l in mini_src.split('\n')
-      if 'return' in l.lower() or '"session_key"' in l.lower() or "'session_key'" in l.lower()],
-      "P16-6 返回体不含 session_key")
-# 确认没有存储 session_key
-check("session_key" not in mini_src.lower() or "session_key 不返回" in mini_src.lower(),
-      "P16-6b session_key 不持久化")
+# 检查 return 语句附近的 dict 中不含 session_key
+return_lines = [l.strip() for l in mini_src.split('\n')
+                if 'return' in l.lower() and ('{' in l or 'resp' in l.lower())]
+return_text = ' '.join(return_lines)
+check("session_key" not in return_text,
+      "P16-6a 返回体不含 session_key")
+# 确认源码注释标注不存储 session_key
+check("不返回" in mini_src or "不持久化" in mini_src or "不存储" in mini_src,
+      "P16-6b 源码标注 session_key 不返回/不持久化")
 
-# T-P16-7: 缺少 wx_mini_appid/wx_mini_secret 走 503
+# T-P16-7: 缺少 wx_mini_appid/wx_mini_secret 走 503（源码级）
 print("=== T-P16-7: 缺少配置走 503 ===")
-check(503 in [403, 503], "P16-7a 503 状态码已定义")  # placeholder
-# 实际验证: 源码中 '小程序未配置' 出现在 503 分支
-check("小程序未配置" in mini_src or "wx_mini_appid" in mini_src,
-      "P16-7b 缺少配置提示存在")
+check("status_code=503" in mini_src,
+      "P16-7a 缺少配置分支 status_code=503")
+check("wx_mini_appid" in mini_src and "wx_mini_secret" in mini_src,
+      "P16-7b 源码引用 wx_mini_appid 和 wx_mini_secret")
+check("小程序未配置" in mini_src,
+      "P16-7c 缺少配置时给出中文提示")
 
 # ═══════════════════════════════════════════════════════════════
 print(f"\n{'='*50}")
