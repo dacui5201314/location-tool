@@ -604,7 +604,14 @@ P0（POI 名称幻觉）、P2（substitute/anchor 写成 direct）、P3（竞品
 |---|---|
 | `compileall` | PASS |
 | `check_industry_rigor_rules.py` | 2168 PASS, 0 FAIL |
-| `check_report_fact_guard.py` | **115** PASS, 0 FAIL |
+| `check_report_fact_guard.py` | **124** PASS, 0 FAIL |
+
+### 后续收口 (183cb64)
+
+- 恢复 `/api/admin/logs` deprecated 占位端点，保持前端兼容。
+- T-P13-6 内存 SQLite 行为测试：`check_billing_access` + `rollback` 后余额恢复、BillingRecord 不落库。
+- T-P13-7 源码级 DB_SAVE_FAILED 路径校验。
+- Phase 13 完成，不再修改资金安全/保存链路代码。
 
 ### DB
 
