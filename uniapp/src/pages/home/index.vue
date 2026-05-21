@@ -33,8 +33,14 @@
           show-location
           @tap="onMapTap"
         >
+          <cover-view class="map-center-marker">
+            <cover-view class="mcm-pin">📍</cover-view>
+          </cover-view>
           <cover-view class="map-overlay" v-if="!addressText">
-            <cover-view class="mo-text">点击地图选点 或 使用上方搜索</cover-view>
+            <cover-view class="mo-text">点击地图选点 · 或使用上方搜索框输入地址</cover-view>
+          </cover-view>
+          <cover-view class="map-selected" v-if="addressText">
+            <cover-view class="ms-tag">已选坐标 · 后续将接入地址解析</cover-view>
           </cover-view>
         </map>
       </view>
@@ -145,16 +151,22 @@ export default {
     onBrandInput () { this.errors.brand = '' },
     onSizeInput () { this.errors.size = '' },
     onSearch () {
-      if (!this.addressKeyword.trim()) return
-      this.addressText = this.addressKeyword.trim()
+      const kw = this.addressKeyword.trim()
+      if (!kw) return
+      this.addressText = kw
+      this.addressKeyword = kw
       this.errors.address = ''
+      uni.showToast({ title: '已选中该地址', icon: 'none' })
     },
     onMapTap (e) {
       if (e.detail && e.detail.latitude) {
         this.mapLat = e.detail.latitude
         this.mapLng = e.detail.longitude
-        this.addressText = `${this.mapLng.toFixed(4)}, ${this.mapLat.toFixed(4)}`
-        uni.showToast({ title: '已选坐标，反向地理编码接入中', icon: 'none' })
+        const coord = `${this.mapLng.toFixed(4)}, ${this.mapLat.toFixed(4)}`
+        this.addressText = coord
+        this.addressKeyword = coord
+        this.errors.address = ''
+        uni.showToast({ title: '已选坐标，后续将接入地址解析', icon: 'none' })
       } else {
         uni.showToast({ title: '点击地图选择门店位置', icon: 'none' })
       }
@@ -203,9 +215,13 @@ export default {
 .s-btn { background:linear-gradient(135deg,#0f172a,#1e40af); color:#fff; border-radius:14rpx; padding:0 28rpx; font-size:28rpx; line-height:80rpx; font-weight:600; }
 .addr-pick { display:flex; align-items:center; margin-top:12rpx; padding:16rpx; background:#f0fdf4; border:1rpx solid #bbf7d0; border-radius:14rpx; }
 .ap-text { flex:1; font-size:26rpx; color:#166534; margin-left:8rpx; } .ap-star { font-size:36rpx; color:#d6a84f; padding:0 8rpx; }
-.map-view { width:100%; height:340rpx; border-radius:16rpx; margin-top:12rpx; }
-.map-overlay { display:flex; align-items:center; justify-content:center; height:100%; }
-.mo-text { background:rgba(0,0,0,0.6); color:#fff; font-size:24rpx; padding:12rpx 24rpx; border-radius:20rpx; }
+.map-view { width:100%; height:380rpx; border-radius:16rpx; margin-top:12rpx; }
+.map-center-marker { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); pointer-events:none; z-index:10; }
+.mcm-pin { font-size:40rpx; }
+.map-overlay { display:flex; align-items:flex-end; justify-content:center; height:100%; padding-bottom:12rpx; }
+.mo-text { background:rgba(0,0,0,0.55); color:#fff; font-size:22rpx; padding:10rpx 22rpx; border-radius:16rpx; }
+.map-selected { display:flex; align-items:flex-start; justify-content:center; padding-top:8rpx; }
+.ms-tag { background:rgba(0,0,0,0.7); color:#fff; font-size:22rpx; padding:8rpx 20rpx; border-radius:14rpx; }
 .dual { display:flex; gap:14rpx; } .dual-half { flex:1; }
 
 .analyze-btn { margin-top:8rpx; width:100%; background:linear-gradient(135deg,#0f172a,#1e40af); color:#fff; border-radius:18rpx; padding:24rpx 20rpx; display:flex; align-items:center; gap:14rpx; }

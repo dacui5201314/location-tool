@@ -155,10 +155,11 @@ export default {
           this.refreshState()
         } else {
           const sc = r.statusCode
-          if (sc === 503) this.loginErr = '服务端未配置小程序，请联系管理员'
-          else if (sc === 400) this.loginErr = '授权过期或 code 无效，请重试'
-          else if (sc === 409) this.loginErr = '微信身份已绑定其他账号，请联系客服'
-          else { this.loginErr = '登录失败 (HTTP ' + sc + ')，请重试' }
+          if (sc === 503) this.loginErr = '小程序登录未配置，请先在管理后台配置小程序凭据'
+          else if (sc === 400) this.loginErr = '微信登录参数无效，请重新尝试'
+          else if (sc === 409) this.loginErr = '微信身份已绑定其他账号'
+          else if (sc) this.loginErr = '登录失败 (HTTP ' + sc + ')，请重试'
+          else this.loginErr = '登录失败，未收到服务端状态码，请确认后端日志'
         }
       }).catch(() => {
         this.loginLoading = false
