@@ -101,6 +101,14 @@ export default {
       ]
     }
   },
+  onShow () {
+    const pending = uni.getStorageSync('pending_analysis_address')
+    if (pending) {
+      this.addressText = pending
+      uni.removeStorageSync('pending_analysis_address')
+      uni.showToast({ title: '已加载收藏地址，可继续分析', icon: 'none' })
+    }
+  },
   computed: {
     canAnalyze () { return !this.analyzing && this.addressText && this.industry && this.brandName && this.storeSize }
   },

@@ -17,7 +17,7 @@
         <text class="back" @tap="goBack">←</text>
         <text class="top-title">{{ recordTitle }}</text>
         <text class="top-export" :class="record.is_pdf_unlocked ? 'free' : 'locked'">
-          {{ record.is_pdf_unlocked ? '⬇️ 下载 PDF' : '🔒 导出' }}
+          PDF 联调未开放
         </text>
       </view>
 
@@ -104,8 +104,8 @@
 
       <!-- Bottom bar -->
       <view class="bottom-bar">
-        <button v-if="record.is_pdf_unlocked" class="bb-export">⬇️ 下载 PDF 报告</button>
-        <button v-else class="bb-unlock" @tap="onExport">🔒 PDF 导出暂未开放</button>
+        <button v-if="record.is_pdf_unlocked" class="bb-export">PDF 下载联调未开放</button>
+        <button v-else class="bb-unlock" @tap="onExport">PDF 解锁联调未开放</button>
         <button class="bb-back" @tap="goBack">返回</button>
       </view>
     </view>
@@ -161,20 +161,32 @@ export default {
 
       const rd = rpt.real_data || {}
       const exec = rpt.executive_summary || {}
-      const dimScores = rpt.dimension_scores || []
+      const dimScores = Array.isArray(rpt.dimension_scores) ? rpt.dimension_scores : []
+
+      // 安全转字符串：数组内对象 → title/text/description/content → JSON 兜底
+      const _sa = (arr) => {
+        if (!Array.isArray(arr)) return []
+        return arr.map(x => {
+          if (typeof x === 'string') return x
+          if (typeof x === 'object' && x !== null) return x.title || x.text || x.description || x.content || x.message || JSON.stringify(x)
+          return String(x)
+        })
+      }
 
       this.rptScore = rpt.score ?? rpt.overall_score ?? 0
       this.rptDisclaimer = rpt.disclaimer || ''
       this.rptWarning = rpt.warning || ''
       this.rptSummary = rpt.summary || exec.summary || ''
 
-      this.rptAdv = Array.isArray(rpt.advantages) ? rpt.advantages : []
-      this.rptDis = Array.isArray(rpt.disadvantages) ? rpt.disadvantages : []
-      this.rptAction = Array.isArray(rpt.action_plan) ? rpt.action_plan : []
+      this.rptAdv = _sa(rpt.advantages)
+      this.rptDis = _sa(rpt.disadvantages)
+      this.rptAction = _sa(rpt.action_plan)
 
       this.rptDims = dimScores.map(d => ({
         key: d.key || '', label: d.label || '', value: d.score ?? 0
       }))
+
+      this.rptQual = _sa(rd.data_quality_notes)
 
       this.rptDir200 = rd.direct_competitors_200m ?? 0
       this.rptDir500 = rd.direct_competitors_500m ?? 0
@@ -185,8 +197,6 @@ export default {
       this.rptAnc200 = rd.traffic_anchors_200m ?? 0
       this.rptAnc500 = rd.traffic_anchors_500m ?? 0
       this.rptAnc1000 = rd.traffic_anchors_1000m ?? 0
-
-      this.rptQual = Array.isArray(rd.data_quality_notes) ? rd.data_quality_notes : []
     }
   }
 }

@@ -121,7 +121,11 @@ export default {
       } catch (e) { this.errMsg = '网络异常，请重试' }
       this.loading = false
     },
-    onSelect (f) { uni.navigateTo({ url: '/pages/home/index?addr=' + encodeURIComponent(f.address || f.report_address || '') }) },
+    onSelect (f) {
+      const addr = f.address || f.report_address || ''
+      if (addr) uni.setStorageSync('pending_analysis_address', addr)
+      uni.switchTab({ url: '/pages/home/index' })
+    },
     onViewReport (f) {
       const id = f.report_uuid || f.record_id
       if (id) uni.navigateTo({ url: '/pages/report-detail/index?id=' + id })
