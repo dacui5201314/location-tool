@@ -1082,12 +1082,16 @@ Do not include these in uni-app commits unless the user explicitly asks.
 
 导入成功、4 tabBar 通过、首页渲染正常、地址输入和业态选择可用。登录失败（状态码非典型），已将错误提示改为携带 HTTP 状态码辅助排查。
 
-### Phase 23K 地图/地址选择（已启动）
+### Phase 23K 地图/地址选择（进行中 ~45%）
 
-- 首页接入 `<map>` 组件，默认北京中心坐标
-- 点击地图获取经纬度并设为 addressText
-- 搜索框输入文字后点搜索直接设为 addressText
-- 不调用高德 API 或后端，不接真实分析
+- 首页接入 `<map>` 组件，默认北京中心，带中心 📍 标记
+- 点击地图取经纬度 → 同步 addressText/addressKeyword → 清除 errors
+- 搜索框输入文字点搜索 → 设 addressText + toast
+- 选中地址后显示清除按钮 ✕，一键重置地址/收藏/错误
+- 坐标展示格式："经度 116.3975 · 纬度 39.9087"
+- 未接高德/后端 POI/真实分析
+
+### 下一块：Phase 23L report_json 明细展示补全
 
 ### Hard reminder
 

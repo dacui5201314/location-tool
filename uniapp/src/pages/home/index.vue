@@ -23,6 +23,7 @@
           <text class="ap-pin">📍</text>
           <text class="ap-text">{{ addressText }}</text>
           <text class="ap-star" @tap="toggleFav">{{ isFaved ? '★' : '☆' }}</text>
+          <text class="ap-clear" @tap="clearAddress">✕</text>
         </view>
         <text class="field-err" v-if="errors.address">{{ errors.address }}</text>
         <map
@@ -162,7 +163,7 @@ export default {
       if (e.detail && e.detail.latitude) {
         this.mapLat = e.detail.latitude
         this.mapLng = e.detail.longitude
-        const coord = `${this.mapLng.toFixed(4)}, ${this.mapLat.toFixed(4)}`
+        const coord = `经度 ${this.mapLng.toFixed(4)} · 纬度 ${this.mapLat.toFixed(4)}`
         this.addressText = coord
         this.addressKeyword = coord
         this.errors.address = ''
@@ -172,6 +173,12 @@ export default {
       }
     },
     toggleFav () { this.isFaved = !this.isFaved; uni.showToast({ title: this.isFaved ? '收藏成功' : '已取消收藏', icon: 'none' }) },
+    clearAddress () {
+      this.addressText = ''
+      this.addressKeyword = ''
+      this.isFaved = false
+      this.errors.address = ''
+    },
     validate () {
       const e = { address: '', industry: '', brand: '', size: '' }; let ok = true
       if (!this.addressText) { e.address = '请选择门店地址'; ok = false }
@@ -214,7 +221,7 @@ export default {
 .field { flex:1; border:2rpx solid #e2e8f0; border-radius:14rpx; padding:18rpx 14rpx; font-size:28rpx; background:#fff; }
 .s-btn { background:linear-gradient(135deg,#0f172a,#1e40af); color:#fff; border-radius:14rpx; padding:0 28rpx; font-size:28rpx; line-height:80rpx; font-weight:600; }
 .addr-pick { display:flex; align-items:center; margin-top:12rpx; padding:16rpx; background:#f0fdf4; border:1rpx solid #bbf7d0; border-radius:14rpx; }
-.ap-text { flex:1; font-size:26rpx; color:#166534; margin-left:8rpx; } .ap-star { font-size:36rpx; color:#d6a84f; padding:0 8rpx; }
+.ap-text { flex:1; font-size:26rpx; color:#166534; margin-left:8rpx; } .ap-star { font-size:36rpx; color:#d6a84f; padding:0 8rpx; } .ap-clear { font-size:28rpx; color:#94a3b8; padding:0 4rpx; }
 .map-view { width:100%; height:380rpx; border-radius:16rpx; margin-top:12rpx; }
 .map-center-marker { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); pointer-events:none; z-index:10; }
 .mcm-pin { font-size:40rpx; }

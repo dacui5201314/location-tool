@@ -1,7 +1,7 @@
 current_phase: Phase 23K
 phase_status: uniapp_map_address_selection_in_progress
-latest_code_commit: f9e98d4
-latest_code_commit_message: "chore: point uni-app API to local backend for devtools integration"
+latest_code_commit: 935efd1
+latest_code_commit_message: "fix: harden login error display and map selection UX"
 latest_docs_commit: db0cfb4
 unpushed: true
 
@@ -40,7 +40,7 @@ sample_bank:
   partial: 10
   latest_industry_test_total: "2168 PASS, 0 FAIL"
 
-next_step: "Phase 23K: map component integration and address selection. Connect geographic input to home form, add reverse geocoding placeholder. Do not call real analyze."
+next_step: "Phase 23K next: address clear/reselect + coord display polish. Phase 23L: report_json detail display expansion."
 
 boundaries:
   no_push: true
