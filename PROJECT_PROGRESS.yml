@@ -2,7 +2,7 @@ current_phase: Phase 23H
 phase_status: uniapp_wechat_devtools_prep_in_progress
 latest_code_commit: 83c3d6f
 latest_code_commit_message: "chore: complete Phase 23G self-check with result page placeholder"
-latest_docs_commit: e35dfda
+latest_docs_commit: 20a0dba
 unpushed: true
 
 validation:
@@ -40,7 +40,7 @@ sample_bank:
   partial: 10
   latest_industry_test_total: "2168 PASS, 0 FAIL"
 
-next_step: "Phase 23H next: import dist/build/mp-weixin into WeChat devtools; smoke tabBar/page navigation; test WeChat login with real appid/secret if backend available. Still no /api/analyze/payment/unlock/download."
+next_step: "Phase 23H next: import built output into WeChat devtools; smoke tabBar and page navigation; test WeChat login with real credentials if backend available. Keep analysis, paid features, and PDF features disabled."
 
 boundaries:
   no_push: true
@@ -79,4 +79,4 @@ phase23_uniapp:
     copy_scan: "PASS: no misleading 生成中/扣点/支付/下载 PDF 报告/消耗 1 点 in uniapp/src"
   current_worktree_caveat:
     - "Expected untracked: tmp_latest_report_text.txt, tmp_report_images/, tmp_report_pages/, miniprogram/pages/profile/profile.json."
-  next_step: "Phase 23H: WeChat devtools integration prep — verify dist/build/mp-weixin importable, add devtools README notes, check manifest/pages/package config for devtools compatibility. Code self-check complete; remaining gap is real-device WeChat login + backend HTTPS + request domain."
+  next_step: "Phase 23H next: import built output into WeChat devtools; smoke tabBar navigation; test WeChat login with real credentials if backend available. Remaining gap: real-device login + backend HTTPS + request domain config."

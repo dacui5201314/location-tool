@@ -1045,8 +1045,22 @@ Do not include these in uni-app commits unless the user explicitly asks.
 
 - 构建产物：`dist/build/mp-weixin`，微信开发者工具直接导入
 - 导入路径已在 `uniapp/README.md` 中说明
-- 联调前提：后端 HTTPS、管理后台配 `wx_mini_appid/secret`、request 合法域名配置
-- 仍未接 `/api/analyze`、支付、unlock-pdf、/download
+- 联调前提：后端 HTTPS、管理后台配小程序应用标识和服务端凭据、request 合法域名配置
+
+#### 开发者工具联调清单
+
+| # | 检查项 | 预期 |
+|---|---|---|
+| 1 | 导入 `dist/build/mp-weixin` | 无报错，4 tabBar 可见 |
+| 2 | 首页 tabBar | 品牌标语 + 地址搜索 + 业态选择 + 分析按钮（联调未开放） |
+| 3 | 记录 tabBar | 未登录显示登录引导；已登录显示记录列表或空态 |
+| 4 | 收藏 tabBar | 未登录显示登录引导；已登录显示收藏列表或空态 |
+| 5 | 我的 tabBar | 未登录显示"微信一键登录"按钮；点击可触发微信登录 |
+| 6 | 微信登录 | 后端已配凭证 → 登录成功显示用户信息；后端未配 → 显示 503 或网络错误 |
+| 7 | 后端不可用 | 所有 API 调用显示网络错误，不白屏不崩溃 |
+| 8 | 真机联调前提 | HTTPS 域名 + request 合法域名 + 正式小程序 AppID |
+
+- 当前阶段分析、付费、PDF 能力均未开放，相关入口显示联调未开放占位文案
 
 ### Hard reminder
 
