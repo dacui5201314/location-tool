@@ -1035,19 +1035,7 @@ Do not include these in uni-app commits unless the user explicitly asks.
 
 ### Next recommended task
 
-Phase 23F follow-up:
-
-1. Remove remaining misleading pre-integration copy, especially any `生成中` wording in `uniapp/src/pages/home/index.vue`.
-2. Re-scan all uni-app copy for `生成中|扣点|会扣点|支付|下载 PDF 报告|消耗 1 点`.
-3. Keep 401/loading reset behavior in `records` and `favorites`.
-4. Verify:
-   - `cd uniapp && npm run build:mp-weixin`
-   - strict JSON parse for package/manifest/pages
-   - `rg -n "/api/analyze|requestPayment|unlock-pdf|/download" uniapp/src uniapp/package.json uniapp/src/manifest.json uniapp/src/pages.json`
-   - `rg -n "AppSecret|wx_mini_secret|sk-|c4c298" uniapp/src uniapp/package.json uniapp/src/manifest.json uniapp/src/pages.json`
-   - `rg -n "生成中|扣点|会扣点|支付|下载 PDF 报告|消耗 1 点" uniapp/src`
-5. Commit only `uniapp/` changes.
-6. Do not push.
+Phase 23G: uni-app pre-integration self-check — verify routes/tabBar/components complete, all page states (loading/empty/error/login) consistent, fix minor display issues. Phase 23F is complete: home "生成中" copy removed, records/favorites 401 loading reset, all scans pass. Still no /api/analyze/payment/unlock/download.
 
 ### Hard reminder
 
