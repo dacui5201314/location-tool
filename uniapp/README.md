@@ -6,33 +6,34 @@ AI 选址初筛参考工具 · 未来主客户端（Vue3 + Vite）
 
 - `uniapp/` — **未来主客户端**。基于 uni-app (Vue3 + Vite)，覆盖微信小程序、抖音小程序、App 三端
 - `frontend/` — **Web 母版**。React 前端，当前产品的功能参照和体验基准
-- `miniprogram/` — **登录联调参考**。原生微信小程序脚手架，`wx.login` → `/api/auth/wechat/mini` 调用方式已验证，不继续开发新功能
+- `miniprogram/` — **登录联调参考**。原生微信小程序脚手架，仅保留登录调用参考，不继续开发新功能
 
 ## 当前阶段
 
-**Phase 23A：页面骨架 parity**
+**Phase 23H：微信开发者工具联调准备**
 
-- 6 个页面、4 项 TabBar（首页/记录/收藏/我的）、6 个组件
-- 使用 mock 数据填充 UI，不调用真实 API
-- 分析按钮、登录按钮、会员按钮均为占位
+- 6 个页面、4 项 TabBar（首页/记录/收藏/我的）
+- 微信登录端点已就绪（`POST /api/auth/wechat/mini`），可联调
+- 分析生成、付费能力、PDF 能力仍未开放，相关入口显示「联调未开放」
+- 收藏预填、记录查看、报告详情可正常工作
 
 ## 构建方式
 
-**必须使用 HBuilderX（推荐）**
+**推荐使用 HBuilderX**
 
-`@dcloudio/*` 系列包使用 alpha 版号，版本对齐由 HBuilderX 内置依赖管理器保证，命令行 `npm install` 可能因 alpha 版本冲突而无法构建。
+`@dcloudio/*` 系列包使用 alpha 版号，版本对齐由 HBuilderX 内置依赖管理器保证。
 
 1. 下载 [HBuilderX](https://www.dcloud.io/hbuilderx.html)（推荐 4.0+）
 2. 文件 → 导入 → 从本地目录导入 → 选择 `uniapp/` 目录
-3. HBuilderX 自动安装依赖并创建 `package-lock.json`
+3. HBuilderX 自动安装依赖
 4. 运行 → 运行到小程序模拟器 → 微信开发者工具
 
-**命令行方式（仅供参考，可能需手动对齐版本）**
+**命令行方式**
 
 ```bash
 cd uniapp
 npm install --legacy-peer-deps
-npm run build:mp-weixin    # 如 uni CLI 不可用，改用 HBuilderX
+npm run build:mp-weixin
 ```
 
 ## 微信开发者工具导入
@@ -61,15 +62,15 @@ npm run build:mp-weixin
 ### 4. 真实联调前提
 
 - 后端运行在公网 HTTPS 域名下
-- 管理后台已配置 `wx_mini_appid` 和 `wx_mini_secret`（系统参数页面）
-- 微信公众平台 → 开发管理 → 服务器域名 → `request 合法域名` 已添加后端域名
+- 管理后台已配置小程序应用标识和服务端凭据（系统参数页面）
+- 微信公众平台 → 开发管理 → 服务器域名 → request 合法域名已添加后端域名
 - 使用正式小程序 AppID（测试号仅支持开发者工具基础联调）
 
 ### 5. 当前阶段限制
 
-- `/api/auth/wechat/mini` 已就绪，可联调微信登录
-- 分析生成、支付、PDF 解锁/下载均未接——相关按钮显示「联调未开放」
-- 收藏预填、记录查看、报告详情可正常工作
+- 微信登录可联调
+- 分析生成、付费能力、PDF 能力均未开放
+- 相关入口按钮显示「联调未开放」占位文案
 
 ## 项目结构
 
@@ -77,7 +78,7 @@ npm run build:mp-weixin
 uniapp/
 ├── index.html                    # Vite 入口
 ├── vite.config.js                # Vite + uni-app 插件配置
-├── package.json                  # 依赖声明（HBuilderX 管理实际版本）
+├── package.json                  # 依赖声明
 ├── src/
 │   ├── manifest.json             # uni-app 应用配置
 │   ├── pages.json                # 路由 + TabBar
@@ -96,7 +97,7 @@ uniapp/
 │   │   ├── records/              # 分析记录
 │   │   ├── favorites/            # 收藏
 │   │   ├── report-detail/        # 报告详情
-│   │   ├── result/               # 分析结果
+│   │   ├── result/               # 分析结果（占位）
 │   │   └── profile/              # 我的
 │   └── utils/                    # 工具
 │       ├── api.js
@@ -109,16 +110,11 @@ uniapp/
 
 **不提交 AppID 到 Git。**
 
-在 HBuilderX 中：
-- `src/manifest.json` → 微信小程序配置 → 填写你的测试号 AppID
+在 HBuilderX 中：`src/manifest.json` → 微信小程序配置 → 填写 AppID。
 
-或在微信开发者工具中：
-- 导入 `uniapp/dist/dev/mp-weixin` 目录
-- 工具界面填写 AppID
+在微信开发者工具中：导入 `dist/build/mp-weixin`，工具界面填写 AppID。
 
 ## 注意事项
 
-- 不提交真实 AppID/AppSecret/API key
-- 当前 Phase 23A 不调用 `/api/analyze`（会扣点/生成报告）
-- 不调用支付接口
+- 不提交真实应用标识或密钥到 Git
 - Web 母版 `frontend/` 保持不动
