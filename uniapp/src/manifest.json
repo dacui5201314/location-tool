@@ -7,7 +7,12 @@
   "transformPx": false,
   "mp-weixin": {
     "appid": "",
-    "setting": { "urlCheck": false, "es6": true, "postcss": true, "minified": true }
+    "setting": { "urlCheck": false, "es6": true, "postcss": true, "minified": true },
+    "permission": {
+      "scope.userLocation": {
+        "desc": "用于在地图上定位当前位置，辅助选择门店地址"
+      }
+    }
   },
   "mp-toutiao": {
     "appid": "",

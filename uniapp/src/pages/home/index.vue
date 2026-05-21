@@ -19,6 +19,9 @@
           <input class="field" v-model="addressKeyword" placeholder="输入地址搜索或在地图上选点" :disabled="analyzing" @input="onAddressInput" />
           <button class="s-btn" :disabled="analyzing || !addressKeyword" @tap="onSearch">搜索</button>
         </view>
+        <view class="locate-row" v-if="!addressText">
+          <button class="locate-btn" @tap="onLocate">📍 定位当前位置</button>
+        </view>
         <view class="addr-pick" v-if="addressText">
           <text class="ap-pin">📍</text>
           <text class="ap-text">{{ addressText }}</text>
@@ -145,12 +148,39 @@ export default {
   },
   methods: {
     onIndustryChange (name) {
-      this.industry = name
-      if (name) this.errors.industry = ''
+      // 安全兼容：字符串直接存；对象取 name/title/label/value 字段
+      if (typeof name === 'string') this.industry = name
+      else if (name && typeof name === 'object') this.industry = name.name || name.title || name.label || name.value || ''
+      else this.industry = ''
+      if (this.industry) this.errors.industry = ''
     },
     onAddressInput () { this.errors.address = '' },
-    onBrandInput () { this.errors.brand = '' },
-    onSizeInput () { this.errors.size = '' },
+    onBrandInput (e) {
+      this.errors.brand = ''
+      if (e && typeof e === 'object' && e.detail && typeof e.detail.value === 'string') this.brandName = e.detail.value
+      else if (typeof e === 'string') this.brandName = e
+    },
+    onSizeInput (e) {
+      this.errors.size = ''
+      if (e && typeof e === 'object' && e.detail && e.detail.value !== undefined) this.storeSize = String(e.detail.value)
+      else if (typeof e === 'string') this.storeSize = e
+    },
+    onLocate () {
+      uni.getLocation({
+        type: 'gcj02',
+        success: (res) => {
+          this.mapLat = res.latitude
+          this.mapLng = res.longitude
+          this.addressText = `经度 ${res.longitude.toFixed(4)} · 纬度 ${res.latitude.toFixed(4)}`
+          this.addressKeyword = this.addressText
+          this.errors.address = ''
+          uni.showToast({ title: '已定位到当前位置', icon: 'none' })
+        },
+        fail: () => {
+          uni.showToast({ title: '定位失败，请在小程序设置中开启位置权限', icon: 'none' })
+        }
+      })
+    },
     onSearch () {
       const kw = this.addressKeyword.trim()
       if (!kw) return
@@ -220,6 +250,7 @@ export default {
 .input-row { display:flex; gap:10rpx; }
 .field { flex:1; border:2rpx solid #e2e8f0; border-radius:14rpx; padding:18rpx 14rpx; font-size:28rpx; background:#fff; }
 .s-btn { background:linear-gradient(135deg,#0f172a,#1e40af); color:#fff; border-radius:14rpx; padding:0 28rpx; font-size:28rpx; line-height:80rpx; font-weight:600; }
+.locate-row { margin-top:12rpx; } .locate-btn { width:100%; background:#f1f5f9; color:#334155; border-radius:14rpx; font-size:28rpx; padding:18rpx 0; }
 .addr-pick { display:flex; align-items:center; margin-top:12rpx; padding:16rpx; background:#f0fdf4; border:1rpx solid #bbf7d0; border-radius:14rpx; }
 .ap-text { flex:1; font-size:26rpx; color:#166534; margin-left:8rpx; } .ap-star { font-size:36rpx; color:#d6a84f; padding:0 8rpx; } .ap-clear { font-size:28rpx; color:#94a3b8; padding:0 4rpx; }
 .map-view { width:100%; height:380rpx; border-radius:16rpx; margin-top:12rpx; }

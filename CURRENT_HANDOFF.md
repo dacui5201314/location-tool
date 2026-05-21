@@ -1082,13 +1082,14 @@ Do not include these in uni-app commits unless the user explicitly asks.
 
 导入成功、4 tabBar 通过、首页渲染正常、地址输入和业态选择可用。登录失败（状态码非典型），已将错误提示改为携带 HTTP 状态码辅助排查。
 
-### Phase 23K 地图/地址选择（进行中 ~45%）
+### Phase 23K 地图/地址选择（进行中 ~60%）
 
-- 首页接入 `<map>` 组件，默认北京中心，带中心 📍 标记
-- 点击地图取经纬度 → 同步 addressText/addressKeyword → 清除 errors
-- 搜索框输入文字点搜索 → 设 addressText + toast
-- 选中地址后显示清除按钮 ✕，一键重置地址/收藏/错误
-- 坐标展示格式："经度 116.3975 · 纬度 39.9087"
+- 首页接入 `<map>` 组件 + show-location + 中心 📍 标记
+- 正式补定位权限（manifest.json permission scope.userLocation）
+- 「📍 定位当前位置」按钮 → uni.getLocation(gcj02) → 更新地图/地址
+- 地图点击选坐标 + 搜索输入设地址 + 清除按钮复位，全闭环
+- 表单 bug 修复：industry 兼容对象/字符串，brand/storeSize 防 bool 污染
+- 坐标展示："经度 116.3975 · 纬度 39.9087"
 - 未接高德/后端 POI/真实分析
 
 ### 下一块：Phase 23L report_json 明细展示补全
