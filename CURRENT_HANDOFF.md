@@ -649,3 +649,36 @@ count=74, max_id=74（未变更）。
 Phase 14 smoke 记录提交：`2f728c4`
 
 ### 未 push
+
+---
+
+## Phase 16 微信小程序登录后端最小实现（2026-05-21）
+
+### 变更
+
+| 文件 | 改动 |
+|---|---|
+| `routers/auth.py` | 新增 `POST /api/auth/wechat/mini`（~65 行）+ `_get_config_str` 辅助函数 + `_find_or_create_user` 支持 `wx_mini_openid`/`wx_unionid` 查找回填 |
+| `tests/check_report_fact_guard.py` | T-P16-1~4: 新用户创建、unionid 优先匹配、wx_mini_openid 匹配、字段存在性 |
+
+### 端点行为
+
+- 请求 `{ code }` → `jscode2session` → openid/unionid → 查/建用户 → JWT
+- 凭证读取 DB `system_config`（`wx_mini_appid`/`wx_mini_secret`），fallback 环境变量
+- `session_key` 不返回前端，不持久化
+- 查找顺序：unionid → wx_mini_openid → wx_openid → phone → device_id
+- 已有用户回填缺失的 `wx_mini_openid`/`wx_unionid`，unique constraint 冲突已捕获
+
+### 验证
+
+| Check | Result |
+|---|---|
+| `compileall` | PASS |
+| `check_industry_rigor_rules.py` | 2168 PASS, 0 FAIL |
+| `check_report_fact_guard.py` | **137** PASS, 0 FAIL |
+
+### DB
+
+count=74, max_id=74（未变更）。
+
+### 未 push

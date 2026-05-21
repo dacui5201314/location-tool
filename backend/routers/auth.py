@@ -52,6 +52,14 @@ def _get_config_int(db: Session, key: str, default: int) -> int:
     return default
 
 
+def _get_config_str(db: Session, key: str, default: str = "") -> str:
+    """从 SystemConfig 表中读取字符串配置，未设置则回退默认值"""
+    row = db.query(SystemConfig).filter(SystemConfig.key == key).first()
+    if row and row.value:
+        return row.value.strip()
+    return default
+
+
 def _get_client_ip(request: Request) -> str:
     forwarded = request.headers.get("X-Forwarded-For", "")
     if forwarded:
@@ -66,6 +74,8 @@ def _find_or_create_user(
     db: Session,
     *,
     wx_openid: str = "",
+    wx_mini_openid: str = "",
+    wx_unionid: str = "",
     phone: str = "",
     device_id: str = "",
     channel: str = "web",
@@ -75,9 +85,16 @@ def _find_or_create_user(
     新用户自动执行防刷检查 + 新手礼包 + BONUS 流水。
     返回 (user, is_new, gift_note)。
     """
-    # ── 按优先级匹配已有用户 ──
+    # ── 按优先级匹配已有用户 (Phase 16: +wx_mini_openid / +wx_unionid) ──
     user = None
-    if wx_openid:
+    # a. unionid 跨应用统一标识优先
+    if wx_unionid:
+        user = db.query(User).filter(User.wx_unionid == wx_unionid).first()
+    # b. 小程序 openid
+    if not user and wx_mini_openid:
+        user = db.query(User).filter(User.wx_mini_openid == wx_mini_openid).first()
+    # c. 公众号 openid
+    if not user and wx_openid:
         user = db.query(User).filter(User.wx_openid == wx_openid).first()
     if not user and phone:
         user = db.query(User).filter(User.phone == phone).first()
@@ -85,14 +102,22 @@ def _find_or_create_user(
         user = db.query(User).filter(User.device_id == device_id).first()
 
     if user:
-        # 增量绑定缺失的身份字段
+        # 增量绑定缺失的身份字段（Phase 16: +wx_mini_openid / +wx_unionid）
         updated = False
-        if wx_openid and not user.wx_openid:
-            user.wx_openid = wx_openid
-            updated = True
-        if phone and not user.phone:
-            user.phone = phone
-            updated = True
+        for field, val in [
+            ("wx_unionid", wx_unionid),
+            ("wx_mini_openid", wx_mini_openid),
+            ("wx_openid", wx_openid),
+            ("phone", phone),
+        ]:
+            if val and not getattr(user, field, None):
+                try:
+                    setattr(user, field, val)
+                    db.flush()
+                    updated = True
+                except Exception:
+                    # unique constraint conflict: another user already claimed this id
+                    db.rollback()
         if updated:
             db.commit()
             db.refresh(user)
@@ -134,6 +159,8 @@ def _find_or_create_user(
         device_id=device_id,
         registration_ip=client_ip,
         wx_openid=wx_openid or None,
+        wx_mini_openid=wx_mini_openid or None,
+        wx_unionid=wx_unionid or None,
         phone=phone or None,
         channel=channel,
         is_new_user=True,
@@ -401,3 +428,89 @@ def wechat_official_login(
         "gift_note": gift_note,
         "wx_openid": openid,
     }
+
+
+# ═══════════════════════════════════════════════════════════
+# Phase 16: 微信小程序登录
+# ═══════════════════════════════════════════════════════════
+
+class WechatMiniBody(BaseModel):
+    code: str
+
+
+@router.post("/wechat/mini")
+def wechat_mini_login(
+    body: WechatMiniBody,
+    request: Request = None,
+    db: Session = Depends(get_db),
+):
+    """微信小程序登录。
+    小程序端 wx.login() 返回 code，后端 jscode2session 换取 openid / unionid。
+    流程：code → jscode2session → openid + unionid → find/create user → JWT。
+    session_key 不返回前端，不持久化。
+    """
+    # ── 读取小程序凭证：优先从 DB SystemConfig，fallback 环境变量 ──
+    mini_appid = _get_config_str(db, "wx_mini_appid",
+                                 os.getenv("WECHAT_MINI_APPID", ""))
+    mini_secret = _get_config_str(db, "wx_mini_secret",
+                                  os.getenv("WECHAT_MINI_SECRET", ""))
+    if not mini_appid or not mini_secret:
+        raise HTTPException(
+            status_code=503,
+            detail="小程序未配置（请在管理后台 → 系统参数中填写 wx_mini_appid / wx_mini_secret）",
+        )
+
+    # 1. 调用 jscode2session 换取 openid + unionid
+    wx_url = (
+        "https://api.weixin.qq.com/sns/jscode2session"
+        f"?appid={mini_appid}"
+        f"&secret={mini_secret}"
+        f"&js_code={body.code}"
+        "&grant_type=authorization_code"
+    )
+
+    import httpx
+    try:
+        wx_resp = httpx.get(wx_url, timeout=10)
+        wx_data = wx_resp.json()
+    except Exception:
+        raise HTTPException(status_code=502, detail="微信接口请求失败，请重试")
+
+    if "errcode" in wx_data and wx_data["errcode"] != 0:
+        err_map = {
+            40029: "code 无效，请重新调用 wx.login()",
+            40163: "code 已被使用，请重新调用 wx.login()",
+            41002: "appid 配置错误",
+            -1: "微信接口限频，请稍后重试",
+        }
+        detail = err_map.get(wx_data["errcode"],
+                             f"微信登录失败（{wx_data.get('errmsg', '')}）")
+        raise HTTPException(status_code=400, detail=detail)
+
+    openid = wx_data.get("openid", "")
+    unionid = wx_data.get("unionid", "")
+    if not openid:
+        raise HTTPException(status_code=400, detail="未获取到微信 OpenID，请检查小程序配置")
+
+    # 2. 查找或创建用户
+    client_ip = _get_client_ip(request) if request else ""
+    user, is_new, gift_note = _find_or_create_user(
+        db,
+        wx_mini_openid=openid,
+        wx_unionid=unionid,
+        channel="mini_program",
+        client_ip=client_ip,
+    )
+
+    # 3. 签发 JWT（session_key 不返回前端）
+    token = create_token(user.id, role="user")
+    resp = {
+        "token": token,
+        "user": user.to_dict(),
+        "is_new_user": is_new,
+        "gift_note": gift_note,
+        "wx_mini_openid": openid,
+    }
+    if unionid:
+        resp["wx_unionid"] = unionid
+    return resp
