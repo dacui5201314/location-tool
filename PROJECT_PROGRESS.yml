@@ -1,8 +1,8 @@
 current_phase: Phase 23H
-phase_status: uniapp_pre_integration_self_check_complete
+phase_status: uniapp_wechat_devtools_prep_in_progress
 latest_code_commit: 83c3d6f
 latest_code_commit_message: "chore: complete Phase 23G self-check with result page placeholder"
-latest_docs_commit: f3e7328
+latest_docs_commit: e35dfda
 unpushed: true
 
 validation:
@@ -40,7 +40,7 @@ sample_bank:
   partial: 10
   latest_industry_test_total: "2168 PASS, 0 FAIL"
 
-next_step: "Phase 23H: WeChat devtools integration prep — verify dist/build/mp-weixin import path, manifest/pages/package config for devtools, add devtools README if missing. Do not connect real analyze/payment/unlock/download."
+next_step: "Phase 23H next: import dist/build/mp-weixin into WeChat devtools; smoke tabBar/page navigation; test WeChat login with real appid/secret if backend available. Still no /api/analyze/payment/unlock/download."
 
 boundaries:
   no_push: true
