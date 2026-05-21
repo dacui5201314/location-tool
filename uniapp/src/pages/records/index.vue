@@ -117,7 +117,11 @@ export default {
         const r = await api.fetchRecords(1, 50)
         if (r.ok && Array.isArray(r.data?.records)) this.records = r.data.records
         else if (r.ok && Array.isArray(r.data)) this.records = r.data
-      } catch (e) { /* network error — keep mock fallback as empty */ }
+        else {
+          if (r.statusCode === 401) { auth.clearToken(); this.isLoggedIn = false; return }
+          uni.showToast({ title: api.normalizeError(r), icon: 'none' })
+        }
+      } catch (e) { uni.showToast({ title: '网络异常', icon: 'none' }) }
       this.loading = false
     },
     onDetail (r) {

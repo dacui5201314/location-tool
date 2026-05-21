@@ -16,7 +16,7 @@
           <text class="section-hint" v-if="!addressText">选择位置后，可一键收藏地址</text>
         </view>
         <view class="input-row">
-          <input class="field" v-model="addressKeyword" placeholder="输入地址搜索或在地图上选点" :disabled="analyzing" />
+          <input class="field" v-model="addressKeyword" placeholder="输入地址搜索或在地图上选点" :disabled="analyzing" @input="onAddressInput" />
           <button class="s-btn" :disabled="analyzing || !addressKeyword" @tap="onSearch">搜索</button>
         </view>
         <view class="addr-pick" v-if="addressText">
@@ -50,12 +50,12 @@
         <view class="dual">
           <view class="dual-half">
             <view class="label">品牌/特色 <text class="req">*</text></view>
-            <input class="field" v-model="brandName" placeholder="品牌或主打特色" :disabled="analyzing" />
+            <input class="field" v-model="brandName" placeholder="品牌或主打特色" :disabled="analyzing" @input="onBrandInput" />
             <text class="field-err" v-if="errors.brand">{{ errors.brand }}</text>
           </view>
           <view class="dual-half">
             <view class="label">门店面积 <text class="req">*</text></view>
-            <input class="field" v-model="storeSize" type="number" placeholder="㎡" :disabled="analyzing" />
+            <input class="field" v-model="storeSize" type="number" placeholder="㎡" :disabled="analyzing" @input="onSizeInput" />
             <text class="field-err" v-if="errors.size">{{ errors.size }}</text>
           </view>
         </view>
@@ -131,6 +131,9 @@ export default {
       this.industry = name
       if (name) this.errors.industry = ''
     },
+    onAddressInput () { this.errors.address = '' },
+    onBrandInput () { this.errors.brand = '' },
+    onSizeInput () { this.errors.size = '' },
     onSearch () { uni.showToast({ title: '地图搜索接入中', icon: 'none' }) },
     onMapTap () { uni.showToast({ title: '地图组件接入中', icon: 'none' }) },
     toggleFav () { this.isFaved = !this.isFaved; uni.showToast({ title: this.isFaved ? '收藏成功' : '已取消收藏', icon: 'none' }) },

@@ -36,6 +36,12 @@
         </view>
       </view>
 
+      <!-- Empty content -->
+      <view class="content-box" v-if="!hasContent">
+        <text class="cb-title">📊 报告内容</text>
+        <text class="cb-text">暂无完整报告内容。该记录可能是旧版格式或报告数据尚未生成。</text>
+      </view>
+
       <!-- Disclaimer -->
       <view class="disc" v-if="rptDisclaimer">💡 {{ rptDisclaimer }}</view>
 
@@ -131,7 +137,8 @@ export default {
   },
   computed: {
     recordTitle () { return this.record.brand_desc || this.record.business_type || '报告详情' },
-    hasCompetition () { return this.rptDir200 + this.rptDir500 + this.rptDir1000 > 0 }
+    hasCompetition () { return this.rptDir200 + this.rptDir500 + this.rptDir1000 > 0 },
+    hasContent () { return this.rptScore > 0 || this.rptSummary || this.rptAdv.length || this.rptDims.length || this.rptQual.length }
   },
   onLoad (options) {
     const id = options.id
@@ -153,7 +160,7 @@ export default {
     sc: scoreColor, fmtTime: formatTime,
     goBack () { uni.navigateBack({ delta: 1 }).catch(() => uni.switchTab({ url: '/pages/records/index' })) },
     onExport () {
-      uni.showToast({ title: this.record.is_pdf_unlocked ? 'PDF 下载接入中' : 'PDF 解锁联调未开放', icon: 'none' })
+      uni.showToast({ title: 'PDF / 下载 / 解锁联调未开放', icon: 'none' })
     },
     parseReport (raw) {
       let rpt = null
