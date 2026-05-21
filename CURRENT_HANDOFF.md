@@ -775,3 +775,38 @@ count=74, max_id=74（未变更）。
 - 禁止 push，除非用户明确要求
 
 ---
+
+## Phase 19 PDF Parity Smoke（2026-05-21）
+
+### 使用报告
+
+id=65，民宿青旅@天河路208号，score=62，rigor_enabled=True，direct=6/29/29，sub=4/15/15，anchor=17/32/55，irr=4。
+
+### 三端对比
+
+| 字段 | DB report_json | 后端 download HTML | 前端 AnalysisResult.jsx | 前端 PdfExport.jsx | 前端 exportToPDF.js |
+|---|---|---|---|---|---|
+| direct_competitors | 6/29/29 | 6/29/29 ✅ | 同源 real_data ✅ | 同源 real_data ✅ | 同源 real_data ✅ |
+| substitute_competitors | 4/15/15 | 4/15/15 ✅ | 同源 ✅ | 同源 ✅ | 同源 ✅ |
+| traffic_anchors | 17/32/55 | 17/32/55 ✅ | 同源 ✅ | 同源 ✅ | 同源 ✅ |
+| hot_brands | 10 条 | 已渲染 ✅ | 同源 ✅ | 同源 ✅ | 同源 ✅ |
+| data_quality_notes | 4 条 | 含"严谨度规则剔除 4" ✅ | 同源 ✅ | 同源 ✅ | 同源 ✅ |
+| rigor_enabled | True | "严谨口径" ✅ | hasRigor 分支 ✅ | hasRigor 分支 ✅ | hasRigor 分支 ✅ |
+| action_plan | 3 条 | 已渲染 ✅ | 同源 ✅ | 同源 ✅ | — |
+| 免责声明 | "选址初筛参考" | 已渲染 ✅ | 已渲染 ✅ | 已渲染 ✅ | 已渲染 ✅ |
+
+### 不一致项
+
+| 项 | 级别 | 说明 |
+|---|---|---|
+| irrelevant_excluded 不是独立展示指标 | **P3** | 4 条渲染路径均嵌入 data_quality_notes 字符串中间接传达，无独立数字卡片。不影响数据准确性 |
+
+### 结论
+
+三端核心字段一致，无 P0/P1/P2 阻塞。`irrelevant_excluded` 独立展示列为 P3 后续优化。
+
+### 验证
+
+编译/测试通过（Phase 17 基线：compileall PASS, industry 2168 PASS, fact_guard 147 PASS, npm build PASS）。
+
+---
