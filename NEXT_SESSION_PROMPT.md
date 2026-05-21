@@ -1,4 +1,4 @@
-# New Window Prompt - 2026-05-19
+# New Window Prompt - Phase 13
 
 Project: `C:\Users\admin\location-tool`
 
@@ -7,57 +7,50 @@ Read first only:
 2. `PROJECT_PROGRESS.yml`
 3. `CURRENT_HANDOFF.md`
 
-Do not read `PROJECT_STATE.md` / `WORKING_SET.md` unless the user explicitly asks.
+Do not read `PROJECT_STATE.md` / `WORKING_SET.md` unless explicitly needed.
 
-## Current Status
+## Current State
 
-Report accuracy mainline is nearly done. Do not keep expanding samples.
+Report accuracy mainline is complete. Do not reopen POI/rules/sample expansion.
 
-Latest important commits:
-- `3484608` - `fix: map master business types to real POI config`
-- `a365727` - `docs: record Phase 9G post-fix real regression`
+Latest relevant commits:
+- `52cc749` - `feat: complete pre-launch accuracy hardening`
+- `0871bac` - `docs: finalize Phase 12 launch readiness wording`
+- `53813cd` - `docs: update README to v1.5.0 with Phase 10-12 changes`
 
-Current baseline:
-- `compileall`: PASS
-- `check_industry_rigor_rules.py`: 2158 PASS, 0 FAIL
-- `check_report_fact_guard.py`: 92 PASS, 0 FAIL
-- DB `analysis_records`: count/max id = 70/70 after Phase 9G
+Baseline:
+- `python -m compileall backend`: PASS
+- `python backend/tests/check_industry_rigor_rules.py`: 2168 PASS, 0 FAIL
+- `python backend/tests/check_report_fact_guard.py`: 101 PASS, 0 FAIL
+- DB `analysis_records`: count/max id = 74/74
+- Expected `git status --short`: `M backend/main.py`, `M backend/routers/records.py`, and `M backend/tests/check_report_fact_guard.py` may be present from uncommitted partial Phase 13 attempts, plus `tmp_latest_report_text.txt`, `tmp_report_images/`, `tmp_report_pages/`
 
-Phase 9 key result:
-- Master business type self-mapping was missing and caused empty POI for direct master names.
-- Fixed in `BUSINESS_TYPE_TO_MASTER` (+14 self maps) and tests.
-- Phase 9F/9G verified official API save path with real POI, `rigor_enabled=True`, DB ids 60-70.
-- No known blocking direct/substitute/anchor/irrelevant issue remains.
-- Remaining errors are mainly LLM numeric inflation; keep fact guard hard-error and retry fallback.
+## Phase 13 Goal
 
-Expected `git status --short`: only:
-- `tmp_latest_report_text.txt`
-- `tmp_report_images/`
-- `tmp_report_pages/`
+Fix launch-blocking billing/save-chain risks:
 
-## Next Step: Phase 10 Quick Wrapup
+1. `backend/main.py`: `AnalysisRecord` DB save failure is currently logged but can still return SSE success.
+   - Must hard-fail, not yield success.
+   - Must refund point users.
+   - HTML file save failure can remain best-effort if the DB record is saved.
+   - Note: if `backend/main.py` is dirty, it likely already contains a partial `_db_save_error` / `_db_save_ok` attempt; finish it rather than duplicating it.
 
-Run only 4 subtype saved-chain checks, then summarize acceptance. Do not run random or large expansion.
+2. `backend/routers/records.py`: PDF unlock can double-charge on concurrent requests.
+   - If points were charged and conditional unlock `rowcount == 0`, refund before returning `already_unlocked`.
+   - Member unlocks should not refund.
+   - Note: if `records.py` is dirty, it likely attempts to rely on `db.rollback()` to undo `check_billing_access()` in the same transaction; verify with a focused test before committing.
 
-Samples:
-1. 洗衣店 | 天河路208号
-2. 诊所 | 建国路88号
-3. 宠物店 | 淮海中路999号
-4. 健身房 | 春熙路1号
+Add minimal focused tests if feasible without broad refactor.
+If `check_report_fact_guard.py` is dirty, it likely has source-level/import Phase 13 checks; decide whether to keep, strengthen, or replace them with focused behavioral tests.
 
-Record: new id, score, retry, fact_errors pre/post, `rigor_enabled`, POI total, direct/substitute/anchor counts, irrelevant count, disclaimer, save/refund/timeout.
-
-Then update `CURRENT_HANDOFF.md` with Phase 10 acceptance summary. Optionally update `PROJECT_PROGRESS.yml`.
-
-Commit:
-`docs: summarize Phase 10 accuracy acceptance`
-
-## Hard Boundaries
+## Boundaries
 
 - No push.
 - Do not process `tmp_*`.
-- Do not modify frontend / UI / PDF.
-- Do not modify database schema.
-- Do not relax `report_fact_guard.py`.
-- Do not weaken `require_name_keyword_for_code`, `substitute_before_direct`, `strict_exclude_names`, or `exclude_names`.
-- Do not continue forcing Sample Bank completion.
+- Do not modify POI/rules/prompt accuracy logic.
+- Do not random sample or generate more real reports.
+- Do not change DB schema unless impossible to avoid.
+- Do not relax fact guard or classification boundaries.
+
+Commit suggestion:
+`fix: harden billing refund and report save failure paths`

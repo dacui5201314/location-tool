@@ -558,3 +558,70 @@ P0（POI 名称幻觉）、P2（substitute/anchor 写成 direct）、P3（竞品
 | `check_report_fact_guard.py` | 101 PASS, 0 FAIL |
 
 ---
+
+## Phase 13 Handoff - Billing / Save-Chain Hardening (2026-05-21)
+
+### Current Decision
+
+Report accuracy mainline is complete and should stay closed:
+
+- Phase 10-12 resolved the launch-blocking accuracy issues.
+- P0/P2/P3 are hard-error with retry fallback.
+- `_check_sentence` tolerance is narrowed to `max(expected+3, expected*2)`.
+- Decision-language and single-point financial-number guards are in `report_fact_guard.py`.
+- Industry rule suite baseline: `2168 PASS, 0 FAIL`.
+- Fact guard suite baseline: `101 PASS, 0 FAIL`.
+- DB analysis_records remained `count=74, max_id=74` after Phase 12; no new real report sampling is needed.
+
+### Verified Phase 13 Risks
+
+These are not report-accuracy issues; they are launch blockers because they can affect user points or saved reports.
+
+Current worktree note: `backend/main.py`, `backend/routers/records.py`, and `backend/tests/check_report_fact_guard.py` already have uncommitted partial Phase 13 attempts. `main.py` adds `_db_save_error` / `_db_save_ok` around DB save but is not complete until the final refund condition includes the DB-save failure flag and tests pass. `records.py` attempts to handle concurrent PDF unlock by rolling back the shared transaction when `rowcount == 0`; verify this behavior before committing code. The test file currently contains source-level/import checks, not a full behavioral integration test.
+
+1. `backend/main.py`: analysis DB save failure is swallowed.
+   - Current behavior: `AnalysisRecord` save exceptions are logged, but the SSE path can still mark `_stream_ok=True` and yield success.
+   - Risk: user is charged, frontend sees success, but no history record/report exists.
+   - Required behavior: DB record save failure must hard-fail the stream and refund point users.
+
+2. `backend/routers/records.py`: PDF unlock can double-charge on concurrent requests.
+   - Current order: `check_billing_access()` charges first, then conditional `UPDATE is_pdf_unlocked == 0`.
+   - Risk: a concurrent loser can be charged and then get `already_unlocked`.
+   - Required behavior: no extra charge, or automatic refund when `rowcount == 0` after a points charge.
+
+3. Tests are thin around this area.
+   - Missing coverage: SSE save failure/refund branch, billing/refund paths, PDF unlock concurrency loser, report HTML generation.
+   - Minimum Phase 13 target: add focused tests for the two blocking paths if feasible without large refactor.
+
+### Non-Blocking Findings
+
+- `report_fact_guard.py` numeric regex currently matches ASCII digits only; full-width digits are post-launch hardening.
+- `backend/config.py` `PROVIDER_CONFIG` overlaps runtime config but is still imported by legacy `backend/ai_providers/*`; do not delete casually.
+- `backend/routers/admin.py` deprecated `_ERROR_LOGS` and `/api/admin/logs` can be cleaned later.
+- `amap_service.py` remains large but functional; do not refactor during launch hardening.
+
+### Phase 13 Required Work
+
+1. Fix analysis DB save failure path in `backend/main.py`.
+   - Do not yield success if `AnalysisRecord` cannot be committed.
+   - Mark a refund-eligible failure flag, e.g. `_db_save_error`.
+   - Include `_db_save_error` in the final refund condition.
+   - Keep report HTML file save failure as best-effort fallback if DB record is saved, because downloads can rebuild from `report_json`.
+
+2. Fix PDF unlock concurrent double-charge in `backend/routers/records.py`.
+   - Minimal acceptable fix: if `billing.source == "points"` and the conditional unlock update returns `rowcount == 0`, call `refund_credits(user_id, 1, reason="PDF unlock already completed concurrently")` before returning `already_unlocked`.
+   - Member unlocks should not refund.
+
+3. Verification after changes:
+   - `python -m compileall backend`
+   - `python backend/tests/check_industry_rigor_rules.py`
+   - `python backend/tests/check_report_fact_guard.py`
+   - Any new focused billing/save tests added in Phase 13.
+
+### Boundaries
+
+- Do not reopen POI classification, prompt accuracy, or sample expansion.
+- Do not process `tmp_*`.
+- Do not push.
+- Do not change database schema unless a blocker is impossible without it.
+- Do not relax `report_fact_guard.py` or classification boundaries.
