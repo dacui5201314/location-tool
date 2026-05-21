@@ -49,6 +49,7 @@ function fetchRecords (page = 1, pageSize = 20) { return request({ url: `/api/re
 function fetchRecordDetail (uuid) { return request({ url: `/api/records/${uuid}` }) }
 function deleteRecord (uuid) { return request({ url: `/api/records/${uuid}`, method: 'DELETE' }) }
 function fetchFavorites () { return request({ url: '/api/favorites' }) }
+function deleteFavorite (id) { return request({ url: `/api/favorites/${id}`, method: 'DELETE' }) }
 function fetchIndustries () { return request({ url: '/api/industries/active', auth: false }) }
 
 // ── Health ──
@@ -57,5 +58,5 @@ function getHealth () { return request({ url: '/api/health', auth: false }) }
 export default {
   request, normalizeError, ensureAnonToken, wechatMiniLogin,
   fetchProfile, fetchRecords, fetchRecordDetail, deleteRecord,
-  fetchFavorites, fetchIndustries, getHealth
+  fetchFavorites, deleteFavorite, fetchIndustries, getHealth
 }

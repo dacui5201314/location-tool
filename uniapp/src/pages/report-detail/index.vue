@@ -1,10 +1,7 @@
 <template>
   <view class="detail-page">
     <!-- Loading -->
-    <view class="loading" v-if="loading">
-      <text class="ld-dots">...</text>
-      <text class="ld-text">加载中...</text>
-    </view>
+    <view class="loading" v-if="loading"><text class="ld-dots">...</text><text class="ld-text">加载中...</text></view>
 
     <!-- Error -->
     <view class="error" v-if="!loading && errorMsg">
@@ -15,10 +12,11 @@
 
     <!-- Content -->
     <view v-if="!loading && !errorMsg">
+      <!-- Top bar -->
       <view class="top-bar">
         <text class="back" @tap="goBack">←</text>
         <text class="top-title">{{ recordTitle }}</text>
-        <text class="top-export" :class="record.is_pdf_unlocked ? 'free' : 'locked'" @tap="onExport">
+        <text class="top-export" :class="record.is_pdf_unlocked ? 'free' : 'locked'">
           {{ record.is_pdf_unlocked ? '⬇️ 下载 PDF' : '🔒 导出' }}
         </text>
       </view>
@@ -31,22 +29,80 @@
           <view class="mg-item"><text class="mgl">门店面积</text><text class="mgv">{{ record.store_size ? record.store_size + '㎡' : '-' }}</text></view>
           <view class="mg-item"><text class="mgl">分析时间</text><text class="mgv">{{ fmtTime(record.created_at) || '-' }}</text></view>
         </view>
-        <view class="meta-score" v-if="record.overall_score > 0">
-          <text class="ms-num" :style="{ color: sc(record.overall_score) }">{{ record.overall_score }}</text>
+        <view class="meta-score" v-if="rptScore > 0">
+          <text class="ms-num" :style="{ color: sc(rptScore) }">{{ rptScore }}</text>
           <text class="ms-label">综合评分</text>
-          <text class="ms-badge" :class="record.is_pdf_unlocked ? 'free' : 'locked'">
-            {{ record.is_pdf_unlocked ? 'PDF 已解锁' : 'PDF 未解锁' }}
-          </text>
+          <text class="ms-badge" :class="record.is_pdf_unlocked ? 'free' : 'locked'">{{ record.is_pdf_unlocked ? 'PDF 已解锁' : 'PDF 未解锁' }}</text>
         </view>
       </view>
 
-      <!-- Report content placeholder -->
-      <view class="content-box">
-        <text class="cb-title">📊 报告内容</text>
-        <text class="cb-text">报告详情展示将在 Phase 23E 接入完整 report_json 解析后实现。当前可查看元数据。</text>
+      <!-- Disclaimer -->
+      <view class="disc" v-if="rptDisclaimer">💡 {{ rptDisclaimer }}</view>
+
+      <!-- Warning -->
+      <view class="warn" v-if="rptWarning">⚠️ <text class="warn-bold">风险提示：</text>{{ rptWarning }}</view>
+
+      <!-- Summary -->
+      <view class="section" v-if="rptSummary">
+        <view class="sec-title">📋 分析摘要</view>
+        <text class="sec-text">{{ rptSummary }}</text>
       </view>
 
-      <!-- Bottom bar — PDF not functional -->
+      <!-- Advantages -->
+      <view class="section" v-if="rptAdv.length">
+        <view class="sec-title green">✅ 关键优势</view>
+        <view class="item" v-for="(a,i) in rptAdv" :key="'a'+i">{{ i+1 }}. {{ a }}</view>
+      </view>
+
+      <!-- Disadvantages -->
+      <view class="section" v-if="rptDis.length">
+        <view class="sec-title red">⚠️ 主要风险</view>
+        <view class="item" v-for="(d,i) in rptDis" :key="'d'+i">{{ i+1 }}. {{ d }}</view>
+      </view>
+
+      <!-- Dimension scores -->
+      <view class="section" v-if="rptDims.length">
+        <view class="sec-title">📈 维度评分</view>
+        <view class="dim-grid">
+          <view class="dim-cell" v-for="d in rptDims" :key="d.key">
+            <text class="dl">{{ d.label }}</text>
+            <text class="dv" :style="{ color: sc(d.value) }">{{ d.value }}</text>
+            <view class="db"><view class="df" :style="{ width: d.value+'%', background: sc(d.value) }" /></view>
+          </view>
+        </view>
+      </view>
+
+      <!-- Competition data -->
+      <view class="section" v-if="hasCompetition">
+        <view class="sec-title">🎯 直接竞品（同类业态 · 严谨口径）</view>
+        <view class="comp-row">
+          <text>200m: {{ rptDir200 }} · 500m: {{ rptDir500 }} · 1km: {{ rptDir1000 }}</text>
+        </view>
+      </view>
+
+      <view class="section" v-if="rptSub500 > 0 || rptSub1000 > 0">
+        <view class="sec-title orange">🔶 替代消费压力（非同业态，不计入直接竞品）</view>
+        <view class="comp-row"><text>200m: {{ rptSub200 }} · 500m: {{ rptSub500 }} · 1km: {{ rptSub1000 }}</text></view>
+      </view>
+
+      <view class="section" v-if="rptAnc500 > 0 || rptAnc1000 > 0">
+        <view class="sec-title green">🟢 客流锚点（商业活跃度参考 · 非竞品）</view>
+        <view class="comp-row"><text>200m: {{ rptAnc200 }} · 500m: {{ rptAnc500 }} · 1km: {{ rptAnc1000 }}</text></view>
+      </view>
+
+      <!-- Data quality -->
+      <view class="section" v-if="rptQual.length">
+        <view class="sec-title">📊 数据质量</view>
+        <text class="ql" v-for="(q,i) in rptQual" :key="'q'+i">{{ q }}</text>
+      </view>
+
+      <!-- Action plan -->
+      <view class="section" v-if="rptAction.length">
+        <view class="sec-title">📋 行动建议</view>
+        <view class="item" v-for="(ap,i) in rptAction" :key="'ap'+i">{{ i+1 }}. {{ ap }}</view>
+      </view>
+
+      <!-- Bottom bar -->
       <view class="bottom-bar">
         <button v-if="record.is_pdf_unlocked" class="bb-export">⬇️ 下载 PDF 报告</button>
         <button v-else class="bb-unlock" @tap="onExport">🔒 PDF 导出暂未开放</button>
@@ -63,16 +119,19 @@ import { scoreColor, formatTime } from '../../utils/format'
 export default {
   data () {
     return {
-      loading: true,
-      errorMsg: '',
-      record: {}
+      loading: true, errorMsg: '', record: {},
+      // Parsed report_json fields
+      rptScore: 0, rptDisclaimer: '', rptWarning: '', rptSummary: '',
+      rptAdv: [], rptDis: [], rptDims: [], rptAction: [],
+      rptDir200: 0, rptDir500: 0, rptDir1000: 0,
+      rptSub200: 0, rptSub500: 0, rptSub1000: 0,
+      rptAnc200: 0, rptAnc500: 0, rptAnc1000: 0,
+      rptQual: []
     }
   },
   computed: {
-    recordTitle () {
-      const r = this.record
-      return r.brand_desc || r.business_type || '报告详情'
-    }
+    recordTitle () { return this.record.brand_desc || this.record.business_type || '报告详情' },
+    hasCompetition () { return this.rptDir200 + this.rptDir500 + this.rptDir1000 > 0 }
   },
   onLoad (options) {
     const id = options.id
@@ -81,6 +140,7 @@ export default {
       this.loading = false
       if (r.ok && r.data && !r.data.error) {
         this.record = r.data
+        this.parseReport(r.data.report_json)
       } else {
         const detail = r.data?.detail || r.data?.error || ''
         if (r.statusCode === 404 || detail.includes('not found') || detail.includes('不存在')) this.errorMsg = '记录不存在'
@@ -90,14 +150,43 @@ export default {
     }).catch(() => { this.loading = false; this.errorMsg = '网络异常，请重试' })
   },
   methods: {
-    sc: scoreColor,
-    fmtTime: formatTime,
+    sc: scoreColor, fmtTime: formatTime,
     goBack () { uni.navigateBack({ delta: 1 }).catch(() => uni.switchTab({ url: '/pages/records/index' })) },
     onExport () {
-      uni.showToast({
-        title: this.record.is_pdf_unlocked ? 'PDF 下载接入中' : 'PDF 解锁联调未开放',
-        icon: 'none'
-      })
+      uni.showToast({ title: this.record.is_pdf_unlocked ? 'PDF 下载接入中' : 'PDF 解锁联调未开放', icon: 'none' })
+    },
+    parseReport (raw) {
+      let rpt = null
+      if (typeof raw === 'string') { try { rpt = JSON.parse(raw) } catch (e) { return } } else if (raw && typeof raw === 'object') { rpt = raw } else { return }
+
+      const rd = rpt.real_data || {}
+      const exec = rpt.executive_summary || {}
+      const dimScores = rpt.dimension_scores || []
+
+      this.rptScore = rpt.score ?? rpt.overall_score ?? 0
+      this.rptDisclaimer = rpt.disclaimer || ''
+      this.rptWarning = rpt.warning || ''
+      this.rptSummary = rpt.summary || exec.summary || ''
+
+      this.rptAdv = Array.isArray(rpt.advantages) ? rpt.advantages : []
+      this.rptDis = Array.isArray(rpt.disadvantages) ? rpt.disadvantages : []
+      this.rptAction = Array.isArray(rpt.action_plan) ? rpt.action_plan : []
+
+      this.rptDims = dimScores.map(d => ({
+        key: d.key || '', label: d.label || '', value: d.score ?? 0
+      }))
+
+      this.rptDir200 = rd.direct_competitors_200m ?? 0
+      this.rptDir500 = rd.direct_competitors_500m ?? 0
+      this.rptDir1000 = rd.direct_competitors_1000m ?? 0
+      this.rptSub200 = rd.substitute_competitors_200m ?? 0
+      this.rptSub500 = rd.substitute_competitors_500m ?? 0
+      this.rptSub1000 = rd.substitute_competitors_1000m ?? 0
+      this.rptAnc200 = rd.traffic_anchors_200m ?? 0
+      this.rptAnc500 = rd.traffic_anchors_500m ?? 0
+      this.rptAnc1000 = rd.traffic_anchors_1000m ?? 0
+
+      this.rptQual = Array.isArray(rd.data_quality_notes) ? rd.data_quality_notes : []
     }
   }
 }
@@ -107,21 +196,26 @@ export default {
 .detail-page { min-height:100vh; background:#eef3f9; padding-bottom:140rpx; }
 .loading { text-align:center; padding:120rpx 0; } .ld-dots { font-size:60rpx; letter-spacing:12rpx; color:#94a3b8; } .ld-text { display:block; font-size:26rpx; color:#94a3b8; margin-top:16rpx; }
 .error { text-align:center; padding:120rpx 32rpx; } .err-icon { font-size:80rpx; display:block; } .err-text { font-size:28rpx; color:#64748b; display:block; margin:16rpx 0; } .err-btn { margin-top:20rpx; background:#f1f5f9; color:#475569; border-radius:14rpx; padding:16rpx 40rpx; font-size:28rpx; }
-
 .top-bar { display:flex; align-items:center; padding:20rpx 24rpx; background:#fff; border-bottom:1rpx solid #e2e8f0; }
-.back { font-size:36rpx; color:#475569; padding-right:16rpx; }
-.top-title { flex:1; font-size:30rpx; font-weight:700; color:#1e293b; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.back { font-size:36rpx; color:#475569; padding-right:16rpx; } .top-title { flex:1; font-size:30rpx; font-weight:700; color:#1e293b; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .top-export { font-size:24rpx; padding:8rpx 18rpx; border-radius:12rpx; } .top-export.free { background:#dbeafe; color:#1e40af; } .top-export.locked { background:#fef3c7; color:#92400e; }
-
 .meta-card { background:#fff; margin:20rpx 24rpx; border-radius:20rpx; padding:28rpx; box-shadow:0 2rpx 16rpx rgba(0,0,0,0.04); }
 .meta-grid { display:flex; flex-wrap:wrap; } .mg-item { width:50%; padding:12rpx 0; }
 .mgl { font-size:24rpx; color:#94a3b8; display:block; } .mgv { font-size:26rpx; color:#1e293b; font-weight:500; }
 .meta-score { text-align:center; margin-top:16rpx; padding-top:16rpx; border-top:1rpx solid #f1f5f9; }
-.ms-num { font-size:64rpx; font-weight:900; } .ms-label { display:block; font-size:24rpx; color:#94a3b8; } .ms-badge { display:inline-block; margin-top:6rpx; font-size:22rpx; padding:4rpx 14rpx; border-radius:10rpx; } .ms-badge.free { background:#dcfce7; color:#166534; } .ms-badge.locked { background:#fef3c7; color:#92400e; }
-
-.content-box { background:#fff; margin:0 24rpx; border-radius:20rpx; padding:32rpx; box-shadow:0 2rpx 16rpx rgba(0,0,0,0.04); }
-.cb-title { font-size:28rpx; font-weight:700; color:#1e293b; display:block; margin-bottom:12rpx; } .cb-text { font-size:26rpx; color:#64748b; line-height:1.7; }
-
+.ms-num { font-size:64rpx; font-weight:900; } .ms-label { display:block; font-size:24rpx; color:#94a3b8; }
+.ms-badge { display:inline-block; margin-top:6rpx; font-size:22rpx; padding:4rpx 14rpx; border-radius:10rpx; } .ms-badge.free { background:#dcfce7; color:#166534; } .ms-badge.locked { background:#fef3c7; color:#92400e; }
+.disc { background:#fefce8; border:1rpx solid #fde68a; border-radius:14rpx; padding:20rpx; margin:20rpx 24rpx 0; font-size:24rpx; color:#92400e; }
+.warn { background:#fef2f2; border:1rpx solid #fecaca; border-radius:14rpx; padding:20rpx; margin:16rpx 24rpx 0; font-size:26rpx; color:#dc2626; } .warn-bold { font-weight:700; }
+.section { background:#fff; margin:20rpx 24rpx 0; border-radius:20rpx; padding:28rpx; box-shadow:0 2rpx 16rpx rgba(0,0,0,0.04); }
+.sec-title { font-size:28rpx; font-weight:700; color:#1e293b; margin-bottom:16rpx; } .sec-title.green { color:#047857; } .sec-title.red { color:#b91c1c; } .sec-title.orange { color:#d97706; }
+.sec-text { font-size:26rpx; color:#475569; line-height:1.7; }
+.item { font-size:26rpx; color:#475569; line-height:1.9; padding-left:4rpx; }
+.dim-grid { display:flex; flex-wrap:wrap; gap:16rpx; } .dim-cell { width:calc(50% - 8rpx); }
+.dl { font-size:24rpx; color:#64748b; display:block; } .dv { font-size:32rpx; font-weight:700; display:block; margin:4rpx 0; }
+.db { height:10rpx; background:#f1f5f9; border-radius:5rpx; } .df { height:100%; border-radius:5rpx; }
+.comp-row { font-size:26rpx; color:#475569; }
+.ql { font-size:24rpx; color:#64748b; display:block; padding:6rpx 0; }
 .bottom-bar { position:fixed; bottom:0; left:0; right:0; padding:20rpx 24rpx; background:#fff; border-top:1rpx solid #e2e8f0; display:flex; gap:14rpx; }
 .bb-export { flex:1; background:#246bff; color:#fff; border-radius:14rpx; font-size:28rpx; padding:20rpx 0; font-weight:600; }
 .bb-unlock { flex:1; background:#f59e0b; color:#fff; border-radius:14rpx; font-size:28rpx; padding:20rpx 0; font-weight:600; }

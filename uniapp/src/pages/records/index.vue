@@ -134,8 +134,7 @@ export default {
           this.records = this.records.filter(x => (x.uuid || x.id) !== (r.uuid || r.id))
           uni.showToast({ title: '已删除', icon: 'none' })
         } else {
-          const msg = res.data?.detail || res.data?.error || '删除失败，请重试'
-          uni.showToast({ title: msg, icon: 'none' })
+          uni.showToast({ title: api.normalizeError(res), icon: 'none' })
         }
       } catch (e) { uni.showToast({ title: '网络异常，请重试', icon: 'none' }) }
       this.delLoading = false; this.delTarget = null
