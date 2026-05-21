@@ -23,7 +23,7 @@ Baseline:
 - `python backend/tests/check_industry_rigor_rules.py`: 2168 PASS, 0 FAIL
 - `python backend/tests/check_report_fact_guard.py`: 101 PASS, 0 FAIL
 - DB `analysis_records`: count/max id = 74/74
-- Expected `git status --short`: `M backend/main.py`, `M backend/routers/records.py`, and `M backend/tests/check_report_fact_guard.py` may be present from uncommitted partial Phase 13 attempts, plus `tmp_latest_report_text.txt`, `tmp_report_images/`, `tmp_report_pages/`
+- Expected `git status --short`: `M backend/main.py`, `M backend/routers/records.py`, `M backend/tests/check_report_fact_guard.py`, and `M backend/routers/admin.py` may be present from uncommitted partial Phase 13 attempts, plus `tmp_latest_report_text.txt`, `tmp_report_images/`, `tmp_report_pages/`
 
 ## Phase 13 Goal
 
@@ -42,6 +42,7 @@ Fix launch-blocking billing/save-chain risks:
 
 Add minimal focused tests if feasible without broad refactor.
 If `check_report_fact_guard.py` is dirty, it likely has source-level/import Phase 13 checks; decide whether to keep, strengthen, or replace them with focused behavioral tests.
+If `admin.py` is dirty, it likely removes deprecated `/api/admin/logs`; this is optional cleanup and should not distract from the two blocking fixes.
 
 ## Boundaries
 

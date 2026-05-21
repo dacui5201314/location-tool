@@ -2,7 +2,7 @@ current_phase: Phase 13
 phase_status: ready_for_billing_and_save_chain_hardening
 latest_code_commit: 52cc749
 latest_code_commit_message: "feat: complete pre-launch accuracy hardening"
-latest_docs_commit: 53813cd
+latest_docs_commit: 92b140f
 unpushed: true
 
 validation:
@@ -43,7 +43,7 @@ sample_bank:
 phase13_focus:
   - "Report accuracy mainline is complete; do not reopen POI/rules unless a concrete regression is found."
   - "Fix blocking billing/save-chain risks before launch: analysis DB save failure must not return success; PDF unlock concurrent double-charge must refund or avoid charging."
-  - "Worktree may contain uncommitted partial backend/main.py, backend/routers/records.py, and backend/tests/check_report_fact_guard.py Phase 13 attempts; verify/refund-wire them before committing code."
+  - "Worktree may contain uncommitted partial backend/main.py, backend/routers/records.py, backend/tests/check_report_fact_guard.py, and backend/routers/admin.py Phase 13 attempts; verify/refund-wire blockers before committing code."
   - "Add minimal tests for the billing/refund/save failure paths if feasible without broad refactor."
   - "Dead-code cleanup is optional; do not touch config.py PROVIDER_CONFIG unless legacy ai_providers imports are migrated."
 

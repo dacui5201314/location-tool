@@ -577,7 +577,7 @@ Report accuracy mainline is complete and should stay closed:
 
 These are not report-accuracy issues; they are launch blockers because they can affect user points or saved reports.
 
-Current worktree note: `backend/main.py`, `backend/routers/records.py`, and `backend/tests/check_report_fact_guard.py` already have uncommitted partial Phase 13 attempts. `main.py` adds `_db_save_error` / `_db_save_ok` around DB save but is not complete until the final refund condition includes the DB-save failure flag and tests pass. `records.py` attempts to handle concurrent PDF unlock by rolling back the shared transaction when `rowcount == 0`; verify this behavior before committing code. The test file currently contains source-level/import checks, not a full behavioral integration test.
+Current worktree note: `backend/main.py`, `backend/routers/records.py`, `backend/tests/check_report_fact_guard.py`, and `backend/routers/admin.py` already have uncommitted partial Phase 13 attempts. `main.py` adds `_db_save_error` / `_db_save_ok` around DB save but is not complete until the final refund condition includes the DB-save failure flag and tests pass. `records.py` attempts to handle concurrent PDF unlock by rolling back the shared transaction when `rowcount == 0`; verify this behavior before committing code. The test file currently contains source-level/import checks, not a full behavioral integration test. `admin.py` removes deprecated in-memory logs and `/api/admin/logs`; this is optional cleanup, not a blocker.
 
 1. `backend/main.py`: analysis DB save failure is swallowed.
    - Current behavior: `AnalysisRecord` save exceptions are logged, but the SSE path can still mark `_stream_ok=True` and yield success.
