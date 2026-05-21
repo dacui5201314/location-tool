@@ -810,3 +810,67 @@ id=65，民宿青旅@天河路208号，score=62，rigor_enabled=True，direct=6/
 编译/测试通过（Phase 17 基线：compileall PASS, industry 2168 PASS, fact_guard 147 PASS, npm build PASS）。
 
 ---
+
+## Phase 20 小流量上线执行清单（2026-05-21）
+
+### 启动配置
+
+| 项目 | 命令/值 |
+|---|---|
+| 后端启动 | `cd backend && python main.py` |
+| 后端端口 | `0.0.0.0:8000` |
+| 前端开发 | `cd frontend && npx vite --host` (端口 5173) |
+| 前端生产 | `cd frontend && npm run build` → dist/ 由 Nginx 托管 |
+| 管理后台入口 | `https://域名.com/admin`，密码见 `.env` 中 `ADMIN_PASSWORD` |
+
+### 必需环境变量
+
+| 变量 | 说明 | 默认值/占位符 |
+|---|---|---|
+| `LLM_PROVIDER` | 大模型厂商 | `deepseek` |
+| `LLM_MODEL` | 模型名 | `deepseek-chat` |
+| `LLM_BASE_URL` | API 地址 | `https://api.deepseek.com/v1` |
+| `LLM_API_KEY` | API Key | `sk-...` |
+| `AMAP_WEB_KEY` | 高德 Web 服务 Key | — |
+| `AMAP_SECURITY_CODE` | 高德安全密钥 | — |
+| `JWT_SECRET` | JWT 签名密钥 | `openssl rand -hex 32` 生成 |
+| `ADMIN_PASSWORD` | 管理后台密码 | 至少 8 位 |
+| `WECHAT_MP_APPID` | 公众号 AppID（可选） | — |
+| `WECHAT_MP_SECRET` | 公众号 Secret（可选） | — |
+
+### 小程序联调前需配（DB system_config 或环境变量）
+
+| 配置项 | 说明 |
+|---|---|
+| `wx_mini_appid` | 小程序 AppID（管理后台 → 系统参数） |
+| `wx_mini_secret` | 小程序 AppSecret（同上） |
+
+当前未配时 `/api/auth/wechat/mini` 返回 503，不影响 Web 端使用。
+
+### 小流量前人工操作清单
+
+| # | 步骤 | 说明 |
+|---|---|---|
+| 1 | 启动后端 | `cd backend && python main.py`，确认 `/api/health` 返回 `{"status":"ok"}` |
+| 2 | 部署前端 | 开发：`npm run dev`；生产：`npm run build` + Nginx |
+| 3 | 管理员登录 | `/admin` → 用 `ADMIN_PASSWORD` 登录 |
+| 4 | 检查系统配置 | 管理后台 → 系统参数：确认 LLM/AMap/微信配置正确 |
+| 5 | 创建测试用户 | 注册一个新用户，确认初始点数到账 |
+| 6 | 生成首份真实报告 | 选一个真实地址 + 业态，走完整流程 |
+| 7 | 核对扣点 | 报告生成后确认点数扣减 1 点 |
+| 8 | 核对保存 | 确认报告出现在历史记录中 |
+| 9 | PDF 下载 | 解锁 PDF → 确认扣点或会员免费 → 下载文件 |
+| 10 | 记录问题 | 按 Phase 18 模板记录，P0/P1 立刻修，P2/P3 进清单 |
+
+### 测试通过基线
+
+- `compileall` PASS
+- `check_industry_rigor_rules.py` 2168 PASS, 0 FAIL
+- `check_report_fact_guard.py` 147 PASS, 0 FAIL
+- `npm run build` PASS
+- `/api/health` 200
+- auth token/records/admin login/admin logs 正常
+- `/api/auth/wechat/mini` 缺配置 503
+- PDF parity smoke 三端一致
+
+---
