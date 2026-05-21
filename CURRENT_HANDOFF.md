@@ -589,7 +589,7 @@ P0（POI 名称幻觉）、P2（substitute/anchor 写成 direct）、P3（竞品
 
 **4. 死代码清理** (`backend/routers/admin.py`)
 
-- 删除已弃用的 `_ERROR_LOGS` 列表和 `/api/admin/logs` 端点。
+- 清理 `_ERROR_LOGS` 内存变量；`/api/admin/logs` 端点先删后恢复为 deprecated 占位（前端兼容）。
 
 ### 非阻塞发现（未修改）
 
