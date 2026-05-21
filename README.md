@@ -6,7 +6,7 @@
 
 ### 核心能力
 
-- **34 种业态深度适配**：覆盖餐饮（快餐/火锅/正餐/茶饮/烘焙）、酒店住宿、零售商业、生活服务、休闲娱乐五大行业，43 个前台入口 → 14 个 Master 业态集群 → 每集群独立 Rigor 规则引擎（direct/substitute/anchor/irrelevant 四层分类），支持子业态（subtype）精准分流
+- **34 种业态深度适配**：覆盖餐饮、酒店、零售、生活服务、休闲娱乐五大行业，43 个前台入口 → 14 个 Master 业态集群 → 每集群独立 Rigor 规则引擎（direct/substitute/anchor/irrelevant 四层分类），支持子业态精准分流。新增 uni-app 多端客户端（微信小程序优先，后续抖音/App）
 - **双层 POI 数据采集**：高德 Web API + JS API 双通道，28 大类别 6 层数据脱水过滤，最大 550 条周边数据
 - **AI 选址分析引擎**：动态 System Prompt 拼接 + 14 套 Master 专属规则 + subtype 子业态分流 + Python 层互斥预判 + 维度平均锁定总分
 - **财务精算模型**：基于门店面积自动推算租金、人工、盈亏平衡点
@@ -134,6 +134,7 @@ npx vite --host
 
 ## 版本历史
 
+- **v1.6.0** (2026-05-21) — 多端客户端基线与资金安全加固：新增uniapp多端客户端（Vue3+Vite+uni-app），6页面+4TabBar+API基座+微信登录联调+地图选点壳，覆盖微信/抖音/App三端路线；资金安全修复（DB保存失败→退款、PDF并发解锁回滚）；微信小程序登录端点（/api/auth/wechat/mini + jscode2session + JWT）；小流量上线执行清单。check_industry_rigor_rules.py 2168 PASS / check_report_fact_guard.py 147 PASS
 - **v1.5.0** (2026-05-20) — 上线前精准度全线收口：P0/P2/P3 从 warning-only 升级为 hard-error（编造 POI 名称/substitute 写成 direct/竞品数量膨胀 → retry → 仍失败则退款/不保存）；7 个高风险 master 新增 strict_exclude_names（18 项跨行业强排除词）；火锅_烧烤 sub_first 修复；_check_sentence 容忍从 3x 收窄为 max(expected+3, expected*2)；新增禁止推荐/不推荐决策语言检测 + 财务单点精确数字检测 → fact_errors 硬阻断；AB invariant 锁定未来高风险 code 裸奔风险；5 个 master 补齐 categories_excluded；累计 37 次正式 API 保存报告（DB 74 条），retry 挽救 9/12（75%），退款 2 次（5%）；check_industry_rigor_rules.py 2168 PASS 0 FAIL / check_report_fact_guard.py 101 PASS 0 FAIL
 - **v1.4.0** (2026-05-19) — Master 业态映射修复与正式保存链路扩样：修复 BUSINESS_TYPE_TO_MASTER 14 个 master 业态名自映射缺失，消除低频目的零售/民宿青旅/夜经济娱乐 POI 数据为空的链路缺陷；Phase 9D-9G 累计 33 次正式 API 保存链路真实报告（DB max_id 70），retry 挽救 9 次（75%），退款 2 次（6%）；industry 2158 PASS / fact guard 92 PASS
 - **v1.3.0** (2026-05-18) — 报告精准度防线加固与真实回归：fact_errors 后免费重试 fallback（退款率 28%→11%，真实验证挽救 3 次）；报告边界声明强制要求"本报告为选址初筛参考，需线下实地核验"；餐饮 Sample Bank 加厚至 1902 PASS；Phase 6 累计 19 次真实报告回归；check_industry_rigor_rules.py 1902 PASS 0 FAIL / check_report_fact_guard.py 92 PASS 0 FAIL
@@ -192,7 +193,7 @@ location-tool/
 
 # 宝塔面板生产环境部署指南
 
-> 适用版本：宝塔 Linux 面板 9.x | 项目版本：v1.5.0 | 更新日期：2026-05-20
+> 适用版本：宝塔 Linux 面板 9.x | 项目版本：v1.6.0 | 更新日期：2026-05-21
 >
 > 本指南假设你已经在服务器上安装好宝塔面板，并且已经打开了宝塔面板的网页后台。
 
