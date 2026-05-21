@@ -1,9 +1,6 @@
 import config from './config'
 
-/**
- * 封装 uni.request，对齐 Web authFetch。
- * auth=true 时从 storage 取 token 附加 Authorization 头。
- */
+// ── 内部封装 ──
 function request ({ url, method = 'GET', data = {}, auth = true }) {
   return new Promise((resolve, reject) => {
     const header = { 'Content-Type': 'application/json' }
@@ -24,34 +21,30 @@ function request ({ url, method = 'GET', data = {}, auth = true }) {
   })
 }
 
-/** 匿名 token 获取 */
-function ensureToken () {
+// ── Auth ──
+/** 匿名设备 token（Web 兼容降级） */
+function ensureAnonToken () {
   return request({ url: '/api/auth/token?device_id=uni-default', auth: false })
 }
 
-/** 获取用户 profile */
-function fetchProfile () {
-  return request({ url: '/api/user/profile' })
+/** 微信小程序登录：code → /api/auth/wechat/mini → JWT */
+function wechatMiniLogin (code) {
+  return request({ url: '/api/auth/wechat/mini', method: 'POST', data: { code }, auth: false })
 }
 
-/** 获取分析记录 */
-function fetchRecords (page = 1) {
-  return request({ url: `/api/records?page=${page}&page_size=20` })
-}
+// ── User / Records / Favorites ──
+function fetchProfile () { return request({ url: '/api/user/profile' }) }
+function fetchRecords (page = 1, pageSize = 20) { return request({ url: `/api/records?page=${page}&page_size=${pageSize}` }) }
+function fetchRecordDetail (uuid) { return request({ url: `/api/records/${uuid}` }) }
+function deleteRecord (uuid) { return request({ url: `/api/records/${uuid}`, method: 'DELETE' }) }
+function fetchFavorites () { return request({ url: '/api/favorites' }) }
+function fetchIndustries () { return request({ url: '/api/industries/active', auth: false }) }
 
-/** 获取单条记录 */
-function fetchRecordDetail (uuid) {
-  return request({ url: `/api/records/${uuid}` })
-}
+// ── Health ──
+function getHealth () { return request({ url: '/api/health', auth: false }) }
 
-/** 获取收藏 */
-function fetchFavorites () {
-  return request({ url: '/api/favorites' })
+export default {
+  request, ensureAnonToken, wechatMiniLogin,
+  fetchProfile, fetchRecords, fetchRecordDetail, deleteRecord,
+  fetchFavorites, fetchIndustries, getHealth
 }
-
-/** 获取业态列表 */
-function fetchIndustries () {
-  return request({ url: '/api/industries/active', auth: false })
-}
-
-export default { request, ensureToken, fetchProfile, fetchRecords, fetchRecordDetail, fetchFavorites, fetchIndustries }
