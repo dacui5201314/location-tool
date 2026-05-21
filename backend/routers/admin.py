@@ -26,8 +26,6 @@ from services.runtime_config import (
     set_config_values,
 )
 
-# ★ 系统运行日志 — 当前使用持久化存储，下方为已弃用的内存态样本占位
-_ERROR_LOGS: list[dict] = []  # 已弃用：不再使用硬编码假数据。真实日志请接入 logging + DB handler
 
 router = APIRouter(prefix="/api/admin", tags=["管理后台"])
 
@@ -596,15 +594,6 @@ def list_operation_logs(
 # ============================================================
 # 系统运行日志
 # ============================================================
-@router.get("/logs")
-def get_logs(
-    admin: dict = Depends(get_current_admin),
-    level: str = Query("error"),
-):
-    """系统日志（需管理员权限）— 当前为占位接口，真实日志模块开发中"""
-    return {"logs": _ERROR_LOGS, "total": len(_ERROR_LOGS), "deprecated": True, "note": "日志模块开发中，当前无持久化错误日志"}
-
-
 # ============================================================
 # 全局 UI 配置（公告 / 客服）— DB 持久化 + 内存缓存
 # ============================================================

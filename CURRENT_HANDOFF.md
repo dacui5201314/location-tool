@@ -555,73 +555,60 @@ P0（POI 名称幻觉）、P2（substitute/anchor 写成 direct）、P3（竞品
 |---|---|
 | `compileall` | PASS |
 | `check_industry_rigor_rules.py` | 2168 PASS, 0 FAIL |
-| `check_report_fact_guard.py` | 101 PASS, 0 FAIL |
+| `check_report_fact_guard.py` | **115** PASS, 0 FAIL |
 
 ---
 
-## Phase 13 Handoff - Billing / Save-Chain Hardening (2026-05-21)
+## Phase 13 资金安全/保存链路修复（2026-05-21）
 
-### Current Decision
+### 完成
 
-Report accuracy mainline is complete and should stay closed:
+**1. DB 保存失败硬阻断** (`backend/main.py`)
 
-- Phase 10-12 resolved the launch-blocking accuracy issues.
-- P0/P2/P3 are hard-error with retry fallback.
-- `_check_sentence` tolerance is narrowed to `max(expected+3, expected*2)`.
-- Decision-language and single-point financial-number guards are in `report_fact_guard.py`.
-- Industry rule suite baseline: `2168 PASS, 0 FAIL`.
-- Fact guard suite baseline: `101 PASS, 0 FAIL`.
-- DB analysis_records remained `count=74, max_id=74` after Phase 12; no new real report sampling is needed.
+- 新增 `_db_save_error` 标志。
+- `AnalysisRecord` DB commit 成功后设 `_db_save_ok = True`。
+- commit 失败时设 `_db_save_error = True` → `db.rollback()` → `raise RuntimeError("DB_SAVE_FAILED: ...")`。
+- 不 yield 成功 SSE 事件。
+- `finally` 退款条件包含 `_db_save_error` → points 用户自动退还 1 点。
+- report HTML 文件保存失败降级（可用 `report_json` 动态重建），不阻断。
 
-### Verified Phase 13 Risks
+**2. PDF unlock 并发安全增强** (`backend/routers/records.py`)
 
-These are not report-accuracy issues; they are launch blockers because they can affect user points or saved reports.
+- `check_billing_access` 与 `UPDATE is_pdf_unlocked` 共享同一 db session 事务。
+- `rowcount == 0` 时 `db.rollback()` 回滚整个事务，包括计费扣点 → 不会重复扣费。
+- 新增日志 `[PDF Guard] 并发解锁已处理` 和注释说明事务安全性。
+- 未额外调用 `refund_credits`（rollback 已回滚，额外 refund 会双倍退款）。
 
-Current worktree note: `backend/main.py`, `backend/routers/records.py`, `backend/tests/check_report_fact_guard.py`, and `backend/routers/admin.py` already have uncommitted partial Phase 13 attempts. `main.py` adds `_db_save_error` / `_db_save_ok` around DB save but is not complete until the final refund condition includes the DB-save failure flag and tests pass. `records.py` attempts to handle concurrent PDF unlock by rolling back the shared transaction when `rowcount == 0`; verify this behavior before committing code. The test file currently contains source-level/import checks, not a full behavioral integration test. `admin.py` removes deprecated in-memory logs and `/api/admin/logs`; this is optional cleanup, not a blocker.
+**3. 最小测试** (`backend/tests/check_report_fact_guard.py`)
 
-1. `backend/main.py`: analysis DB save failure is swallowed.
-   - Current behavior: `AnalysisRecord` save exceptions are logged, but the SSE path can still mark `_stream_ok=True` and yield success.
-   - Risk: user is charged, frontend sees success, but no history record/report exists.
-   - Required behavior: DB record save failure must hard-fail the stream and refund point users.
+- T-P13-1: refund_credits 可导入且可调用
+- T-P13-2: refund_credits 参数签名正确
+- T-P13-3: BillingResult 结构完整
+- T-P13-4: _db_save_error / _db_save_ok / DB_SAVE_FAILED 源码级存在
+- T-P13-5: check_billing_access 不自行 commit（去注释后验证）
 
-2. `backend/routers/records.py`: PDF unlock can double-charge on concurrent requests.
-   - Current order: `check_billing_access()` charges first, then conditional `UPDATE is_pdf_unlocked == 0`.
-   - Risk: a concurrent loser can be charged and then get `already_unlocked`.
-   - Required behavior: no extra charge, or automatic refund when `rowcount == 0` after a points charge.
+**4. 死代码清理** (`backend/routers/admin.py`)
 
-3. Tests are thin around this area.
-   - Missing coverage: SSE save failure/refund branch, billing/refund paths, PDF unlock concurrency loser, report HTML generation.
-   - Minimum Phase 13 target: add focused tests for the two blocking paths if feasible without large refactor.
+- 删除已弃用的 `_ERROR_LOGS` 列表和 `/api/admin/logs` 端点。
 
-### Non-Blocking Findings
+### 非阻塞发现（未修改）
 
-- `report_fact_guard.py` numeric regex currently matches ASCII digits only; full-width digits are post-launch hardening.
-- `backend/config.py` `PROVIDER_CONFIG` overlaps runtime config but is still imported by legacy `backend/ai_providers/*`; do not delete casually.
-- `backend/routers/admin.py` deprecated `_ERROR_LOGS` and `/api/admin/logs` can be cleaned later.
-- `amap_service.py` remains large but functional; do not refactor during launch hardening.
+- `report_fact_guard.py` 数字正则仅匹配 ASCII digits（不含全角）。
+- `config.py` PROVIDER_CONFIG 与 `runtime_config.py` 重复，但被 `ai_providers/*` 引用，未删。
+- `amap_service.py` 单体文件（1219 行），功能正常未重构。
+- LLM 超时/4xx/IndexError 仍不触发退款（需更大改动，非本次范围）。
 
-### Phase 13 Required Work
+### 验证
 
-1. Fix analysis DB save failure path in `backend/main.py`.
-   - Do not yield success if `AnalysisRecord` cannot be committed.
-   - Mark a refund-eligible failure flag, e.g. `_db_save_error`.
-   - Include `_db_save_error` in the final refund condition.
-   - Keep report HTML file save failure as best-effort fallback if DB record is saved, because downloads can rebuild from `report_json`.
+| Check | Result |
+|---|---|
+| `compileall` | PASS |
+| `check_industry_rigor_rules.py` | 2168 PASS, 0 FAIL |
+| `check_report_fact_guard.py` | **115** PASS, 0 FAIL |
 
-2. Fix PDF unlock concurrent double-charge in `backend/routers/records.py`.
-   - Minimal acceptable fix: if `billing.source == "points"` and the conditional unlock update returns `rowcount == 0`, call `refund_credits(user_id, 1, reason="PDF unlock already completed concurrently")` before returning `already_unlocked`.
-   - Member unlocks should not refund.
+### DB
 
-3. Verification after changes:
-   - `python -m compileall backend`
-   - `python backend/tests/check_industry_rigor_rules.py`
-   - `python backend/tests/check_report_fact_guard.py`
-   - Any new focused billing/save tests added in Phase 13.
-
-### Boundaries
-
-- Do not reopen POI classification, prompt accuracy, or sample expansion.
-- Do not process `tmp_*`.
+未新增，count=74, max_id=74。
 - Do not push.
 - Do not change database schema unless a blocker is impossible without it.
 - Do not relax `report_fact_guard.py` or classification boundaries.

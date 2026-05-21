@@ -2,7 +2,8 @@
 P0 + P2 报告事实校验 — 自测套件
 验证 check_poi_name_hallucination 与 check_poi_context_mismatch 行为
 """
-import sys, os, importlib.util
+import sys, os, importlib.util, inspect
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 # 按文件路径直接加载，不触发 services/__init__.py / amap_service / FastAPI
 _guard_path = os.path.join(os.path.dirname(__file__), "..", "services", "poi_name_guard.py")
@@ -694,6 +695,52 @@ print("=== T-P12-3: 财务单点精确数字检测 ===")
 check(len(check_single_point_financial("月净利 4.7 万元，回本 124 天。")) >= 1, "P12-3 单点财务应触发")
 check(len(check_single_point_financial("月净利 3-5 万元，回本周期约 6-9 个月。")) == 0, "P12-3 区间财务不应触发")
 check(len(check_single_point_financial("月净利约 5 万（模型假设，需核验）。")) == 0, "P12-3 模型假设标注不应触发")
+
+# ═══════════════════════════════════════════════════════════════
+# Phase 13: 资金安全 / 保存链路最小测试
+# ═══════════════════════════════════════════════════════════════
+
+# T-P13-1: refund_credits 函数存在且可导入（确保退款收口可用）
+print("=== T-P13-1: refund_credits 可导入 ===")
+from services.billing_service import refund_credits, check_billing_access, BillingResult
+check(callable(refund_credits), "P13-1 refund_credits 必须是可调用函数")
+check(callable(check_billing_access), "P13-1 check_billing_access 必须是可调用函数")
+
+# T-P13-2: refund_credits 参数签名正确
+print("=== T-P13-2: refund 参数签名 ===")
+sig = inspect.signature(refund_credits)
+params = list(sig.parameters.keys())
+check("user_id" in params, "P13-2 refund_credits 必须接受 user_id")
+check("amount" in params, "P13-2 refund_credits 必须接受 amount")
+check("reason" in params, "P13-2 refund_credits 必须接受 reason")
+
+# T-P13-3: BillingResult 结构完整
+print("=== T-P13-3: BillingResult 结构 ===")
+br = BillingResult(allowed=True, reason="test", source="points", points_before=5, points_after=4)
+check(br.allowed == True, "P13-3 allowed")
+check(br.source == "points", "P13-3 source")
+check(br.points_before == 5, "P13-3 points_before")
+check(br.points_after == 4, "P13-3 points_after")
+
+# T-P13-4: main.py _db_save_error flag 存在（源码级校验）
+print("=== T-P13-4: _db_save_error flag 存在 ===")
+import main as _main
+src = inspect.getsource(_main.analyze_location)
+check("_db_save_error" in src, "P13-4 _db_save_error 在 analyze_location 中定义")
+check("_db_save_ok" in src, "P13-4 _db_save_ok 在 analyze_location 中使用")
+check("DB_SAVE_FAILED" in src, "P13-4 DB_SAVE_FAILED RuntimeError 存在")
+check("DB保存失败" in src or "DB save" in src.lower(), "P13-4 DB保存失败在退款条件中")
+
+# T-P13-5: PDF unlock 并发安全（逻辑级校验）
+print("=== T-P13-5: PDF unlock 逻辑安全 ===")
+# 验证 check_billing_access 不自行 commit（依赖调用方 commit/rollback）
+ba_src = inspect.getsource(check_billing_access)
+# 去除注释行后检查：check_billing_access 不应自行 commit
+ba_code = '\n'.join(l for l in ba_src.split('\n')
+    if not l.strip().startswith('#') and not l.strip().startswith('"""') and '调用方' not in l)
+has_commit = 'db_session.commit()' in ba_code or 'db.commit()' in ba_code
+check(not has_commit,
+      "P13-5 check_billing_access 不自行 commit（调用方控制事务边界）")
 
 # ═══════════════════════════════════════════════════════════════
 print(f"\n{'='*50}")

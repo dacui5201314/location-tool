@@ -250,6 +250,7 @@ async def analyze_location(req: AnalyzeRequest, user: dict = Depends(get_current
         _llm_server_error = False  # ★ LLM 500 级错误
         _llm_parse_error = False   # ★ JSON 解析失败 / 空响应 / 报告结构缺失
         _amap_failed = False       # ★ AMap 采集失败（非调试模式）
+        _db_save_error = False     # ★ Phase 13: DB 主记录保存失败（硬阻断，触发退款）
         try:
             # ═══════════════════════════════════════════
             # Step 1 — POI 数据采集
@@ -570,6 +571,7 @@ async def analyze_location(req: AnalyzeRequest, user: dict = Depends(get_current
                         raise ValueError(f"报告事实校验失败(含重试): {'; '.join(fact_errors[:3])}")
 
             # 保存到数据库
+            _db_save_ok = False
             db = SessionLocal()
             try:
                 # ★ 直接复用 normalize_report_result 已算好的分数，不与 detail 文本重复解析
@@ -589,6 +591,7 @@ async def analyze_location(req: AnalyzeRequest, user: dict = Depends(get_current
                 db.add(record)
                 db.commit()
                 db.refresh(record)
+                _db_save_ok = True  # ★ DB 主记录保存成功
 
                 try:
                     file_path = save_report(
@@ -602,14 +605,25 @@ async def analyze_location(req: AnalyzeRequest, user: dict = Depends(get_current
                     db.commit()
                 except Exception:
                     import traceback
-                    print("[CRITICAL] 报告物理文件保存失败", flush=True)
+                    print("[CRITICAL] 报告物理文件保存失败（可用 report_json 动态重建）", flush=True)
                     traceback.print_exc()
             except Exception:
                 import traceback
-                print("[CRITICAL] 分析记录数据库保存失败", flush=True)
+                print("[CRITICAL] 分析记录数据库保存失败，报告未落库！", flush=True)
                 traceback.print_exc()
+                _db_save_error = True  # ★ Phase 13: DB 主记录失败 → 触发退款
             finally:
+                if not _db_save_ok:
+                    try:
+                        db.rollback()
+                    except Exception:
+                        pass
                 db.close()
+
+            if not _db_save_ok:
+                # ★ Phase 13: DB 保存失败硬阻断，不返回成功
+                print("[SSE Guard] DB 保存失败，终止成功流程，标记可退款", flush=True)
+                raise RuntimeError("DB_SAVE_FAILED: 分析记录保存失败，报告未落库")
 
             # ★ normalize_report_result 已完成加权总分计算，此处不再覆盖
             _stream_ok = True  # ★ 标记流完整成功，finally 块不退款
@@ -630,6 +644,9 @@ async def analyze_location(req: AnalyzeRequest, user: dict = Depends(get_current
             if msg.startswith("AMAP_DATA_COLLECTION_FAILED"):
                 print(f"[SSE Error] {msg}", flush=True)
                 yield _sse("error", "数据采集失败，请稍后重试")
+            elif msg.startswith("DB_SAVE_FAILED"):
+                print(f"[SSE Error] {msg}", flush=True)
+                yield _sse("error", "报告保存失败，点数已自动退还")
             else:
                 print(f"[SSE Error] RuntimeError: {msg}", flush=True)
                 yield _sse("error", "分析服务异常，请稍后重试")
@@ -644,12 +661,14 @@ async def analyze_location(req: AnalyzeRequest, user: dict = Depends(get_current
             yield _sse("error", "分析服务异常，请稍后重试")
             await asyncio.sleep(0)
         finally:
-            # ★ 退款收口：LLM 错误 / JSON解析失败 / 报告结构无效 / AMap采集失败 → 点数模式退款
-            should_refund = (_llm_server_error or _llm_parse_error or _amap_failed) and not _refund_processed
+            # ★ 退款收口：LLM/JSON/AMap/DB 失败 → 点数模式退款 (Phase 13: +_db_save_error)
+            should_refund = (_llm_server_error or _llm_parse_error or _amap_failed or _db_save_error) and not _refund_processed
             if should_refund and billing and billing.source == "points":
                 _refund_processed = True
                 try:
-                    if _amap_failed:
+                    if _db_save_error:
+                        refund_reason = "DB保存失败"
+                    elif _amap_failed:
                         refund_reason = "AMap数据采集失败"
                     elif _llm_server_error:
                         refund_reason = "LLM服务端异常"

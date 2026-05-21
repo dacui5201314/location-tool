@@ -103,7 +103,11 @@ def unlock_pdf(
     if not billing.allowed:
         raise HTTPException(status_code=402, detail=billing.reason)
 
-    # 原子化更新 is_pdf_unlocked，防止并发双扣
+    # ★ Phase 13: 原子化并发安全
+    # check_billing_access 已执行 UPDATE（未 commit，与下方共享同一 db session 事务）。
+    # 若下方 rowcount==0，说明并发请求已抢先解锁。db.rollback() 会回滚整个事务，
+    # 包括 check_billing_access 的计费 UPDATE → 用户不会被扣点。
+    # 会员用户同样在 rollback 中撤销；无需额外 refund_credits（避免双倍退款）。
     result = db.execute(
         update(AnalysisRecord)
         .where(AnalysisRecord.id == record.id, AnalysisRecord.is_pdf_unlocked == 0)
@@ -111,6 +115,7 @@ def unlock_pdf(
     )
     if result.rowcount == 0:
         db.rollback()
+        print(f"[PDF Guard] 并发解锁已处理: user_id={user_id} record={record.id} — 计费已回滚", flush=True)
         return {"ok": True, "already_unlocked": True, "message": "PDF 已被其他请求解锁，无需重复扣费"}
 
     db.commit()
