@@ -616,6 +616,36 @@ P0（POI 名称幻觉）、P2（substitute/anchor 写成 direct）、P3（竞品
 ### DB
 
 未新增，count=74, max_id=74。
-- Do not push.
-- Do not change database schema unless a blocker is impossible without it.
-- Do not relax `report_fact_guard.py` or classification boundaries.
+
+---
+
+## Phase 14 产品验收 / 小流量前 Smoke（2026-05-21）
+
+### 结果
+
+全部通过，无阻塞。
+
+| 检查项 | 状态 |
+|---|---|
+| `GET /api/health` | ✅ 200 |
+| `POST /api/auth/token` (JWT 签发) | ✅ 200 |
+| `GET /api/records` (auth) | ✅ 200 |
+| `GET /api/records` (no auth → 401) | ✅ 鉴权正常 |
+| `POST /api/admin/login` → admin JWT | ✅ 200 |
+| `GET /api/admin/logs` (deprecated 占位) | ✅ `{"logs":[],"total":0,"deprecated":true}` |
+| `GET /api/admin/stats` | ✅ `users=43, reports=74` |
+| `POST /api/records/{uuid}/unlock-pdf` (invalid UUID → 404) | ✅ 端点存在 |
+| `GET /api/records/{uuid}/download` (invalid UUID → 404) | ✅ 端点存在 |
+| 前端 `/` `/records` `/admin` SPA 加载 | ✅ |
+| API proxy `/api/health` via Vite | ✅ |
+| `npm run build` | ✅ 5.83s |
+
+### DB
+
+count=74, max_id=74（未变更）。
+
+### Commit
+
+`41388e2`
+
+### 未 push
