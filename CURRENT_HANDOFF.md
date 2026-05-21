@@ -1077,9 +1077,26 @@ Do not include these in uni-app commits unless the user explicitly asks.
 | 后端不可用时错误提示 | 清晰 / 白屏 / 崩溃 |
 | 问题记录 | |
 
-### Phase 23H ready → Phase 23I
+### Phase 23I 等待人工微信开发者工具验证
 
-Phase 23H 代码侧联调准备已完成（构建产物、配置检查、文档、清单）。Phase 23I 需要人工在微信开发者工具中导入 `dist/build/mp-weixin` 并填写上表。前提：后端 HTTPS + 管理后台配好小程序凭证 + request 合法域名。
+**状态：blocked by manual external tool requirement。** 当前 CLI 环境无法操作微信开发者工具 GUI。代码侧准备全部完成。
+
+**已就绪：**
+- 构建产物 `dist/build/mp-weixin` 可导入
+- 导入路径已在 `uniapp/README.md` 说明
+- 手工验证记录模板已嵌入上方 Phase 23H 章节
+
+**需要人工操作：**
+1. 打开微信开发者工具
+2. 导入 `uniapp/dist/build/mp-weixin`
+3. 按上方模板填写 9 项验证结果
+4. 前提：后端 HTTPS + 管理后台配好小程序凭证 + request 合法域名（或开发者工具勾选不校验域名跳过）
+
+**未完成且不属代码范围：**
+- 后端 HTTPS 部署
+- 正式小程序 AppID + 凭证配置
+- request 合法域名配置
+- 真机预览
 
 ### Hard reminder
 

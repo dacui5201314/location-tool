@@ -1,8 +1,8 @@
-current_phase: Phase 23H
-phase_status: uniapp_wechat_devtools_prep_ready
+current_phase: Phase 23I
+phase_status: waiting_for_manual_wechat_devtools_smoke
 latest_code_commit: 83c3d6f
 latest_code_commit_message: "chore: complete Phase 23G self-check with result page placeholder"
-latest_docs_commit: 35e74f3
+latest_docs_commit: db0cfb4
 unpushed: true
 
 validation:
@@ -40,7 +40,7 @@ sample_bank:
   partial: 10
   latest_industry_test_total: "2168 PASS, 0 FAIL"
 
-next_step: "Phase 23I: perform manual WeChat devtools import and login smoke when devtools and backend credentials are available."
+next_step: "Phase 23I blocked by manual external tool: operator must open WeChat devtools, import dist/build/mp-weixin, and fill verification template. Code side is ready."
 
 boundaries:
   no_push: true
@@ -79,4 +79,4 @@ phase23_uniapp:
     copy_scan: "PASS: no misleading 生成中/扣点/支付/下载 PDF 报告/消耗 1 点 in uniapp/src"
   current_worktree_caveat:
     - "Expected untracked: tmp_latest_report_text.txt, tmp_report_images/, tmp_report_pages/, miniprogram/pages/profile/profile.json."
-  next_step: "Phase 23I: manual WeChat devtools import and login smoke when devtools and backend credentials are available."
+  next_step: "Phase 23I: blocked by manual tooling — operator opens WeChat devtools, imports build output, fills verification template. Code is ready."
