@@ -1,7 +1,7 @@
-current_phase: Phase 23J
-phase_status: uniapp_visual_polish_in_progress
-latest_code_commit: bf434cc
-latest_code_commit_message: "chore: start Phase 23J with trust row readability polish"
+current_phase: Phase 23K
+phase_status: uniapp_map_address_selection_in_progress
+latest_code_commit: f9e98d4
+latest_code_commit_message: "chore: point uni-app API to local backend for devtools integration"
 latest_docs_commit: db0cfb4
 unpushed: true
 
@@ -40,7 +40,7 @@ sample_bank:
   partial: 10
   latest_industry_test_total: "2168 PASS, 0 FAIL"
 
-next_step: "Phase 23J: continue uni-app visual polish — records/favorites/profile/report-detail low-risk consistency fixes."
+next_step: "Phase 23K: map component integration and address selection. Connect geographic input to home form, add reverse geocoding placeholder. Do not call real analyze."
 
 boundaries:
   no_push: true
@@ -79,4 +79,4 @@ phase23_uniapp:
     copy_scan: "PASS: no misleading 生成中/扣点/支付/下载 PDF 报告/消耗 1 点 in uniapp/src"
   current_worktree_caveat:
     - "Expected untracked: tmp_latest_report_text.txt, tmp_report_images/, tmp_report_pages/, miniprogram/pages/profile/profile.json."
-  next_step: "Phase 23J: continue uni-app visual polish — low-risk style consistency fixes across records/favorites/profile/report-detail."
+  next_step: "Phase 23K: map component integration — geographic input to home form, reverse geocoding placeholder."

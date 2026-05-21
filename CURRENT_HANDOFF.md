@@ -1066,37 +1066,28 @@ Do not include these in uni-app commits unless the user explicitly asks.
 
 | 项目 | 记录 |
 |---|---|
-| 导入时间 | |
-| AppID 类型 | 测试号 / 正式号 |
-| 后端地址 | |
-| 4 tabBar 可切换 | 是 / 否（哪个不可用） |
-| 微信登录结果 | 成功 / 503 / 网络错误 / 400 / 409 |
-| records 只读 | 正常 / 空 / 错误 |
-| favorites 只读 | 正常 / 空 / 错误 |
-| report-detail 只读 | 正常 / 空 / 错误 |
-| 后端不可用时错误提示 | 清晰 / 白屏 / 崩溃 |
-| 问题记录 | |
+| 导入时间 | 2026-05-21 |
+| AppID 类型 | 测试号 (wx3e2e1bbabfa164dd) |
+| 后端地址 | http://127.0.0.1:8000 |
+| 4 tabBar 可切换 | 是 |
+| 微信登录结果 | 失败 — 状态码非 503/400/409，已加状态码显示辅助排查。需重新编译后重试 |
+| records 只读 | 正常 |
+| favorites 只读 | 正常 |
+| report-detail 只读 | 正常 |
+| 后端不可用时错误提示 | 清晰（.catch 显示具体地址） |
+| 首页地图 | 已接入 `<map>` 组件壳 + 点击选坐标 + 搜索设地址 |
+| 问题记录 | 登录错误提示已改进；Phase 23K 地图壳已加 |
 
-### Phase 23I 等待人工微信开发者工具验证
+### Phase 23I 人工验证结果（已完成）
 
-**状态：blocked by manual external tool requirement。** 当前 CLI 环境无法操作微信开发者工具 GUI。代码侧准备全部完成。
+导入成功、4 tabBar 通过、首页渲染正常、地址输入和业态选择可用。登录失败（状态码非典型），已将错误提示改为携带 HTTP 状态码辅助排查。
 
-**已就绪：**
-- 构建产物 `dist/build/mp-weixin` 可导入
-- 导入路径已在 `uniapp/README.md` 说明
-- 手工验证记录模板已嵌入上方 Phase 23H 章节
+### Phase 23K 地图/地址选择（已启动）
 
-**需要人工操作：**
-1. 打开微信开发者工具
-2. 导入 `uniapp/dist/build/mp-weixin`
-3. 按上方模板填写 9 项验证结果
-4. 前提：后端 HTTPS + 管理后台配好小程序凭证 + request 合法域名（或开发者工具勾选不校验域名跳过）
-
-**未完成且不属代码范围：**
-- 后端 HTTPS 部署
-- 正式小程序 AppID + 凭证配置
-- request 合法域名配置
-- 真机预览
+- 首页接入 `<map>` 组件，默认北京中心坐标
+- 点击地图获取经纬度并设为 addressText
+- 搜索框输入文字后点搜索直接设为 addressText
+- 不调用高德 API 或后端，不接真实分析
 
 ### Hard reminder
 

@@ -158,11 +158,11 @@ export default {
           if (sc === 503) this.loginErr = '服务端未配置小程序，请联系管理员'
           else if (sc === 400) this.loginErr = '授权过期或 code 无效，请重试'
           else if (sc === 409) this.loginErr = '微信身份已绑定其他账号，请联系客服'
-          else this.loginErr = '登录失败，请稍后重试'
+          else { this.loginErr = '登录失败 (HTTP ' + sc + ')，请重试' }
         }
       }).catch(() => {
         this.loginLoading = false
-        this.loginErr = '网络请求失败，请检查后端配置'
+        this.loginErr = '网络异常，请确认后端服务 http://127.0.0.1:8000 可访问'
       })
     },
     onLogout () {

@@ -25,10 +25,18 @@
           <text class="ap-star" @tap="toggleFav">{{ isFaved ? '★' : '☆' }}</text>
         </view>
         <text class="field-err" v-if="errors.address">{{ errors.address }}</text>
-        <view class="map-box" @tap="onMapTap">
-          <text class="mb-icon">🗺️</text>
-          <text class="mb-hint">{{ analyzing ? '分析中...' : '点击选择位置或使用搜索' }}</text>
-        </view>
+        <map
+          class="map-view"
+          :latitude="mapLat"
+          :longitude="mapLng"
+          scale="15"
+          show-location
+          @tap="onMapTap"
+        >
+          <cover-view class="map-overlay" v-if="!addressText">
+            <cover-view class="mo-text">点击地图选点 或 使用上方搜索</cover-view>
+          </cover-view>
+        </map>
       </view>
 
       <!-- 选择业态 -->
@@ -95,6 +103,8 @@ export default {
     return {
       addressKeyword: '',
       addressText: '',
+      mapLat: 39.9087,
+      mapLng: 116.3975,
       industry: '',
       brandName: '',
       storeSize: '',
@@ -134,8 +144,21 @@ export default {
     onAddressInput () { this.errors.address = '' },
     onBrandInput () { this.errors.brand = '' },
     onSizeInput () { this.errors.size = '' },
-    onSearch () { uni.showToast({ title: '地图搜索接入中', icon: 'none' }) },
-    onMapTap () { uni.showToast({ title: '地图组件接入中', icon: 'none' }) },
+    onSearch () {
+      if (!this.addressKeyword.trim()) return
+      this.addressText = this.addressKeyword.trim()
+      this.errors.address = ''
+    },
+    onMapTap (e) {
+      if (e.detail && e.detail.latitude) {
+        this.mapLat = e.detail.latitude
+        this.mapLng = e.detail.longitude
+        this.addressText = `${this.mapLng.toFixed(4)}, ${this.mapLat.toFixed(4)}`
+        uni.showToast({ title: '已选坐标，反向地理编码接入中', icon: 'none' })
+      } else {
+        uni.showToast({ title: '点击地图选择门店位置', icon: 'none' })
+      }
+    },
     toggleFav () { this.isFaved = !this.isFaved; uni.showToast({ title: this.isFaved ? '收藏成功' : '已取消收藏', icon: 'none' }) },
     validate () {
       const e = { address: '', industry: '', brand: '', size: '' }; let ok = true
@@ -180,8 +203,9 @@ export default {
 .s-btn { background:linear-gradient(135deg,#0f172a,#1e40af); color:#fff; border-radius:14rpx; padding:0 28rpx; font-size:28rpx; line-height:80rpx; font-weight:600; }
 .addr-pick { display:flex; align-items:center; margin-top:12rpx; padding:16rpx; background:#f0fdf4; border:1rpx solid #bbf7d0; border-radius:14rpx; }
 .ap-text { flex:1; font-size:26rpx; color:#166534; margin-left:8rpx; } .ap-star { font-size:36rpx; color:#d6a84f; padding:0 8rpx; }
-.map-box { height:260rpx; background:#f1f5f9; border-radius:16rpx; margin-top:12rpx; display:flex; flex-direction:column; align-items:center; justify-content:center; border:2rpx dashed #cbd5e1; }
-.mb-icon { font-size:56rpx; margin-bottom:8rpx; } .mb-hint { font-size:24rpx; color:#94a3b8; }
+.map-view { width:100%; height:340rpx; border-radius:16rpx; margin-top:12rpx; }
+.map-overlay { display:flex; align-items:center; justify-content:center; height:100%; }
+.mo-text { background:rgba(0,0,0,0.6); color:#fff; font-size:24rpx; padding:12rpx 24rpx; border-radius:20rpx; }
 .dual { display:flex; gap:14rpx; } .dual-half { flex:1; }
 
 .analyze-btn { margin-top:8rpx; width:100%; background:linear-gradient(135deg,#0f172a,#1e40af); color:#fff; border-radius:18rpx; padding:24rpx 20rpx; display:flex; align-items:center; gap:14rpx; }
