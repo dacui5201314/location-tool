@@ -914,3 +914,41 @@ miniprogram/
 - 无真实密钥泄露（`secret` 仅出现在 README 配置指引中）
 
 ---
+
+## Phase 23A uni-app 脚手架 + 构建基线（2026-05-21）
+
+### 状态
+
+最新接受 commit：`a3cc115`
+
+### uni-app 主客户端基线
+
+- `uniapp/` — Vue3 + Vite + uni-app，未来微信/抖音/App 三端主客户端
+- `src/` 结构：`manifest.json`、`pages.json`、`App.vue`、`main.js` 均在 `src/` 下
+- 6 页面骨架：home（分析入口）、records（记录）、favorites（收藏）、report-detail（报告详情）、result（分析结果）、profile（我的）
+- 4 tabBar：首页 / 记录 / 收藏 / 我的
+- 6 组件：app-header、industry-picker、address-input、report-card、score-panel、empty-state
+- 全部使用 mock 数据，不调用 `/api/analyze`，不接支付
+
+### 构建验证
+
+- `npm run build:mp-weixin` **PASS** — 输出 `dist/build/mp-weixin/`
+- 依赖：全部 `@dcloudio/*` 锁定 `3.0.0-alpha-5010120260519001`（同代统一），Vite 5.4.21，Vue 3.5.34
+- `npm ls` 提示 Vite peer dependency invalid（DCloud 插件期望 5.2.8，当前 5.4.21）。构建通过，后续可做依赖卫生
+
+### 密钥
+
+未提交真实 AppID/AppSecret/API key。`manifest.json` 中 `appid` 为空字符串。
+
+### 路线
+
+- 停止原生 `miniprogram/` 新功能开发（仅保留为微信登录联调参考）
+- `frontend/` Web 继续作为产品母版
+- 后续前端重点在 `uniapp/`
+
+### 遗留/不处理
+
+- `tmp_*`
+- `miniprogram/pages/profile/profile.json`
+
+---
