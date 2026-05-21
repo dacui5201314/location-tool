@@ -49,7 +49,7 @@
       <!-- Bottom bar — PDF not functional -->
       <view class="bottom-bar">
         <button v-if="record.is_pdf_unlocked" class="bb-export">⬇️ 下载 PDF 报告</button>
-        <button v-else class="bb-unlock" @tap="onExport">🔒 消耗 1 点数导出 PDF</button>
+        <button v-else class="bb-unlock" @tap="onExport">🔒 PDF 导出暂未开放</button>
         <button class="bb-back" @tap="goBack">返回</button>
       </view>
     </view>
@@ -79,8 +79,14 @@ export default {
     if (!id) { this.loading = false; this.errorMsg = '缺少记录 ID'; return }
     api.fetchRecordDetail(id).then(r => {
       this.loading = false
-      if (r.ok && r.data) this.record = r.data
-      else this.errorMsg = r.data?.detail || '记录不存在'
+      if (r.ok && r.data && !r.data.error) {
+        this.record = r.data
+      } else {
+        const detail = r.data?.detail || r.data?.error || ''
+        if (r.statusCode === 404 || detail.includes('not found') || detail.includes('不存在')) this.errorMsg = '记录不存在'
+        else if (r.statusCode === 401) this.errorMsg = '请先登录后查看'
+        else this.errorMsg = detail || '记录加载失败'
+      }
     }).catch(() => { this.loading = false; this.errorMsg = '网络异常，请重试' })
   },
   methods: {
@@ -89,7 +95,7 @@ export default {
     goBack () { uni.navigateBack({ delta: 1 }).catch(() => uni.switchTab({ url: '/pages/records/index' })) },
     onExport () {
       uni.showToast({
-        title: this.record.is_pdf_unlocked ? 'PDF 下载接入中' : '需消耗 1 点数解锁，接入中',
+        title: this.record.is_pdf_unlocked ? 'PDF 下载接入中' : 'PDF 解锁联调未开放',
         icon: 'none'
       })
     }

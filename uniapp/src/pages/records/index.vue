@@ -60,7 +60,7 @@
     <view class="modal-mask" v-if="delTarget" @tap="delTarget = null">
       <view class="modal-box" @tap.stop>
         <text class="modal-title">确定要删除该条分析记录吗？</text>
-        <text class="modal-body">删除后将无法恢复，报告文件也将一并销毁。</text>
+        <text class="modal-body">删除后将无法恢复（真实历史记录）。</text>
         <view class="modal-actions">
           <button class="ma-cancel" @tap="delTarget = null">取消</button>
           <button class="ma-confirm" :disabled="delLoading" @tap="confirmDelete">{{ delLoading ? '删除中...' : '确定删除' }}</button>
@@ -133,6 +133,9 @@ export default {
         if (res.ok) {
           this.records = this.records.filter(x => (x.uuid || x.id) !== (r.uuid || r.id))
           uni.showToast({ title: '已删除', icon: 'none' })
+        } else {
+          const msg = res.data?.detail || res.data?.error || '删除失败，请重试'
+          uni.showToast({ title: msg, icon: 'none' })
         }
       } catch (e) { uni.showToast({ title: '网络异常，请重试', icon: 'none' }) }
       this.delLoading = false; this.delTarget = null

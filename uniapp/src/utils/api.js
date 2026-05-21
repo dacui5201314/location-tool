@@ -21,6 +21,17 @@ function request ({ url, method = 'GET', data = {}, auth = true }) {
   })
 }
 
+// ── 错误提取 ──
+function normalizeError (result) {
+  if (!result) return '网络异常，请重试'
+  const d = result.data
+  if (typeof d === 'string') return d
+  if (d?.detail) return d.detail
+  if (d?.error) return d.error
+  if (d?.message) return d.message
+  return `请求失败 (HTTP ${result.statusCode || '?'})`
+}
+
 // ── Auth ──
 /** 匿名设备 token（Web 兼容降级） */
 function ensureAnonToken () {
@@ -44,7 +55,7 @@ function fetchIndustries () { return request({ url: '/api/industries/active', au
 function getHealth () { return request({ url: '/api/health', auth: false }) }
 
 export default {
-  request, ensureAnonToken, wechatMiniLogin,
+  request, normalizeError, ensureAnonToken, wechatMiniLogin,
   fetchProfile, fetchRecords, fetchRecordDetail, deleteRecord,
   fetchFavorites, fetchIndustries, getHealth
 }

@@ -3,7 +3,10 @@ import api from './api'
 // ── token/user storage ──
 export function getToken () { return uni.getStorageSync('token') || '' }
 export function setToken (token) { uni.setStorageSync('token', token) }
-export function clearToken () { uni.removeStorageSync('token'); uni.removeStorageSync('user') }
+export function clearToken () {
+  const keys = ['token', 'user', 'gift_note', 'wx_mini_openid', 'wx_unionid']
+  keys.forEach(k => { try { uni.removeStorageSync(k) } catch (e) { /* ignore */ } })
+}
 export function getUser () { return uni.getStorageSync('user') || null }
 export function setUser (user) { uni.setStorageSync('user', user) }
 
@@ -13,7 +16,7 @@ export function wechatLogin () {
     uni.login({
       provider: 'weixin',
       success (loginRes) {
-        if (!loginRes.code) return reject(new Error('uni.login 未返回 code'))
+        if (!loginRes.code) { clearToken(); return reject(new Error('uni.login 未返回 code')) }
         api.wechatMiniLogin(loginRes.code).then(result => {
           if (result.ok) {
             const { token, user, gift_note, wx_mini_openid, wx_unionid } = result.data
@@ -24,7 +27,8 @@ export function wechatLogin () {
             if (wx_unionid) uni.setStorageSync('wx_unionid', wx_unionid)
             resolve(result)
           } else {
-            resolve(result) // 保留 statusCode + detail 给 UI 展示错误
+            clearToken() // 登录失败清理残留
+            resolve(result)
           }
         }).catch(reject)
       },
