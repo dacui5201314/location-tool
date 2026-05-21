@@ -65,8 +65,8 @@
       <button class="analyze-btn" :disabled="analyzing" @tap="onAnalyze">
         <text class="ab-mark">✦</text>
         <view class="ab-text">
-          <text class="ab-strong">{{ analyzing ? 'AI 选址报告生成中...' : '立即生成选址报告' }}</text>
-          <text class="ab-em">{{ analyzing ? '正在采集周边数据并评估商业可行性' : addressText ? '生成客流、竞品、消费力与风险建议' : '请先搜索或定位门店地址' }}</text>
+          <text class="ab-strong">分析接口联调未开放</text>
+          <text class="ab-em">填写完成后等待分析接口联调</text>
         </view>
       </button>
 

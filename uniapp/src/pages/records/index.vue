@@ -118,11 +118,11 @@ export default {
         if (r.ok && Array.isArray(r.data?.records)) this.records = r.data.records
         else if (r.ok && Array.isArray(r.data)) this.records = r.data
         else {
-          if (r.statusCode === 401) { auth.clearToken(); this.isLoggedIn = false; return }
-          uni.showToast({ title: api.normalizeError(r), icon: 'none' })
+          if (r.statusCode === 401) { auth.clearToken(); this.isLoggedIn = false }
+          else { uni.showToast({ title: api.normalizeError(r), icon: 'none' }) }
         }
       } catch (e) { uni.showToast({ title: '网络异常', icon: 'none' }) }
-      this.loading = false
+      finally { this.loading = false }
     },
     onDetail (r) {
       const id = r.uuid || r.id

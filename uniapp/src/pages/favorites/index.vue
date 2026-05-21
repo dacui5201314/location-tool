@@ -116,11 +116,11 @@ export default {
           const data = r.data?.favorites || r.data || []
           this.list = Array.isArray(data) ? data : []
         } else {
-          if (r.statusCode === 401) { auth.clearToken(); this.isLoggedIn = false; this.errMsg = ''; return }
-          this.errMsg = api.normalizeError(r)
+          if (r.statusCode === 401) { auth.clearToken(); this.isLoggedIn = false; this.errMsg = '' }
+          else { this.errMsg = api.normalizeError(r) }
         }
       } catch (e) { this.errMsg = '网络异常，请重试' }
-      this.loading = false
+      finally { this.loading = false }
     },
     onSelect (f) {
       const addr = f.address || f.report_address || ''
