@@ -2,7 +2,7 @@ current_phase: Phase 23H
 phase_status: uniapp_pre_integration_self_check_complete
 latest_code_commit: 83c3d6f
 latest_code_commit_message: "chore: complete Phase 23G self-check with result page placeholder"
-latest_docs_commit: e5933e7
+latest_docs_commit: f3e7328
 unpushed: true
 
 validation:

@@ -35,6 +35,42 @@ npm install --legacy-peer-deps
 npm run build:mp-weixin    # 如 uni CLI 不可用，改用 HBuilderX
 ```
 
+## 微信开发者工具导入
+
+### 1. 构建
+
+```bash
+cd uniapp
+npm run build:mp-weixin
+```
+
+成功后输出目录：`dist/build/mp-weixin`
+
+### 2. 导入微信开发者工具
+
+1. 打开微信开发者工具 → 点击「导入」
+2. 目录选择：`uniapp/dist/build/mp-weixin`（**注意：是构建产物目录，不是 uniapp 源码目录**）
+3. AppID 填入你的测试号或正式小程序 AppID
+4. 点击确定
+
+### 3. 开发者工具设置
+
+- 详情 → 本地设置 → 勾选「不校验合法域名、web-view、TLS 版本以及 HTTPS 证书」
+- 此选项仅开发者工具有效，真机预览仍需配置合法域名
+
+### 4. 真实联调前提
+
+- 后端运行在公网 HTTPS 域名下
+- 管理后台已配置 `wx_mini_appid` 和 `wx_mini_secret`（系统参数页面）
+- 微信公众平台 → 开发管理 → 服务器域名 → `request 合法域名` 已添加后端域名
+- 使用正式小程序 AppID（测试号仅支持开发者工具基础联调）
+
+### 5. 当前阶段限制
+
+- `/api/auth/wechat/mini` 已就绪，可联调微信登录
+- 分析生成、支付、PDF 解锁/下载均未接——相关按钮显示「联调未开放」
+- 收藏预填、记录查看、报告详情可正常工作
+
 ## 项目结构
 
 ```
