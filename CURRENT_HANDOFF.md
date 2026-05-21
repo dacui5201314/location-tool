@@ -1062,6 +1062,25 @@ Do not include these in uni-app commits unless the user explicitly asks.
 
 - 当前阶段分析、付费、PDF 能力均未开放，相关入口显示联调未开放占位文案
 
+#### 手工验证记录模板（Phase 23I 使用）
+
+| 项目 | 记录 |
+|---|---|
+| 导入时间 | |
+| AppID 类型 | 测试号 / 正式号 |
+| 后端地址 | |
+| 4 tabBar 可切换 | 是 / 否（哪个不可用） |
+| 微信登录结果 | 成功 / 503 / 网络错误 / 400 / 409 |
+| records 只读 | 正常 / 空 / 错误 |
+| favorites 只读 | 正常 / 空 / 错误 |
+| report-detail 只读 | 正常 / 空 / 错误 |
+| 后端不可用时错误提示 | 清晰 / 白屏 / 崩溃 |
+| 问题记录 | |
+
+### Phase 23H ready → Phase 23I
+
+Phase 23H 代码侧联调准备已完成（构建产物、配置检查、文档、清单）。Phase 23I 需要人工在微信开发者工具中导入 `dist/build/mp-weixin` 并填写上表。前提：后端 HTTPS + 管理后台配好小程序凭证 + request 合法域名。
+
 ### Hard reminder
 
 The user explicitly said report accuracy logic must not be touched. Treat this as a hard boundary:
