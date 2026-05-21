@@ -1,8 +1,8 @@
-current_phase: Phase 13
-phase_status: ready_for_billing_and_save_chain_hardening
-latest_code_commit: 52cc749
-latest_code_commit_message: "feat: complete pre-launch accuracy hardening"
-latest_docs_commit: 92b140f
+current_phase: Phase 23F
+phase_status: uniapp_pre_integration_polish_complete
+latest_code_commit: e0f0146
+latest_code_commit_message: "fix: clear uni-app loading states and pre-integration copy"
+latest_docs_commit: 3eb6cc6
 unpushed: true
 
 validation:
@@ -47,7 +47,7 @@ phase13_focus:
   - "Add minimal tests for the billing/refund/save failure paths if feasible without broad refactor."
   - "Dead-code cleanup is optional; do not touch config.py PROVIDER_CONFIG unless legacy ai_providers imports are migrated."
 
-next_step: "Phase 13: harden billing refund and report save failure paths, then proceed to frontend product acceptance / small traffic."
+next_step: "Phase 23F follow-up: remove remaining uni-app pre-integration misleading copy such as 生成中, verify build/scans, commit only intended uniapp/docs changes, do not push."
 
 boundaries:
   no_push: true
@@ -55,3 +55,35 @@ boundaries:
   no_database_schema_changes: true
   do_not_process_tmp_artifacts: true
   no_more_forced_sample_completion: true
+  no_backend_changes_without_explicit_user_approval: true
+  no_report_accuracy_logic_changes: true
+  no_poi_rules_prompt_fact_guard_classification_changes: true
+
+phase23_uniapp:
+  product_direction: "uniapp is future main client; WeChat Mini Program first, later Douyin Mini Program and App"
+  web_master: "frontend/ remains product master/reference; do not modify unless explicitly requested"
+  native_miniprogram: "frozen for new feature work; keep only as WeChat login reference"
+  accepted_baseline: "a3cc115 chore: fix uni-app build dependencies with pinned alpha versions"
+  latest_uniapp_commit: "564a7d3 chore: polish uni-app pre-integration states"
+  completed:
+    - "Web parity refinement across home/records/favorites/profile/result/report-detail"
+    - "uni.request API wrapper, token injection, normalizeError"
+    - "WeChat mini login shell via /api/auth/wechat/mini"
+    - "Profile, records, favorites, report-detail read-only API wiring"
+    - "Report-detail read-only report_json display"
+    - "Home pre-integration form validation and dynamic industry loading"
+  verified_no_calls:
+    - "/api/analyze"
+    - "requestPayment"
+    - "/unlock-pdf"
+    - "/download"
+  validation:
+    build_mp_weixin: "PASS when run outside sandbox; sandbox build hits access denied resolving vite.config.js"
+    json_parse: "PASS for uniapp/package.json, uniapp/src/manifest.json, uniapp/src/pages.json"
+    secret_scan: "PASS in uniapp/src and config files"
+  current_worktree_caveat:
+    - "After documentation update, current git status should show only CURRENT_HANDOFF.md and PROJECT_PROGRESS.yml modified, plus expected untracked tmp/miniprogram files."
+    - "records/favorites already contain 401 loading reset with finally."
+    - "Remaining Phase 23F copy cleanup: remove dormant 生成中 wording from uniapp/src/pages/home/index.vue."
+    - "Expected untracked: tmp_latest_report_text.txt, tmp_report_images/, tmp_report_pages/, miniprogram/pages/profile/profile.json."
+  next_step: "Phase 23F follow-up: remove remaining misleading pre-integration copy such as 生成中, build/scan, commit only uniapp/docs as appropriate, do not push."

@@ -952,3 +952,109 @@ miniprogram/
 - `miniprogram/pages/profile/profile.json`
 
 ---
+
+## Phase 23B-23F uni-app Web parity + pre-integration handoff (2026-05-21)
+
+### Current direction
+
+- Web React `frontend/` remains the product master/reference.
+- Future main client is `uniapp/` (Vue3 + Vite + uni-app) for WeChat Mini Program first, later Douyin Mini Program and App.
+- Native `miniprogram/` is frozen for new feature work; keep it only as WeChat login reference.
+- Report accuracy / POI / rules / prompt / classification / fact guard / DB schema are hard-frozen unless the user explicitly allows touching them.
+
+### Accepted uni-app commits after Phase 23A
+
+| Commit | Summary |
+|---|---|
+| `596d08e` | Refined 6 uni-app pages toward Web master parity. |
+| `ae9b9fe` | Added uni-app API/auth foundation: `uni.request` wrapper, token injection, WeChat login, profile refresh, records list/detail reads. |
+| `534ab0a` | Hardened auth and record error handling: 200+error detail handling, fuller auth storage cleanup, safer PDF placeholder copy. |
+| `73777f6` | Connected favorites API and report-detail read-only `report_json` rendering. |
+| `0c91f87` | Fixed favorites -> tabBar home prefill flow and PDF placeholder copy; object array report fields are stringified safely. |
+| `f42a4a9` | Prepared home analysis form for future integration: validation, dynamic industry loading, favorites prefill, no analyze calls. |
+| `2046411` | Fixed home validation trigger and adapted `IndustryPicker` to backend flat `/api/industries/active` data. |
+| `564a7d3` | Polished pre-integration states: 401 handling, empty report content placeholder, input error clearing, copy cleanup. |
+
+### What is now in uniapp
+
+- `home`
+  - Web-parity hero/copy and analysis form shell.
+  - Address, industry, brand/feature, and store-size validation.
+  - `pending_analysis_address` storage prefill from favorites.
+  - `fetchIndustries()` read-only loading from `/api/industries/active`, with mock fallback through `IndustryPicker`.
+  - Does **not** call `/api/analyze`.
+
+- `profile`
+  - WeChat login shell using `uni.login -> /api/auth/wechat/mini`.
+  - Saves token/user/openid metadata; clears token/user/gift/openid/unionid on logout or login failure.
+  - Profile/points/member stats are read-only from existing APIs where available.
+
+- `records`
+  - Reads `GET /api/records`.
+  - Maps real records to cards and opens report detail.
+  - Uses real `DELETE /api/records/{uuid}` with explicit confirmation.
+  - 401 should clear token and return to the login guide.
+
+- `favorites`
+  - Reads `GET /api/favorites`.
+  - Uses real `DELETE /api/favorites/{id}` with explicit confirmation.
+  - "Evaluate" action only stores `pending_analysis_address` and `switchTab`s to home; it does not call analyze.
+
+- `report-detail`
+  - Reads `GET /api/records/{uuid}`.
+  - Displays existing `report_json` read-only: disclaimer, warning, summary, advantages, disadvantages, dimension scores, direct/substitute/anchor counts, data quality notes, action plan.
+  - Empty/old reports show "no full report content" placeholder.
+  - PDF/download/unlock remain placeholder only; no `/download` or `/unlock-pdf` call.
+
+### Verified boundaries
+
+- No backend changes in Phase 23B-23F.
+- No `frontend/` Web master changes.
+- No native `miniprogram/` feature continuation.
+- No POI/rules/prompt/report_fact_guard/classification changes.
+- No DB schema changes.
+- No real AppID/AppSecret/API key committed.
+- No `/api/analyze`, `requestPayment`, `/unlock-pdf`, or `/download` calls added.
+- Build repeatedly passed with `npm run build:mp-weixin` when run outside the sandbox; sandboxed build fails with access-denied resolving `vite.config.js`.
+- JSON parse checks passed for `uniapp/package.json`, `uniapp/src/manifest.json`, `uniapp/src/pages.json`.
+- Secret scans over `uniapp/src` and config files passed.
+
+- `records` and `favorites` 401/loading reset applied (`finally { this.loading = false }`).
+- `home` "生成中" and misleading copy removed; analyze button reads "分析接口联调未开放 / 填写完成后等待分析接口联调".
+- No `/api/analyze`, `requestPayment`, `/unlock-pdf`, `/download` calls added.
+- Secret scan and build passed.
+
+### Expected untracked files
+
+- `tmp_latest_report_text.txt`
+- `tmp_report_images/`
+- `tmp_report_pages/`
+- `miniprogram/pages/profile/profile.json`
+
+Do not include these in uni-app commits unless the user explicitly asks.
+
+### Next recommended task
+
+Phase 23F follow-up:
+
+1. Remove remaining misleading pre-integration copy, especially any `生成中` wording in `uniapp/src/pages/home/index.vue`.
+2. Re-scan all uni-app copy for `生成中|扣点|会扣点|支付|下载 PDF 报告|消耗 1 点`.
+3. Keep 401/loading reset behavior in `records` and `favorites`.
+4. Verify:
+   - `cd uniapp && npm run build:mp-weixin`
+   - strict JSON parse for package/manifest/pages
+   - `rg -n "/api/analyze|requestPayment|unlock-pdf|/download" uniapp/src uniapp/package.json uniapp/src/manifest.json uniapp/src/pages.json`
+   - `rg -n "AppSecret|wx_mini_secret|sk-|c4c298" uniapp/src uniapp/package.json uniapp/src/manifest.json uniapp/src/pages.json`
+   - `rg -n "生成中|扣点|会扣点|支付|下载 PDF 报告|消耗 1 点" uniapp/src`
+5. Commit only `uniapp/` changes.
+6. Do not push.
+
+### Hard reminder
+
+The user explicitly said report accuracy logic must not be touched. Treat this as a hard boundary:
+
+- Do not modify `backend/` unless the user explicitly authorizes it.
+- Do not modify POI, rules, prompts, `report_fact_guard`, classification, or DB schema.
+- Do not generate reports or expand samples.
+
+---
