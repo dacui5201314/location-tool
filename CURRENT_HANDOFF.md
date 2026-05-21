@@ -683,86 +683,10 @@ count=74, max_id=74（未变更）。
 
 ### 未 push
 
-### Phase 16 修正 (WIP)
+### Phase 16 follow-up — 已通过复核
 
-- `IntegrityError` 替换泛化 `except Exception`：回填 wx 身份字段冲突时抛出 `HTTPException(409, "微信身份已绑定其他账号...")`，不再静默返回成功。
-- T-P16-5: wx_mini_openid 冲突抛异常行为测试
-- T-P16-6: wechat_mini_login 返回体不含 session_key
-- T-P16-7: 缺少配置走 503 源码级验证
-- 测试: fact_guard **145** PASS, industry 2168 PASS
+- 生产代码 `3000436` accepted: `IntegrityError` → `rollback()` → `HTTPException(409, "微信身份已绑定其他账号...")`。
+- 测试收紧 `237eccb`: T-P16-5 改为真实 `_find_or_create_user` helper 冲突路径；T-P16-7 移除恒真 placeholder，改为源码级 503/配置缺失检查。
+- compileall PASS | industry 2168 PASS | fact_guard **147** PASS | DB count=74, max_id=74 | 未 push。
 
 ---
-
-## Codex handoff for next window - Phase 16 review follow-up (2026-05-21)
-
-Current branch/worktree:
-
-- Local branch: `main`.
-- Latest reviewed commit before this handoff: `490604c feat: add WeChat mini program login`.
-- Local branch is ahead of `origin/main`; do not push unless the user explicitly approves.
-- Expected untracked files/directories: `tmp_latest_report_text.txt`, `tmp_report_images/`, `tmp_report_pages/`. Do not process or delete them unless the user explicitly asks.
-- DB `analysis_records`: count=74, max(id)=74 as of last check.
-
-What is done:
-
-- Phase 13 billing/save-chain hardening completed:
-  - DB save failure path now hard-fails, does not yield SSE success, and refunds point users.
-  - PDF unlock concurrent double-charge risk handled by same-session transaction rollback.
-- Phase 14 smoke completed:
-  - health/auth/records/admin logs/admin stats/PDF invalid UUID paths/front pages/API proxy/frontend build passed.
-- Phase 15 design completed:
-  - PDF/report fields are largely parity-aligned across page/PDF/download HTML, but templates differ.
-  - Admin panel is not blocking for small traffic; do not expose rules editing.
-  - Mini Program login should use `wx.login() -> /api/auth/wechat/mini -> jscode2session -> JWT`.
-- Phase 16 initial implementation exists in `490604c`:
-  - `backend/routers/auth.py`: added `POST /api/auth/wechat/mini`, `_get_config_str`, and `wx_mini_openid`/`wx_unionid` handling in `_find_or_create_user`.
-  - `backend/tests/check_report_fact_guard.py`: added T-P16-1~4.
-  - `CURRENT_HANDOFF.md`: recorded Phase 16.
-
-Codex review finding: Phase 16 is not accepted yet.
-
-- Main issue: `_find_or_create_user` catches all exceptions while backfilling identity fields (`wx_unionid`, `wx_mini_openid`, `wx_openid`, `phone`), calls `db.rollback()`, and then silently continues returning a successful login.
-- Risk: Mini Program login can return success while `wx_mini_openid` was not actually bound to the user, producing ambiguous account state.
-- Required fix: identity binding conflicts must fail clearly, not be swallowed.
-
-Next-window instruction:
-
-1. Read first only: `PROJECT_RULES.md`, `PROJECT_PROGRESS.yml`, `CURRENT_HANDOFF.md`.
-2. Do not read `PROJECT_STATE.md` / `WORKING_SET.md` unless explicitly needed.
-3. Do not push.
-4. Do not process `tmp_*`.
-5. Do not generate reports, do not expand samples, do not reopen POI/rules/prompt/report_fact_guard/classification accuracy work.
-6. Do not change DB schema.
-
-Implement only this Phase 16 follow-up:
-
-1. In `backend/routers/auth.py`:
-   - Import `IntegrityError` from `sqlalchemy.exc`.
-   - In `_find_or_create_user`, when identity field backfill causes an `IntegrityError`, rollback and raise a clear `HTTPException(status_code=409, detail="微信身份已绑定其他账号，请联系客服处理")` or equivalent.
-   - Do not catch broad `Exception` for identity binding conflicts.
-   - Preserve normal matching order and existing new-user reward/BillingRecord anti-abuse logic.
-   - Do not return success if requested `wx_mini_openid`/`wx_unionid` failed to bind because another user already owns it.
-
-2. In `backend/tests/check_report_fact_guard.py`:
-   - Add minimal Phase 16 tests:
-     - A conflict case where `wx_mini_openid` is already owned by user A, user B is matched by `wx_unionid`, and trying to backfill that mini openid must raise a clear exception instead of silently succeeding.
-     - Source-level or lightweight check that `wechat_mini_login` response does not include `session_key`.
-     - Source-level or lightweight check that missing `wx_mini_appid`/`wx_mini_secret` returns/raises 503.
-
-3. Verify:
-   - `python -m compileall backend` (or project-approved Python/uv equivalent)
-   - `python backend/tests/check_industry_rigor_rules.py`
-   - `python backend/tests/check_report_fact_guard.py`
-   - DB count/max(id), if checked
-
-4. Commit suggestion:
-   - `fix: fail clearly on WeChat identity binding conflicts`
-
-Final report should include:
-
-- Modified files
-- How the binding-conflict bug was fixed
-- Test results
-- DB count/max(id), if checked
-- Commit SHA
-- Explicitly say not pushed
