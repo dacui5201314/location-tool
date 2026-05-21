@@ -1,52 +1,87 @@
 <template>
   <view class="profile-page">
-    <!-- Top dark section -->
-    <view class="top-section">
-      <view class="avatar">👤</view>
-      <view class="username">{{ loggedIn ? '用户' : '未登录' }}</view>
-      <view class="uid" v-if="loggedIn">ID: 000****001</view>
+    <!-- Top section — 对齐 Web ProfileView -->
+    <view class="top">
+      <image class="avatar" src="/static/logo.png" mode="aspectFit" v-if="false" />
+      <text class="avatar-fb">👤</text>
+      <text class="uname">{{ loggedIn ? '用户 10001' : '未登录' }}</text>
+      <text class="uid" v-if="loggedIn">用户编号：10001</text>
     </view>
 
-    <!-- Stats -->
-    <view class="stats-panel">
-      <view class="stat-item" v-for="s in stats" :key="s.label">
-        <text class="stat-num">{{ s.value }}</text>
-        <text class="stat-label">{{ s.label }}</text>
+    <!-- Stats panel — 对齐 Web -->
+    <view class="stats">
+      <view class="stat" v-for="s in stats" :key="s.label">
+        <text class="sv">{{ s.value }}</text>
+        <text class="sl">{{ s.label }}</text>
+        <text class="ss">{{ s.sub }}</text>
       </view>
     </view>
 
-    <!-- Login / logged-in state -->
-    <view class="card" v-if="!loggedIn">
-      <view class="card-title">登录后查看更多</view>
-      <view class="card-desc">登录即可查看余额、历史报告和 PDF 下载权限</view>
-      <button class="login-btn" @tap="onLogin">微信一键登录</button>
-    </view>
-
-    <view class="card" v-if="loggedIn">
-      <view class="card-title">账户信息</view>
-      <view class="info-row"><text class="ilabel">余额</text><text class="ival">3 点</text></view>
-      <view class="info-row"><text class="ilabel">报告数</text><text class="ival">12 份</text></view>
-      <view class="info-row"><text class="ilabel">收藏</text><text class="ival">3 个</text></view>
-    </view>
-
-    <!-- VIP card -->
+    <!-- VIP card — 对齐 Web -->
     <view class="vip-card">
-      <view class="vip-header">💎 会员中心</view>
-      <view class="vip-desc">开通会员享无限次分析和 PDF 导出</view>
-      <button class="vip-btn" @tap="onUpgrade">立即开通</button>
+      <view class="vc-top">
+        <view>
+          <text class="vc-title">VIP会员 未开通</text>
+          <text class="vc-desc">开通会员，解锁全部高级功能</text>
+        </view>
+        <button class="vc-btn" @tap="onUpgrade">立即开通</button>
+      </view>
+      <view class="vc-benefits">
+        <view class="vb" v-for="b in benefits" :key="b.label">
+          <text class="vb-icon">{{ b.icon }}</text>
+          <text class="vb-label">{{ b.label }}</text>
+          <text class="vb-desc">{{ b.desc }}</text>
+        </view>
+      </view>
     </view>
 
-    <!-- Menu -->
+    <!-- Points card — 对齐 Web -->
+    <view class="points-card">
+      <view class="pc-head">
+        <text class="pc-title">● 我的点数</text>
+        <view class="pc-actions">
+          <text class="pca" @tap="onCDK">兑换码</text>
+          <text class="pca primary" @tap="onBuy">获取点数</text>
+        </view>
+      </view>
+      <view class="pc-body">
+        <text class="pc-num">3</text>
+        <text class="pc-unit">点</text>
+        <text class="pc-desc">当前剩余点数 · 可用于生成选址分析报告</text>
+      </view>
+      <view class="pc-flow">
+        <view class="pf" v-for="s in flowSteps" :key="s.label">
+          <text class="pf-icon">{{ s.icon }}</text>
+          <text class="pf-label">{{ s.label }}</text>
+        </view>
+      </view>
+      <view class="pc-warn" v-if="true">
+        <text>点数即将用完，建议充值或开通会员</text>
+      </view>
+    </view>
+
+    <!-- Menu card -->
     <view class="menu-card">
-      <view class="menu-item" v-for="m in menuItems" :key="m.label" @tap="m.action">
-        <text class="menu-icon">{{ m.icon }}</text>
-        <text class="menu-label">{{ m.label }}</text>
-        <text class="menu-arrow">›</text>
+      <view class="menu-item" @tap="onUpgrade">
+        <text class="mi-icon">◇</text>
+        <view class="mi-body">
+          <text class="mi-label">会员权益</text>
+          <text class="mi-desc">了解会员特权</text>
+        </view>
+        <text class="mi-arrow">›</text>
+      </view>
+      <view class="menu-item" @tap="onCS">
+        <text class="mi-icon">☎</text>
+        <view class="mi-body">
+          <text class="mi-label">联系客服</text>
+          <text class="mi-desc">专属客服支持</text>
+        </view>
+        <text class="mi-arrow">›</text>
       </view>
     </view>
 
     <!-- Footer -->
-    <view class="footer">址得选 · AI 选址初筛参考工具</view>
+    <view class="footer">(c) 2026 AI 选址初筛参考工具</view>
   </view>
 </template>
 
@@ -56,66 +91,73 @@ export default {
     return {
       loggedIn: false,
       stats: [
-        { value: 3, label: '剩余点数' },
-        { value: 12, label: '分析报告' },
-        { value: 3, label: '收藏地址' }
+        { value: 3, label: '剩余点数', sub: '可用点数' },
+        { value: 12, label: '已生成报告', sub: '累计分析' },
+        { value: 3, label: '收藏地址', sub: '机会池' }
       ],
-      menuItems: [
-        { icon: '💎', label: '会员权益', action: () => uni.showToast({ title: '会员介绍接入中', icon: 'none' }) },
-        { icon: '💬', label: '联系客服', action: () => uni.showToast({ title: '客服接入中', icon: 'none' }) }
+      benefits: [
+        { icon: '∞', label: '无限分析', desc: '次数不限' },
+        { icon: 'PDF', label: 'PDF导出', desc: '高清报告' },
+        { icon: '⌁', label: '盈利预测', desc: '精准估算' },
+        { icon: '◎', label: '高级模型', desc: '多维评估' },
+        { icon: '▥', label: '数据对比', desc: '深度分析' },
+        { icon: '☎', label: '专属客服', desc: '优先服务' }
+      ],
+      flowSteps: [
+        { icon: '⌖', label: '选地址' }, { icon: '✚', label: 'AI分析' },
+        { icon: '▤', label: '生成报告' }, { icon: '↓', label: '导出使用' }
       ]
     }
   },
   methods: {
-    onLogin () {
-      uni.showToast({ title: '微信登录接入中', icon: 'none', duration: 2000 })
-    },
-    onUpgrade () {
-      uni.showToast({ title: '会员充值接入中', icon: 'none', duration: 2000 })
-    }
+    onUpgrade () { uni.showToast({ title: '会员充值接入中', icon: 'none' }) },
+    onCDK () { uni.showToast({ title: '兑换码接入中', icon: 'none' }) },
+    onBuy () { uni.showToast({ title: '点数购买接入中', icon: 'none' }) },
+    onCS () { uni.showToast({ title: '客服接入中', icon: 'none' }) }
   }
 }
 </script>
 
 <style scoped>
-.profile-page { min-height: 100vh; padding-bottom: 60rpx; }
-.top-section {
-  background: linear-gradient(135deg, #02091d, #071843);
-  padding: 60rpx 32rpx 40rpx; text-align: center; color: #fff;
-}
-.avatar { font-size: 80rpx; margin-bottom: 16rpx; }
-.username { font-size: 36rpx; font-weight: 700; }
-.uid { font-size: 24rpx; color: rgba(255,255,255,0.6); margin-top: 6rpx; }
-.stats-panel {
-  display: flex; background: #fff; margin: -30rpx 24rpx 24rpx;
-  border-radius: 20rpx; padding: 28rpx 0; box-shadow: 0 4rpx 24rpx rgba(0,0,0,0.06);
-}
-.stat-item { flex: 1; text-align: center; }
-.stat-num { display: block; font-size: 36rpx; font-weight: 800; color: #1e293b; }
-.stat-label { display: block; font-size: 22rpx; color: #94a3b8; margin-top: 4rpx; }
-.card {
-  background: #fff; margin: 0 24rpx 20rpx; border-radius: 20rpx; padding: 28rpx;
-  box-shadow: 0 2rpx 16rpx rgba(0,0,0,0.04);
-}
-.card-title { font-size: 28rpx; font-weight: 700; color: #1e293b; margin-bottom: 10rpx; }
-.card-desc { font-size: 26rpx; color: #94a3b8; margin-bottom: 20rpx; }
-.login-btn { width: 100%; background: #07c160; color: #fff; border-radius: 14rpx; font-size: 30rpx; font-weight: 600; padding: 22rpx 0; }
-.info-row { display: flex; justify-content: space-between; padding: 16rpx 0; border-bottom: 1rpx solid #f1f5f9; }
-.ilabel { color: #64748b; font-size: 28rpx; }
-.ival { font-size: 28rpx; font-weight: 600; color: #1e293b; }
-.vip-card {
-  background: linear-gradient(135deg, #1e293b, #0f172a);
-  margin: 0 24rpx 20rpx; border-radius: 20rpx; padding: 28rpx; color: #fff;
-}
-.vip-header { font-size: 28rpx; font-weight: 700; margin-bottom: 8rpx; }
-.vip-desc { font-size: 24rpx; color: rgba(255,255,255,0.7); margin-bottom: 20rpx; }
-.vip-btn { width: 100%; background: #d6a84f; color: #1e293b; border-radius: 14rpx; font-size: 28rpx; font-weight: 700; padding: 18rpx 0; }
-.menu-card { background: #fff; margin: 0 24rpx 24rpx; border-radius: 20rpx; }
-.menu-item {
-  display: flex; align-items: center; padding: 28rpx; border-bottom: 1rpx solid #f1f5f9;
-}
-.menu-icon { font-size: 32rpx; margin-right: 16rpx; }
-.menu-label { flex: 1; font-size: 28rpx; color: #1e293b; }
-.menu-arrow { font-size: 32rpx; color: #cbd5e1; }
-.footer { text-align: center; font-size: 22rpx; color: #cbd5e1; padding: 24rpx; }
+.profile-page { min-height:100vh; background:#eef3f9; padding-bottom:60rpx; }
+.top { background:linear-gradient(135deg,#02091d,#071843); padding:60rpx 32rpx 40rpx; text-align:center; color:#fff; }
+.avatar-fb { font-size:80rpx; }
+.uname { display:block; font-size:36rpx; font-weight:700; margin-top:12rpx; }
+.uid { display:block; font-size:24rpx; color:rgba(255,255,255,0.6); margin-top:4rpx; }
+
+.stats { display:flex; background:#fff; margin:-30rpx 24rpx 24rpx; border-radius:20rpx; padding:24rpx 0; box-shadow:0 4rpx 24rpx rgba(0,0,0,0.06); }
+.stat { flex:1; text-align:center; }
+.sv { display:block; font-size:36rpx; font-weight:800; color:#1e293b; }
+.sl { display:block; font-size:24rpx; color:#334155; font-weight:600; margin-top:4rpx; }
+.ss { display:block; font-size:20rpx; color:#94a3b8; margin-top:2rpx; }
+
+.vip-card { background:linear-gradient(135deg,#1e293b,#0f172a); margin:0 24rpx 20rpx; border-radius:20rpx; padding:28rpx; color:#fff; }
+.vc-top { display:flex; justify-content:space-between; align-items:center; margin-bottom:24rpx; }
+.vc-title { font-size:30rpx; font-weight:700; display:block; }
+.vc-desc { font-size:24rpx; color:rgba(255,255,255,0.7); display:block; margin-top:4rpx; }
+.vc-btn { background:#d6a84f; color:#1e293b; border-radius:14rpx; font-size:26rpx; font-weight:700; padding:14rpx 28rpx; }
+.vc-benefits { display:flex; flex-wrap:wrap; gap:16rpx; }
+.vb { width:calc(33.3% - 12rpx); text-align:center; }
+.vb-icon { font-size:36rpx; display:block; } .vb-label { font-size:22rpx; display:block; margin-top:4rpx; } .vb-desc { font-size:20rpx; color:rgba(255,255,255,0.5); display:block; }
+
+.points-card { background:#fff; margin:0 24rpx 20rpx; border-radius:20rpx; padding:28rpx; box-shadow:0 2rpx 16rpx rgba(0,0,0,0.04); }
+.pc-head { display:flex; justify-content:space-between; align-items:center; margin-bottom:20rpx; }
+.pc-title { font-size:28rpx; font-weight:700; color:#1e293b; }
+.pc-actions { display:flex; gap:12rpx; }
+.pca { font-size:24rpx; padding:8rpx 20rpx; border-radius:14rpx; background:#f1f5f9; color:#475569; }
+.pca.primary { background:#246bff; color:#fff; }
+.pc-body { text-align:center; margin-bottom:24rpx; }
+.pc-num { font-size:80rpx; font-weight:900; color:#1e293b; } .pc-unit { font-size:28rpx; color:#667085; }
+.pc-desc { display:block; font-size:24rpx; color:#94a3b8; margin-top:8rpx; }
+.pc-flow { display:flex; justify-content:space-around; padding:16rpx 0; border-top:1rpx solid #f1f5f9; }
+.pf { text-align:center; } .pf-icon { font-size:32rpx; display:block; } .pf-label { font-size:20rpx; color:#667085; margin-top:4rpx; display:block; }
+.pc-warn { margin-top:16rpx; padding:16rpx; background:#fef2f2; border-radius:12rpx; }
+.pc-warn text { font-size:24rpx; color:#dc2626; }
+
+.menu-card { background:#fff; margin:0 24rpx 24rpx; border-radius:20rpx; }
+.menu-item { display:flex; align-items:center; padding:28rpx; border-bottom:1rpx solid #f1f5f9; }
+.mi-icon { font-size:36rpx; margin-right:16rpx; }
+.mi-body { flex:1; } .mi-label { font-size:28rpx; color:#1e293b; display:block; } .mi-desc { font-size:22rpx; color:#94a3b8; }
+.mi-arrow { font-size:32rpx; color:#cbd5e1; }
+.footer { text-align:center; font-size:20rpx; color:#cbd5e1; padding:24rpx; }
 </style>
