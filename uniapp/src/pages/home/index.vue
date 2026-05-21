@@ -1,6 +1,6 @@
 <template>
   <view class="home-page">
-    <!-- Hero — 对齐 Web HomePage -->
+    <!-- Hero -->
     <view class="hero">
       <view class="hero-brand">址得选</view>
       <view class="hero-tagline">AI帮你判断<text class="hl">这个位置能不能</text><text class="gold">赚钱</text></view>
@@ -24,6 +24,7 @@
           <text class="ap-text">{{ addressText }}</text>
           <text class="ap-star" @tap="toggleFav">{{ isFaved ? '★' : '☆' }}</text>
         </view>
+        <text class="field-err" v-if="errors.address">{{ errors.address }}</text>
         <view class="map-box" @tap="onMapTap">
           <text class="mb-icon">🗺️</text>
           <text class="mb-hint">{{ analyzing ? '分析中...' : '点击选择位置或使用搜索' }}</text>
@@ -36,7 +37,8 @@
           <text class="section-title">选择业态</text>
           <text class="section-link">全部业态 ›</text>
         </view>
-        <IndustryPicker :selected="industry" :disabled="analyzing" @change="onIndustryChange" />
+        <IndustryPicker :selected="industry" :disabled="analyzing" :industries="industryList" @change="onIndustryChange" />
+        <text class="field-err" v-if="errors.industry">{{ errors.industry }}</text>
       </view>
 
       <!-- 经营画像 -->
@@ -49,15 +51,17 @@
           <view class="dual-half">
             <view class="label">品牌/特色 <text class="req">*</text></view>
             <input class="field" v-model="brandName" placeholder="品牌或主打特色" :disabled="analyzing" />
+            <text class="field-err" v-if="errors.brand">{{ errors.brand }}</text>
           </view>
           <view class="dual-half">
             <view class="label">门店面积 <text class="req">*</text></view>
             <input class="field" v-model="storeSize" type="number" placeholder="㎡" :disabled="analyzing" />
+            <text class="field-err" v-if="errors.size">{{ errors.size }}</text>
           </view>
         </view>
       </view>
 
-      <!-- 分析按钮 — 对齐 Web analysis-banner -->
+      <!-- 分析按钮 -->
       <button class="analyze-btn" :disabled="!canAnalyze" @tap="onAnalyze">
         <text class="ab-mark">✦</text>
         <view class="ab-text">
@@ -66,7 +70,7 @@
         </view>
       </button>
 
-      <!-- 信任行 — 对齐 Web FeatureTile -->
+      <!-- 信任行 -->
       <view class="trust-row">
         <view class="trust-item" v-for="t in trusts" :key="t.title">
           <text class="ti-icon">{{ t.icon }}</text>
@@ -76,24 +80,28 @@
       </view>
     </view>
 
-    <!-- 页脚 — 对齐 Web footer -->
+    <!-- 页脚 -->
     <view class="footer">数据底座：全网多维度商业 POI 聚合数据库 | 仅供参考，实际决策请结合实地考察与多方因素</view>
   </view>
 </template>
 
 <script>
 import IndustryPicker from '../../components/industry-picker/index.vue'
+import api from '../../utils/api'
+
 export default {
   components: { IndustryPicker },
   data () {
     return {
       addressKeyword: '',
-      addressText: '北京市朝阳区建国路88号',
+      addressText: '',
       industry: '',
       brandName: '',
       storeSize: '',
       analyzing: false,
       isFaved: false,
+      errors: { address: '', industry: '', brand: '', size: '' },
+      industryList: [],
       trusts: [
         { icon: '✓', title: '权威数据来源', desc: '多渠道数据融合' },
         { icon: '◈', title: 'AI智能分析', desc: '多维度模型算法' },
@@ -101,23 +109,48 @@ export default {
       ]
     }
   },
+  computed: {
+    canAnalyze () { return !this.analyzing && this.addressText && this.industry && this.brandName && this.storeSize }
+  },
   onShow () {
     const pending = uni.getStorageSync('pending_analysis_address')
     if (pending) {
       this.addressText = pending
+      this.addressKeyword = pending
       uni.removeStorageSync('pending_analysis_address')
-      uni.showToast({ title: '已加载收藏地址，可继续分析', icon: 'none' })
+      uni.showToast({ title: '已加载收藏地址', icon: 'none' })
     }
   },
-  computed: {
-    canAnalyze () { return !this.analyzing && this.addressText && this.industry && this.brandName && this.storeSize }
+  mounted () {
+    api.fetchIndustries().then(r => {
+      if (r.ok && Array.isArray(r.data?.industries)) this.industryList = r.data.industries
+    }).catch(() => {})
   },
   methods: {
-    onIndustryChange (name) { this.industry = name },
+    onIndustryChange (name) {
+      this.industry = name
+      if (name) this.errors.industry = ''
+    },
     onSearch () { uni.showToast({ title: '地图搜索接入中', icon: 'none' }) },
     onMapTap () { uni.showToast({ title: '地图组件接入中', icon: 'none' }) },
     toggleFav () { this.isFaved = !this.isFaved; uni.showToast({ title: this.isFaved ? '收藏成功' : '已取消收藏', icon: 'none' }) },
-    onAnalyze () { uni.showToast({ title: 'AI 分析接口接入中（会扣点）', icon: 'none', duration: 2000 }) }
+    validate () {
+      const e = { address: '', industry: '', brand: '', size: '' }; let ok = true
+      if (!this.addressText) { e.address = '请选择门店地址'; ok = false }
+      if (!this.industry) { e.industry = '请选择业态'; ok = false }
+      if (!this.brandName || !this.brandName.trim()) { e.brand = '请输入品牌或特色'; ok = false }
+      const sz = parseFloat(this.storeSize)
+      if (isNaN(sz) || sz <= 0) { e.size = '面积必须为正数'; ok = false } else if (sz < 5) { e.size = '面积不能小于 5 ㎡'; ok = false } else if (sz > 5000) { e.size = '面积数值较大，请确认'; ok = false }
+      this.errors = e; return ok
+    },
+    onAnalyze () {
+      if (!this.validate()) {
+        const firstErr = Object.values(this.errors).find(e => e)
+        if (firstErr) uni.showToast({ title: firstErr, icon: 'none' })
+        return
+      }
+      uni.showToast({ title: '分析接口联调未开放', icon: 'none', duration: 2000 })
+    }
   }
 }
 </script>
@@ -138,6 +171,7 @@ export default {
 .section-hint { font-size:22rpx; color:#667085; }
 .label { font-size:26rpx; font-weight:600; color:#334155; margin-bottom:8rpx; }
 .req { color:#ef4444; }
+.field-err { font-size:22rpx; color:#dc2626; margin-top:6rpx; display:block; }
 .input-row { display:flex; gap:10rpx; }
 .field { flex:1; border:2rpx solid #e2e8f0; border-radius:14rpx; padding:18rpx 14rpx; font-size:28rpx; background:#fff; }
 .s-btn { background:linear-gradient(135deg,#0f172a,#1e40af); color:#fff; border-radius:14rpx; padding:0 28rpx; font-size:28rpx; line-height:80rpx; font-weight:600; }

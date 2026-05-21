@@ -26,25 +26,27 @@
 </template>
 
 <script>
+const mockIndustries = [
+  { key:'food', icon:'🍽️', label:'餐饮', subTypes:['小餐饮','大餐饮','中餐','日餐','西餐','火锅店','烧烤店','小吃店','烘焙店','快餐店'] },
+  { key:'drink', icon:'☕', label:'茶饮咖啡', subTypes:['奶茶店','咖啡店','甜品店','饮品店'] },
+  { key:'retail', icon:'🛍️', label:'零售商业', subTypes:['零售店','便利店','超市','服装店','数码店','药店'] },
+  { key:'hotel', icon:'🏨', label:'酒店住宿', subTypes:['酒店','民宿','青年旅舍'] },
+  { key:'service', icon:'💇', label:'生活服务', subTypes:['美容美发','健身房','教育培训','宠物店','洗衣店','诊所'] },
+  { key:'entertainment', icon:'🎮', label:'休闲娱乐', subTypes:['酒吧','KTV','剧本杀','网吧','台球厅'] }
+]
+
 export default {
   name: 'IndustryPicker',
   props: {
     selected: { type: String, default: '' },
     hideLabel: { type: Boolean, default: false },
+    industries: { type: Array, default: () => [] },
     disabled: { type: Boolean, default: false }
   },
   data () {
     return {
       activeCat: '',
-      // Phase 23A: mock 业态数据（对齐 Web CAT_META）
-      categories: [
-        { key: 'food', icon: '🍽️', label: '餐饮' },
-        { key: 'drink', icon: '☕', label: '茶饮咖啡' },
-        { key: 'retail', icon: '🛍️', label: '零售商业' },
-        { key: 'hotel', icon: '🏨', label: '酒店住宿' },
-        { key: 'service', icon: '💇', label: '生活服务' },
-        { key: 'entertainment', icon: '🎮', label: '休闲娱乐' }
-      ],
+      categories: mockIndustries,
       subTypes: []
     }
   },
@@ -52,16 +54,12 @@ export default {
     selectCat (key) {
       if (this.disabled) return
       this.activeCat = key
-      // Phase 23A: mock 子业态（后续从 /api/industries/active 动态加载）
-      const mock = {
-        food: ['小餐饮', '大餐饮', '中餐', '日餐', '西餐', '火锅店', '烧烤店', '小吃店', '烘焙店', '快餐店'],
-        drink: ['奶茶店', '咖啡店', '甜品店', '饮品店'],
-        retail: ['零售店', '便利店', '超市', '服装店', '数码店', '药店'],
-        hotel: ['酒店', '民宿', '青年旅舍'],
-        service: ['美容美发', '健身房', '教育培训', '宠物店', '洗衣店', '诊所'],
-        entertainment: ['酒吧', 'KTV', '剧本杀', '网吧', '台球厅']
-      }
-      this.subTypes = (mock[key] || []).map(name => ({ name }))
+      // 优先使用传入 industries prop；fallback mock
+      const list = this.industries && this.industries.length
+        ? this.industries
+        : mockIndustries
+      const cat = list.find(c => c.key === key)
+      this.subTypes = cat && cat.subTypes ? cat.subTypes.map(s => ({ name: s })) : []
     },
     onSelect (name) {
       if (this.disabled) return

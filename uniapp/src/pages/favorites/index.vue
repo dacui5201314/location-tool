@@ -53,7 +53,7 @@
         </view>
         <view class="card-actions">
           <button v-if="f.is_analyzed && (f.report_uuid || f.record_id)" class="act" @tap="onViewReport(f)">▤ 查看报告</button>
-          <button v-else class="act primary" @tap="onAnalyze">✎ 评估赚钱潜力</button>
+          <button v-else class="act primary" @tap="onAnalyze(f)">✎ 评估赚钱潜力</button>
           <button class="act danger" @tap="onRemove(f)">删除地址</button>
         </view>
       </view>
@@ -130,7 +130,11 @@ export default {
       const id = f.report_uuid || f.record_id
       if (id) uni.navigateTo({ url: '/pages/report-detail/index?id=' + id })
     },
-    onAnalyze () { uni.showToast({ title: '分析联调未开放', icon: 'none' }) },
+    onAnalyze (f) {
+      const addr = f.address || f.report_address || ''
+      if (addr) uni.setStorageSync('pending_analysis_address', addr)
+      uni.switchTab({ url: '/pages/home/index' })
+    },
     onRemove (f) { this.delTarget = f },
     async confirmRemove () {
       const f = this.delTarget; if (!f) return
