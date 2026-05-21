@@ -5,6 +5,7 @@ from datetime import datetime, timedelta
 from fastapi import APIRouter, Depends, Query, HTTPException, Request
 from sqlalchemy.orm import Session
 from sqlalchemy import func, or_
+from sqlalchemy.exc import IntegrityError
 from pydantic import BaseModel
 
 from database import get_db
@@ -115,9 +116,12 @@ def _find_or_create_user(
                     setattr(user, field, val)
                     db.flush()
                     updated = True
-                except Exception:
-                    # unique constraint conflict: another user already claimed this id
+                except IntegrityError:
                     db.rollback()
+                    raise HTTPException(
+                        status_code=409,
+                        detail="微信身份已绑定其他账号，请联系客服处理",
+                    )
         if updated:
             db.commit()
             db.refresh(user)
