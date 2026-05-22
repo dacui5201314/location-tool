@@ -1,7 +1,7 @@
 current_phase: Phase 23K
 phase_status: uniapp_map_address_selection_in_progress
-latest_code_commit: 935efd1
-latest_code_commit_message: "fix: harden login error display and map selection UX"
+latest_code_commit: 9e400e5
+latest_code_commit_message: "feat: add location permission and locate button, fix form input bugs"
 latest_docs_commit: db0cfb4
 unpushed: true
 

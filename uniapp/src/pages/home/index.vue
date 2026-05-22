@@ -24,7 +24,10 @@
         </view>
         <view class="addr-pick" v-if="addressText">
           <text class="ap-pin">📍</text>
-          <text class="ap-text">{{ addressText }}</text>
+          <view class="ap-mid">
+            <text class="ap-text">{{ addressText }}</text>
+            <text class="ap-src" v-if="selectedLocationSource">来源：{{ srcLabel }}</text>
+          </view>
           <text class="ap-star" @tap="toggleFav">{{ isFaved ? '★' : '☆' }}</text>
           <text class="ap-clear" @tap="clearAddress">✕</text>
         </view>
@@ -120,6 +123,7 @@ export default {
       storeSize: '',
       analyzing: false,
       isFaved: false,
+      selectedLocationSource: '',
       errors: { address: '', industry: '', brand: '', size: '' },
       industryList: [],
       trusts: [
@@ -130,7 +134,13 @@ export default {
     }
   },
   computed: {
-    canAnalyze () { return !this.analyzing && this.addressText && this.industry && this.brandName && this.storeSize }
+    canAnalyze () { return !this.analyzing && this.addressText && this.industry && this.brandName && this.storeSize },
+    srcLabel () {
+      if (this.selectedLocationSource === 'locate') return '当前位置'
+      if (this.selectedLocationSource === 'map') return '地图选点'
+      if (this.selectedLocationSource === 'search') return '手动输入'
+      return ''
+    }
   },
   onShow () {
     const pending = uni.getStorageSync('pending_analysis_address')
@@ -173,11 +183,30 @@ export default {
           this.mapLng = res.longitude
           this.addressText = `经度 ${res.longitude.toFixed(4)} · 纬度 ${res.latitude.toFixed(4)}`
           this.addressKeyword = this.addressText
+          this.selectedLocationSource = 'locate'
           this.errors.address = ''
           uni.showToast({ title: '已定位到当前位置', icon: 'none' })
         },
         fail: () => {
-          uni.showToast({ title: '定位失败，请在小程序设置中开启位置权限', icon: 'none' })
+          uni.showModal({
+            title: '定位权限未开启',
+            content: '请在小程序设置中开启位置权限，或直接输入地址搜索。',
+            cancelText: '取消',
+            confirmText: '去设置',
+            success: (modalRes) => {
+              if (modalRes.confirm) {
+                uni.openSetting({
+                  success: (settingRes) => {
+                    if (settingRes.authSetting['scope.userLocation']) {
+                      uni.showToast({ title: '已开启位置权限，请再次点击定位', icon: 'none' })
+                    }
+                  }
+                })
+              } else {
+                uni.showToast({ title: '也可以直接输入地址继续', icon: 'none' })
+              }
+            }
+          })
         }
       })
     },
@@ -186,6 +215,7 @@ export default {
       if (!kw) return
       this.addressText = kw
       this.addressKeyword = kw
+      this.selectedLocationSource = 'search'
       this.errors.address = ''
       uni.showToast({ title: '已选中该地址', icon: 'none' })
     },
@@ -196,6 +226,7 @@ export default {
         const coord = `经度 ${this.mapLng.toFixed(4)} · 纬度 ${this.mapLat.toFixed(4)}`
         this.addressText = coord
         this.addressKeyword = coord
+        this.selectedLocationSource = 'map'
         this.errors.address = ''
         uni.showToast({ title: '已选坐标，后续将接入地址解析', icon: 'none' })
       } else {
@@ -207,6 +238,7 @@ export default {
       this.addressText = ''
       this.addressKeyword = ''
       this.isFaved = false
+      this.selectedLocationSource = ''
       this.errors.address = ''
     },
     validate () {
@@ -252,7 +284,7 @@ export default {
 .s-btn { background:linear-gradient(135deg,#0f172a,#1e40af); color:#fff; border-radius:14rpx; padding:0 28rpx; font-size:28rpx; line-height:80rpx; font-weight:600; }
 .locate-row { margin-top:12rpx; } .locate-btn { width:100%; background:#f1f5f9; color:#334155; border-radius:14rpx; font-size:28rpx; padding:18rpx 0; }
 .addr-pick { display:flex; align-items:center; margin-top:12rpx; padding:16rpx; background:#f0fdf4; border:1rpx solid #bbf7d0; border-radius:14rpx; }
-.ap-text { flex:1; font-size:26rpx; color:#166534; margin-left:8rpx; } .ap-star { font-size:36rpx; color:#d6a84f; padding:0 8rpx; } .ap-clear { font-size:28rpx; color:#94a3b8; padding:0 4rpx; }
+.ap-mid { flex:1; display:flex; flex-direction:column; margin-left:8rpx; } .ap-text { font-size:26rpx; color:#166534; } .ap-src { font-size:20rpx; color:#94a3b8; margin-top:2rpx; } .ap-star { font-size:36rpx; color:#d6a84f; padding:0 8rpx; } .ap-clear { font-size:28rpx; color:#94a3b8; padding:0 4rpx; }
 .map-view { width:100%; height:380rpx; border-radius:16rpx; margin-top:12rpx; }
 .map-center-marker { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); pointer-events:none; z-index:10; }
 .mcm-pin { font-size:40rpx; }

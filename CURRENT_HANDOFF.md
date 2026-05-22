@@ -1090,6 +1090,8 @@ Do not include these in uni-app commits unless the user explicitly asks.
 - 地图点击选坐标 + 搜索输入设地址 + 清除按钮复位，全闭环
 - 表单 bug 修复：industry 兼容对象/字符串，brand/storeSize 防 bool 污染
 - 坐标展示："经度 116.3975 · 纬度 39.9087"
+- 定位失败弹窗 → showModal → 去设置 → openSetting → 引导重试；可手动输入绕过
+- 地址来源标签：当前位置 / 地图选点 / 手动输入，清除时复位
 - 未接高德/后端 POI/真实分析
 
 ### 下一块：Phase 23L report_json 明细展示补全
