@@ -44,10 +44,14 @@ async def location_suggest(
         info = data.get("info", "unknown error")
         raise HTTPException(status_code=502, detail=f"地图服务返回错误：{info}")
 
-    tips = data.get("tips", [])
-    # 只返回有 location 的候选项
+    tips = data.get("tips")
+    if not isinstance(tips, list):
+        tips = []
+
     candidates = []
     for tip in tips:
+        if not isinstance(tip, dict):
+            continue
         loc_str = tip.get("location", "")
         if not loc_str:
             continue
@@ -57,7 +61,7 @@ async def location_suggest(
         try:
             lng = float(parts[0])
             lat = float(parts[1])
-        except ValueError:
+        except (ValueError, TypeError):
             continue
         candidates.append({
             "name": tip.get("name", ""),

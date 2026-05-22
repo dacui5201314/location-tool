@@ -55,13 +55,13 @@
           <cover-view class="map-center-marker">
             <cover-view class="mcm-pin">📍</cover-view>
           </cover-view>
-          <cover-view class="map-overlay" v-if="!addressText">
-            <cover-view class="mo-text">点击地图选点 · 或使用上方搜索框输入地址</cover-view>
-          </cover-view>
-          <cover-view class="map-selected" v-if="addressText">
-            <cover-view class="ms-tag">已选坐标 · 后续将接入地址解析</cover-view>
-          </cover-view>
         </map>
+        <view class="map-hint-bar" v-if="!addressText">
+          <text class="mhb-text">点击地图选点 · 或使用上方搜索框输入地址</text>
+        </view>
+        <view class="map-hint-bar selected" v-if="addressText">
+          <text class="mhb-text">已选坐标 · 后续将接入地址解析</text>
+        </view>
       </view>
 
       <!-- 选择业态 -->
@@ -268,15 +268,17 @@ export default {
       this.suggestions = []; this.suggestErr = ''
       try {
         const r = await api.locationSuggest(kw)
-        if (r.ok && r.data?.data?.length) {
-          this.suggestions = r.data.data
-        } else if (r.ok) {
-          this.suggestErr = '未找到匹配地址，请尝试更详细的关键词'
-        } else {
-          const detail = r.data?.detail || ''
+        if (!r.ok) {
+          const detail = r.data?.detail || r.data?.error || ''
           if (r.statusCode === 503) this.suggestErr = '地图服务未配置，请联系管理员'
           else if (r.statusCode === 502) this.suggestErr = '地图服务暂时不可用，请稍后重试'
           else this.suggestErr = detail || '搜索失败，请重试'
+        } else if (r.data?.ok === false) {
+          this.suggestErr = r.data.error || '搜索失败'
+        } else if (r.data?.data?.length) {
+          this.suggestions = r.data.data
+        } else {
+          this.suggestErr = '未找到匹配地址，请尝试更详细的关键词'
         }
       } catch (e) { this.suggestErr = '网络异常，请确认后端可访问' }
     },
@@ -309,6 +311,8 @@ export default {
       this.addressKeyword = ''
       this.isFaved = false
       this.selectedLocationSource = ''
+      this.suggestions = []
+      this.suggestErr = ''
       this.errors.address = ''
     },
     validate () {
@@ -359,10 +363,9 @@ export default {
 .map-view { width:100%; height:380rpx; border-radius:16rpx; margin-top:12rpx; }
 .map-center-marker { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); pointer-events:none; z-index:10; }
 .mcm-pin { font-size:40rpx; }
-.map-overlay { display:flex; align-items:flex-end; justify-content:center; height:100%; padding-bottom:12rpx; }
-.mo-text { background:rgba(0,0,0,0.55); color:#fff; font-size:22rpx; padding:10rpx 22rpx; border-radius:16rpx; }
-.map-selected { display:flex; align-items:flex-start; justify-content:center; padding-top:8rpx; }
-.ms-tag { background:rgba(0,0,0,0.7); color:#fff; font-size:22rpx; padding:8rpx 20rpx; border-radius:14rpx; }
+.map-hint-bar { background:#f1f5f9; border-radius:12rpx; padding:14rpx 20rpx; margin-top:8rpx; text-align:center; }
+.map-hint-bar.selected { background:#f0fdf4; border:1rpx solid #bbf7d0; }
+.mhb-text { font-size:24rpx; color:#64748b; }
 .dual { display:flex; gap:14rpx; } .dual-half { flex:1; }
 
 .analyze-btn { margin-top:8rpx; width:100%; background:linear-gradient(135deg,#0f172a,#1e40af); color:#fff; border-radius:18rpx; padding:24rpx 20rpx; display:flex; align-items:center; gap:14rpx; }
