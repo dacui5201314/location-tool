@@ -1,7 +1,7 @@
-current_phase: Phase 23L
-phase_status: uniapp_report_detail_expansion_in_progress
-latest_code_commit: dd4426a
-latest_code_commit_message: "feat: add brand and irrelevant field aliases for report_json compatibility"
+current_phase: Phase 23M
+phase_status: uniapp_score_visualization_started
+latest_code_commit: acfb7b1
+latest_code_commit_message: "feat: add report-detail state reset, stats fallback, and overflow display"
 latest_docs_commit: db0cfb4
 unpushed: true
 
@@ -40,7 +40,7 @@ sample_bank:
   partial: 10
   latest_industry_test_total: "2168 PASS, 0 FAIL"
 
-next_step: "Phase 23L complete; next target Canvas score ring and radar chart visualization for report-detail."
+next_step: "Phase 23M: continue radar chart and dimension score visualization for report-detail."
 
 boundaries:
   no_push: true
