@@ -52,11 +52,17 @@ function fetchFavorites () { return request({ url: '/api/favorites' }) }
 function deleteFavorite (id) { return request({ url: `/api/favorites/${id}`, method: 'DELETE' }) }
 function fetchIndustries () { return request({ url: '/api/industries/active', auth: false }) }
 
+// ── Location ──
+function locationSuggest (keyword, city = '') {
+  const qs = `keyword=${encodeURIComponent(keyword)}&city=${encodeURIComponent(city)}`
+  return request({ url: `/api/location/suggest?${qs}`, auth: false })
+}
+
 // ── Health ──
 function getHealth () { return request({ url: '/api/health', auth: false }) }
 
 export default {
   request, normalizeError, ensureAnonToken, wechatMiniLogin,
   fetchProfile, fetchRecords, fetchRecordDetail, deleteRecord,
-  fetchFavorites, deleteFavorite, fetchIndustries, getHealth
+  fetchFavorites, deleteFavorite, fetchIndustries, locationSuggest, getHealth
 }

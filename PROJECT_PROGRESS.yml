@@ -1,5 +1,5 @@
 current_phase: Phase 23N
-phase_status: real_blocker_fix_in_progress
+phase_status: address_autocomplete_proxy_added
 latest_code_commit: c08619e
 latest_code_commit_message: "fix: replace flex gap with margin and add overflow protection"
 latest_docs_commit: db0cfb4

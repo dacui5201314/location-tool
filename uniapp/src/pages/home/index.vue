@@ -19,6 +19,15 @@
           <input class="field" v-model="addressKeyword" placeholder="输入地址搜索或在地图上选点" :disabled="analyzing" @input="onAddressInput" />
           <button class="s-btn" :disabled="analyzing || !addressKeyword" @tap="onSearch">搜索</button>
         </view>
+        <!-- 候选列表 -->
+        <view class="suggest-list" v-if="suggestions.length">
+          <view class="suggest-item" v-for="(s, i) in suggestions" :key="i" @tap="onSelectSuggestion(s)">
+            <text class="sg-name">{{ s.name }}</text>
+            <text class="sg-addr">{{ s.address }}</text>
+          </view>
+        </view>
+        <view class="suggest-empty" v-if="suggestErr">{{ suggestErr }}</view>
+
         <view class="locate-row" v-if="!addressText">
           <button class="locate-btn" @tap="onLocate">📍 定位当前位置</button>
         </view>
@@ -127,6 +136,8 @@ export default {
       analyzing: false,
       isFaved: false,
       selectedLocationSource: '',
+      suggestions: [],
+      suggestErr: '',
       errors: { address: '', industry: '', brand: '', size: '' },
       industryList: [],
       trusts: [
@@ -251,14 +262,32 @@ export default {
         fail: () => doGetLocation()
       })
     },
-    onSearch () {
+    async onSearch () {
       const kw = this.addressKeyword.trim()
       if (!kw) return
-      this.addressText = kw
-      this.addressKeyword = kw
+      this.suggestions = []; this.suggestErr = ''
+      try {
+        const r = await api.locationSuggest(kw)
+        if (r.ok && r.data?.data?.length) {
+          this.suggestions = r.data.data
+        } else if (r.ok) {
+          this.suggestErr = '未找到匹配地址，请尝试更详细的关键词'
+        } else {
+          const detail = r.data?.detail || ''
+          if (r.statusCode === 503) this.suggestErr = '地图服务未配置，请联系管理员'
+          else if (r.statusCode === 502) this.suggestErr = '地图服务暂时不可用，请稍后重试'
+          else this.suggestErr = detail || '搜索失败，请重试'
+        }
+      } catch (e) { this.suggestErr = '网络异常，请确认后端可访问' }
+    },
+    onSelectSuggestion (s) {
+      this.addressText = s.name + (s.address ? ' · ' + s.address : '')
+      this.addressKeyword = this.addressText
+      if (s.location) { this.mapLng = s.location.lng; this.mapLat = s.location.lat }
       this.selectedLocationSource = 'search'
       this.errors.address = ''
-      uni.showToast({ title: '已选中该地址', icon: 'none' })
+      this.suggestions = []
+      this.suggestErr = ''
     },
     onMapTap (e) {
       if (e.detail && e.detail.latitude) {
@@ -323,6 +352,7 @@ export default {
 .input-row { display:flex; gap:10rpx; }
 .field { flex:1; border:2rpx solid #e2e8f0; border-radius:14rpx; padding:18rpx 14rpx; font-size:28rpx; background:#fff; }
 .s-btn { background:linear-gradient(135deg,#0f172a,#1e40af); color:#fff; border-radius:14rpx; padding:0 28rpx; font-size:28rpx; line-height:80rpx; font-weight:600; }
+.suggest-list { background:#fff; border-radius:14rpx; margin-top:8rpx; box-shadow:0 4rpx 20rpx rgba(0,0,0,0.08); max-height:400rpx; overflow-y:auto; } .suggest-item { padding:22rpx 20rpx; border-bottom:1rpx solid #f1f5f9; } .sg-name { font-size:28rpx; color:#1e293b; display:block; } .sg-addr { font-size:22rpx; color:#94a3b8; margin-top:4rpx; display:block; } .suggest-empty { padding:20rpx; font-size:24rpx; color:#94a3b8; text-align:center; }
 .locate-row { margin-top:12rpx; } .locate-btn { width:100%; background:#f1f5f9; color:#334155; border-radius:14rpx; font-size:28rpx; padding:18rpx 0; }
 .addr-pick { display:flex; align-items:center; margin-top:12rpx; padding:16rpx; background:#f0fdf4; border:1rpx solid #bbf7d0; border-radius:14rpx; }
 .ap-mid { flex:1; display:flex; flex-direction:column; margin-left:8rpx; } .ap-text { font-size:26rpx; color:#166534; } .ap-src { font-size:20rpx; color:#94a3b8; margin-top:2rpx; } .ap-star { font-size:36rpx; color:#d6a84f; padding:0 8rpx; } .ap-clear { font-size:28rpx; color:#94a3b8; padding:0 4rpx; }
