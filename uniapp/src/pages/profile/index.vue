@@ -7,6 +7,10 @@
       <text class="uid" v-if="loggedIn && uidText">{{ uidText }}</text>
       <button v-if="!loggedIn" class="top-login" @tap="onLogin">{{ loginLoading ? '登录中...' : '微信一键登录' }}</button>
       <text class="login-err" v-if="loginErr">{{ loginErr }}</text>
+      <view class="top-hints" v-if="loggedIn">
+        <text class="th-text">微信头像/昵称需用户主动授权填写</text>
+        <text class="th-text">手机号需用户授权绑定</text>
+      </view>
     </view>
 
     <!-- Stats panel -->
@@ -186,6 +190,7 @@ export default {
 .uid { display:block; font-size:24rpx; color:rgba(255,255,255,0.6); margin-top:4rpx; }
 .top-login { margin-top:28rpx; width:400rpx; background:#07c160; color:#fff; border-radius:40rpx; font-size:32rpx; font-weight:600; padding:20rpx 0; }
 .login-err { display:block; margin-top:14rpx; font-size:24rpx; color:#fca5a5; }
+.top-hints { margin-top:18rpx; } .th-text { display:block; font-size:22rpx; color:rgba(255,255,255,0.5); text-align:center; padding:4rpx 0; }
 
 .stats { display:flex; background:#fff; margin:-30rpx 24rpx 24rpx; border-radius:20rpx; padding:24rpx 0; box-shadow:0 4rpx 24rpx rgba(0,0,0,0.06); }
 .stat { flex:1; text-align:center; }

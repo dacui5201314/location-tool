@@ -1,5 +1,5 @@
-current_phase: Phase 23M
-phase_status: devtools_visual_check_ready
+current_phase: Phase 23N
+phase_status: real_blocker_fix_in_progress
 latest_code_commit: c08619e
 latest_code_commit_message: "fix: replace flex gap with margin and add overflow protection"
 latest_docs_commit: db0cfb4
@@ -40,7 +40,7 @@ sample_bank:
   partial: 10
   latest_industry_test_total: "2168 PASS, 0 FAIL"
 
-next_step: "Phase 23M next: manual visual review in WeChat devtools using checklist in CURRENT_HANDOFF.md."
+next_step: "Phase 23N: fix map drag, location diagnosis, profile account hints. Blocked: address autocomplete, real analysis, phone binding need backend/service config."
 
 boundaries:
   no_push: true

@@ -38,7 +38,10 @@
           :longitude="mapLng"
           scale="15"
           show-location
+          enable-scroll
+          enable-zoom
           @tap="onMapTap"
+          @updated="onMapUpdated"
         >
           <cover-view class="map-center-marker">
             <cover-view class="mcm-pin">📍</cover-view>
@@ -178,38 +181,74 @@ export default {
       else if (typeof e === 'string') this.storeSize = e
     },
     onLocate () {
-      uni.getLocation({
-        type: 'gcj02',
+      const doGetLocation = () => {
+        uni.getLocation({
+          type: 'gcj02',
+          success: (res) => {
+            this.mapLat = res.latitude
+            this.mapLng = res.longitude
+            this.addressText = `经度 ${res.longitude.toFixed(4)} · 纬度 ${res.latitude.toFixed(4)}`
+            this.addressKeyword = this.addressText
+            this.selectedLocationSource = 'locate'
+            this.errors.address = ''
+            uni.showToast({ title: '已定位到当前位置', icon: 'none' })
+          },
+          fail: (err) => {
+            const msg = err.errMsg || ''
+            if (msg.includes('auth deny') || msg.includes('authorize') || msg.includes('permission')) {
+              uni.showModal({
+                title: '定位权限未开启',
+                content: '请在小程序设置中开启位置权限，或直接输入地址搜索。',
+                cancelText: '取消',
+                confirmText: '去设置',
+                success: (modalRes) => {
+                  if (modalRes.confirm) {
+                    uni.openSetting({
+                      success: (settingRes) => {
+                        if (settingRes.authSetting['scope.userLocation']) {
+                          uni.showToast({ title: '已开启位置权限，请再次点击定位', icon: 'none' })
+                        }
+                      }
+                    })
+                  } else {
+                    uni.showToast({ title: '也可以直接输入地址继续', icon: 'none' })
+                  }
+                }
+              })
+            } else {
+              uni.showModal({
+                title: '定位失败',
+                content: `错误详情：${msg || '未知错误'}。\n请检查微信开发者工具定位模拟或系统定位权限。`,
+                showCancel: false
+              })
+            }
+          }
+        })
+      }
+
+      uni.getSetting({
         success: (res) => {
-          this.mapLat = res.latitude
-          this.mapLng = res.longitude
-          this.addressText = `经度 ${res.longitude.toFixed(4)} · 纬度 ${res.latitude.toFixed(4)}`
-          this.addressKeyword = this.addressText
-          this.selectedLocationSource = 'locate'
-          this.errors.address = ''
-          uni.showToast({ title: '已定位到当前位置', icon: 'none' })
-        },
-        fail: () => {
-          uni.showModal({
-            title: '定位权限未开启',
-            content: '请在小程序设置中开启位置权限，或直接输入地址搜索。',
-            cancelText: '取消',
-            confirmText: '去设置',
-            success: (modalRes) => {
-              if (modalRes.confirm) {
-                uni.openSetting({
-                  success: (settingRes) => {
-                    if (settingRes.authSetting['scope.userLocation']) {
-                      uni.showToast({ title: '已开启位置权限，请再次点击定位', icon: 'none' })
-                    }
+          if (res.authSetting['scope.userLocation'] === false) {
+            // 用户曾拒绝，走授权弹窗
+            uni.authorize({ scope: 'scope.userLocation',
+              success: () => doGetLocation(),
+              fail: () => {
+                uni.showModal({
+                  title: '定位权限未开启',
+                  content: '请在小程序设置中开启位置权限。',
+                  cancelText: '取消',
+                  confirmText: '去设置',
+                  success: (mRes) => {
+                    if (mRes.confirm) uni.openSetting()
                   }
                 })
-              } else {
-                uni.showToast({ title: '也可以直接输入地址继续', icon: 'none' })
               }
-            }
-          })
-        }
+            })
+          } else {
+            doGetLocation()
+          }
+        },
+        fail: () => doGetLocation()
       })
     },
     onSearch () {
