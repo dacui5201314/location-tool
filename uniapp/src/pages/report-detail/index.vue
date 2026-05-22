@@ -36,6 +36,37 @@
         </view>
       </view>
 
+      <!-- Location info -->
+      <view class="section" v-if="rptCity">
+        <view class="sec-title">📍 位置范围</view>
+        <view class="loc-row"><text>{{ rptCity }}{{ rptDistrict ? ' · ' + rptDistrict : '' }}</text></view>
+      </view>
+
+      <!-- Stats triple-radius metrics -->
+      <view class="section" v-if="hasStats">
+        <view class="sec-title">📊 周边数据（200m / 500m / 1km）</view>
+        <view class="stats-grid">
+          <view class="sg" v-for="m in rptStats" :key="m.key">
+            <text class="sg-label">{{ m.label }}</text>
+            <text class="sg-val">{{ m.s200 || 0 }} / {{ m.s500 || 0 }} / {{ m.s1000 || 0 }}</text>
+          </view>
+        </view>
+      </view>
+
+      <!-- Competitor names (poi_lists) -->
+      <view class="section" v-if="rptDirList.length">
+        <view class="sec-title">🎯 直接竞品列表</view>
+        <view class="item-sm" v-for="(n,i) in rptDirList.slice(0,5)" :key="'d'+i">{{ n }}</view>
+      </view>
+      <view class="section" v-if="rptSubList.length">
+        <view class="sec-title orange">🔶 替代竞品列表</view>
+        <view class="item-sm" v-for="(n,i) in rptSubList.slice(0,5)" :key="'s'+i">{{ n }}</view>
+      </view>
+      <view class="section" v-if="rptAncList.length">
+        <view class="sec-title green">🟢 客流锚点列表</view>
+        <view class="item-sm" v-for="(n,i) in rptAncList.slice(0,5)" :key="'a'+i">{{ n }}</view>
+      </view>
+
       <!-- Empty content -->
       <view class="content-box" v-if="!hasContent">
         <text class="cb-title">📊 报告内容</text>
@@ -147,13 +178,17 @@ export default {
       rptSub200: 0, rptSub500: 0, rptSub1000: 0,
       rptAnc200: 0, rptAnc500: 0, rptAnc1000: 0,
       rptIrr: 0, rptBrands: [],
-      rptQual: []
+      rptQual: [],
+      rptCity: '', rptDistrict: '',
+      rptStats: [],
+      rptDirList: [], rptSubList: [], rptAncList: []
     }
   },
   computed: {
     recordTitle () { return this.record.brand_desc || this.record.business_type || '报告详情' },
     hasCompetition () { return this.rptDir200 + this.rptDir500 + this.rptDir1000 > 0 },
-    hasContent () { return this.rptScore > 0 || this.rptSummary || this.rptAdv.length || this.rptDims.length || this.rptQual.length || this.rptBrands.length || this.rptIrr > 0 }
+    hasContent () { return this.rptScore > 0 || this.rptSummary || this.rptAdv.length || this.rptDims.length || this.rptQual.length || this.rptBrands.length || this.rptIrr > 0 || this.rptCity || this.hasStats || this.rptDirList.length },
+    hasStats () { return this.rptStats.length > 0 }
   },
   onLoad (options) {
     const id = options.id
@@ -222,6 +257,31 @@ export default {
 
       this.rptIrr = rd.irrelevant_excluded ?? 0
       this.rptBrands = Array.isArray(rd.hot_brands) ? rd.hot_brands : []
+
+      // city / district
+      this.rptCity = rd.city || ''
+      this.rptDistrict = rd.district || ''
+
+      // stats triple-radius: s2/s5/s10 fields mapped to Chinese labels
+      const s2 = rd.stats_200m || {}
+      const s5 = rd.stats_500m || {}
+      const s10 = rd.stats_1000m || {}
+      const metricKeys = [
+        { key:'residential',label:'住宅小区' },{ key:'office',label:'写字楼' },
+        { key:'restaurants',label:'餐饮' },{ key:'cafe_tea',label:'咖啡茶饮' },
+        { key:'shopping',label:'购物商场' },{ key:'schools',label:'学校' },
+        { key:'hospitals',label:'医院' },{ key:'subway',label:'地铁站' },
+        { key:'bus',label:'公交站' },{ key:'hotels',label:'酒店' },
+        { key:'banks',label:'银行' },{ key:'parking',label:'停车场' }
+      ]
+      this.rptStats = metricKeys.map(m => ({
+        key: m.key, label: m.label, s200: s2[m.key] ?? '', s500: s5[m.key] ?? '', s1000: s10[m.key] ?? ''
+      })).filter(m => m.s200 !== '' || m.s500 !== '' || m.s1000 !== '')
+
+      // poi_lists competitor names
+      this.rptDirList = (Array.isArray(rd.direct_competitor_list) ? rd.direct_competitor_list : []).map(d => d.name || '').filter(Boolean)
+      this.rptSubList = (Array.isArray(rd.substitute_list) ? rd.substitute_list : []).map(d => d.name || '').filter(Boolean)
+      this.rptAncList = (Array.isArray(rd.traffic_anchor_list) ? rd.traffic_anchor_list : []).map(d => d.name || '').filter(Boolean)
     }
   }
 }
@@ -253,6 +313,9 @@ export default {
 .comp-row { font-size:26rpx; color:#475569; }
 .ql { font-size:24rpx; color:#64748b; display:block; padding:6rpx 0; }
 .brands { display:flex; flex-wrap:wrap; gap:10rpx; } .brand { font-size:24rpx; padding:8rpx 16rpx; background:#f1f5f9; border-radius:12rpx; color:#334155; }
+.loc-row { font-size:26rpx; color:#475569; }
+.stats-grid { display:flex; flex-wrap:wrap; } .sg { width:33.3%; text-align:center; padding:12rpx 0; } .sg-label { font-size:22rpx; color:#64748b; display:block; } .sg-val { font-size:24rpx; font-weight:700; color:#1e293b; display:block; }
+.item-sm { font-size:24rpx; color:#475569; padding:6rpx 0; }
 .bottom-bar { position:fixed; bottom:0; left:0; right:0; padding:20rpx 24rpx; background:#fff; border-top:1rpx solid #e2e8f0; display:flex; gap:14rpx; }
 .bb-export { flex:1; background:#246bff; color:#fff; border-radius:14rpx; font-size:28rpx; padding:20rpx 0; font-weight:600; }
 .bb-unlock { flex:1; background:#f59e0b; color:#fff; border-radius:14rpx; font-size:28rpx; padding:20rpx 0; font-weight:600; }

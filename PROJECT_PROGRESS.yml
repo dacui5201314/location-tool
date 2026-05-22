@@ -1,7 +1,7 @@
 current_phase: Phase 23L
-phase_status: uniapp_map_address_selection_ready
-latest_code_commit: c51371a
-latest_code_commit_message: "feat: add location permission modal and address source tracking"
+phase_status: uniapp_report_detail_expansion_in_progress
+latest_code_commit: 5c2ac1b
+latest_code_commit_message: "feat: close Phase 23K and start Phase 23L report detail expansion"
 latest_docs_commit: db0cfb4
 unpushed: true
 
@@ -40,7 +40,7 @@ sample_bank:
   partial: 10
   latest_industry_test_total: "2168 PASS, 0 FAIL"
 
-next_step: "Phase 23L: expand report-detail display — poi_lists, stats cards, city/district info. Read-only from report_json, no new report generation."
+next_step: "Phase 23L: add city/district display, stats triple-radius metrics, and poi_lists competitor names. Read-only from existing report_json."
 
 boundaries:
   no_push: true
@@ -79,4 +79,4 @@ phase23_uniapp:
     copy_scan: "PASS: no misleading 生成中/扣点/支付/下载 PDF 报告/消耗 1 点 in uniapp/src"
   current_worktree_caveat:
     - "Expected untracked: tmp_latest_report_text.txt, tmp_report_images/, tmp_report_pages/, miniprogram/pages/profile/profile.json."
-  next_step: "Phase 23K: map component integration — geographic input to home form, reverse geocoding placeholder."
+  next_step: "Phase 23L: expand report-detail display — city/district info, stats triple-radius metrics, poi_lists names."
