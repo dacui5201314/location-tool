@@ -180,6 +180,26 @@ export default {
     }).catch(() => {})
   },
   methods: {
+    async resolveAddressByLngLat (lng, lat, source) {
+      this.selectedLocationSource = source
+      try {
+        const r = await api.locationRegeocode(lng, lat)
+        if (r.ok && r.data?.ok && r.data?.data?.address) {
+          this.addressText = r.data.data.address
+          this.addressKeyword = r.data.data.address
+          this.mapDiag = `地址解析: ${r.data.data.address}`
+        } else {
+          const coord = `经度 ${lng.toFixed(4)} · 纬度 ${lat.toFixed(4)}`
+          this.addressText = coord; this.addressKeyword = coord
+          this.mapDiag = '地址解析失败，可继续手动输入'
+        }
+      } catch (e) {
+        const msg = e.errMsg || e.message || ''
+        const coord = `经度 ${lng.toFixed(4)} · 纬度 ${lat.toFixed(4)}`
+        this.addressText = coord; this.addressKeyword = coord
+        this.mapDiag = msg.includes('timeout') ? '请求超时，请确认后端服务可访问' : '地址解析失败，可继续手动输入'
+      }
+    },
     onIndustryChange (name) {
       // 安全兼容：字符串直接存；对象取 name/title/label/value 字段
       if (typeof name === 'string') this.industry = name
@@ -211,22 +231,18 @@ export default {
         uni.getLocation({
           type: 'gcj02',
           success: (res) => {
-            this.mapLat = res.latitude
-            this.mapLng = res.longitude
+            this.mapLat = res.latitude; this.mapLng = res.longitude
             this.showUserLocation = true
-            this.addressText = `经度 ${res.longitude.toFixed(4)} · 纬度 ${res.latitude.toFixed(4)}`
-            this.addressKeyword = this.addressText
-            this.selectedLocationSource = 'locate'
             this.errors.address = ''
-            uni.showToast({ title: '已定位到当前位置', icon: 'none' })
+            this.resolveAddressByLngLat(res.longitude, res.latitude, 'locate')
           },
           fail: (err) => {
             const msg = err.errMsg || ''
-            uni.showModal({
-              title: '定位失败',
-              content: `错误：${msg || '未知'}\n请检查开发者工具定位模拟/系统定位服务。也可直接输入地址。`,
-              showCancel: false
-            })
+            const title = msg.includes('timeout') ? '定位超时' : '定位失败'
+            const content = msg.includes('timeout')
+              ? '定位超时，请检查微信开发者工具定位模拟/系统定位服务，也可直接输入地址搜索。'
+              : `错误：${msg || '未知'}\n请检查开发者工具定位模拟/系统定位服务。也可直接输入地址。`
+            uni.showModal({ title, content, showCancel: false })
           }
         })
       }
@@ -299,28 +315,9 @@ export default {
     },
     async onMapTap (e) {
       if (e.detail && e.detail.latitude) {
-        this.mapLat = e.detail.latitude
-        this.mapLng = e.detail.longitude
-        this.selectedLocationSource = 'map'
-        try {
-          const r = await api.locationRegeocode(this.mapLng, this.mapLat)
-          if (r.ok && r.data?.ok && r.data?.data?.address) {
-            this.addressText = r.data.data.address
-            this.addressKeyword = r.data.data.address
-            this.errors.address = ''
-            this.mapDiag = `地址解析: ${r.data.data.address}`
-          } else {
-            const coord = `经度 ${this.mapLng.toFixed(4)} · 纬度 ${this.mapLat.toFixed(4)}`
-            this.addressText = coord
-            this.addressKeyword = coord
-            this.mapDiag = '地址解析失败，可继续手动输入'
-          }
-        } catch (e) {
-          const coord = `经度 ${this.mapLng.toFixed(4)} · 纬度 ${this.mapLat.toFixed(4)}`
-          this.addressText = coord
-          this.addressKeyword = coord
-          this.mapDiag = '地址解析失败，可继续手动输入'
-        }
+        this.mapLat = e.detail.latitude; this.mapLng = e.detail.longitude
+        this.errors.address = ''
+        this.resolveAddressByLngLat(this.mapLng, this.mapLat, 'map')
       } else {
         uni.showToast({ title: '点击地图选择门店位置', icon: 'none' })
       }
