@@ -1,7 +1,7 @@
 current_phase: Phase 23N
-phase_status: address_autocomplete_proxy_added
-latest_code_commit: c08619e
-latest_code_commit_message: "fix: replace flex gap with margin and add overflow protection"
+phase_status: address_autocomplete_devtools_test_ready
+latest_code_commit: ad84853
+latest_code_commit_message: "fix: unblock map drag and harden suggest error handling"
 latest_docs_commit: db0cfb4
 unpushed: true
 
@@ -40,7 +40,7 @@ sample_bank:
   partial: 10
   latest_industry_test_total: "2168 PASS, 0 FAIL"
 
-next_step: "Phase 23N: fix map drag, location diagnosis, profile account hints. Blocked: address autocomplete, real analysis, phone binding need backend/service config."
+next_step: "Phase 23N-1 manual devtools test: map drag + address suggestions. Then Phase 23N-2: WeChat login avatar/nickname/phone binding."
 
 boundaries:
   no_push: true

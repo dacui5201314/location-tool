@@ -1,6 +1,7 @@
 """地址联想 / POI 搜索 — 后端代理高德 Web API，小程序端不暴露 Key"""
 import os, httpx
-from fastapi import APIRouter, Query, HTTPException
+from fastapi import APIRouter, Query
+from starlette.responses import JSONResponse
 
 router = APIRouter(prefix="/api/location", tags=["location"])
 
@@ -14,9 +15,13 @@ async def location_suggest(
 ):
     """地址联想：调用高德输入提示 API，返回候选列表。
     小程序端不保存、不暴露地图服务 Key。
+    统一返回 { ok, data/error } + HTTP 状态码。
     """
     if not AMAP_KEY:
-        raise HTTPException(status_code=503, detail="地图服务未配置（AMAP_WEB_KEY 缺失）")
+        return JSONResponse(
+            status_code=503,
+            content={"ok": False, "error": "地图服务未配置（AMAP_WEB_KEY 缺失）"},
+        )
 
     if not keyword.strip():
         return {"ok": True, "data": [], "source": "amap_inputtips"}
@@ -38,11 +43,17 @@ async def location_suggest(
             )
             data = resp.json()
     except Exception:
-        raise HTTPException(status_code=502, detail="地图服务请求失败，请稍后重试")
+        return JSONResponse(
+            status_code=502,
+            content={"ok": False, "error": "地图服务请求失败，请稍后重试"},
+        )
 
     if data.get("status") != "1":
         info = data.get("info", "unknown error")
-        raise HTTPException(status_code=502, detail=f"地图服务返回错误：{info}")
+        return JSONResponse(
+            status_code=502,
+            content={"ok": False, "error": f"地图服务返回错误：{info}"},
+        )
 
     tips = data.get("tips")
     if not isinstance(tips, list):
