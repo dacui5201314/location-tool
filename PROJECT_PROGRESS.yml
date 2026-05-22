@@ -1,7 +1,7 @@
 current_phase: Phase 23M
-phase_status: uniapp_score_visualization_started
-latest_code_commit: 6da8139
-latest_code_commit_message: "feat: upgrade dimension score display to 2-column card grid"
+phase_status: devtools_visual_check_ready
+latest_code_commit: c08619e
+latest_code_commit_message: "fix: replace flex gap with margin and add overflow protection"
 latest_docs_commit: db0cfb4
 unpushed: true
 
@@ -40,7 +40,7 @@ sample_bank:
   partial: 10
   latest_industry_test_total: "2168 PASS, 0 FAIL"
 
-next_step: "Phase 23M: continue radar chart and dimension score visualization for report-detail."
+next_step: "Phase 23M next: manual visual review in WeChat devtools using checklist in CURRENT_HANDOFF.md."
 
 boundaries:
   no_push: true
