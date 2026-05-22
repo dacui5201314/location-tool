@@ -20,6 +20,7 @@
           <button class="s-btn" :disabled="analyzing || !addressKeyword" @tap="onSearch">搜索</button>
         </view>
         <!-- 候选列表 -->
+        <view class="suggest-diag" v-if="suggestDiag">{{ suggestDiag }}</view>
         <view class="suggest-list" v-if="suggestions.length">
           <view class="suggest-item" v-for="(s, i) in suggestions" :key="i" @tap="onSelectSuggestion(s)">
             <text class="sg-name">{{ s.name }}</text>
@@ -46,10 +47,12 @@
           :latitude="mapLat"
           :longitude="mapLng"
           scale="15"
-          show-location
-          enable-scroll
-          enable-zoom
+          :show-location="showUserLocation"
+          :enable-scroll="true"
+          :enable-zoom="true"
+          :enable-rotate="false"
           @tap="onMapTap"
+          @regionchange="onMapRegionChange"
           @updated="onMapUpdated"
         >
           <cover-view class="map-center-marker">
@@ -62,6 +65,7 @@
         <view class="map-hint-bar selected" v-if="addressText">
           <text class="mhb-text">已选坐标 · 后续将接入地址解析</text>
         </view>
+        <view class="map-diag" v-if="mapDiag">{{ mapDiag }}</view>
       </view>
 
       <!-- 选择业态 -->
@@ -136,8 +140,11 @@ export default {
       analyzing: false,
       isFaved: false,
       selectedLocationSource: '',
+      showUserLocation: false,
+      mapDiag: '',
       suggestions: [],
       suggestErr: '',
+      suggestDiag: '',
       errors: { address: '', industry: '', brand: '', size: '' },
       industryList: [],
       trusts: [
@@ -198,6 +205,7 @@ export default {
           success: (res) => {
             this.mapLat = res.latitude
             this.mapLng = res.longitude
+            this.showUserLocation = true
             this.addressText = `经度 ${res.longitude.toFixed(4)} · 纬度 ${res.latitude.toFixed(4)}`
             this.addressKeyword = this.addressText
             this.selectedLocationSource = 'locate'
@@ -206,57 +214,42 @@ export default {
           },
           fail: (err) => {
             const msg = err.errMsg || ''
-            if (msg.includes('auth deny') || msg.includes('authorize') || msg.includes('permission')) {
-              uni.showModal({
-                title: '定位权限未开启',
-                content: '请在小程序设置中开启位置权限，或直接输入地址搜索。',
-                cancelText: '取消',
-                confirmText: '去设置',
-                success: (modalRes) => {
-                  if (modalRes.confirm) {
-                    uni.openSetting({
-                      success: (settingRes) => {
-                        if (settingRes.authSetting['scope.userLocation']) {
-                          uni.showToast({ title: '已开启位置权限，请再次点击定位', icon: 'none' })
-                        }
-                      }
-                    })
-                  } else {
-                    uni.showToast({ title: '也可以直接输入地址继续', icon: 'none' })
-                  }
-                }
-              })
-            } else {
-              uni.showModal({
-                title: '定位失败',
-                content: `错误详情：${msg || '未知错误'}。\n请检查微信开发者工具定位模拟或系统定位权限。`,
-                showCancel: false
-              })
-            }
+            uni.showModal({
+              title: '定位失败',
+              content: `错误：${msg || '未知'}\n请检查开发者工具定位模拟/系统定位服务。也可直接输入地址。`,
+              showCancel: false
+            })
           }
         })
       }
 
       uni.getSetting({
         success: (res) => {
-          if (res.authSetting['scope.userLocation'] === false) {
-            // 用户曾拒绝，走授权弹窗
+          const authVal = res.authSetting['scope.userLocation']
+          if (authVal === false) {
+            uni.showModal({
+              title: '定位权限状态：已拒绝',
+              content: `authSetting.scope.userLocation = false。请去设置中开启。`,
+              cancelText: '取消',
+              confirmText: '去设置',
+              success: (mRes) => {
+                if (mRes.confirm) uni.openSetting()
+              }
+            })
+          } else if (authVal === true) {
+            doGetLocation()
+          } else {
+            // undefined — 从未询问过
             uni.authorize({ scope: 'scope.userLocation',
               success: () => doGetLocation(),
-              fail: () => {
+              fail: (err) => {
                 uni.showModal({
-                  title: '定位权限未开启',
-                  content: '请在小程序设置中开启位置权限。',
-                  cancelText: '取消',
-                  confirmText: '去设置',
-                  success: (mRes) => {
-                    if (mRes.confirm) uni.openSetting()
-                  }
+                  title: '定位授权失败',
+                  content: `authorize 失败: ${err.errMsg || '未知'}。也可直接输入地址搜索。`,
+                  showCancel: false
                 })
               }
             })
-          } else {
-            doGetLocation()
           }
         },
         fail: () => doGetLocation()
@@ -265,9 +258,10 @@ export default {
     async onSearch () {
       const kw = this.addressKeyword.trim()
       if (!kw) return
-      this.suggestions = []; this.suggestErr = ''
+      this.suggestions = []; this.suggestErr = ''; this.suggestDiag = `搜索中: ${kw}...`
       try {
         const r = await api.locationSuggest(kw)
+        this.suggestDiag = `关键词: ${kw} | HTTP ${r.statusCode} | 候选: ${(r.data?.data||[]).length} 条`
         if (!r.ok) {
           const detail = r.data?.detail || r.data?.error || ''
           if (r.statusCode === 503) this.suggestErr = '地图服务未配置，请联系管理员'
@@ -278,9 +272,9 @@ export default {
         } else if (r.data?.data?.length) {
           this.suggestions = r.data.data
         } else {
-          this.suggestErr = '未找到匹配地址，请尝试更详细的关键词'
+          this.suggestErr = `未找到匹配地址：${kw}`
         }
-      } catch (e) { this.suggestErr = '网络异常，请确认后端可访问' }
+      } catch (e) { this.suggestErr = '网络异常，请确认后端可访问'; this.suggestDiag = `网络错误: ${e.errMsg || e.message || e}` }
     },
     onSelectSuggestion (s) {
       this.addressText = s.name + (s.address ? ' · ' + s.address : '')
@@ -290,6 +284,10 @@ export default {
       this.errors.address = ''
       this.suggestions = []
       this.suggestErr = ''
+      this.suggestDiag = ''
+    },
+    onMapRegionChange (e) {
+      if (e && e.type === 'end') this.mapDiag = '地图已拖动/缩放 (regionchange end)'
     },
     onMapTap (e) {
       if (e.detail && e.detail.latitude) {
@@ -311,8 +309,11 @@ export default {
       this.addressKeyword = ''
       this.isFaved = false
       this.selectedLocationSource = ''
+      this.showUserLocation = false
+      this.mapDiag = ''
       this.suggestions = []
       this.suggestErr = ''
+      this.suggestDiag = ''
       this.errors.address = ''
     },
     validate () {
@@ -366,6 +367,8 @@ export default {
 .map-hint-bar { background:#f1f5f9; border-radius:12rpx; padding:14rpx 20rpx; margin-top:8rpx; text-align:center; }
 .map-hint-bar.selected { background:#f0fdf4; border:1rpx solid #bbf7d0; }
 .mhb-text { font-size:24rpx; color:#64748b; }
+.map-diag { font-size:20rpx; color:#94a3b8; padding:4rpx 0; text-align:center; }
+.suggest-diag { font-size:20rpx; color:#64748b; padding:8rpx 0; }
 .dual { display:flex; gap:14rpx; } .dual-half { flex:1; }
 
 .analyze-btn { margin-top:8rpx; width:100%; background:linear-gradient(135deg,#0f172a,#1e40af); color:#fff; border-radius:18rpx; padding:24rpx 20rpx; display:flex; align-items:center; gap:14rpx; }
