@@ -262,26 +262,45 @@ export default {
       this.rptCity = rd.city || ''
       this.rptDistrict = rd.district || ''
 
-      // stats triple-radius: s2/s5/s10 fields mapped to Chinese labels
+      // stats triple-radius: alias-aware key lookup
       const s2 = rd.stats_200m || {}
       const s5 = rd.stats_500m || {}
       const s10 = rd.stats_1000m || {}
-      const metricKeys = [
-        { key:'residential',label:'住宅小区' },{ key:'office',label:'写字楼' },
-        { key:'restaurants',label:'餐饮' },{ key:'cafe_tea',label:'咖啡茶饮' },
-        { key:'shopping',label:'购物商场' },{ key:'schools',label:'学校' },
-        { key:'hospitals',label:'医院' },{ key:'subway',label:'地铁站' },
-        { key:'bus',label:'公交站' },{ key:'hotels',label:'酒店' },
-        { key:'banks',label:'银行' },{ key:'parking',label:'停车场' }
-      ]
-      this.rptStats = metricKeys.map(m => ({
-        key: m.key, label: m.label, s200: s2[m.key] ?? '', s500: s5[m.key] ?? '', s1000: s10[m.key] ?? ''
+      const _val = (stats, aliases) => {
+        for (const a of aliases) { const v = stats[a]; if (v !== undefined && v !== null) return v }
+        return ''
+      }
+      const metricAliases = {
+        residential: ['residential','residences','communities','residential_areas'],
+        office: ['office','offices','office_buildings'],
+        restaurants: ['restaurants','restaurant','dining'],
+        cafe_tea: ['cafe_tea','cafes','cafe','tea','coffee'],
+        shopping: ['shopping','malls','shopping_malls'],
+        schools: ['schools','school'],
+        hospitals: ['hospitals','hospital','clinics','clinic'],
+        subway: ['subway','subways','subway_stations','metro'],
+        bus: ['bus','buses','bus_stops'],
+        hotels: ['hotels','hotel'],
+        banks: ['banks','bank'],
+        parking: ['parking','parking_lots']
+      }
+      const metricLabels = { residential:'住宅小区',office:'写字楼',restaurants:'餐饮',cafe_tea:'咖啡茶饮',shopping:'购物商场',schools:'学校',hospitals:'医院',subway:'地铁站',bus:'公交站',hotels:'酒店',banks:'银行',parking:'停车场' }
+      this.rptStats = Object.keys(metricAliases).map(key => ({
+        key, label: metricLabels[key],
+        s200: _val(s2, metricAliases[key]), s500: _val(s5, metricAliases[key]), s1000: _val(s10, metricAliases[key])
       })).filter(m => m.s200 !== '' || m.s500 !== '' || m.s1000 !== '')
 
-      // poi_lists competitor names
-      this.rptDirList = (Array.isArray(rd.direct_competitor_list) ? rd.direct_competitor_list : []).map(d => d.name || '').filter(Boolean)
-      this.rptSubList = (Array.isArray(rd.substitute_list) ? rd.substitute_list : []).map(d => d.name || '').filter(Boolean)
-      this.rptAncList = (Array.isArray(rd.traffic_anchor_list) ? rd.traffic_anchor_list : []).map(d => d.name || '').filter(Boolean)
+      // poi_lists with field/name aliases
+      const _names = (arr) => {
+        if (!Array.isArray(arr)) return []
+        return arr.map(d => d.name || d.title || d.poi_name || '').filter(Boolean)
+      }
+      const dirList = rd.direct_competitor_list || rd.direct_competitors || rd.direct_pois
+      const subList = rd.substitute_list || rd.substitute_competitors || rd.substitute_pois
+      const ancList = rd.traffic_anchor_list || rd.traffic_anchors || rd.anchor_pois
+      this.rptDirList = _names(dirList)
+      this.rptSubList = _names(subList)
+      this.rptAncList = _names(ancList)
     }
   }
 }

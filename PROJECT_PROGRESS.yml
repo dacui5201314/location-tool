@@ -1,7 +1,7 @@
 current_phase: Phase 23L
 phase_status: uniapp_report_detail_expansion_in_progress
-latest_code_commit: 5c2ac1b
-latest_code_commit_message: "feat: close Phase 23K and start Phase 23L report detail expansion"
+latest_code_commit: 286bf93
+latest_code_commit_message: "feat: expand report-detail with city, stats metrics, and competitor lists"
 latest_docs_commit: db0cfb4
 unpushed: true
 
