@@ -109,10 +109,13 @@
       <view class="section" v-if="rptDims.length">
         <view class="sec-title">📈 维度评分</view>
         <view class="dim-grid">
-          <view class="dim-cell" v-for="d in rptDims" :key="d.key">
-            <text class="dl">{{ d.label }}</text>
-            <text class="dv" :style="{ color: sc(d.value) }">{{ d.value }}</text>
-            <view class="db"><view class="df" :style="{ width: d.value+'%', background: sc(d.value) }" /></view>
+          <view class="dim-card" v-for="d in rptDims" :key="d.key">
+            <view class="dc-head">
+              <text class="dc-label">{{ d.label || d.key || '维度' }}</text>
+              <text class="dc-level" :style="{ color: sc(d.value) }">{{ d.value >= 60 ? '优秀' : d.value >= 40 ? '可考虑' : '谨慎' }}</text>
+            </view>
+            <text class="dc-val" :style="{ color: sc(d.value) }">{{ d.value }}</text>
+            <view class="dc-bar"><view class="dc-fill" :style="{ width: d.value+'%', background: sc(d.value) }" /></view>
           </view>
         </view>
       </view>
@@ -380,7 +383,11 @@ export default {
 .sec-title { font-size:28rpx; font-weight:700; color:#1e293b; margin-bottom:16rpx; } .sec-title.green { color:#047857; } .sec-title.red { color:#b91c1c; } .sec-title.orange { color:#d97706; }
 .sec-text { font-size:26rpx; color:#475569; line-height:1.7; }
 .item { font-size:26rpx; color:#475569; line-height:1.9; padding-left:4rpx; }
-.dim-grid { display:flex; flex-wrap:wrap; gap:16rpx; } .dim-cell { width:calc(50% - 8rpx); }
+.dim-grid { display:flex; flex-wrap:wrap; gap:16rpx; } .dim-card { width:calc(50% - 8rpx); background:#f8fafc; border-radius:16rpx; padding:24rpx 20rpx; }
+.dc-head { display:flex; justify-content:space-between; align-items:center; margin-bottom:10rpx; }
+.dc-label { font-size:24rpx; color:#475569; font-weight:600; } .dc-level { font-size:20rpx; font-weight:600; }
+.dc-val { font-size:40rpx; font-weight:900; display:block; margin-bottom:12rpx; }
+.dc-bar { height:8rpx; background:#e2e8f0; border-radius:4rpx; overflow:hidden; } .dc-fill { height:100%; border-radius:4rpx; min-width:4rpx; transition:width 0.3s; }
 .dl { font-size:24rpx; color:#64748b; display:block; } .dv { font-size:32rpx; font-weight:700; display:block; margin:4rpx 0; }
 .db { height:10rpx; background:#f1f5f9; border-radius:5rpx; } .df { height:100%; border-radius:5rpx; }
 .comp-row { font-size:26rpx; color:#475569; }
