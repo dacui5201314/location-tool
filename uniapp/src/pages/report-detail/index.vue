@@ -131,6 +131,7 @@
       <view class="section" v-if="rptIrr > 0">
         <view class="sec-title">🔬 严谨度剔除</view>
         <view class="comp-row"><text>{{ rptIrr }} 个无关 POI 已被严谨度规则剔除</text></view>
+        <view class="item-sm" v-for="(n,i) in rptIrrList" :key="'irr'+i">{{ n }}</view>
       </view>
 
       <!-- Hot brands -->
@@ -181,7 +182,8 @@ export default {
       rptQual: [],
       rptCity: '', rptDistrict: '',
       rptStats: [],
-      rptDirList: [], rptSubList: [], rptAncList: []
+      rptDirList: [], rptSubList: [], rptAncList: [],
+      rptIrrList: []
     }
   },
   computed: {
@@ -256,11 +258,22 @@ export default {
       this.rptAnc1000 = rd.traffic_anchors_1000m ?? 0
 
       this.rptIrr = rd.irrelevant_excluded ?? 0
-      this.rptBrands = Array.isArray(rd.hot_brands) ? rd.hot_brands : []
+      // hot_brands alias: hot_brands / brands / chain_brands / brand_list
+      const hb = rd.hot_brands || rd.brands || rd.chain_brands || rd.brand_list
+      this.rptBrands = Array.isArray(hb) ? hb.map(b => {
+        if (typeof b === 'string') return { name: b, count: 1 }
+        return { name: b.name || b.title || b.brand_name || '', count: b.count ?? 1 }
+      }).filter(b => b.name) : []
 
-      // city / district
-      this.rptCity = rd.city || ''
-      this.rptDistrict = rd.district || ''
+      // irrelevant list alias
+      const irrList = rd.irrelevant_excluded_list || rd.irrelevant_list || rd.excluded_pois || rd.irrelevant_pois
+      if (Array.isArray(irrList) && irrList.length) {
+        this.rptIrrList = irrList.map(d => d.name || d.title || d.poi_name || '').filter(Boolean).slice(0, 5)
+      }
+
+      // city / district: real_data first, then top-level report_json
+      this.rptCity = rd.city || rpt.city || ''
+      this.rptDistrict = rd.district || rpt.district || ''
 
       // stats triple-radius: alias-aware key lookup
       const s2 = rd.stats_200m || {}
