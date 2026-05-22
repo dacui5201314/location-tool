@@ -48,7 +48,7 @@
         <view class="stats-grid">
           <view class="sg" v-for="m in rptStats" :key="m.key">
             <text class="sg-label">{{ m.label }}</text>
-            <text class="sg-val">{{ m.s200 || 0 }} / {{ m.s500 || 0 }} / {{ m.s1000 || 0 }}</text>
+            <text class="sg-val">{{ m.s200 === '' ? '-' : m.s200 }} / {{ m.s500 === '' ? '-' : m.s500 }} / {{ m.s1000 === '' ? '-' : m.s1000 }}</text>
           </view>
         </view>
       </view>
@@ -56,15 +56,18 @@
       <!-- Competitor names (poi_lists) -->
       <view class="section" v-if="rptDirList.length">
         <view class="sec-title">🎯 直接竞品列表</view>
-        <view class="item-sm" v-for="(n,i) in rptDirList.slice(0,5)" :key="'d'+i">{{ n }}</view>
+        <view class="item-sm" v-for="(n,i) in rptDirList" :key="'d'+i">{{ n }}</view>
+        <text class="more-hint" v-if="rptDirMore > 0">还有 {{ rptDirMore }} 条未展开</text>
       </view>
       <view class="section" v-if="rptSubList.length">
         <view class="sec-title orange">🔶 替代竞品列表</view>
-        <view class="item-sm" v-for="(n,i) in rptSubList.slice(0,5)" :key="'s'+i">{{ n }}</view>
+        <view class="item-sm" v-for="(n,i) in rptSubList" :key="'s'+i">{{ n }}</view>
+        <text class="more-hint" v-if="rptSubMore > 0">还有 {{ rptSubMore }} 条未展开</text>
       </view>
       <view class="section" v-if="rptAncList.length">
         <view class="sec-title green">🟢 客流锚点列表</view>
-        <view class="item-sm" v-for="(n,i) in rptAncList.slice(0,5)" :key="'a'+i">{{ n }}</view>
+        <view class="item-sm" v-for="(n,i) in rptAncList" :key="'a'+i">{{ n }}</view>
+        <text class="more-hint" v-if="rptAncMore > 0">还有 {{ rptAncMore }} 条未展开</text>
       </view>
 
       <!-- Empty content -->
@@ -183,7 +186,8 @@ export default {
       rptCity: '', rptDistrict: '',
       rptStats: [],
       rptDirList: [], rptSubList: [], rptAncList: [],
-      rptIrrList: []
+      rptIrrList: [],
+      rptDirMore: 0, rptSubMore: 0, rptAncMore: 0
     }
   },
   computed: {
@@ -215,6 +219,14 @@ export default {
       uni.showToast({ title: 'PDF / 下载 / 解锁联调未开放', icon: 'none' })
     },
     parseReport (raw) {
+      // 重置所有派生字段，避免旧报告残留
+      ['rptScore','rptDisclaimer','rptWarning','rptSummary','rptAdv','rptDis','rptDims','rptAction',
+       'rptDir200','rptDir500','rptDir1000','rptSub200','rptSub500','rptSub1000',
+       'rptAnc200','rptAnc500','rptAnc1000','rptIrr','rptBrands','rptQual',
+       'rptCity','rptDistrict','rptStats','rptDirList','rptSubList','rptAncList','rptIrrList',
+       'rptDirMore','rptSubMore','rptAncMore'
+      ].forEach(k => { this[k] = Array.isArray(this[k]) ? [] : (typeof this[k] === 'number' ? 0 : '') })
+
       let rpt = null
       if (typeof raw === 'string') { try { rpt = JSON.parse(raw) } catch (e) { return } } else if (raw && typeof raw === 'object') { rpt = raw } else { return }
 
@@ -242,7 +254,7 @@ export default {
       this.rptAction = _sa(rpt.action_plan)
 
       this.rptDims = dimScores.map(d => ({
-        key: d.key || '', label: d.label || '', value: d.score ?? 0
+        key: d.key || d.name || '', label: d.label || d.title || d.key || '', value: d.score ?? d.value ?? 0
       }))
 
       this.rptQual = _sa(rd.data_quality_notes)
@@ -311,9 +323,10 @@ export default {
       const dirList = rd.direct_competitor_list || rd.direct_competitors || rd.direct_pois
       const subList = rd.substitute_list || rd.substitute_competitors || rd.substitute_pois
       const ancList = rd.traffic_anchor_list || rd.traffic_anchors || rd.anchor_pois
-      this.rptDirList = _names(dirList)
-      this.rptSubList = _names(subList)
-      this.rptAncList = _names(ancList)
+      const dl = _names(dirList); const sl = _names(subList); const al = _names(ancList)
+      this.rptDirList = dl.slice(0, 5); this.rptDirMore = dl.length > 5 ? dl.length - 5 : 0
+      this.rptSubList = sl.slice(0, 5); this.rptSubMore = sl.length > 5 ? sl.length - 5 : 0
+      this.rptAncList = al.slice(0, 5); this.rptAncMore = al.length > 5 ? al.length - 5 : 0
     }
   }
 }
@@ -347,7 +360,7 @@ export default {
 .brands { display:flex; flex-wrap:wrap; gap:10rpx; } .brand { font-size:24rpx; padding:8rpx 16rpx; background:#f1f5f9; border-radius:12rpx; color:#334155; }
 .loc-row { font-size:26rpx; color:#475569; }
 .stats-grid { display:flex; flex-wrap:wrap; } .sg { width:33.3%; text-align:center; padding:12rpx 0; } .sg-label { font-size:22rpx; color:#64748b; display:block; } .sg-val { font-size:24rpx; font-weight:700; color:#1e293b; display:block; }
-.item-sm { font-size:24rpx; color:#475569; padding:6rpx 0; }
+.item-sm { font-size:24rpx; color:#475569; padding:6rpx 0; } .more-hint { font-size:22rpx; color:#94a3b8; display:block; margin-top:4rpx; }
 .bottom-bar { position:fixed; bottom:0; left:0; right:0; padding:20rpx 24rpx; background:#fff; border-top:1rpx solid #e2e8f0; display:flex; gap:14rpx; }
 .bb-export { flex:1; background:#246bff; color:#fff; border-radius:14rpx; font-size:28rpx; padding:20rpx 0; font-weight:600; }
 .bb-unlock { flex:1; background:#f59e0b; color:#fff; border-radius:14rpx; font-size:28rpx; padding:20rpx 0; font-weight:600; }

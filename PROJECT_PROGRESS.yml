@@ -1,7 +1,7 @@
 current_phase: Phase 23L
 phase_status: uniapp_report_detail_expansion_in_progress
-latest_code_commit: 11ab786
-latest_code_commit_message: "feat: add stats and poi_lists field aliases for real report_json compatibility"
+latest_code_commit: dd4426a
+latest_code_commit_message: "feat: add brand and irrelevant field aliases for report_json compatibility"
 latest_docs_commit: db0cfb4
 unpushed: true
 
