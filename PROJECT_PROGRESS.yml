@@ -1,7 +1,7 @@
-current_phase: Phase 23K
-phase_status: uniapp_map_address_selection_in_progress
-latest_code_commit: 9e400e5
-latest_code_commit_message: "feat: add location permission and locate button, fix form input bugs"
+current_phase: Phase 23L
+phase_status: uniapp_map_address_selection_ready
+latest_code_commit: c51371a
+latest_code_commit_message: "feat: add location permission modal and address source tracking"
 latest_docs_commit: db0cfb4
 unpushed: true
 
@@ -40,7 +40,7 @@ sample_bank:
   partial: 10
   latest_industry_test_total: "2168 PASS, 0 FAIL"
 
-next_step: "Phase 23K next: address clear/reselect + coord display polish. Phase 23L: report_json detail display expansion."
+next_step: "Phase 23L: expand report-detail display — poi_lists, stats cards, city/district info. Read-only from report_json, no new report generation."
 
 boundaries:
   no_push: true

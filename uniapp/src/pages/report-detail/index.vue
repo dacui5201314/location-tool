@@ -96,6 +96,20 @@
         <view class="comp-row"><text>200m: {{ rptAnc200 }} · 500m: {{ rptAnc500 }} · 1km: {{ rptAnc1000 }}</text></view>
       </view>
 
+      <!-- Irrelevant excluded -->
+      <view class="section" v-if="rptIrr > 0">
+        <view class="sec-title">🔬 严谨度剔除</view>
+        <view class="comp-row"><text>{{ rptIrr }} 个无关 POI 已被严谨度规则剔除</text></view>
+      </view>
+
+      <!-- Hot brands -->
+      <view class="section" v-if="rptBrands.length">
+        <view class="sec-title">🏪 周边连锁品牌</view>
+        <view class="brands">
+          <text class="brand" v-for="b in rptBrands" :key="b.name">{{ b.name }} ×{{ b.count }}</text>
+        </view>
+      </view>
+
       <!-- Data quality -->
       <view class="section" v-if="rptQual.length">
         <view class="sec-title">📊 数据质量</view>
@@ -132,13 +146,14 @@ export default {
       rptDir200: 0, rptDir500: 0, rptDir1000: 0,
       rptSub200: 0, rptSub500: 0, rptSub1000: 0,
       rptAnc200: 0, rptAnc500: 0, rptAnc1000: 0,
+      rptIrr: 0, rptBrands: [],
       rptQual: []
     }
   },
   computed: {
     recordTitle () { return this.record.brand_desc || this.record.business_type || '报告详情' },
     hasCompetition () { return this.rptDir200 + this.rptDir500 + this.rptDir1000 > 0 },
-    hasContent () { return this.rptScore > 0 || this.rptSummary || this.rptAdv.length || this.rptDims.length || this.rptQual.length }
+    hasContent () { return this.rptScore > 0 || this.rptSummary || this.rptAdv.length || this.rptDims.length || this.rptQual.length || this.rptBrands.length || this.rptIrr > 0 }
   },
   onLoad (options) {
     const id = options.id
@@ -204,6 +219,9 @@ export default {
       this.rptAnc200 = rd.traffic_anchors_200m ?? 0
       this.rptAnc500 = rd.traffic_anchors_500m ?? 0
       this.rptAnc1000 = rd.traffic_anchors_1000m ?? 0
+
+      this.rptIrr = rd.irrelevant_excluded ?? 0
+      this.rptBrands = Array.isArray(rd.hot_brands) ? rd.hot_brands : []
     }
   }
 }
@@ -234,6 +252,7 @@ export default {
 .db { height:10rpx; background:#f1f5f9; border-radius:5rpx; } .df { height:100%; border-radius:5rpx; }
 .comp-row { font-size:26rpx; color:#475569; }
 .ql { font-size:24rpx; color:#64748b; display:block; padding:6rpx 0; }
+.brands { display:flex; flex-wrap:wrap; gap:10rpx; } .brand { font-size:24rpx; padding:8rpx 16rpx; background:#f1f5f9; border-radius:12rpx; color:#334155; }
 .bottom-bar { position:fixed; bottom:0; left:0; right:0; padding:20rpx 24rpx; background:#fff; border-top:1rpx solid #e2e8f0; display:flex; gap:14rpx; }
 .bb-export { flex:1; background:#246bff; color:#fff; border-radius:14rpx; font-size:28rpx; padding:20rpx 0; font-weight:600; }
 .bb-unlock { flex:1; background:#f59e0b; color:#fff; border-radius:14rpx; font-size:28rpx; padding:20rpx 0; font-weight:600; }

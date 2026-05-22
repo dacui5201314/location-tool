@@ -139,6 +139,7 @@ export default {
       if (this.selectedLocationSource === 'locate') return '当前位置'
       if (this.selectedLocationSource === 'map') return '地图选点'
       if (this.selectedLocationSource === 'search') return '手动输入'
+      if (this.selectedLocationSource === 'favorite') return '收藏带入'
       return ''
     }
   },
@@ -147,6 +148,7 @@ export default {
     if (pending) {
       this.addressText = pending
       this.addressKeyword = pending
+      this.selectedLocationSource = 'favorite'
       uni.removeStorageSync('pending_analysis_address')
       uni.showToast({ title: '已加载收藏地址', icon: 'none' })
     }

@@ -1091,10 +1091,18 @@ Do not include these in uni-app commits unless the user explicitly asks.
 - 表单 bug 修复：industry 兼容对象/字符串，brand/storeSize 防 bool 污染
 - 坐标展示："经度 116.3975 · 纬度 39.9087"
 - 定位失败弹窗 → showModal → 去设置 → openSetting → 引导重试；可手动输入绕过
-- 地址来源标签：当前位置 / 地图选点 / 手动输入，清除时复位
+- 地址来源标签：当前位置 / 地图选点 / 手动输入 / 收藏带入
 - 未接高德/后端 POI/真实分析
 
-### 下一块：Phase 23L report_json 明细展示补全
+### Phase 23K ready → Phase 23L
+
+Phase 23K 地图/地址选择前端闭环已完成（~90%）。剩余正式反向地理编码和高德 POI 待后续接入。
+
+### Phase 23L report_json 明细展示补全（已启动）
+
+- report-detail 已展示：score/disclaimer/warning/summary/advantages/disadvantages/dimension_scores/direct/sub/anchor/data_quality_notes/action_plan
+- Phase 23L 新增：irrelevant_excluded 独立展示 + hot_brands 连锁品牌展示
+- 待补：poi_lists 详细列表、stats 三层半径数据、city/district 位置信息
 
 ### Hard reminder
 
