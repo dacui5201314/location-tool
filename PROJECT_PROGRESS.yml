@@ -79,4 +79,4 @@ phase23_uniapp:
     copy_scan: "PASS: no misleading 生成中/扣点/支付/下载 PDF 报告/消耗 1 点 in uniapp/src"
   current_worktree_caveat:
     - "Expected untracked: tmp_latest_report_text.txt, tmp_report_images/, tmp_report_pages/, miniprogram/pages/profile/profile.json."
-  next_step: "Phase 23L wrap-up; next: Canvas score visualization / radar chart for report-detail."
+  next_step: "Phase 23M: manual visual review in WeChat devtools for home map and report-detail visualization."
