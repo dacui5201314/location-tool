@@ -85,3 +85,43 @@ async def location_suggest(
         "data": candidates,
         "source": "amap_inputtips",
     }
+
+
+@router.get("/regeocode")
+async def location_regeocode(
+    lng: float = Query(..., description="经度"),
+    lat: float = Query(..., description="纬度"),
+):
+    """反向地理编码：经纬度 → 文字地址。小程序端不暴露 Key。"""
+    if not AMAP_KEY:
+        return JSONResponse(status_code=503, content={"ok": False, "error": "地图服务未配置（AMAP_WEB_KEY 缺失）"})
+
+    try:
+        async with httpx.AsyncClient(timeout=10) as client:
+            resp = await client.get("https://restapi.amap.com/v3/geocode/regeo", params={
+                "key": AMAP_KEY, "location": f"{lng},{lat}", "extensions": "base", "output": "JSON",
+            })
+            data = resp.json()
+    except Exception:
+        return JSONResponse(status_code=502, content={"ok": False, "error": "地图服务请求失败，请稍后重试"})
+
+    if data.get("status") != "1":
+        info = data.get("info", "unknown error")
+        return JSONResponse(status_code=502, content={"ok": False, "error": f"地图服务返回错误：{info}"})
+
+    regeo = data.get("regeocode", {})
+    addr = regeo.get("addressComponent", {}) if isinstance(regeo, dict) else {}
+    formatted = regeo.get("formatted_address", "") if isinstance(regeo, dict) else ""
+    district = addr.get("district", "") if isinstance(addr, dict) else ""
+    address = formatted or (district + (addr.get("township", "") if isinstance(addr, dict) else ""))
+
+    return {
+        "ok": True,
+        "data": {
+            "address": address or formatted,
+            "formatted_address": formatted,
+            "lng": lng,
+            "lat": lat,
+        },
+        "source": "amap_regeocode",
+    }

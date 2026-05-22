@@ -58,11 +58,15 @@ function locationSuggest (keyword, city = '') {
   return request({ url: `/api/location/suggest?${qs}`, auth: false })
 }
 
+function locationRegeocode (lng, lat) {
+  return request({ url: `/api/location/regeocode?lng=${lng}&lat=${lat}`, auth: false })
+}
+
 // ── Health ──
 function getHealth () { return request({ url: '/api/health', auth: false }) }
 
 export default {
   request, normalizeError, ensureAnonToken, wechatMiniLogin,
   fetchProfile, fetchRecords, fetchRecordDetail, deleteRecord,
-  fetchFavorites, deleteFavorite, fetchIndustries, locationSuggest, getHealth
+  fetchFavorites, deleteFavorite, fetchIndustries, locationSuggest, locationRegeocode, getHealth
 }

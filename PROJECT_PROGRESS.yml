@@ -1,7 +1,7 @@
 current_phase: Phase 23N
-phase_status: address_autocomplete_devtools_failed_debugging
-latest_code_commit: ad84853
-latest_code_commit_message: "fix: unblock map drag and harden suggest error handling"
+phase_status: address_autocomplete_regeocode_fixing
+latest_code_commit: ce80904
+latest_code_commit_message: "fix: add diagnostic output for map drag, location auth, and address suggest"
 latest_docs_commit: db0cfb4
 unpushed: true
 

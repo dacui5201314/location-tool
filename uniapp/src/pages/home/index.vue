@@ -187,7 +187,15 @@ export default {
       else this.industry = ''
       if (this.industry) this.errors.industry = ''
     },
-    onAddressInput () { this.errors.address = '' },
+    onAddressInput () {
+      this.errors.address = ''
+      // 用户手动输入时清空地图旧选点，让候选列表可见
+      if (this.addressKeyword && this.addressText && this.selectedLocationSource) {
+        this.addressText = ''
+        this.selectedLocationSource = ''
+        this.showUserLocation = false
+      }
+    },
     onBrandInput (e) {
       this.errors.brand = ''
       if (e && typeof e === 'object' && e.detail && typeof e.detail.value === 'string') this.brandName = e.detail.value
@@ -289,16 +297,30 @@ export default {
     onMapRegionChange (e) {
       if (e && e.type === 'end') this.mapDiag = '地图已拖动/缩放 (regionchange end)'
     },
-    onMapTap (e) {
+    async onMapTap (e) {
       if (e.detail && e.detail.latitude) {
         this.mapLat = e.detail.latitude
         this.mapLng = e.detail.longitude
-        const coord = `经度 ${this.mapLng.toFixed(4)} · 纬度 ${this.mapLat.toFixed(4)}`
-        this.addressText = coord
-        this.addressKeyword = coord
         this.selectedLocationSource = 'map'
-        this.errors.address = ''
-        uni.showToast({ title: '已选坐标，后续将接入地址解析', icon: 'none' })
+        try {
+          const r = await api.locationRegeocode(this.mapLng, this.mapLat)
+          if (r.ok && r.data?.ok && r.data?.data?.address) {
+            this.addressText = r.data.data.address
+            this.addressKeyword = r.data.data.address
+            this.errors.address = ''
+            this.mapDiag = `地址解析: ${r.data.data.address}`
+          } else {
+            const coord = `经度 ${this.mapLng.toFixed(4)} · 纬度 ${this.mapLat.toFixed(4)}`
+            this.addressText = coord
+            this.addressKeyword = coord
+            this.mapDiag = '地址解析失败，可继续手动输入'
+          }
+        } catch (e) {
+          const coord = `经度 ${this.mapLng.toFixed(4)} · 纬度 ${this.mapLat.toFixed(4)}`
+          this.addressText = coord
+          this.addressKeyword = coord
+          this.mapDiag = '地址解析失败，可继续手动输入'
+        }
       } else {
         uni.showToast({ title: '点击地图选择门店位置', icon: 'none' })
       }
