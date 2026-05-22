@@ -31,7 +31,10 @@
         </view>
         <view class="meta-score" v-if="rptScore > 0">
           <view class="score-ring" :style="ringStyle">
-            <text class="sr-num" :style="{ color: sc(rptScore) }">{{ rptScore }}</text>
+            <view class="sr-inner">
+              <text class="sr-num" :style="{ color: sc(scorePct) }">{{ scorePct }}</text>
+              <text class="sr-level" :style="{ color: sc(scorePct) }">{{ scoreLevel }}</text>
+            </view>
           </view>
           <text class="ms-label">综合评分</text>
           <text class="ms-badge" :class="record.is_pdf_unlocked ? 'free' : 'locked'">{{ record.is_pdf_unlocked ? 'PDF 已解锁' : 'PDF 未解锁' }}</text>
@@ -197,10 +200,20 @@ export default {
     hasCompetition () { return this.rptDir200 + this.rptDir500 + this.rptDir1000 > 0 },
     hasContent () { return this.rptScore > 0 || this.rptSummary || this.rptAdv.length || this.rptDims.length || this.rptQual.length || this.rptBrands.length || this.rptIrr > 0 || this.rptCity || this.hasStats || this.rptDirList.length },
     hasStats () { return this.rptStats.length > 0 },
+    scorePct () {
+      const v = Number(this.rptScore)
+      return (isNaN(v) || v < 0) ? 0 : Math.min(100, Math.round(v))
+    },
+    scoreLevel () {
+      const p = this.scorePct
+      if (p >= 60) return '优秀'
+      if (p >= 40) return '可考虑'
+      return '谨慎'
+    },
     ringStyle () {
-      const pct = Math.max(0, Math.min(100, this.rptScore))
-      const color = this.sc(this.rptScore)
-      return { background: `conic-gradient(${color} 0deg ${pct * 3.6}deg, #e2e8f0 ${pct * 3.6}deg 360deg)` }
+      const deg = this.scorePct * 3.6
+      const color = this.sc(this.scorePct)
+      return { background: `conic-gradient(${color} 0deg ${deg}deg, #e2e8f0 ${deg}deg 360deg)` }
     }
   },
   onLoad (options) {
@@ -355,7 +368,9 @@ export default {
 .mgl { font-size:24rpx; color:#94a3b8; display:block; } .mgv { font-size:26rpx; color:#1e293b; font-weight:500; }
 .meta-score { text-align:center; margin-top:16rpx; padding-top:16rpx; border-top:1rpx solid #f1f5f9; }
 .score-ring { width:180rpx; height:180rpx; border-radius:50%; display:flex; align-items:center; justify-content:center; margin:0 auto 12rpx; }
-.sr-num { font-size:56rpx; font-weight:900; }
+.sr-inner { width:140rpx; height:140rpx; border-radius:50%; background:#fff; display:flex; flex-direction:column; align-items:center; justify-content:center; }
+.sr-num { font-size:48rpx; font-weight:900; line-height:1.1; }
+.sr-level { font-size:22rpx; font-weight:600; margin-top:2rpx; }
 .ms-num { font-size:64rpx; font-weight:900; } .ms-label { display:block; font-size:24rpx; color:#94a3b8; }
 .ms-badge { display:inline-block; margin-top:6rpx; font-size:22rpx; padding:4rpx 14rpx; border-radius:10rpx; } .ms-badge.free { background:#dcfce7; color:#166534; } .ms-badge.locked { background:#fef3c7; color:#92400e; }
 .disc { background:#fefce8; border:1rpx solid #fde68a; border-radius:14rpx; padding:20rpx; margin:20rpx 24rpx 0; font-size:24rpx; color:#92400e; }

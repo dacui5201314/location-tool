@@ -1,7 +1,7 @@
 current_phase: Phase 23M
 phase_status: uniapp_score_visualization_started
-latest_code_commit: acfb7b1
-latest_code_commit_message: "feat: add report-detail state reset, stats fallback, and overflow display"
+latest_code_commit: 4f8a6ca
+latest_code_commit_message: "feat: close Phase 23L and add CSS score ring visualization"
 latest_docs_commit: db0cfb4
 unpushed: true
 
