@@ -3,8 +3,8 @@
     <!-- Hero -->
     <view class="hero">
       <view class="hero-brand">址得选</view>
-      <view class="hero-tagline">AI帮你判断<text class="hl">这个位置能不能</text><text class="gold">开店</text></view>
-      <view class="hero-sub">智能选址 · 科学决策 · 降低风险</view>
+      <view class="hero-tagline">AI帮你判断<text class="hl">这个位置能不能</text><text class="gold">开起来</text></view>
+      <view class="hero-sub">商业选址初筛参考 · 数据驱动决策 · 需实地验证</view>
     </view>
 
     <!-- 分析面板 -->
@@ -484,15 +484,16 @@ export default {
 
 <style scoped>
 .home-page { min-height:100vh; background:#eef3f9; padding-bottom:60rpx; }
-.hero { background:linear-gradient(135deg,#0b1120 0%,#111f3a 50%,#0f1f3d 100%); padding:72rpx 32rpx 80rpx; text-align:center; }
-.hero-brand { font-size:42rpx; font-weight:800; color:#fff; }
-.hero-tagline { font-size:36rpx; font-weight:700; color:rgba(255,255,255,0.9); margin-top:14rpx; line-height:1.4; }
+.hero { background:linear-gradient(180deg,#0b1120 0%,#13203d 100%); padding:64rpx 32rpx 76rpx; text-align:center; }
+.hero-brand { font-size:40rpx; font-weight:800; color:#fff; }
+.hero-tagline { font-size:34rpx; font-weight:700; color:rgba(255,255,255,0.92); margin-top:12rpx; line-height:1.45; }
 .hl { color:rgba(255,255,255,0.7); } .gold { color:#60a5fa; }
-.hero-sub { font-size:24rpx; color:rgba(255,255,255,0.45); margin-top:10rpx; }
+.hero-sub { font-size:24rpx; color:rgba(255,255,255,0.42); margin-top:12rpx; }
 
 .panel { background:#fff; border-radius:20rpx; padding:32rpx 24rpx; margin:-36rpx 16rpx 28rpx; box-shadow:0 2rpx 24rpx rgba(9,24,54,0.08); }
-.section { margin-bottom:28rpx; }
+.section { margin-bottom:24rpx; }
 .section:last-child { margin-bottom:0; }
+.section + .section { padding-top:0; }
 .section-head { margin-bottom:12rpx; }
 .section-title { font-size:28rpx; font-weight:700; color:#111827; }
 .label { font-size:26rpx; font-weight:600; color:#334155; margin-bottom:8rpx; }
@@ -506,9 +507,9 @@ export default {
 .locate-row { margin-top:12rpx; } .locate-btn { width:100%; background:#f8fafc; color:#475569; border:1px solid #e2e8f0; border-radius:12rpx; font-size:28rpx; padding:18rpx 0; }
 .addr-pick { display:flex; align-items:center; margin-top:12rpx; padding:14rpx 16rpx; background:#f0fdf4; border:1px solid #bbf7d0; border-radius:12rpx; }
 .ap-mid { flex:1; display:flex; flex-direction:column; margin-left:4rpx; } .ap-text { font-size:26rpx; color:#166534; } .ap-src { font-size:20rpx; color:#94a3b8; margin-top:2rpx; } .ap-clear { font-size:28rpx; color:#94a3b8; padding:0 4rpx; }
-.map-view { width:100%; height:380rpx; border-radius:14rpx; margin-top:12rpx; }
+.map-view { width:100%; height:400rpx; border-radius:14rpx; margin-top:12rpx; box-shadow:0 2rpx 16rpx rgba(0,0,0,0.06); }
 .map-center-marker { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); pointer-events:none; z-index:10; }
-.mcm-pin { font-size:40rpx; }
+.mcm-pin { font-size:44rpx; }
 .map-hint-bar { background:#f8fafc; border:1px solid #e2e8f0; border-radius:10rpx; padding:12rpx 16rpx; margin-top:8rpx; text-align:center; }
 .map-hint-bar.selected { background:#f0fdf4; border-color:#bbf7d0; }
 .mhb-text { font-size:24rpx; color:#64748b; } .mhb-text.warn { color:#dc2626; }
