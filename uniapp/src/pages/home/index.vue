@@ -156,10 +156,7 @@ export default {
       mapDiag: '',
       suggestTimer: null,
       suggestLoading: false,
-      inputDiag: '',
       suggestions: [],
-      suggestErr: '',
-      suggestDiag: '',
       industryLoadErr: '',
       errors: { address: '', industry: '', brand: '', size: '' },
       industryList: [],
@@ -226,13 +223,9 @@ export default {
     onAddressInput (e) {
       const value = (e && e.detail) ? String(e.detail.value || '') : ''
       this.addressKeyword = value
-      // ★ inputDiag — 验证 input 事件是否正常触发
-      this.inputDiag = `input: ${value}`
       this.errors.address = ''
-      // ★ 每次输入立即清空所有旧状态
       this.suggestions = []
       this.suggestErr = ''
-      this.suggestDiag = ''
       // ★ 用户正在输入 → 清空地图旧选点
       if (this.addressText) {
         this.addressText = ''
@@ -315,7 +308,6 @@ export default {
     async runSuggest (keyword, mode) {
       if (!keyword) return
       this.suggestions = []; this.suggestErr = ''
-      this.suggestDiag = mode === 'auto' ? `自动联想: ${keyword}...` : `搜索中: ${keyword}...`
       const reqKw = keyword
       const reqMode = mode
       this.suggestLoading = true
@@ -323,7 +315,6 @@ export default {
         const r = await api.locationSuggest(keyword)
         // ★ 防旧请求覆盖：当前输入已变，丢弃此次回调结果
         if (keyword !== (this.addressKeyword || '').trim()) return
-        this.suggestDiag = `关键词: ${keyword} | HTTP ${r.statusCode} | 候选: ${(r.data?.data||[]).length} 条`
         if (!r.ok) {
           const detail = r.data?.detail || r.data?.error || ''
           if (r.statusCode === 503) this.suggestErr = '地图服务未配置，请联系管理员'
@@ -339,9 +330,9 @@ export default {
       } catch (e) {
         const msg = e.errMsg || e.message || ''
         if (msg.includes('timeout')) {
-          this.suggestErr = '请求超时，请确认后端服务可访问'; this.suggestDiag = `timeout: ${msg}`
+          this.suggestErr = '请求超时，请确认后端服务可访问'
         } else {
-          this.suggestErr = '后端服务未连接，请确认 http://127.0.0.1:8000/api/health 可访问'; this.suggestDiag = `网络错误: ${msg || e}`
+          this.suggestErr = '后端服务未连接，请确认 http://127.0.0.1:8000/api/health 可访问'
         }
       } finally {
         this.suggestLoading = false
@@ -349,13 +340,11 @@ export default {
     },
     onSearch () {
       if (this.suggestTimer) { clearTimeout(this.suggestTimer); this.suggestTimer = null }
-      this.inputDiag = ''
       this.runSuggest((this.addressKeyword || '').trim(), 'manual')
     },
     onSelectSuggestion (s) {
       if (this.suggestTimer) { clearTimeout(this.suggestTimer); this.suggestTimer = null }
       this.suggestLoading = false
-      this.inputDiag = ''
       this.addressText = s.name + (s.address ? ' · ' + s.address : '')
       this.addressKeyword = this.addressText
       if (s.location) { this.mapLng = s.location.lng; this.mapLat = s.location.lat }
@@ -363,7 +352,6 @@ export default {
       this.errors.address = ''
       this.suggestions = []
       this.suggestErr = ''
-      this.suggestDiag = ''
     },
     onMapRegionChange (e) {
       if (e && e.type === 'end') this.mapDiag = '地图已拖动/缩放 (regionchange end)'
@@ -381,7 +369,6 @@ export default {
     clearAddress () {
       if (this.suggestTimer) { clearTimeout(this.suggestTimer); this.suggestTimer = null }
       this.suggestLoading = false
-      this.inputDiag = ''
       this.addressText = ''
       this.addressKeyword = ''
       this.isFaved = false
@@ -390,7 +377,6 @@ export default {
       this.mapDiag = ''
       this.suggestions = []
       this.suggestErr = ''
-      this.suggestDiag = ''
       this.errors.address = ''
     },
     validate () {
