@@ -2,7 +2,7 @@ current_phase: Phase 23N
 phase_status: next_codex_handoff_ready_for_devtools_autosuggest_verify
 latest_code_commit: 0b2dfde
 latest_code_commit_message: "fix: replace v-model with explicit :value/@input, add inputDiag for event trace"
-latest_docs_commit: b7b071a
+latest_docs_commit: 7496716
 unpushed: true
 
 validation:
