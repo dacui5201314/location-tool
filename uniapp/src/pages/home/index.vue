@@ -20,7 +20,7 @@
       <text>{{ announcement }}</text>
     </view>
 
-    <!-- ── Hero（Web 对齐：logo lockup + hero copy + search card）── -->
+    <!-- ── Hero（Web 对齐：logo lockup + hero copy）── -->
     <view class="hero">
       <view class="hero-top">
         <image class="hero-logo" src="/static/brand-logo.png" mode="aspectFit" />
@@ -39,17 +39,18 @@
         <text class="htag">需线下验证</text>
       </view>
 
-      <!-- 搜索卡片（浮在 hero/map 上的主入口） -->
+    </view>
+
+    <!-- 搜索卡片：独立浮层，避免 hero/map 原生层级吞点击 -->
+    <view class="search-section">
       <view class="search-card">
         <view class="sc-input-row">
-          <view class="sc-icon">⌖</view>
+          <text class="sc-icon">⌖</text>
           <input class="sc-field" :value="addressKeyword" placeholder="输入地址搜索门店位置" :disabled="analyzing" @input="onAddressInput" @confirm="onSearch" />
-          <view class="sc-locate" @tap="onLocate" v-if="!addressText">
-            <text class="scl-icon">◎</text>
-          </view>
-          <view class="sc-fav" @tap="toggleFav" v-if="addressText && !analyzing">
-            <text :style="{ color: favId ? '#d6a84f' : '#94a3b8' }">{{ favId ? '★' : '☆' }}</text>
-          </view>
+          <button class="sc-action" :disabled="analyzing" @tap.stop="onLocate" v-if="!addressText">◎</button>
+          <button class="sc-action fav" :disabled="favLoading || analyzing" @tap.stop="toggleFav" v-if="addressText">
+            {{ favLoading ? '·' : (favId ? '★' : '☆') }}
+          </button>
         </view>
         <view class="suggest-list" v-if="suggestions.length">
           <view class="suggest-item" v-for="(s, i) in suggestions" :key="i" @tap="onSelectSuggestion(s)">
@@ -71,17 +72,12 @@
             <text class="ab-src" v-if="selectedLocationSource">来源：{{ srcLabel }}</text>
           </view>
         </view>
-        <text class="ab-edit" @tap="clearAddress">重选</text>
+        <button class="ab-edit" @tap.stop="clearAddress">重选</button>
       </view>
       <text class="field-err" v-if="errors.address">{{ errors.address }}</text>
 
       <view class="map-wrap">
-        <map class="map-view" :latitude="mapLat" :longitude="mapLng" scale="15" :show-location="showUserLocation" :enable-scroll="!analyzing" :enable-zoom="!analyzing" :enable-rotate="false" @tap="onMapTap" @regionchange="onMapRegionChange" @updated="onMapUpdated">
-          <cover-view class="map-marker">
-            <cover-view class="mm-outer" />
-            <cover-view class="mm-inner" />
-          </cover-view>
-        </map>
+        <map class="map-view" :latitude="mapLat" :longitude="mapLng" :markers="mapMarkers" scale="15" :show-location="showUserLocation" :enable-scroll="!analyzing" :enable-zoom="!analyzing" :enable-rotate="false" @tap="onMapTap" @regionchange="onMapRegionChange" @updated="onMapUpdated" />
         <view class="map-overlay" v-if="analyzing">
           <text class="mo-text">分析中，请稍后...</text>
         </view>
@@ -212,6 +208,15 @@ export default {
       if (!this.addressText) return '请先搜索或定位门店地址'
       if (!this.canAnalyze) return '请完整填写门店位置、业态和经营信息'
       return '客流 · 竞品 · 消费力 · 风险点初筛参考'
+    },
+    mapMarkers () {
+      return [{
+        id: 1,
+        latitude: this.mapLat,
+        longitude: this.mapLng,
+        width: 28,
+        height: 28
+      }]
     },
     srcLabel () {
       if (this.selectedLocationSource === 'locate') return '当前位置'
@@ -613,8 +618,7 @@ export default {
 .home-page { min-height:100vh; background:#f0f2f5; padding-bottom:80rpx; }
 
 /* ── Hero ── */
-.hero { background:linear-gradient(170deg,#0a0f1e 0%,#111d3a 40%,#152244 100%); padding:48rpx 28rpx 68rpx; position:relative; overflow:hidden; }
-.hero::after { content:''; position:absolute; top:-80rpx; right:-60rpx; width:300rpx; height:300rpx; border-radius:50%; background:rgba(59,130,246,0.06); pointer-events:none; }
+.hero { background:linear-gradient(170deg,#0a0f1e 0%,#111d3a 40%,#152244 100%); padding:48rpx 28rpx 92rpx; position:relative; overflow:hidden; }
 .hero-top { display:flex; align-items:center; margin-bottom:28rpx; }
 .hero-logo { width:52rpx; height:52rpx; border-radius:12rpx; margin-right:14rpx; }
 .hero-lockup { display:flex; flex-direction:column; }
@@ -628,34 +632,34 @@ export default {
 .htag { font-size:20rpx; color:rgba(255,255,255,0.4); border:1px solid rgba(255,255,255,0.15); border-radius:6rpx; padding:4rpx 14rpx; }
 
 /* ── Search card ── */
-.search-card { background:#fff; border-radius:16rpx; padding:8rpx; box-shadow:0 8rpx 32rpx rgba(0,0,0,0.18); position:relative; z-index:10; }
+.search-section { position:relative; z-index:30; margin:-56rpx 24rpx 0; }
+.search-card { background:#fff; border-radius:18rpx; padding:8rpx; box-shadow:0 10rpx 36rpx rgba(15,23,42,0.18); position:relative; }
 .sc-input-row { display:flex; align-items:center; }
-.sc-icon { width:56rpx; text-align:center; font-size:28rpx; color:#94a3b8; flex-shrink:0; }
+.sc-icon { width:56rpx; text-align:center; font-size:28rpx; color:#94a3b8; flex-shrink:0; display:block; }
 .sc-field { flex:1; height:80rpx; font-size:28rpx; color:#1e293b; padding:0 4rpx; border:none; background:transparent; }
-.sc-locate { width:56rpx; height:56rpx; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
-.scl-icon { font-size:28rpx; color:#64748b; }
-.sc-fav { width:56rpx; text-align:center; font-size:30rpx; flex-shrink:0; }
+.sc-action { width:58rpx; height:58rpx; min-width:58rpx; padding:0; margin:0; border-radius:50%; background:#eef2ff; color:#334155; font-size:28rpx; line-height:58rpx; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+.sc-action::after { border:none; }
+.sc-action[disabled] { opacity:0.45; }
+.sc-action.fav { background:#f8fafc; color:#d6a84f; }
 .suggest-list { background:#fff; border-radius:0 0 14rpx 14rpx; margin:4rpx -8rpx -8rpx; box-shadow:0 8rpx 24rpx rgba(0,0,0,0.08); max-height:340rpx; overflow-y:auto; }
 .suggest-item { padding:22rpx 20rpx; border-top:1px solid #f1f5f9; }
 .sg-name { font-size:28rpx; color:#1e293b; display:block; } .sg-addr { font-size:22rpx; color:#94a3b8; margin-top:4rpx; display:block; }
 .suggest-empty { padding:20rpx; font-size:24rpx; color:#94a3b8; text-align:center; }
 
 /* ── Map section ── */
-.map-section { padding:0 20rpx; margin-top:24rpx; }
+.map-section { padding:0 20rpx; margin-top:22rpx; }
 .addr-bar { display:flex; align-items:center; background:#fff; border-radius:12rpx; padding:16rpx 20rpx; margin-bottom:12rpx; box-shadow:0 1px 8rpx rgba(0,0,0,0.04); }
 .ab-left { display:flex; align-items:center; flex:1; min-width:0; }
 .ab-pin { font-size:28rpx; margin-right:12rpx; flex-shrink:0; }
 .ab-mid { flex:1; min-width:0; }
 .ab-name { font-size:26rpx; color:#1e293b; font-weight:500; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; display:block; }
 .ab-src { font-size:20rpx; color:#94a3b8; }
-.ab-edit { font-size:26rpx; color:#64748b; padding:4rpx 12rpx; flex-shrink:0; }
+.ab-edit { width:auto; min-width:84rpx; margin:0; padding:6rpx 14rpx; background:#f8fafc; border-radius:999rpx; color:#64748b; font-size:24rpx; line-height:34rpx; flex-shrink:0; }
+.ab-edit::after { border:none; }
 .map-wrap { position:relative; border-radius:14rpx; overflow:hidden; box-shadow:0 2rpx 16rpx rgba(0,0,0,0.08); }
 .map-view { width:100%; height:420rpx; }
 .map-overlay { position:absolute; inset:0; background:rgba(0,0,0,0.3); display:flex; align-items:center; justify-content:center; }
 .mo-text { color:#fff; font-size:28rpx; font-weight:600; }
-.map-marker { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); pointer-events:none; z-index:10; }
-.mm-outer { width:32rpx; height:32rpx; background:rgba(220,38,38,0.2); border-radius:50%; position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); }
-.mm-inner { width:16rpx; height:16rpx; background:#dc2626; border:3rpx solid #fff; border-radius:50%; position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); box-shadow:0 2rpx 10rpx rgba(0,0,0,0.3); }
 .map-hint { text-align:center; padding:12rpx 0 4rpx; font-size:24rpx; color:#94a3b8; }
 .map-hint.done { color:#16a34a; } .map-hint.warn { color:#dc2626; }
 
