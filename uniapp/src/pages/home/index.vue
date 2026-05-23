@@ -16,9 +16,11 @@
           <text class="section-hint" v-if="!addressText">选择位置后，可一键收藏地址</text>
         </view>
         <view class="input-row">
-          <input class="field" v-model="addressKeyword" placeholder="输入地址搜索或在地图上选点" :disabled="analyzing" @input="onAddressInput" />
+          <input class="field" :value="addressKeyword" placeholder="输入地址搜索或在地图上选点" :disabled="analyzing" @input="onAddressInput" @confirm="onSearch" />
           <button class="s-btn" :disabled="analyzing || !addressKeyword" @tap="onSearch">搜索</button>
         </view>
+        <!-- input 诊断行 -->
+        <view class="input-diag" v-if="inputDiag">{{ inputDiag }}</view>
         <!-- 候选列表 -->
         <view class="suggest-diag" v-if="suggestDiag">{{ suggestDiag }}</view>
         <view class="suggest-list" v-if="suggestions.length">
@@ -157,6 +159,7 @@ export default {
       mapDiag: '',
       suggestTimer: null,
       suggestLoading: false,
+      inputDiag: '',
       suggestions: [],
       suggestErr: '',
       suggestDiag: '',
@@ -224,14 +227,17 @@ export default {
       if (this.industry) this.errors.industry = ''
     },
     onAddressInput (e) {
-      const value = e?.detail?.value ?? ''
+      const value = (e && e.detail) ? String(e.detail.value || '') : ''
       this.addressKeyword = value
+      // ★ inputDiag — 验证 input 事件是否正常触发
+      this.inputDiag = `input: ${value}`
       this.errors.address = ''
+      // ★ 每次输入立即清空所有旧状态
       this.suggestions = []
       this.suggestErr = ''
       this.suggestDiag = ''
-      // 用户手动输入时清空地图旧选点，让候选列表可见
-      if (value && this.addressText && this.selectedLocationSource) {
+      // ★ 用户正在输入 → 清空地图旧选点
+      if (this.addressText) {
         this.addressText = ''
         this.selectedLocationSource = ''
         this.showUserLocation = false
@@ -346,11 +352,13 @@ export default {
     },
     onSearch () {
       if (this.suggestTimer) { clearTimeout(this.suggestTimer); this.suggestTimer = null }
+      this.inputDiag = ''
       this.runSuggest((this.addressKeyword || '').trim(), 'manual')
     },
     onSelectSuggestion (s) {
       if (this.suggestTimer) { clearTimeout(this.suggestTimer); this.suggestTimer = null }
       this.suggestLoading = false
+      this.inputDiag = ''
       this.addressText = s.name + (s.address ? ' · ' + s.address : '')
       this.addressKeyword = this.addressText
       if (s.location) { this.mapLng = s.location.lng; this.mapLat = s.location.lat }
@@ -376,6 +384,7 @@ export default {
     clearAddress () {
       if (this.suggestTimer) { clearTimeout(this.suggestTimer); this.suggestTimer = null }
       this.suggestLoading = false
+      this.inputDiag = ''
       this.addressText = ''
       this.addressKeyword = ''
       this.isFaved = false
@@ -484,6 +493,7 @@ export default {
 .map-hint-bar.selected { background:#f0fdf4; border:1rpx solid #bbf7d0; }
 .mhb-text { font-size:24rpx; color:#64748b; }
 .map-diag { font-size:20rpx; color:#94a3b8; padding:4rpx 0; text-align:center; }
+.input-diag { font-size:20rpx; color:#94a3b8; padding:4rpx 0; }
 .suggest-diag { font-size:20rpx; color:#64748b; padding:8rpx 0; }
 .dual { display:flex; gap:14rpx; } .dual-half { flex:1; }
 
