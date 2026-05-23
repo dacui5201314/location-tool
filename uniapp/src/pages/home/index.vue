@@ -298,7 +298,14 @@ export default {
         } else {
           this.suggestErr = `未找到匹配地址：${kw}`
         }
-      } catch (e) { this.suggestErr = '网络异常，请确认后端可访问'; this.suggestDiag = `网络错误: ${e.errMsg || e.message || e}` }
+      } catch (e) {
+        const msg = e.errMsg || e.message || ''
+        if (msg.includes('timeout')) {
+          this.suggestErr = '请求超时，请确认后端服务可访问'; this.suggestDiag = `timeout: ${msg}`
+        } else {
+          this.suggestErr = '网络异常，请确认后端可访问'; this.suggestDiag = `网络错误: ${msg || e}`
+        }
+      }
     },
     onSelectSuggestion (s) {
       this.addressText = s.name + (s.address ? ' · ' + s.address : '')

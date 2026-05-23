@@ -40,7 +40,7 @@ sample_bank:
   partial: 10
   latest_industry_test_total: "2168 PASS, 0 FAIL"
 
-next_step: "Phase 23N-1 manual devtools retest: getLocation, map tap reverse geocode, and address suggestions. Then Phase 23N-2 WeChat login binding."
+next_step: "Phase 23N-1 complete: verify all timeout fallbacks in WeChat devtools (getLocation, mapTap reverse geocode, locationSuggest, locationRegeocode). Then Phase 23N-2 WeChat login binding."
 
 boundaries:
   no_push: true
