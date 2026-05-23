@@ -237,9 +237,13 @@ export default {
   },
   methods: {
     async initHomeData () {
+      // 公告独立拉取，不依赖 token
+      api.fetchUiConfig().then(a => {
+        if (a.ok && a.data && a.data.announcement) this.announcement = a.data.announcement
+      }).catch(() => {})
       const token = uni.getStorageSync('token')
       if (!token) return
-      // Profile + free point
+      // Profile + free point (仅已登录)
       try {
         const p = await api.fetchProfile()
         if (p.ok && p.data) {
@@ -247,18 +251,10 @@ export default {
           if (u.free_point_active && u.free_point_expire_at) {
             this.startCountdown(u.free_point_expire_at)
           }
-          // Welcome modal
           const dismissed = uni.getStorageSync('welcome_dismissed')
           if (!dismissed && (p.data.is_new_user || u.is_new_user)) {
             this.welcomeOpen = true
           }
-        }
-      } catch (e) { /* silent */ }
-      // Announcement
-      try {
-        const a = await api.fetchUiConfig()
-        if (a.ok && a.data && a.data.announcement) {
-          this.announcement = a.data.announcement
         }
       } catch (e) { /* silent */ }
     },
@@ -285,12 +281,18 @@ export default {
       uni.setStorageSync('welcome_dismissed', '1')
     },
     async checkFavStatus () {
-      if (!this.addressText || !this.mapLat || !this.mapLng) { this.favId = null; return }
+      if (!this.addressText || !this.selectedLocationSource) { this.favId = null; return }
+      const token = uni.getStorageSync('token')
+      if (!token) { this.favId = null; return }
       try {
         const r = await api.checkFavorite(this.mapLat, this.mapLng)
         if (r.ok && r.data) {
-          this.favId = r.data.id || null
-        } else { this.favId = null }
+          this.favId = r.data.favorite_id || null
+        } else if (r.statusCode === 401) {
+          this.favId = null  // 静默，不弹错误
+        } else {
+          this.favId = null
+        }
       } catch (e) { this.favId = null }
     },
     async toggleFav () {
@@ -302,7 +304,7 @@ export default {
         if (this.favId) {
           const r = await api.deleteFavorite(this.favId)
           if (r.ok) { this.favId = null; uni.showToast({ title: '已取消收藏', icon: 'none' }) }
-          else if (r.statusCode === 401) { uni.showToast({ title: '请先登录后收藏', icon: 'none' }) }
+          else if (r.statusCode === 401) { uni.showToast({ title: '请先登录后取消收藏', icon: 'none' }) }
           else { uni.showToast({ title: '取消收藏失败', icon: 'none' }) }
         } else {
           const r = await api.addFavorite({
@@ -311,8 +313,15 @@ export default {
             latitude: this.mapLat,
             longitude: this.mapLng
           })
-          if (r.ok) { this.favId = r.data.id || true; uni.showToast({ title: '收藏成功', icon: 'none' }) }
-          else if (r.statusCode === 401) { uni.showToast({ title: '请先登录后收藏', icon: 'none' }) }
+          if (r.ok) {
+            const fav = r.data && r.data.favorite
+            if (fav && fav.id) {
+              this.favId = fav.id
+              uni.showToast({ title: '收藏成功', icon: 'none' })
+            } else {
+              uni.showToast({ title: '收藏状态同步失败，请稍后重试', icon: 'none' })
+            }
+          } else if (r.statusCode === 401) { uni.showToast({ title: '请先登录后收藏', icon: 'none' }) }
           else { uni.showToast({ title: '收藏失败', icon: 'none' }) }
         }
       } catch (e) { uni.showToast({ title: '网络异常', icon: 'none' }) }
@@ -502,6 +511,8 @@ export default {
       this.mapNotice = ''
       this.suggestions = []
       this.suggestErr = ''
+      this.favId = null
+      this.favLoading = false
       this.errors.address = ''
     },
     validate () {

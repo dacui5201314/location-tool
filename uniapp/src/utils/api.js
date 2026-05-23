@@ -58,7 +58,7 @@ function fetchRecordDetail (uuid) { return request({ url: `/api/records/${uuid}`
 function deleteRecord (uuid) { return request({ url: `/api/records/${uuid}`, method: 'DELETE' }) }
 function fetchFavorites () { return request({ url: '/api/favorites' }) }
 function deleteFavorite (id) { return request({ url: `/api/favorites/${id}`, method: 'DELETE' }) }
-function checkFavorite (lat, lng) { return request({ url: `/api/favorites/check?latitude=${lat}&longitude=${lng}`, auth: false }) }
+function checkFavorite (lat, lng) { return request({ url: `/api/favorites/check?latitude=${lat}&longitude=${lng}` }) }
 function addFavorite (data) { return request({ url: '/api/favorites', method: 'POST', data }) }
 function fetchIndustries () { return request({ url: '/api/industries/active', auth: false }) }
 
