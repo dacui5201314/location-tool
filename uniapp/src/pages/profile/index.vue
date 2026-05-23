@@ -63,7 +63,7 @@
         <text class="pc-num">{{ points }}</text>
         <text class="pc-unit">点</text>
         <text class="pc-desc">当前剩余点数 · 可用于生成选址分析报告</text>
-        <text class="pc-desc warn" v-if="!freePointActive">⚠️ 免费赠送点已过期，实际有效 {{ Math.max(0, points - 1) }} 点</text>
+        <text class="pc-desc warn" v-if="freePointExpiry && !freePointActive">⚠️ 免费赠送点已过期，实际有效 {{ Math.max(0, points - 1) }} 点</text>
       </view>
       <view class="pc-warn" v-if="!memberDays && points <= 3">
         <text>点数即将用完，建议充值或开通会员</text>

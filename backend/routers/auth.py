@@ -68,6 +68,15 @@ def _get_client_ip(request: Request) -> str:
     return request.client.host if request.client else ""
 
 
+def find_user_by_phone(db: Session, phone: str) -> User | None:
+    """统一手机号查询：OR 匹配 phone 和 phone_number 两个字段"""
+    if not phone:
+        return None
+    return db.query(User).filter(
+        or_(User.phone == phone, User.phone_number == phone)
+    ).first()
+
+
 # ================================================================
 # 共享 Helper：用户查找 / 创建 / 防刷 / 奖励
 # ================================================================
@@ -98,7 +107,7 @@ def _find_or_create_user(
     if not user and wx_openid:
         user = db.query(User).filter(User.wx_openid == wx_openid).first()
     if not user and phone:
-        user = db.query(User).filter(User.phone == phone).first()
+        user = find_user_by_phone(db, phone)
     if not user and device_id:
         user = db.query(User).filter(User.device_id == device_id).first()
 
@@ -110,6 +119,7 @@ def _find_or_create_user(
             ("wx_mini_openid", wx_mini_openid),
             ("wx_openid", wx_openid),
             ("phone", phone),
+            ("phone_number", phone),
         ]:
             if val and not getattr(user, field, None):
                 try:
@@ -261,8 +271,8 @@ def phone_register(
     if not password or len(password) < 6:
         raise HTTPException(status_code=400, detail="密码至少 6 位")
 
-    # 检查手机号是否已注册
-    existing = db.query(User).filter(User.phone == phone).first()
+    # 检查手机号是否已注册（双字段 OR 查询）
+    existing = find_user_by_phone(db, phone)
     if existing:
         raise HTTPException(status_code=409, detail="该手机号已注册，请直接登录")
 
@@ -345,7 +355,7 @@ def phone_login(
     if not phone or not password:
         raise HTTPException(status_code=400, detail="请输入手机号和密码")
 
-    user = db.query(User).filter(User.phone == phone).first()
+    user = find_user_by_phone(db, phone)
     if not user:
         raise HTTPException(status_code=401, detail="手机号未注册")
 
@@ -589,21 +599,23 @@ def wechat_mini_bind_phone(
     if not phone_number:
         raise HTTPException(status_code=400, detail="未获取到手机号")
 
-    # 3. 检查手机号是否已被其他账号占用
-    existing = db.query(User).filter(
-        User.phone_number == phone_number,
-        User.id != user["user_id"]
-    ).first()
-    if existing:
+    # 3. 检查手机号是否已被其他账号占用（双字段 OR 查询）
+    existing = find_user_by_phone(db, phone_number)
+    if existing and existing.id != user["user_id"]:
         raise HTTPException(status_code=409, detail="该手机号已绑定其他账号")
 
-    # 4. 写入 User 表（双字段）
+    # 4. 写入 User 表（双字段 + IntegrityError 兜底）
     db_user = db.query(User).filter(User.id == user["user_id"]).first()
     if not db_user:
         raise HTTPException(status_code=404, detail="用户不存在")
-    db_user.phone_number = phone_number
-    db_user.phone = phone_number
-    db.commit()
+    try:
+        db_user.phone_number = phone_number
+        db_user.phone = phone_number
+        db.flush()
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(status_code=409, detail="该手机号已绑定其他账号")
 
     return {"ok": True, "phone": phone_number}
 
@@ -612,14 +624,14 @@ def wechat_mini_bind_phone(
 # Phase 23N: 微信小程序手机号一键登录
 # ═══════════════════════════════════════════════════════════
 
-class PhoneLoginBody(BaseModel):
+class WechatMiniPhoneLoginBody(BaseModel):
     login_code: str       # wx.login 返回的 code
     phone_code: str       # getPhoneNumber 返回的 code
 
 
 @router.post("/wechat/mini/phone-login")
 def wechat_mini_phone_login(
-    body: PhoneLoginBody,
+    body: WechatMiniPhoneLoginBody,
     request: Request = None,
     db: Session = Depends(get_db),
 ):
@@ -710,11 +722,20 @@ def wechat_mini_phone_login(
     )
 
     # 始终回写手机号（已有用户可能之前未绑定）
-    if not user.phone_number:
-        user.phone_number = phone_number
-    if not user.phone:
-        user.phone = phone_number
-    db.commit()
+    # 先检查手机号是否被其他用户占用
+    existing = find_user_by_phone(db, phone_number)
+    if existing and existing.id != user.id:
+        raise HTTPException(status_code=409, detail="该手机号已绑定其他账号")
+    try:
+        if not user.phone_number:
+            user.phone_number = phone_number
+        if not user.phone:
+            user.phone = phone_number
+        db.flush()
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(status_code=409, detail="该手机号已绑定其他账号")
 
     # Step 4: 签发 JWT
     token = create_token(user.id, role="user")

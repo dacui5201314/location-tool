@@ -144,10 +144,11 @@ def list_users(
     query = db.query(User)
     # 筛选条件
     if phone:
+        # ★ 统一搜索：always OR phone + phone_number；纯数字时额外加 id
+        conditions = [User.phone.contains(phone), User.phone_number.contains(phone)]
         if phone.isdigit():
-            query = query.filter(User.id == int(phone))
-        else:
-            query = query.filter(or_(User.phone.contains(phone), User.phone_number.contains(phone)))
+            conditions.append(User.id == int(phone))
+        query = query.filter(or_(*conditions))
     if member == "1":
         query = query.filter(User.membership_expiry != None, User.membership_expiry > datetime.now())
     elif member == "0":
