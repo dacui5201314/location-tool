@@ -228,7 +228,7 @@ export default {
               this.refreshState()
             } else {
               const sc = r.statusCode
-              if (sc === 503) this.loginErr = '小程序未配置，请联系管理员'
+              if (sc === 503) this.loginErr = '登录服务暂不可用，请稍后重试'
               else if (sc === 400) this.loginErr = '登录参数无效，请重试'
               else if (sc === 409) this.loginErr = '该手机号已绑定其他账号'
               else this.loginErr = r.error || '登录失败'
@@ -245,11 +245,11 @@ export default {
         this.loginLoading = false
         if (r.ok) { this.refreshState() } else {
           const sc = r.statusCode
-          if (sc === 503) this.loginErr = '小程序登录未配置，请先在管理后台配置小程序凭据'
+          if (sc === 503) this.loginErr = '登录服务暂不可用，请稍后重试'
           else if (sc === 400) this.loginErr = '微信登录参数无效，请重新尝试'
           else if (sc === 409) this.loginErr = '微信身份已绑定其他账号'
           else if (sc) this.loginErr = '登录失败 (HTTP ' + sc + ')，请重试'
-          else this.loginErr = '登录失败，请检查后端日志'
+          else this.loginErr = '登录失败，请稍后重试'
         }
       }).catch(() => { this.loginLoading = false; this.loginErr = '网络异常，请稍后重试' })
     },

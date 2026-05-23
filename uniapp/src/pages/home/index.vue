@@ -338,7 +338,7 @@ export default {
         if (keyword !== (this.addressKeyword || '').trim()) return
         if (!r.ok) {
           const detail = r.data?.detail || r.data?.error || ''
-          if (r.statusCode === 503) this.suggestErr = '地图服务未配置，请联系管理员'
+          if (r.statusCode === 503) this.suggestErr = '地图服务暂不可用，请稍后重试或手动输入地址'
           else if (r.statusCode === 502) this.suggestErr = '地图服务暂时不可用，请稍后重试'
           else this.suggestErr = detail || '搜索失败，请重试'
         } else if (r.data?.ok === false) {
@@ -485,7 +485,7 @@ export default {
 <style scoped>
 .home-page { min-height:100vh; background:#eef3f9; padding-bottom:60rpx; }
 .hero { background:linear-gradient(135deg,#0b1120 0%,#111f3a 50%,#0f1f3d 100%); padding:72rpx 32rpx 80rpx; text-align:center; }
-.hero-brand { font-size:42rpx; font-weight:800; color:#fff; letter-spacing:4rpx; }
+.hero-brand { font-size:42rpx; font-weight:800; color:#fff; }
 .hero-tagline { font-size:36rpx; font-weight:700; color:rgba(255,255,255,0.9); margin-top:14rpx; line-height:1.4; }
 .hl { color:rgba(255,255,255,0.7); } .gold { color:#60a5fa; }
 .hero-sub { font-size:24rpx; color:rgba(255,255,255,0.45); margin-top:10rpx; }
