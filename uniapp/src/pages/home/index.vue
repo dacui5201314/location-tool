@@ -714,16 +714,16 @@ export default {
 .map-hint.done { color:#16a34a; } .map-hint.warn { color:#dc2626; }
 
 /* ── Biz card ── */
-.biz-card { background:rgba(255,255,255,0.94); margin:24rpx 20rpx 0; border-radius:24rpx; padding:30rpx 24rpx; box-shadow:0 18rpx 38rpx rgba(79,119,186,0.10); border:1px solid rgba(219,230,255,0.92); }
+.biz-card { background:rgba(255,255,255,0.96); margin:24rpx 20rpx 0; border-radius:24rpx; padding:30rpx 24rpx 26rpx; box-shadow:0 18rpx 38rpx rgba(79,119,186,0.10); border:1px solid rgba(219,230,255,0.92); }
 .biz-head { margin-bottom:18rpx; display:flex; justify-content:space-between; align-items:flex-start; }
 .biz-title { display:block; font-size:32rpx; font-weight:900; color:#0f172a; }
 .biz-sub { display:block; margin-top:4rpx; font-size:22rpx; color:#64748b; }
 .biz-link { color:#8ba0bf; font-size:22rpx; margin-top:4rpx; }
-.biz-fields { display:flex; flex-wrap:wrap; gap:14rpx; margin-top:26rpx; padding:22rpx; border-radius:18rpx; background:linear-gradient(180deg,#f8fbff,#ffffff); border:1px solid rgba(219,230,255,0.86); }
-.field-head { width:100%; margin-bottom:2rpx; }
-.field-head-title { display:block; color:#0f172a; font-weight:800; font-size:26rpx; }
-.field-head-sub { display:block; margin-top:4rpx; color:#94a3b8; font-size:21rpx; }
-.bf-item { flex:1; min-width:0; }
+.biz-fields { display:flex; flex-direction:column; gap:16rpx; margin-top:24rpx; padding:0; border-radius:0; background:transparent; border:0; }
+.field-head { width:100%; padding:4rpx 2rpx 2rpx; }
+.field-head-title { display:block; color:#0f172a; font-weight:900; font-size:28rpx; }
+.field-head-sub { display:block; margin-top:6rpx; color:#8b99b6; font-size:22rpx; line-height:1.45; }
+.bf-item { width:100%; min-width:0; padding:18rpx 18rpx 20rpx; border-radius:18rpx; background:linear-gradient(180deg,#ffffff,#f8fbff); border:1px solid rgba(219,230,255,0.90); box-shadow:0 10rpx 22rpx rgba(74,111,172,0.05); box-sizing:border-box; }
 
 :deep(.industry-picker) { margin:18rpx 0 0; }
 :deep(.industry-picker .label) { display:none; }
@@ -739,18 +739,19 @@ export default {
 :deep(.chip.selected) { background:#f3f7ff; color:#315bff; border-color:rgba(88,105,255,0.44); box-shadow:0 10rpx 20rpx rgba(68,84,255,0.11); }
 
 /* ── Shared ── */
-.label { font-size:26rpx; font-weight:600; color:#334155; margin-bottom:8rpx; }
+.label { font-size:24rpx; font-weight:900; color:#1f2d4f; margin-bottom:12rpx; }
 .req { color:#ef4444; font-size:24rpx; }
 .field-err { font-size:22rpx; color:#dc2626; margin-top:8rpx; display:block; }
-.field { width:100%; border:1px solid rgba(219,230,255,0.95); border-radius:14rpx; padding:18rpx 16rpx; font-size:28rpx; background:#fff; color:#1e293b; box-sizing:border-box; box-shadow:0 8rpx 18rpx rgba(74,111,172,0.04); }
+.field { width:100%; height:74rpx; border:1px solid rgba(199,215,246,0.95); border-radius:14rpx; padding:0 20rpx; font-size:28rpx; font-weight:700; background:#fff; color:#1e293b; box-sizing:border-box; box-shadow:inset 0 1rpx 0 rgba(255,255,255,0.9),0 8rpx 18rpx rgba(74,111,172,0.04); }
 .field:disabled { background:#f9fafb; color:#9ca3af; }
 
 /* ── CTA ── */
-.cta-zone { padding:0 20rpx; margin-top:24rpx; }
-.cta-btn { width:100%; background:linear-gradient(135deg,#4a75ff 0%,#315bff 48%,#7c55ff 100%); color:#fff; border-radius:20rpx; padding:36rpx 24rpx; display:flex; flex-direction:column; align-items:center; border:none; box-shadow:0 18rpx 42rpx rgba(49,81,211,0.24); }
-.cta-btn[disabled] { opacity:1; background:linear-gradient(135deg,#dbe6f5,#c8d3e3); color:#8ba0bf; box-shadow:none; }
-.cta-main { font-size:34rpx; font-weight:700; }
-.cta-sub { font-size:24rpx; color:rgba(255,255,255,0.70); margin-top:6rpx; }
+.cta-zone { padding:0 20rpx; margin-top:22rpx; }
+.cta-btn { width:100%; background:linear-gradient(135deg,#4a75ff 0%,#315bff 48%,#7c55ff 100%); color:#fff; border-radius:20rpx; padding:30rpx 24rpx; display:flex; flex-direction:column; align-items:center; border:none; box-shadow:0 18rpx 42rpx rgba(49,81,211,0.24); }
+.cta-btn::after { border:none; }
+.cta-btn[disabled] { opacity:1; background:rgba(255,255,255,0.72); color:#8b99b6; box-shadow:none; border:1px dashed rgba(169,188,226,0.90); }
+.cta-main { font-size:32rpx; font-weight:900; line-height:1.2; }
+.cta-sub { font-size:23rpx; color:rgba(255,255,255,0.76); margin-top:8rpx; line-height:1.35; }
 .cta-btn[disabled] .cta-sub { color:#9aa7bd; }
 
 /* ── Analyze steps ── */
@@ -763,14 +764,13 @@ export default {
 .as-body { flex:1; } .as-label { font-size:25rpx; color:#475569; display:block; } .as-msg { font-size:22rpx; color:#94a3b8; display:block; }
 
 /* ── Features ── */
-.features { display:flex; gap:1px; padding:30rpx 20rpx 10rpx; border-radius:16rpx; }
-.ft { flex:1; text-align:left; background:rgba(255,255,255,0.78); border-radius:0; padding:20rpx 14rpx; box-shadow:none; border:0; }
-.ft:first-child { border-radius:16rpx 0 0 16rpx; }
-.ft:last-child { border-radius:0 16rpx 16rpx 0; }
-.ft-mark { display:block; width:36rpx; height:36rpx; line-height:36rpx; text-align:center; border-radius:10rpx; color:#fff; background:linear-gradient(135deg,#4a75ff,#7c55ff); font-size:20rpx; margin-bottom:10rpx; box-shadow:0 10rpx 22rpx rgba(88,105,255,0.18); }
-.ft-title { font-size:24rpx; font-weight:800; color:#253044; display:block; }
-.ft-desc { font-size:20rpx; color:#94a3b8; margin-top:4rpx; display:block; line-height:1.35; }
-.footer { text-align:center; font-size:22rpx; color:#94a3b8; padding:24rpx 32rpx; line-height:1.6; }
+.features { display:flex; gap:12rpx; padding:22rpx 20rpx 8rpx; }
+.ft { flex:1; text-align:left; background:rgba(255,255,255,0.92); border-radius:16rpx; padding:18rpx 12rpx; box-shadow:0 10rpx 22rpx rgba(74,111,172,0.06); border:1px solid rgba(219,230,255,0.80); }
+.ft:first-child,.ft:last-child { border-radius:16rpx; }
+.ft-mark { display:block; width:34rpx; height:34rpx; line-height:34rpx; text-align:center; border-radius:10rpx; color:#fff; background:linear-gradient(135deg,#4a75ff,#7c55ff); font-size:20rpx; margin-bottom:10rpx; box-shadow:0 10rpx 22rpx rgba(88,105,255,0.18); }
+.ft-title { font-size:23rpx; font-weight:900; color:#17244e; display:block; white-space:nowrap; }
+.ft-desc { font-size:19rpx; color:#8b99b6; margin-top:5rpx; display:block; line-height:1.35; }
+.footer { text-align:center; font-size:21rpx; color:#94a3b8; padding:24rpx 38rpx 18rpx; line-height:1.65; }
 
 /* ── Welcome modal ── */
 .welcome-mask { position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:500; display:flex; align-items:center; justify-content:center; }
