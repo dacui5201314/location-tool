@@ -60,8 +60,8 @@
     </view>
 
     <!-- Delete confirm -->
-    <view class="modal-mask" v-if="delTarget" @tap="delTarget = null">
-      <view class="modal-box" @tap.stop>
+    <view class="modal-mask" v-if="delTarget">
+      <view class="modal-box">
         <text class="modal-title">确认删除该收藏地址？</text>
         <text class="modal-body">删除后将移除真实收藏记录。已生成的分析记录不会被删除。</text>
         <view class="modal-actions">
@@ -156,24 +156,26 @@ export default {
 </script>
 
 <style scoped>
-.fav-page { min-height:100vh; padding:24rpx; background:#eef3f9; }
-.header { margin-bottom:20rpx; } .title { font-size:40rpx; font-weight:800; color:#111827; display:block; } .sub { font-size:24rpx; color:#667085; }
-.login-guide { text-align:center; padding:80rpx 0; } .lg-text { display:block; font-size:28rpx; color:#64748b; margin-bottom:24rpx; } .lg-btn { width:360rpx; background:#07c160; color:#fff; border-radius:40rpx; font-size:30rpx; font-weight:600; padding:20rpx 0; }
-.summary-card { background:linear-gradient(135deg,#0f172a,#1e40af); border-radius:20rpx; padding:28rpx; color:#fff; margin-bottom:20rpx; }
+.fav-page { min-height:100vh; padding:28rpx 24rpx 118rpx; background:radial-gradient(circle at 50% -8%,rgba(49,91,255,0.12),transparent 34%),linear-gradient(180deg,#f8fbff 0%,#f2f6ff 48%,#eef3fb 100%); }
+.header { margin-bottom:22rpx; padding:12rpx 4rpx 4rpx; } .title { font-size:42rpx; font-weight:900; color:#071d5d; display:block; } .sub { font-size:24rpx; color:#8b99b6; }
+.login-guide { text-align:center; padding:82rpx 28rpx; background:rgba(255,255,255,0.92); border:1px solid rgba(219,230,255,0.9); border-radius:22rpx; box-shadow:0 18rpx 38rpx rgba(79,119,186,0.10); } .lg-text { display:block; font-size:28rpx; color:#64748b; margin-bottom:24rpx; } .lg-btn { width:360rpx; background:linear-gradient(135deg,#4a75ff,#315bff); color:#fff; border-radius:18rpx; font-size:30rpx; font-weight:800; padding:20rpx 0; box-shadow:0 14rpx 30rpx rgba(49,91,255,0.18); }
+.lg-btn::after { border:none; }
+.summary-card { background:linear-gradient(135deg,#4a75ff,#315bff 58%,#7c55ff); border-radius:22rpx; padding:30rpx; color:#fff; margin-bottom:20rpx; box-shadow:0 18rpx 42rpx rgba(49,91,255,0.22); }
 .sc-text { font-size:30rpx; font-weight:700; display:block; } .sc-sub { font-size:24rpx; color:rgba(255,255,255,0.7); display:block; margin-top:6rpx; }
-.tabs { display:flex; gap:10rpx; margin-bottom:18rpx; } .tab { padding:12rpx 22rpx; border-radius:20rpx; background:#f1f5f9; font-size:26rpx; color:#475569; } .tab.active { background:#0f172a; color:#fff; }
+.tabs { display:flex; gap:12rpx; margin-bottom:18rpx; } .tab { padding:14rpx 26rpx; border-radius:999rpx; background:rgba(255,255,255,0.86); border:1px solid rgba(219,230,255,0.95); font-size:25rpx; font-weight:800; color:#5c677d; box-shadow:0 8rpx 18rpx rgba(74,111,172,0.05); } .tab.active { background:#f3f7ff; color:#315bff; border-color:rgba(88,105,255,0.44); }
 .loading { text-align:center; padding:60rpx 0; } .ld-dots { font-size:60rpx; letter-spacing:12rpx; color:#94a3b8; display:block; } .ld-text { font-size:26rpx; color:#94a3b8; display:block; margin-top:8rpx; }
-.error-box { text-align:center; padding:60rpx 0; } .error-box text { display:block; font-size:26rpx; color:#dc2626; margin-bottom:16rpx; } .err-btn { background:#f1f5f9; color:#475569; border-radius:14rpx; padding:16rpx 40rpx; font-size:28rpx; }
-.empty { text-align:center; padding:80rpx 0; } .emp-icon { font-size:72rpx; display:block; } .emp-title { font-size:30rpx; font-weight:700; color:#475569; display:block; margin:16rpx 0 8rpx; } .emp-desc { font-size:26rpx; color:#94a3b8; }
+.error-box { text-align:center; padding:70rpx 28rpx; background:rgba(255,255,255,0.92); border:1px solid rgba(254,202,202,0.9); border-radius:22rpx; } .error-box text { display:block; font-size:26rpx; color:#dc2626; margin-bottom:16rpx; } .err-btn { background:#f3f7ff; color:#315bff; border-radius:14rpx; padding:16rpx 40rpx; font-size:28rpx; }
+.empty { text-align:center; padding:86rpx 28rpx; background:rgba(255,255,255,0.92); border:1px solid rgba(219,230,255,0.9); border-radius:22rpx; } .emp-icon { font-size:72rpx; display:block; } .emp-title { font-size:30rpx; font-weight:800; color:#17244e; display:block; margin:16rpx 0 8rpx; } .emp-desc { font-size:26rpx; color:#8b99b6; }
 .list { padding-top:8rpx; }
-.card { background:#fff; border-radius:20rpx; padding:28rpx; margin-bottom:16rpx; box-shadow:0 2rpx 16rpx rgba(0,0,0,0.04); }
+.card { background:rgba(255,255,255,0.94); border-radius:22rpx; padding:28rpx; margin-bottom:18rpx; box-shadow:0 18rpx 38rpx rgba(79,119,186,0.10); border:1px solid rgba(219,230,255,0.92); }
 .card-body { margin-bottom:16rpx; }
-.card-top { display:flex; justify-content:space-between; align-items:center; } .card-title { font-size:30rpx; font-weight:700; color:#1e293b; flex:1; }
-.badge { font-size:22rpx; padding:4rpx 14rpx; border-radius:12rpx; } .badge.done { background:#dcfce7; color:#166534; } .badge.pending { background:#fef3c7; color:#92400e; }
-.card-addr { font-size:24rpx; color:#64748b; margin-top:8rpx; } .card-time { font-size:22rpx; color:#94a3b8; margin-top:4rpx; }
-.card-actions { display:flex; gap:12rpx; border-top:1rpx solid #f1f5f9; padding-top:14rpx; }
-.act { flex:1; font-size:24rpx; border-radius:12rpx; padding:14rpx 0; background:#f1f5f9; color:#475569; } .act.primary { background:#246bff; color:#fff; } .act.danger { background:#fef2f2; color:#dc2626; }
+.card-top { display:flex; justify-content:space-between; align-items:center; } .card-title { font-size:30rpx; font-weight:900; color:#17244e; flex:1; }
+.badge { font-size:22rpx; font-weight:800; padding:6rpx 14rpx; border-radius:999rpx; } .badge.done { background:#dcfce7; color:#166534; } .badge.pending { background:#fff7ed; color:#c2410c; }
+.card-addr { font-size:24rpx; color:#64748b; margin-top:10rpx; line-height:1.45; } .card-time { font-size:22rpx; color:#8b99b6; margin-top:6rpx; }
+.card-actions { display:flex; gap:12rpx; border-top:1rpx solid rgba(219,230,255,0.78); padding-top:16rpx; }
+.act { flex:1; font-size:24rpx; font-weight:800; border-radius:14rpx; padding:14rpx 0; background:#f3f7ff; color:#315bff; } .act.primary { background:linear-gradient(135deg,#4a75ff,#315bff); color:#fff; } .act.danger { background:#fff5f5; color:#dc2626; }
+.act::after { border:none; }
 .modal-mask { position:fixed; inset:0; background:rgba(0,0,0,0.5); display:flex; align-items:center; justify-content:center; z-index:999; }
-.modal-box { background:#fff; border-radius:20rpx; padding:40rpx; width:560rpx; } .modal-title { font-size:30rpx; font-weight:700; color:#1e293b; display:block; margin-bottom:12rpx; } .modal-body { font-size:26rpx; color:#64748b; display:block; margin-bottom:24rpx; }
-.modal-actions { display:flex; gap:16rpx; justify-content:flex-end; } .ma-cancel { background:#f1f5f9; color:#475569; border-radius:14rpx; padding:16rpx 32rpx; font-size:26rpx; } .ma-confirm { background:#ef4444; color:#fff; border-radius:14rpx; padding:16rpx 32rpx; font-size:26rpx; }
+.modal-box { background:#fff; border-radius:22rpx; padding:40rpx; width:560rpx; box-shadow:0 24rpx 70rpx rgba(15,23,42,0.18); } .modal-title { font-size:30rpx; font-weight:900; color:#17244e; display:block; margin-bottom:12rpx; } .modal-body { font-size:26rpx; color:#64748b; display:block; margin-bottom:24rpx; }
+.modal-actions { display:flex; gap:16rpx; justify-content:flex-end; } .ma-cancel { background:#f3f7ff; color:#315bff; border-radius:14rpx; padding:16rpx 32rpx; font-size:26rpx; } .ma-confirm { background:#ef4444; color:#fff; border-radius:14rpx; padding:16rpx 32rpx; font-size:26rpx; }
 </style>

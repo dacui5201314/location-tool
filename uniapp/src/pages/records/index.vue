@@ -48,16 +48,16 @@
           <text class="time" v-if="r.created_at">分析时间：{{ fmtTime(r.created_at) }}</text>
           <text class="time" v-else>-</text>
           <view class="actions">
-            <text class="act" @tap.stop="onDelete(r)">删除</text>
-            <text class="act" @tap.stop="onDetail(r)">查看报告</text>
+            <text class="act" @tap="onDelete(r)">删除</text>
+            <text class="act" @tap="onDetail(r)">查看报告</text>
           </view>
         </view>
       </view>
     </view>
 
     <!-- Delete confirm -->
-    <view class="modal-mask" v-if="delTarget" @tap="delTarget = null">
-      <view class="modal-box" @tap.stop>
+    <view class="modal-mask" v-if="delTarget">
+      <view class="modal-box">
         <text class="modal-title">确定要删除该条分析记录吗？</text>
         <text class="modal-body">删除后将无法恢复（真实历史记录）。</text>
         <view class="modal-actions">
@@ -146,30 +146,31 @@ export default {
 </script>
 
 <style scoped>
-.records-page { min-height:100vh; padding:24rpx; background:#eef3f9; }
-.header { margin-bottom:20rpx; } .title { font-size:40rpx; font-weight:800; color:#111827; display:block; } .sub { font-size:24rpx; color:#667085; margin-top:4rpx; }
-.login-guide { text-align:center; padding:80rpx 0; }
+.records-page { min-height:100vh; padding:28rpx 24rpx 118rpx; background:radial-gradient(circle at 50% -8%,rgba(49,91,255,0.12),transparent 34%),linear-gradient(180deg,#f8fbff 0%,#f2f6ff 48%,#eef3fb 100%); }
+.header { margin-bottom:22rpx; padding:12rpx 4rpx 4rpx; } .title { font-size:42rpx; font-weight:900; color:#071d5d; display:block; } .sub { font-size:24rpx; color:#8b99b6; margin-top:6rpx; }
+.login-guide { text-align:center; padding:82rpx 28rpx; background:rgba(255,255,255,0.92); border:1px solid rgba(219,230,255,0.9); border-radius:22rpx; box-shadow:0 18rpx 38rpx rgba(79,119,186,0.10); }
 .lg-text { display:block; font-size:28rpx; color:#64748b; margin-bottom:24rpx; }
-.lg-btn { width:360rpx; background:#07c160; color:#fff; border-radius:40rpx; font-size:30rpx; font-weight:600; padding:20rpx 0; }
-.tabs { display:flex; gap:10rpx; padding-bottom:20rpx; }
-.tab { padding:14rpx 24rpx; border-radius:24rpx; background:#f1f5f9; font-size:26rpx; color:#475569; }
-.tab.active { background:#0f172a; color:#fff; }
+.lg-btn { width:360rpx; background:linear-gradient(135deg,#4a75ff,#315bff); color:#fff; border-radius:18rpx; font-size:30rpx; font-weight:800; padding:20rpx 0; box-shadow:0 14rpx 30rpx rgba(49,91,255,0.18); }
+.lg-btn::after { border:none; }
+.tabs { display:flex; gap:12rpx; padding-bottom:20rpx; }
+.tab { padding:14rpx 26rpx; border-radius:999rpx; background:rgba(255,255,255,0.86); border:1px solid rgba(219,230,255,0.95); font-size:25rpx; font-weight:800; color:#5c677d; box-shadow:0 8rpx 18rpx rgba(74,111,172,0.05); }
+.tab.active { background:#f3f7ff; color:#315bff; border-color:rgba(88,105,255,0.44); }
 .loading { text-align:center; padding:60rpx 0; } .ld-dots { font-size:60rpx; letter-spacing:12rpx; color:#94a3b8; display:block; } .ld-text { font-size:26rpx; color:#94a3b8; display:block; margin-top:8rpx; }
-.empty { text-align:center; padding:80rpx 0; } .emp-icon { font-size:72rpx; display:block; } .emp-title { font-size:30rpx; font-weight:700; color:#475569; display:block; margin:16rpx 0 8rpx; } .emp-desc { font-size:26rpx; color:#94a3b8; }
+.empty { text-align:center; padding:86rpx 28rpx; background:rgba(255,255,255,0.92); border:1px solid rgba(219,230,255,0.9); border-radius:22rpx; } .emp-icon { font-size:72rpx; display:block; } .emp-title { font-size:30rpx; font-weight:800; color:#17244e; display:block; margin:16rpx 0 8rpx; } .emp-desc { font-size:26rpx; color:#8b99b6; }
 .list { padding-top:8rpx; }
-.card { background:#fff; border-radius:20rpx; padding:28rpx; margin-bottom:16rpx; box-shadow:0 2rpx 16rpx rgba(0,0,0,0.04); }
+.card { background:rgba(255,255,255,0.94); border-radius:22rpx; padding:28rpx; margin-bottom:18rpx; box-shadow:0 18rpx 38rpx rgba(79,119,186,0.10); border:1px solid rgba(219,230,255,0.92); }
 .card-top { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:8rpx; }
-.card-title { font-size:30rpx; font-weight:700; color:#1e293b; flex:1; }
+.card-title { font-size:30rpx; font-weight:900; color:#17244e; flex:1; }
 .score-block { text-align:right; } .score-num { font-size:44rpx; font-weight:900; } .score-unit { font-size:22rpx; color:#94a3b8; }
-.card-addr { font-size:24rpx; color:#64748b; margin-bottom:10rpx; }
-.card-tags { margin-bottom:12rpx; } .tag { display:inline-block; font-size:20rpx; padding:4rpx 12rpx; border-radius:10rpx; background:#f1f5f9; color:#475569; margin-right:8rpx; }
-.card-footer { display:flex; justify-content:space-between; align-items:center; font-size:22rpx; color:#94a3b8; border-top:1rpx solid #f1f5f9; padding-top:14rpx; }
-.actions { display:flex; gap:16rpx; } .act { color:#246bff; font-size:24rpx; } .act.lock { color:#d6a84f; }
+.card-addr { font-size:24rpx; color:#64748b; margin-bottom:12rpx; line-height:1.45; }
+.card-tags { margin-bottom:14rpx; } .tag { display:inline-block; font-size:20rpx; font-weight:700; padding:6rpx 14rpx; border-radius:999rpx; background:#f3f7ff; color:#315bff; margin-right:8rpx; border:1px solid rgba(219,230,255,0.95); }
+.card-footer { display:flex; justify-content:space-between; align-items:center; font-size:22rpx; color:#8b99b6; border-top:1rpx solid rgba(219,230,255,0.78); padding-top:16rpx; }
+.actions { display:flex; gap:14rpx; } .act { color:#315bff; font-size:24rpx; font-weight:800; } .act.lock { color:#d6a84f; }
 .modal-mask { position:fixed; inset:0; background:rgba(0,0,0,0.5); display:flex; align-items:center; justify-content:center; z-index:999; }
-.modal-box { background:#fff; border-radius:20rpx; padding:40rpx; width:560rpx; }
-.modal-title { font-size:30rpx; font-weight:700; color:#1e293b; display:block; margin-bottom:12rpx; }
+.modal-box { background:#fff; border-radius:22rpx; padding:40rpx; width:560rpx; box-shadow:0 24rpx 70rpx rgba(15,23,42,0.18); }
+.modal-title { font-size:30rpx; font-weight:900; color:#17244e; display:block; margin-bottom:12rpx; }
 .modal-body { font-size:26rpx; color:#64748b; display:block; margin-bottom:24rpx; }
 .modal-actions { display:flex; gap:16rpx; justify-content:flex-end; }
-.ma-cancel { background:#f1f5f9; color:#475569; border-radius:14rpx; padding:16rpx 32rpx; font-size:26rpx; }
+.ma-cancel { background:#f3f7ff; color:#315bff; border-radius:14rpx; padding:16rpx 32rpx; font-size:26rpx; }
 .ma-confirm { background:#ef4444; color:#fff; border-radius:14rpx; padding:16rpx 32rpx; font-size:26rpx; }
 </style>
