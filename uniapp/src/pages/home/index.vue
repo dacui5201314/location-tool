@@ -223,19 +223,26 @@ export default {
       else this.industry = ''
       if (this.industry) this.errors.industry = ''
     },
-    onAddressInput () {
+    onAddressInput (e) {
+      const value = e?.detail?.value ?? ''
+      this.addressKeyword = value
       this.errors.address = ''
       this.suggestions = []
       this.suggestErr = ''
+      this.suggestDiag = ''
       // 用户手动输入时清空地图旧选点，让候选列表可见
-      if (this.addressKeyword && this.addressText && this.selectedLocationSource) {
+      if (value && this.addressText && this.selectedLocationSource) {
         this.addressText = ''
         this.selectedLocationSource = ''
         this.showUserLocation = false
+        this.isFaved = false
       }
-      const kw = (this.addressKeyword || '').trim()
       if (this.suggestTimer) { clearTimeout(this.suggestTimer); this.suggestTimer = null }
-      if (kw.length < 2) return
+      const kw = value.trim()
+      if (kw.length < 2) {
+        this.suggestLoading = false
+        return
+      }
       this.suggestLoading = true
       this.suggestTimer = setTimeout(() => { this.runSuggest(kw, 'auto') }, 400)
     },
@@ -306,9 +313,13 @@ export default {
       if (!keyword) return
       this.suggestions = []; this.suggestErr = ''
       this.suggestDiag = mode === 'auto' ? `自动联想: ${keyword}...` : `搜索中: ${keyword}...`
+      const reqKw = keyword
+      const reqMode = mode
       this.suggestLoading = true
       try {
         const r = await api.locationSuggest(keyword)
+        // ★ 防旧请求覆盖：当前输入已变，丢弃此次回调结果
+        if (keyword !== (this.addressKeyword || '').trim()) return
         this.suggestDiag = `关键词: ${keyword} | HTTP ${r.statusCode} | 候选: ${(r.data?.data||[]).length} 条`
         if (!r.ok) {
           const detail = r.data?.detail || r.data?.error || ''

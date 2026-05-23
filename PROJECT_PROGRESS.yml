@@ -1,7 +1,7 @@
 current_phase: Phase 23N
-phase_status: analyze_integration_started
-latest_code_commit: dd03a07
-latest_code_commit_message: "feat: add auto-suggest debounce for address input with unified runSuggest method"
+phase_status: analyze_integration_started_with_autosuggest_fix
+latest_code_commit: 71e53ad
+latest_code_commit_message: "feat: integrate uni-app analyze flow with existing backend SSE endpoint"
 latest_docs_commit: db0cfb4
 unpushed: true
 
@@ -40,7 +40,7 @@ sample_bank:
   partial: 10
   latest_industry_test_total: "2168 PASS, 0 FAIL"
 
-next_step: "Phase 23N-2 integrate uni-app analyze flow with existing backend SSE endpoint."
+next_step: "Fix auto suggest stale input, then devtools test analyze flow."
 
 boundaries:
   no_push: true
