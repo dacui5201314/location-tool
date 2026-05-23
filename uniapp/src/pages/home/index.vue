@@ -20,29 +20,36 @@
       <text>{{ announcement }}</text>
     </view>
 
-    <!-- Hero -->
+    <!-- ── Hero（Web 对齐：logo lockup + hero copy + search card）── -->
     <view class="hero">
-      <view class="hero-brand">址得选</view>
-      <view class="hero-desc">用周边 POI、业态与经营信息生成商业选址初筛参考</view>
+      <view class="hero-top">
+        <image class="hero-logo" src="/static/brand-logo.png" mode="aspectFit" />
+        <view class="hero-lockup">
+          <text class="hero-brand">址得选</text>
+          <text class="hero-slogan">AI 智能选址</text>
+        </view>
+      </view>
+      <view class="hero-copy">
+        <text class="hero-title">商铺选址<text class="hero-hl">先做一次初筛</text></text>
+        <text class="hero-desc">用周边 POI、业态与经营信息生成商业选址初筛参考</text>
+      </view>
       <view class="hero-tags">
         <text class="htag">全国城市适用</text>
         <text class="htag">POI 周边洞察</text>
         <text class="htag">需线下验证</text>
       </view>
-    </view>
 
-    <view class="work-area">
-      <!-- ── Step 1：选择门店位置 ── -->
-      <view class="step-card">
-        <view class="step-head">
-          <text class="step-num">1</text>
-          <text class="step-title">选择门店位置</text>
-          <text class="step-status" v-if="!addressText">未选择</text>
-          <text class="step-status done" v-else>已选择</text>
-        </view>
-        <view class="input-row">
-          <input class="field" :value="addressKeyword" placeholder="输入地址搜索或在地图上选点" :disabled="analyzing" @input="onAddressInput" @confirm="onSearch" />
-          <button class="s-btn" :disabled="analyzing || !addressKeyword" @tap="onSearch">搜索</button>
+      <!-- 搜索卡片（浮在 hero/map 上的主入口） -->
+      <view class="search-card">
+        <view class="sc-input-row">
+          <view class="sc-icon">⌖</view>
+          <input class="sc-field" :value="addressKeyword" placeholder="输入地址搜索门店位置" :disabled="analyzing" @input="onAddressInput" @confirm="onSearch" />
+          <view class="sc-locate" @tap="onLocate" v-if="!addressText">
+            <text class="scl-icon">◎</text>
+          </view>
+          <view class="sc-fav" @tap="toggleFav" v-if="addressText && !analyzing">
+            <text :style="{ color: favId ? '#d6a84f' : '#94a3b8' }">{{ favId ? '★' : '☆' }}</text>
+          </view>
         </view>
         <view class="suggest-list" v-if="suggestions.length">
           <view class="suggest-item" v-for="(s, i) in suggestions" :key="i" @tap="onSelectSuggestion(s)">
@@ -51,82 +58,85 @@
           </view>
         </view>
         <view class="suggest-empty" v-if="suggestErr">{{ suggestErr }}</view>
-
-        <view class="locate-row" v-if="!addressText">
-          <button class="locate-btn" @tap="onLocate">定位当前位置</button>
-        </view>
-        <view class="addr-pick" v-if="addressText">
-          <view class="ap-mid">
-            <text class="ap-text">{{ addressText }}</text>
-            <text class="ap-src" v-if="selectedLocationSource">来源：{{ srcLabel }}</text>
-          </view>
-          <text class="ap-fav" @tap="toggleFav">{{ favLoading ? '·' : (favId ? '★' : '☆') }}</text>
-          <text class="ap-clear" @tap="clearAddress">重选</text>
-        </view>
-        <text class="field-err" v-if="errors.address">{{ errors.address }}</text>
-
-        <view class="map-wrap">
-          <map class="map-view" :latitude="mapLat" :longitude="mapLng" scale="15" :show-location="showUserLocation" :enable-scroll="!analyzing" :enable-zoom="!analyzing" :enable-rotate="false" @tap="onMapTap" @regionchange="onMapRegionChange" @updated="onMapUpdated">
-            <view class="map-center-marker"><view class="mcm-dot" /></view>
-          </map>
-          <view class="map-overlay" v-if="analyzing">
-            <text class="mo-text">分析中，请稍后...</text>
-          </view>
-        </view>
-        <view class="map-status" :class="{ done: addressText }">
-          <text>{{ addressText ? '已选位置 · 点击地图可重新选点' : '点击地图选点 · 或使用上方搜索框输入地址' }}</text>
-        </view>
-        <view class="map-status warn" v-if="mapNotice"><text>{{ mapNotice }}</text></view>
       </view>
+    </view>
 
-      <!-- ── Step 2：补充经营信息 ── -->
-      <view class="step-card">
-        <view class="step-head">
-          <text class="step-num">2</text>
-          <text class="step-title">补充经营信息</text>
+    <!-- ── 地图区域 ── -->
+    <view class="map-section">
+      <view class="addr-bar" v-if="addressText">
+        <view class="ab-left">
+          <text class="ab-pin">📍</text>
+          <view class="ab-mid">
+            <text class="ab-name">{{ addressText }}</text>
+            <text class="ab-src" v-if="selectedLocationSource">来源：{{ srcLabel }}</text>
+          </view>
         </view>
-        <text class="field-err" v-if="industryLoadErr">{{ industryLoadErr }}</text>
-        <IndustryPicker :selected="industry" :disabled="analyzing" :industries="industryList" @change="onIndustryChange" />
-        <text class="field-err" v-if="errors.industry">{{ errors.industry }}</text>
+        <text class="ab-edit" @tap="clearAddress">重选</text>
+      </view>
+      <text class="field-err" v-if="errors.address">{{ errors.address }}</text>
 
-        <view class="dual">
-          <view class="dual-half">
-            <view class="label">品牌/特色 <text class="req">*</text></view>
-            <input class="field" v-model="brandName" placeholder="品牌或主打特色" :disabled="analyzing" @input="onBrandInput" />
-            <text class="field-err" v-if="errors.brand">{{ errors.brand }}</text>
-          </view>
-          <view class="dual-half">
-            <view class="label">门店面积 <text class="req">*</text></view>
-            <input class="field" v-model="storeSize" type="number" placeholder="㎡" :disabled="analyzing" @input="onSizeInput" />
-            <text class="field-err" v-if="errors.size">{{ errors.size }}</text>
-          </view>
+      <view class="map-wrap">
+        <map class="map-view" :latitude="mapLat" :longitude="mapLng" scale="15" :show-location="showUserLocation" :enable-scroll="!analyzing" :enable-zoom="!analyzing" :enable-rotate="false" @tap="onMapTap" @regionchange="onMapRegionChange" @updated="onMapUpdated">
+          <cover-view class="map-marker">
+            <cover-view class="mm-outer" />
+            <cover-view class="mm-inner" />
+          </cover-view>
+        </map>
+        <view class="map-overlay" v-if="analyzing">
+          <text class="mo-text">分析中，请稍后...</text>
         </view>
       </view>
+      <view class="map-hint" :class="{ done: addressText, warn: !!mapNotice }">
+        <text>{{ mapNotice || (addressText ? '已选位置 · 点击地图可重新选点' : '点击地图选点 · 或使用上方搜索框输入地址') }}</text>
+      </view>
+    </view>
 
-      <!-- ── CTA ── -->
-      <view class="cta-zone">
-        <button class="cta-btn" :disabled="analyzing || !canAnalyze" @tap="onAnalyze">
-          <text class="cta-main">{{ analyzing ? '分析中...' : '生成初筛报告' }}</text>
-          <text class="cta-sub">{{ ctaSubText }}</text>
-        </button>
-        <view class="analyze-steps" v-if="analyzing">
-          <view class="as-step" v-for="(item, i) in analyzeStepItems" :key="i" :class="item.status">
-            <text class="as-icon">{{ item.icon }}</text>
-            <view class="as-body">
-              <text class="as-label">{{ item.label }}</text>
-              <text class="as-msg" v-if="item.msg">{{ item.msg }}</text>
-            </view>
+    <!-- ── 业态 + 经营信息 ── -->
+    <view class="biz-card">
+      <view class="biz-head">
+        <text class="biz-title">选择业态</text>
+      </view>
+      <text class="field-err" v-if="industryLoadErr">{{ industryLoadErr }}</text>
+      <IndustryPicker :selected="industry" :disabled="analyzing" :industries="industryList" @change="onIndustryChange" />
+      <text class="field-err" v-if="errors.industry">{{ errors.industry }}</text>
+
+      <view class="biz-fields">
+        <view class="bf-item">
+          <view class="label">品牌/特色 <text class="req">*</text></view>
+          <input class="field" v-model="brandName" placeholder="品牌或主打特色" :disabled="analyzing" @input="onBrandInput" />
+        </view>
+        <view class="bf-item">
+          <view class="label">门店面积 <text class="req">*</text></view>
+          <input class="field" v-model="storeSize" type="number" placeholder="平方米" :disabled="analyzing" @input="onSizeInput" />
+        </view>
+      </view>
+      <text class="field-err" v-if="errors.brand">{{ errors.brand }}</text>
+      <text class="field-err" v-if="errors.size">{{ errors.size }}</text>
+    </view>
+
+    <!-- ── CTA ── -->
+    <view class="cta-zone">
+      <button class="cta-btn" :disabled="analyzing || !canAnalyze" @tap="onAnalyze">
+        <text class="cta-main">{{ analyzing ? '分析中...' : '生成初筛报告' }}</text>
+        <text class="cta-sub">{{ ctaSubText }}</text>
+      </button>
+      <view class="analyze-steps" v-if="analyzing">
+        <view class="as-step" v-for="(item, i) in analyzeStepItems" :key="i" :class="item.status">
+          <text class="as-icon">{{ item.icon }}</text>
+          <view class="as-body">
+            <text class="as-label">{{ item.label }}</text>
+            <text class="as-msg" v-if="item.msg">{{ item.msg }}</text>
           </view>
         </view>
-        <text class="field-err" v-if="analyzeErr">{{ analyzeErr }}</text>
       </view>
+      <text class="field-err" v-if="analyzeErr">{{ analyzeErr }}</text>
+    </view>
 
-      <!-- Trust row -->
-      <view class="trust-row">
-        <view class="trust-item" v-for="t in trusts" :key="t.title">
-          <text class="ti-title">{{ t.title }}</text>
-          <text class="ti-desc">{{ t.desc }}</text>
-        </view>
+    <!-- ── Feature tiles ── -->
+    <view class="features">
+      <view class="ft" v-for="t in trusts" :key="t.title">
+        <text class="ft-title">{{ t.title }}</text>
+        <text class="ft-desc">{{ t.desc }}</text>
       </view>
     </view>
 
@@ -171,9 +181,9 @@ export default {
       errors: { address: '', industry: '', brand: '', size: '' },
       industryList: [],
       trusts: [
-        { title: '真实 POI 数据', desc: '高德地图周边采集' },
-        { title: '多维度初筛', desc: '竞品/客流/消费力评估' },
-        { title: '需实地验证', desc: '初筛结果仅供参考' }
+        { title: 'POI 数据', desc: '周边实时采集' },
+        { title: '多维初筛', desc: '竞品客流消费力' },
+        { title: '实地验证', desc: '仅供参考不构成建议' }
       ]
     }
   },
@@ -600,57 +610,74 @@ export default {
 </script>
 
 <style scoped>
-.home-page { min-height:100vh; background:#edf2f7; padding-bottom:80rpx; }
+.home-page { min-height:100vh; background:#f0f2f5; padding-bottom:80rpx; }
 
 /* ── Hero ── */
-.hero { background:linear-gradient(180deg,#070e1a 0%,#0f1d36 100%); padding:56rpx 32rpx 48rpx; text-align:center; }
-.hero-brand { font-size:44rpx; font-weight:800; color:#fff; }
-.hero-desc { font-size:26rpx; color:rgba(255,255,255,0.55); margin-top:16rpx; line-height:1.6; padding:0 16rpx; }
-.hero-tags { display:flex; justify-content:center; gap:16rpx; margin-top:24rpx; }
-.htag { font-size:22rpx; color:rgba(255,255,255,0.45); border:1px solid rgba(255,255,255,0.2); border-radius:6rpx; padding:6rpx 16rpx; }
+.hero { background:linear-gradient(170deg,#0a0f1e 0%,#111d3a 40%,#152244 100%); padding:48rpx 28rpx 68rpx; position:relative; overflow:hidden; }
+.hero::after { content:''; position:absolute; top:-80rpx; right:-60rpx; width:300rpx; height:300rpx; border-radius:50%; background:rgba(59,130,246,0.06); pointer-events:none; }
+.hero-top { display:flex; align-items:center; margin-bottom:28rpx; }
+.hero-logo { width:52rpx; height:52rpx; border-radius:12rpx; margin-right:14rpx; }
+.hero-lockup { display:flex; flex-direction:column; }
+.hero-brand { font-size:34rpx; font-weight:800; color:#fff; line-height:1.2; }
+.hero-slogan { font-size:22rpx; color:rgba(255,255,255,0.5); }
+.hero-copy { text-align:left; margin-bottom:24rpx; padding-right:40rpx; }
+.hero-title { display:block; font-size:38rpx; font-weight:800; color:#fff; line-height:1.35; }
+.hero-hl { color:#60a5fa; }
+.hero-desc { display:block; font-size:24rpx; color:rgba(255,255,255,0.5); margin-top:10rpx; line-height:1.5; }
+.hero-tags { display:flex; gap:12rpx; margin-bottom:32rpx; }
+.htag { font-size:20rpx; color:rgba(255,255,255,0.4); border:1px solid rgba(255,255,255,0.15); border-radius:6rpx; padding:4rpx 14rpx; }
 
-/* ── Work area ── */
-.work-area { padding:0 20rpx; margin-top:-20rpx; }
+/* ── Search card ── */
+.search-card { background:#fff; border-radius:16rpx; padding:8rpx; box-shadow:0 8rpx 32rpx rgba(0,0,0,0.18); position:relative; z-index:10; }
+.sc-input-row { display:flex; align-items:center; }
+.sc-icon { width:56rpx; text-align:center; font-size:28rpx; color:#94a3b8; flex-shrink:0; }
+.sc-field { flex:1; height:80rpx; font-size:28rpx; color:#1e293b; padding:0 4rpx; border:none; background:transparent; }
+.sc-locate { width:56rpx; height:56rpx; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+.scl-icon { font-size:28rpx; color:#64748b; }
+.sc-fav { width:56rpx; text-align:center; font-size:30rpx; flex-shrink:0; }
+.suggest-list { background:#fff; border-radius:0 0 14rpx 14rpx; margin:4rpx -8rpx -8rpx; box-shadow:0 8rpx 24rpx rgba(0,0,0,0.08); max-height:340rpx; overflow-y:auto; }
+.suggest-item { padding:22rpx 20rpx; border-top:1px solid #f1f5f9; }
+.sg-name { font-size:28rpx; color:#1e293b; display:block; } .sg-addr { font-size:22rpx; color:#94a3b8; margin-top:4rpx; display:block; }
+.suggest-empty { padding:20rpx; font-size:24rpx; color:#94a3b8; text-align:center; }
 
-/* ── Step card ── */
-.step-card { background:#fff; border-radius:16rpx; padding:28rpx 24rpx; margin-bottom:16rpx; box-shadow:0 1px 12rpx rgba(0,0,0,0.04); }
-.step-head { display:flex; align-items:center; margin-bottom:18rpx; }
-.step-num { width:40rpx; height:40rpx; line-height:40rpx; text-align:center; background:#0f172a; color:#fff; border-radius:10rpx; font-size:24rpx; font-weight:700; margin-right:12rpx; flex-shrink:0; }
-.step-title { font-size:28rpx; font-weight:700; color:#111827; flex:1; }
-.step-status { font-size:22rpx; color:#94a3b8; } .step-status.done { color:#16a34a; }
+/* ── Map section ── */
+.map-section { padding:0 20rpx; margin-top:24rpx; }
+.addr-bar { display:flex; align-items:center; background:#fff; border-radius:12rpx; padding:16rpx 20rpx; margin-bottom:12rpx; box-shadow:0 1px 8rpx rgba(0,0,0,0.04); }
+.ab-left { display:flex; align-items:center; flex:1; min-width:0; }
+.ab-pin { font-size:28rpx; margin-right:12rpx; flex-shrink:0; }
+.ab-mid { flex:1; min-width:0; }
+.ab-name { font-size:26rpx; color:#1e293b; font-weight:500; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; display:block; }
+.ab-src { font-size:20rpx; color:#94a3b8; }
+.ab-edit { font-size:26rpx; color:#64748b; padding:4rpx 12rpx; flex-shrink:0; }
+.map-wrap { position:relative; border-radius:14rpx; overflow:hidden; box-shadow:0 2rpx 16rpx rgba(0,0,0,0.08); }
+.map-view { width:100%; height:420rpx; }
+.map-overlay { position:absolute; inset:0; background:rgba(0,0,0,0.3); display:flex; align-items:center; justify-content:center; }
+.mo-text { color:#fff; font-size:28rpx; font-weight:600; }
+.map-marker { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); pointer-events:none; z-index:10; }
+.mm-outer { width:32rpx; height:32rpx; background:rgba(220,38,38,0.2); border-radius:50%; position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); }
+.mm-inner { width:16rpx; height:16rpx; background:#dc2626; border:3rpx solid #fff; border-radius:50%; position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); box-shadow:0 2rpx 10rpx rgba(0,0,0,0.3); }
+.map-hint { text-align:center; padding:12rpx 0 4rpx; font-size:24rpx; color:#94a3b8; }
+.map-hint.done { color:#16a34a; } .map-hint.warn { color:#dc2626; }
 
-/* ── Form fields ── */
+/* ── Biz card ── */
+.biz-card { background:#fff; margin:20rpx 20rpx 0; border-radius:16rpx; padding:28rpx 24rpx; box-shadow:0 1px 8rpx rgba(0,0,0,0.04); }
+.biz-head { margin-bottom:16rpx; }
+.biz-title { font-size:28rpx; font-weight:700; color:#111827; }
+.biz-fields { display:flex; gap:14rpx; margin-top:24rpx; padding-top:20rpx; border-top:1px solid #f1f5f9; }
+.bf-item { flex:1; }
+
+/* ── Shared ── */
 .label { font-size:26rpx; font-weight:600; color:#334155; margin-bottom:8rpx; }
 .req { color:#ef4444; font-size:24rpx; }
-.field-err { font-size:22rpx; color:#dc2626; margin-top:6rpx; display:block; }
-.input-row { display:flex; gap:12rpx; }
-.field { flex:1; border:1px solid #d1d5db; border-radius:12rpx; padding:18rpx 16rpx; font-size:28rpx; background:#fff; color:#1e293b; }
+.field-err { font-size:22rpx; color:#dc2626; margin-top:8rpx; display:block; }
+.field { width:100%; border:1px solid #d1d5db; border-radius:10rpx; padding:16rpx 14rpx; font-size:28rpx; background:#fff; color:#1e293b; box-sizing:border-box; }
 .field:disabled { background:#f9fafb; color:#9ca3af; }
-.s-btn { background:#0f172a; color:#fff; border-radius:12rpx; padding:0 28rpx; font-size:28rpx; line-height:80rpx; font-weight:600; }
-.s-btn[disabled] { opacity:0.35; }
-.suggest-list { background:#fff; border-radius:12rpx; margin-top:8rpx; box-shadow:0 4rpx 20rpx rgba(0,0,0,0.08); max-height:340rpx; overflow-y:auto; } .suggest-item { padding:22rpx 20rpx; border-bottom:1px solid #f1f5f9; } .sg-name { font-size:28rpx; color:#1e293b; display:block; } .sg-addr { font-size:22rpx; color:#94a3b8; margin-top:4rpx; display:block; } .suggest-empty { padding:20rpx; font-size:24rpx; color:#94a3b8; text-align:center; }
-.locate-row { margin-top:12rpx; } .locate-btn { width:100%; background:#f8fafc; color:#475569; border:1px solid #d1d5db; border-radius:12rpx; font-size:28rpx; padding:18rpx 0; }
-.addr-pick { display:flex; align-items:center; margin-top:12rpx; padding:14rpx 16rpx; background:#f0fdf4; border:1px solid #86efac; border-radius:12rpx; }
-.ap-mid { flex:1; display:flex; flex-direction:column; } .ap-text { font-size:26rpx; color:#166534; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; } .ap-src { font-size:20rpx; color:#94a3b8; margin-top:2rpx; } .ap-fav { font-size:32rpx; color:#d6a84f; padding:0 8rpx; } .ap-clear { font-size:26rpx; color:#64748b; padding:4rpx 12rpx; }
-
-/* ── Map ── */
-.map-wrap { position:relative; margin-top:12rpx; }
-.map-view { width:100%; height:380rpx; border-radius:12rpx; }
-.map-overlay { position:absolute; inset:0; background:rgba(0,0,0,0.35); border-radius:12rpx; display:flex; align-items:center; justify-content:center; }
-.mo-text { color:#fff; font-size:28rpx; font-weight:600; }
-.map-center-marker { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); pointer-events:none; z-index:10; }
-.mcm-dot { width:24rpx; height:24rpx; background:#dc2626; border:4rpx solid #fff; border-radius:50%; box-shadow:0 2rpx 12rpx rgba(0,0,0,0.3); }
-.map-status { text-align:center; padding:12rpx 0 4rpx; font-size:24rpx; color:#94a3b8; }
-.map-status.done { color:#16a34a; } .map-status.warn { color:#dc2626; }
-
-/* ── Dual ── */
-.dual { display:flex; gap:14rpx; margin-top:20rpx; } .dual-half { flex:1; }
 
 /* ── CTA ── */
-.cta-zone { margin-top:8rpx; margin-bottom:8rpx; }
-.cta-btn { width:100%; background:#0f172a; color:#fff; border-radius:14rpx; padding:28rpx 24rpx; display:flex; flex-direction:column; align-items:center; border:none; }
-.cta-btn[disabled] { opacity:0.3; background:#475569; }
-.cta-main { font-size:32rpx; font-weight:700; }
+.cta-zone { padding:0 20rpx; margin-top:20rpx; }
+.cta-btn { width:100%; background:linear-gradient(135deg,#0f172a,#1e3a5f); color:#fff; border-radius:14rpx; padding:32rpx 24rpx; display:flex; flex-direction:column; align-items:center; border:none; }
+.cta-btn[disabled] { opacity:0.35; background:#64748b; }
+.cta-main { font-size:34rpx; font-weight:700; }
 .cta-sub { font-size:24rpx; color:rgba(255,255,255,0.55); margin-top:6rpx; }
 
 /* ── Analyze steps ── */
@@ -662,10 +689,11 @@ export default {
 .as-icon { width:44rpx; font-size:28rpx; text-align:center; flex-shrink:0; margin-right:10rpx; line-height:34rpx; }
 .as-body { flex:1; } .as-label { font-size:25rpx; color:#475569; display:block; } .as-msg { font-size:22rpx; color:#94a3b8; display:block; }
 
-/* ── Trust ── */
-.trust-row { display:flex; justify-content:center; gap:56rpx; padding:24rpx 0 8rpx; }
-.trust-item { display:flex; flex-direction:column; align-items:center; }
-.ti-title { font-size:24rpx; font-weight:600; color:#475569; } .ti-desc { font-size:22rpx; color:#94a3b8; margin-top:2rpx; }
+/* ── Features ── */
+.features { display:flex; justify-content:center; gap:40rpx; padding:28rpx 20rpx 12rpx; }
+.ft { text-align:center; }
+.ft-title { font-size:24rpx; font-weight:600; color:#475569; display:block; }
+.ft-desc { font-size:22rpx; color:#94a3b8; margin-top:2rpx; display:block; }
 .footer { text-align:center; font-size:22rpx; color:#94a3b8; padding:24rpx 32rpx; line-height:1.6; }
 
 /* ── Welcome modal ── */
