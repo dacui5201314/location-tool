@@ -143,6 +143,8 @@ export default {
       selectedLocationSource: '',
       showUserLocation: false,
       mapDiag: '',
+      suggestTimer: null,
+      suggestLoading: false,
       suggestions: [],
       suggestErr: '',
       suggestDiag: '',
@@ -211,12 +213,19 @@ export default {
     },
     onAddressInput () {
       this.errors.address = ''
+      this.suggestions = []
+      this.suggestErr = ''
       // 用户手动输入时清空地图旧选点，让候选列表可见
       if (this.addressKeyword && this.addressText && this.selectedLocationSource) {
         this.addressText = ''
         this.selectedLocationSource = ''
         this.showUserLocation = false
       }
+      const kw = (this.addressKeyword || '').trim()
+      if (this.suggestTimer) { clearTimeout(this.suggestTimer); this.suggestTimer = null }
+      if (kw.length < 2) return
+      this.suggestLoading = true
+      this.suggestTimer = setTimeout(() => { this.runSuggest(kw, 'auto') }, 400)
     },
     onBrandInput (e) {
       this.errors.brand = ''
@@ -281,13 +290,14 @@ export default {
         fail: () => doGetLocation()
       })
     },
-    async onSearch () {
-      const kw = this.addressKeyword.trim()
-      if (!kw) return
-      this.suggestions = []; this.suggestErr = ''; this.suggestDiag = `搜索中: ${kw}...`
+    async runSuggest (keyword, mode) {
+      if (!keyword) return
+      this.suggestions = []; this.suggestErr = ''
+      this.suggestDiag = mode === 'auto' ? `自动联想: ${keyword}...` : `搜索中: ${keyword}...`
+      this.suggestLoading = true
       try {
-        const r = await api.locationSuggest(kw)
-        this.suggestDiag = `关键词: ${kw} | HTTP ${r.statusCode} | 候选: ${(r.data?.data||[]).length} 条`
+        const r = await api.locationSuggest(keyword)
+        this.suggestDiag = `关键词: ${keyword} | HTTP ${r.statusCode} | 候选: ${(r.data?.data||[]).length} 条`
         if (!r.ok) {
           const detail = r.data?.detail || r.data?.error || ''
           if (r.statusCode === 503) this.suggestErr = '地图服务未配置，请联系管理员'
@@ -298,7 +308,7 @@ export default {
         } else if (r.data?.data?.length) {
           this.suggestions = r.data.data
         } else {
-          this.suggestErr = `未找到匹配地址：${kw}`
+          this.suggestErr = `未找到匹配地址：${keyword}`
         }
       } catch (e) {
         const msg = e.errMsg || e.message || ''
@@ -307,9 +317,17 @@ export default {
         } else {
           this.suggestErr = '后端服务未连接，请确认 http://127.0.0.1:8000/api/health 可访问'; this.suggestDiag = `网络错误: ${msg || e}`
         }
+      } finally {
+        this.suggestLoading = false
       }
     },
+    onSearch () {
+      if (this.suggestTimer) { clearTimeout(this.suggestTimer); this.suggestTimer = null }
+      this.runSuggest((this.addressKeyword || '').trim(), 'manual')
+    },
     onSelectSuggestion (s) {
+      if (this.suggestTimer) { clearTimeout(this.suggestTimer); this.suggestTimer = null }
+      this.suggestLoading = false
       this.addressText = s.name + (s.address ? ' · ' + s.address : '')
       this.addressKeyword = this.addressText
       if (s.location) { this.mapLng = s.location.lng; this.mapLat = s.location.lat }
@@ -333,6 +351,8 @@ export default {
     },
     toggleFav () { this.isFaved = !this.isFaved; uni.showToast({ title: this.isFaved ? '收藏成功' : '已取消收藏', icon: 'none' }) },
     clearAddress () {
+      if (this.suggestTimer) { clearTimeout(this.suggestTimer); this.suggestTimer = null }
+      this.suggestLoading = false
       this.addressText = ''
       this.addressKeyword = ''
       this.isFaved = false
