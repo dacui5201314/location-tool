@@ -10,12 +10,12 @@ AI 选址初筛参考工具 · 未来主客户端（Vue3 + Vite）
 
 ## 当前阶段
 
-**Phase 23H：微信开发者工具联调准备**
+**Phase 23N：Web 母版对齐 + 分析接口联调**
 
-- 6 个页面、4 项 TabBar（首页/记录/收藏/我的）
-- 微信登录端点已就绪（`POST /api/auth/wechat/mini`），可联调
-- 分析生成、付费能力、PDF 能力仍未开放，相关入口显示「联调未开放」
-- 收藏预填、记录查看、报告详情可正常工作
+- **Phase 23N-1（~98%）**：地址自动联想已完成 — `@input` 显式绑定 + 400ms debounce + 竞态守卫，用户实测通过。地图点选/定位共用 `resolveAddressByLngLat()` 反向地理编码。Timeout 三级降级（getLocation/locationRegeocode/locationSuggest）。
+- **Phase 23N-2（~40%）**：分析接口 `/api/analyze` SSE 流已集成 — 未登录(401)/余额不足(402)/后端错误(5xx)/成功生成 → 跳转 `report-detail?id=<record_id>`，待 devtools 实测验证。
+- **全局原则**：所有 uni-app 页面/逻辑/UI/文案必须以 Web `frontend/` 为母版对齐。新增功能前先查看 Web 对应实现，再在 uni-app 中复刻。
+- 未接 payment/PDF/unlock/download。
 
 ## 构建方式
 

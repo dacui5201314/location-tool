@@ -134,6 +134,7 @@ npx vite --host
 
 ## 版本历史
 
+- **v1.7.0** (2026-05-23) — uni-app 多端客户端接近完成：地址自动联想对标 Web（@input 显式绑定 + 400ms debounce + 竞态守卫）、地图点选/定位反向地理编码共用、Timeout 三级降级覆盖（getLocation/locationRegeocode/locationSuggest）、分析接口 /api/analyze SSE 流已集成（401/402/5xx/成功→report-detail）。Phase 23N-1 自动联想 98%，Phase 23N-2 分析接口 40%。Web 母版对齐原则正式写入项目文档。check_industry_rigor_rules.py 2168 PASS / check_report_fact_guard.py 147 PASS
 - **v1.6.0** (2026-05-21) — 多端客户端基线与资金安全加固：新增uniapp多端客户端（Vue3+Vite+uni-app），6页面+4TabBar+API基座+微信登录联调+地图选点壳，覆盖微信/抖音/App三端路线；资金安全修复（DB保存失败→退款、PDF并发解锁回滚）；微信小程序登录端点（/api/auth/wechat/mini + jscode2session + JWT）；小流量上线执行清单。check_industry_rigor_rules.py 2168 PASS / check_report_fact_guard.py 147 PASS
 - **v1.5.0** (2026-05-20) — 上线前精准度全线收口：P0/P2/P3 从 warning-only 升级为 hard-error（编造 POI 名称/substitute 写成 direct/竞品数量膨胀 → retry → 仍失败则退款/不保存）；7 个高风险 master 新增 strict_exclude_names（18 项跨行业强排除词）；火锅_烧烤 sub_first 修复；_check_sentence 容忍从 3x 收窄为 max(expected+3, expected*2)；新增禁止推荐/不推荐决策语言检测 + 财务单点精确数字检测 → fact_errors 硬阻断；AB invariant 锁定未来高风险 code 裸奔风险；5 个 master 补齐 categories_excluded；累计 37 次正式 API 保存报告（DB 74 条），retry 挽救 9/12（75%），退款 2 次（5%）；check_industry_rigor_rules.py 2168 PASS 0 FAIL / check_report_fact_guard.py 101 PASS 0 FAIL
 - **v1.4.0** (2026-05-19) — Master 业态映射修复与正式保存链路扩样：修复 BUSINESS_TYPE_TO_MASTER 14 个 master 业态名自映射缺失，消除低频目的零售/民宿青旅/夜经济娱乐 POI 数据为空的链路缺陷；Phase 9D-9G 累计 33 次正式 API 保存链路真实报告（DB max_id 70），retry 挽救 9 次（75%），退款 2 次（6%）；industry 2158 PASS / fact guard 92 PASS
