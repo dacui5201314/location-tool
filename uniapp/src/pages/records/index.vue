@@ -94,7 +94,7 @@ export default {
     },
     counts () {
       const r = this.records
-      return { all: r.length, done: r.length, analyzing: 0, exported: r.filter(x => x.is_pdf_unlocked).length }
+      return { all: r.length, done: r.length, analyzing: 0 }
     }
   },
   onShow () {

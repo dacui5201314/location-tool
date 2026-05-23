@@ -36,7 +36,6 @@
             <text class="ap-text">{{ addressText }}</text>
             <text class="ap-src" v-if="selectedLocationSource">来源：{{ srcLabel }}</text>
           </view>
-          <text class="ap-star" @tap="toggleFav">{{ isFaved ? '★' : '☆' }}</text>
           <text class="ap-clear" @tap="clearAddress">✕</text>
         </view>
         <text class="field-err" v-if="errors.address">{{ errors.address }}</text>
@@ -63,7 +62,9 @@
         <view class="map-hint-bar selected" v-if="addressText">
           <text class="mhb-text">已选位置 · 点击地图可重新选点</text>
         </view>
-        <view class="map-diag" v-if="mapDiag">{{ mapDiag }}</view>
+        <view class="map-hint-bar" v-if="mapDiag && mapDiag.indexOf('地址解析失败') >= 0">
+          <text class="mhb-text warn">{{ mapDiag }}</text>
+        </view>
       </view>
 
       <!-- 选择业态 -->
@@ -153,7 +154,6 @@ export default {
       analyzeStatus: '',
       currentStep: 0,
       stepTimer: null,
-      isFaved: false,
       selectedLocationSource: '',
       showUserLocation: false,
       mapDiag: '',
@@ -164,9 +164,9 @@ export default {
       errors: { address: '', industry: '', brand: '', size: '' },
       industryList: [],
       trusts: [
-        { icon: '✓', title: '权威数据来源', desc: '多渠道数据融合' },
-        { icon: '◈', title: 'AI智能分析', desc: '多维度模型算法' },
-        { icon: '◆', title: '专业团队支持', desc: '7×24小时服务' }
+        { icon: '', title: '真实 POI 数据', desc: '高德地图实时采集' },
+        { icon: '', title: 'AI 商业评估', desc: '大模型多维度分析' },
+        { icon: '', title: '选址初筛参考', desc: '降低实地考察成本' }
       ]
     }
   },
@@ -254,7 +254,6 @@ export default {
         this.addressText = ''
         this.selectedLocationSource = ''
         this.showUserLocation = false
-        this.isFaved = false
       }
       if (this.suggestTimer) { clearTimeout(this.suggestTimer); this.suggestTimer = null }
       const kw = value.trim()
@@ -388,13 +387,11 @@ export default {
         uni.showToast({ title: '点击地图选择门店位置', icon: 'none' })
       }
     },
-    toggleFav () { this.isFaved = !this.isFaved; uni.showToast({ title: this.isFaved ? '收藏成功' : '已取消收藏', icon: 'none' }) },
     clearAddress () {
       if (this.suggestTimer) { clearTimeout(this.suggestTimer); this.suggestTimer = null }
       this.suggestLoading = false
       this.addressText = ''
       this.addressKeyword = ''
-      this.isFaved = false
       this.selectedLocationSource = ''
       this.showUserLocation = false
       this.mapDiag = ''
@@ -507,13 +504,13 @@ export default {
 .suggest-list { background:#fff; border-radius:14rpx; margin-top:8rpx; box-shadow:0 4rpx 20rpx rgba(0,0,0,0.08); max-height:400rpx; overflow-y:auto; } .suggest-item { padding:22rpx 20rpx; border-bottom:1rpx solid #f1f5f9; } .sg-name { font-size:28rpx; color:#1e293b; display:block; } .sg-addr { font-size:22rpx; color:#94a3b8; margin-top:4rpx; display:block; } .suggest-empty { padding:20rpx; font-size:24rpx; color:#94a3b8; text-align:center; }
 .locate-row { margin-top:12rpx; } .locate-btn { width:100%; background:#f1f5f9; color:#334155; border-radius:14rpx; font-size:28rpx; padding:18rpx 0; }
 .addr-pick { display:flex; align-items:center; margin-top:12rpx; padding:16rpx; background:#f0fdf4; border:1rpx solid #bbf7d0; border-radius:14rpx; }
-.ap-mid { flex:1; display:flex; flex-direction:column; margin-left:8rpx; } .ap-text { font-size:26rpx; color:#166534; } .ap-src { font-size:20rpx; color:#94a3b8; margin-top:2rpx; } .ap-star { font-size:36rpx; color:#d6a84f; padding:0 8rpx; } .ap-clear { font-size:28rpx; color:#94a3b8; padding:0 4rpx; }
+.ap-mid { flex:1; display:flex; flex-direction:column; margin-left:8rpx; } .ap-text { font-size:26rpx; color:#166534; } .ap-src { font-size:20rpx; color:#94a3b8; margin-top:2rpx; } .ap-clear { font-size:28rpx; color:#94a3b8; padding:0 4rpx; }
 .map-view { width:100%; height:380rpx; border-radius:16rpx; margin-top:12rpx; }
 .map-center-marker { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); pointer-events:none; z-index:10; }
 .mcm-pin { font-size:40rpx; }
 .map-hint-bar { background:#f1f5f9; border-radius:12rpx; padding:14rpx 20rpx; margin-top:8rpx; text-align:center; }
 .map-hint-bar.selected { background:#f0fdf4; border:1rpx solid #bbf7d0; }
-.mhb-text { font-size:24rpx; color:#64748b; }
+.mhb-text { font-size:24rpx; color:#64748b; } .mhb-text.warn { color:#dc2626; }
 .map-diag { font-size:20rpx; color:#94a3b8; padding:4rpx 0; text-align:center; }
 .dual { display:flex; gap:14rpx; } .dual-half { flex:1; }
 
