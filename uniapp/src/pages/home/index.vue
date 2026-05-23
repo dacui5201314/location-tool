@@ -100,13 +100,22 @@
       </view>
 
       <!-- 分析按钮 -->
-      <button class="analyze-btn" :disabled="analyzing" @tap="onAnalyze">
-        <text class="ab-mark">✦</text>
-        <view class="ab-text">
-          <text class="ab-strong">分析接口联调未开放</text>
-          <text class="ab-em">填写完成后等待分析接口联调</text>
+      <view class="analyze-zone">
+        <button class="analyze-btn" :disabled="analyzing || !canAnalyze" @tap="onAnalyze">
+          <text class="ab-mark">{{ analyzing ? '⏳' : '✦' }}</text>
+          <view class="ab-text">
+            <text class="ab-strong">{{ analyzing ? 'AI 分析中...' : '✦ AI 选址分析' }}</text>
+            <text class="ab-em">{{ analyzing ? (analyzeStatus || '正在处理...') : '填写完成后点击开始分析' }}</text>
+          </view>
+        </button>
+        <view class="analyze-steps" v-if="analyzing && analyzeSteps.length">
+          <view class="as-step" v-for="(s, i) in analyzeSteps" :key="i">
+            <text class="as-num">{{ s.step }}</text>
+            <text class="as-msg">{{ s.msg }}</text>
+          </view>
         </view>
-      </button>
+        <text class="field-err" v-if="analyzeErr">{{ analyzeErr }}</text>
+      </view>
 
       <!-- 信任行 -->
       <view class="trust-row">
@@ -139,6 +148,9 @@ export default {
       brandName: '',
       storeSize: '',
       analyzing: false,
+      analyzeSteps: [],
+      analyzeErr: '',
+      analyzeStatus: '',
       isFaved: false,
       selectedLocationSource: '',
       showUserLocation: false,
@@ -373,13 +385,58 @@ export default {
       if (isNaN(sz) || sz <= 0) { e.size = '面积必须为正数'; ok = false } else if (sz < 5) { e.size = '面积不能小于 5 ㎡'; ok = false } else if (sz > 5000) { e.size = '面积数值较大，请确认'; ok = false }
       this.errors = e; return ok
     },
-    onAnalyze () {
+    async onAnalyze () {
       if (!this.validate()) {
         const firstErr = Object.values(this.errors).find(e => e)
         if (firstErr) uni.showToast({ title: firstErr, icon: 'none' })
         return
       }
-      uni.showToast({ title: '分析接口联调未开放', icon: 'none', duration: 2000 })
+      // 查找 industry_id
+      let industryId = undefined
+      if (this.industry && this.industryList.length) {
+        const match = this.industryList.find(item => item.name === this.industry)
+        if (match && match.id) industryId = match.id
+      }
+      const payload = {
+        address: this.addressText,
+        location: { lng: this.mapLng, lat: this.mapLat },
+        provider: 'gemini',
+        business_type: this.industry,
+        brand_name: this.brandName,
+        store_size: Number(this.storeSize)
+      }
+      if (industryId !== undefined) payload.industry_id = industryId
+
+      this.analyzing = true; this.analyzeErr = ''; this.analyzeSteps = []; this.analyzeStatus = '正在连接分析服务...'
+      try {
+        const r = await api.analyzeLocation(payload)
+        if (r.ok && r.result) {
+          // 更新步骤展示
+          this.analyzeSteps = r.steps || []
+          this.analyzeStatus = '报告生成完毕！'
+          // 存入全局缓存供 report-detail 使用
+          uni.setStorageSync('latest_analysis', { recordId: r.recordId, result: r.result, steps: r.steps })
+          // 延迟跳转让用户看到完成状态
+          setTimeout(() => {
+            this.analyzing = false
+            uni.navigateTo({ url: `/pages/report-detail/index?id=${r.recordId}` })
+          }, 600)
+        } else {
+          // 401 / 402 / 5xx / SSE error
+          this.analyzeSteps = r.steps || []
+          if (r.statusCode === 401) {
+            this.analyzeErr = '登录已过期，请去「我的」页面重新登录后再试'
+          } else if (r.statusCode === 402) {
+            this.analyzeErr = typeof r.error === 'string' ? r.error : '余额不足，请充值后重试'
+          } else {
+            this.analyzeErr = r.error || '分析服务异常，请稍后重试'
+          }
+          this.analyzing = false
+        }
+      } catch (e) {
+        this.analyzeErr = typeof e === 'string' ? e : (e.message || e.errMsg || '分析请求失败，请确认后端服务已启动')
+        this.analyzing = false
+      }
     }
   }
 }
@@ -419,8 +476,13 @@ export default {
 .suggest-diag { font-size:20rpx; color:#64748b; padding:8rpx 0; }
 .dual { display:flex; gap:14rpx; } .dual-half { flex:1; }
 
-.analyze-btn { margin-top:8rpx; width:100%; background:linear-gradient(135deg,#0f172a,#1e40af); color:#fff; border-radius:18rpx; padding:24rpx 20rpx; display:flex; align-items:center; gap:14rpx; }
+.analyze-zone { margin-top:8rpx; }
+.analyze-btn { width:100%; background:linear-gradient(135deg,#0f172a,#1e40af); color:#fff; border-radius:18rpx; padding:24rpx 20rpx; display:flex; align-items:center; gap:14rpx; }
 .analyze-btn[disabled] { opacity:0.45; }
+.analyze-steps { background:#f8fafc; border-radius:12rpx; padding:16rpx 20rpx; margin-top:12rpx; }
+.as-step { display:flex; align-items:flex-start; padding:6rpx 0; }
+.as-num { width:40rpx; height:40rpx; line-height:40rpx; text-align:center; background:#0f172a; color:#fff; border-radius:20rpx; font-size:22rpx; flex-shrink:0; margin-right:12rpx; }
+.as-msg { font-size:24rpx; color:#475569; line-height:40rpx; }
 .ab-mark { font-size:40rpx; } .ab-text { display:flex; flex-direction:column; text-align:left; }
 .ab-strong { font-size:30rpx; font-weight:800; }
 .ab-em { font-size:22rpx; color:rgba(255,255,255,0.7); margin-top:4rpx; }

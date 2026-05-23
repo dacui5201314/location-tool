@@ -62,11 +62,72 @@ function locationRegeocode (lng, lat) {
   return request({ url: `/api/location/regeocode?lng=${lng}&lat=${lat}`, auth: false })
 }
 
+// ── Analyze ──
+/** 发起选址分析请求，解析 SSE text/event-stream 响应 */
+function analyzeLocation (payload) {
+  return new Promise((resolve, reject) => {
+    const header = { 'Content-Type': 'application/json' }
+    const token = uni.getStorageSync('token')
+    if (token) header['Authorization'] = 'Bearer ' + token
+    uni.request({
+      url: config.API_BASE_URL + '/api/analyze',
+      method: 'POST',
+      data: payload,
+      header,
+      responseType: 'text',
+      success (res) {
+        const body = res.data
+        // 解析 SSE text/event-stream → 提取 steps 和 final result
+        const steps = []
+        let result = null
+        let recordId = ''
+        let sseError = ''
+        if (typeof body === 'string') {
+          const lines = body.split('\n')
+          for (const line of lines) {
+            if (!line.startsWith('data: ')) continue
+            try {
+              const evt = JSON.parse(line.slice(6))
+              if (evt.step === 'error') {
+                sseError = evt.msg || '分析服务异常'
+              } else if (evt.step && evt.msg) {
+                steps.push({ step: evt.step, msg: evt.msg })
+              }
+              if (evt.result && typeof evt.result === 'object') {
+                result = evt.result
+                recordId = evt.result.record_id || ''
+              }
+            } catch (e) { /* skip non-JSON SSE lines */ }
+          }
+        }
+        if (res.statusCode === 401) {
+          resolve({ ok: false, statusCode: 401, error: '登录已过期，请去「我的」重新登录', steps: [] })
+        } else if (res.statusCode === 402) {
+          const detail = (typeof body === 'string' ? body : '') || '余额不足'
+          resolve({ ok: false, statusCode: 402, error: detail.indexOf('余额') >= 0 ? detail : '余额不足，请充值后重试', steps: [] })
+        } else if (res.statusCode >= 500) {
+          resolve({ ok: false, statusCode: res.statusCode, error: '后端服务异常，请稍后重试', steps: [] })
+        } else if (sseError && !result) {
+          resolve({ ok: false, statusCode: res.statusCode, error: sseError, steps })
+        } else if (result) {
+          resolve({ ok: true, statusCode: res.statusCode, steps, result, recordId, error: '' })
+        } else {
+          resolve({ ok: false, statusCode: res.statusCode, error: sseError || '分析返回为空，请重试', steps })
+        }
+      },
+      fail (err) {
+        const msg = err.errMsg || err.message || ''
+        reject(msg.includes('timeout') ? '请求超时，请确认后端服务可访问' : '后端服务未连接，请确认 http://127.0.0.1:8000/api/health 可访问')
+      }
+    })
+  })
+}
+
 // ── Health ──
 function getHealth () { return request({ url: '/api/health', auth: false }) }
 
 export default {
   request, normalizeError, ensureAnonToken, wechatMiniLogin,
   fetchProfile, fetchRecords, fetchRecordDetail, deleteRecord,
-  fetchFavorites, deleteFavorite, fetchIndustries, locationSuggest, locationRegeocode, getHealth
+  fetchFavorites, deleteFavorite, fetchIndustries, locationSuggest, locationRegeocode, analyzeLocation, getHealth
 }
