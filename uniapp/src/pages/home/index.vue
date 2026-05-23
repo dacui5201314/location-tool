@@ -107,10 +107,14 @@
             <text class="ab-em">{{ analyzing ? (analyzeStatus || '正在处理...') : '填写完成后点击开始分析' }}</text>
           </view>
         </button>
-        <view class="analyze-steps" v-if="analyzing && analyzeSteps.length">
-          <view class="as-step" v-for="(s, i) in analyzeSteps" :key="i">
-            <text class="as-num">{{ s.step }}</text>
-            <text class="as-msg">{{ s.msg }}</text>
+        <!-- 分析中步骤指示器（对齐 Web AnalysisLoadingPanel） -->
+        <view class="analyze-steps" v-if="analyzing">
+          <view class="as-step" v-for="(item, i) in analyzeStepItems" :key="i" :class="item.status">
+            <text class="as-icon">{{ item.icon }}</text>
+            <view class="as-body">
+              <text class="as-label">{{ item.label }}</text>
+              <text class="as-msg" v-if="item.msg">{{ item.msg }}</text>
+            </view>
           </view>
         </view>
         <text class="field-err" v-if="analyzeErr">{{ analyzeErr }}</text>
@@ -150,6 +154,7 @@ export default {
       analyzeSteps: [],
       analyzeErr: '',
       analyzeStatus: '',
+      currentStep: 0,
       isFaved: false,
       selectedLocationSource: '',
       showUserLocation: false,
@@ -169,6 +174,24 @@ export default {
   },
   computed: {
     canAnalyze () { return !this.analyzing && this.addressText && this.industry && this.brandName && this.storeSize },
+    analyzeStepItems () {
+      const steps = [
+        { step: 1, label: 'POI 数据采集', icon: '📍' },
+        { step: 2, label: '数据交叉比对', icon: '🧮' },
+        { step: 3, label: 'AI 商业评估', icon: '🧠' },
+        { step: 4, label: '报告生成完毕', icon: '✅' }
+      ]
+      return steps.map(s => {
+        const evt = this.analyzeSteps.find(e => e.step === s.step)
+        if (evt) {
+          return { ...s, status: 'done', msg: evt.msg, icon: '✓' }
+        }
+        if (s.step === this.currentStep) {
+          return { ...s, status: 'active', msg: '正在处理...' }
+        }
+        return { ...s, status: 'pending', icon: '○' }
+      })
+    },
     srcLabel () {
       if (this.selectedLocationSource === 'locate') return '当前位置'
       if (this.selectedLocationSource === 'map') return '地图选点'
@@ -385,7 +408,7 @@ export default {
       if (!this.industry) { e.industry = '请选择业态'; ok = false }
       if (!this.brandName || !this.brandName.trim()) { e.brand = '请输入品牌或特色'; ok = false }
       const sz = parseFloat(this.storeSize)
-      if (isNaN(sz) || sz <= 0) { e.size = '面积必须为正数'; ok = false } else if (sz < 5) { e.size = '面积不能小于 5 ㎡'; ok = false } else if (sz > 5000) { e.size = '面积数值较大，请确认'; ok = false }
+      if (isNaN(sz) || sz <= 0) { e.size = '请输入有效的门店面积'; ok = false } else if (sz > 10000) { e.size = '面积数值较大，请确认'; ok = false }
       this.errors = e; return ok
     },
     async onAnalyze () {
@@ -403,19 +426,19 @@ export default {
       const payload = {
         address: this.addressText,
         location: { lng: this.mapLng, lat: this.mapLat },
-        provider: 'gemini',
+        provider: 'deepseek',
         business_type: this.industry,
         brand_name: this.brandName,
         store_size: Number(this.storeSize)
       }
       if (industryId !== undefined) payload.industry_id = industryId
 
-      this.analyzing = true; this.analyzeErr = ''; this.analyzeSteps = []; this.analyzeStatus = '正在连接分析服务...'
+      this.analyzing = true; this.analyzeErr = ''; this.analyzeSteps = []; this.currentStep = 0; this.analyzeStatus = '正在连接分析服务...'
       try {
         const r = await api.analyzeLocation(payload)
         if (r.ok && r.result) {
-          // 更新步骤展示
           this.analyzeSteps = r.steps || []
+          this.currentStep = 4
           this.analyzeStatus = '报告生成完毕！'
           // 存入全局缓存供 report-detail 使用
           uni.setStorageSync('latest_analysis', { recordId: r.recordId, result: r.result, steps: r.steps })
@@ -425,8 +448,10 @@ export default {
             uni.navigateTo({ url: `/pages/report-detail/index?id=${r.recordId}` })
           }, 600)
         } else {
-          // 401 / 402 / 5xx / SSE error
           this.analyzeSteps = r.steps || []
+          // set currentStep to latest completed step from SSE
+          const steps = r.steps || []
+          this.currentStep = steps.length ? Math.max(...steps.map(s => typeof s.step === 'number' ? s.step : 0)) : 0
           if (r.statusCode === 401) {
             this.analyzeErr = '登录已过期，请去「我的」页面重新登录后再试'
           } else if (r.statusCode === 402) {
@@ -481,10 +506,13 @@ export default {
 .analyze-zone { margin-top:8rpx; }
 .analyze-btn { width:100%; background:linear-gradient(135deg,#0f172a,#1e40af); color:#fff; border-radius:18rpx; padding:24rpx 20rpx; display:flex; align-items:center; gap:14rpx; }
 .analyze-btn[disabled] { opacity:0.45; }
-.analyze-steps { background:#f8fafc; border-radius:12rpx; padding:16rpx 20rpx; margin-top:12rpx; }
-.as-step { display:flex; align-items:flex-start; padding:6rpx 0; }
-.as-num { width:40rpx; height:40rpx; line-height:40rpx; text-align:center; background:#0f172a; color:#fff; border-radius:20rpx; font-size:22rpx; flex-shrink:0; margin-right:12rpx; }
-.as-msg { font-size:24rpx; color:#475569; line-height:40rpx; }
+.analyze-steps { background:#f8fafc; border-radius:12rpx; padding:20rpx; margin-top:12rpx; }
+.as-step { display:flex; align-items:flex-start; padding:8rpx 0; }
+.as-step.pending .as-icon, .as-step.pending .as-label { color:#cbd5e1; }
+.as-step.active .as-icon { color:#246bff; } .as-step.active .as-label { color:#1e293b; font-weight:600; }
+.as-step.done .as-icon { color:#16a34a; } .as-step.done .as-label { color:#475569; }
+.as-icon { width:44rpx; font-size:28rpx; text-align:center; flex-shrink:0; margin-right:12rpx; line-height:36rpx; }
+.as-body { flex:1; } .as-label { font-size:26rpx; color:#475569; display:block; } .as-msg { font-size:22rpx; color:#94a3b8; display:block; }
 .ab-mark { font-size:40rpx; } .ab-text { display:flex; flex-direction:column; text-align:left; }
 .ab-strong { font-size:30rpx; font-weight:800; }
 .ab-em { font-size:22rpx; color:rgba(255,255,255,0.7); margin-top:4rpx; }

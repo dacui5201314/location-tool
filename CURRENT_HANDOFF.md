@@ -1,10 +1,25 @@
-# Current Handoff - 2026-05-20
+# Current Handoff - 2026-05-23
 
-## Phase 8C Status
+## Phase 23N-2B Status
 
-Latest code commit: `1b5d313` - `test: cover subtype substitute real-chain boundaries`.
+Latest code commit: `1b388ad` — `fix: add phoneLoginDiag for getPhoneNumber debug, sync phone_number in register`
 
-The report-accuracy mainline is still active. Current goal is to optimize toward direct launch quality, not internal-only acceptance.
+### Phone Login: External Blocked
+- Requires real WeChat Mini Program AppID + phone verification capability + privacy config
+- Bypass: `curl /api/auth/register` → inject token in DevTools Storage
+- phoneLoginDiag moved to console.log only (not visible in production UI)
+
+### Analyze Flow: Partially Verified
+- 401: ✅ verified (`{"detail":"无效的 Token"}`)
+- 402: ✅ billing logic verified (expired free point + balance=1 → rejected)
+- 5xx: ✅ code path covered (backend unreachable → catch)
+- SSE error: ✅ step "error" → displayed
+- Success: 🔴 env-blocked (LLM/AMap API keys not configured)
+
+### Web Alignment Audit: Complete
+- Full 6-page gap audit done (see below)
+- 4 P0/P1 fixes applied this round
+- Major remaining: radar chart, PDF export, recharge modal, dimension analysis
 
 ## Phase 9 定向扩样（2026-05-19）
 
@@ -1235,6 +1250,42 @@ After address auto-suggest passes:
 - Do not continue native `miniprogram/` feature work.
 - Do not modify report accuracy logic, POI, rules, prompt, `report_fact_guard`, classification, or DB schema.
 - Backend capability wiring is now authorized by the user, but only for app integration surfaces such as location proxy/analyze transport. Accuracy logic remains frozen.
+
+## Phase 23N-2B Web Alignment Gap Audit
+
+### Fixed This Round (4 items)
+| Priority | Item | Change |
+|----------|------|--------|
+| P0 | Analyze loading UI | Replaced plain numbered list with Web-aligned animated 4-step indicator (pending/active/done states) |
+| P1 | Analyze provider | Changed from `gemini` to `deepseek` (match Web) |
+| P1 | Store size validation | Aligned with Web: min>0, warn at 10,000 (was blocking at 5,000) |
+| P1 | Profile points default | Changed from `3` to `0` (match Web) |
+
+### Remaining Gaps (prioritized by user impact)
+
+| Priority | Page | Gap |
+|----------|------|-----|
+| P0 | Report Detail | Missing radar chart (8-dimension SVG) |
+| P0 | Report Detail | Missing per-dimension detailed text analysis |
+| P0 | Records | Missing PDF export functionality |
+| P0 | Profile | Missing recharge modal (SKU grid + CDK + QR) |
+| P1 | Home | Missing new-user welcome modal (free points gift) |
+| P1 | Home | Missing free-point countdown banner |
+| P1 | Home | Favorite button not integrated with backend API |
+| P1 | Report Detail | Missing 20+ POI category detail lists with distances |
+| P1 | Report Detail | Missing color-coded metric badges |
+| P1 | Records | Missing map thumbnail on record cards |
+| P1 | Records | Missing star rating visualization |
+| P1 | Favorites | Missing batch management mode |
+| P1 | Favorites | Missing score display on analyzed favorites |
+| P1 | Favorites | Missing sort toggle (newest/analyzed-first) |
+| P1 | Profile | Missing clickable stat navigation |
+| P1 | Profile | Missing customer service integration (QR/phone) |
+| P2 | Home | Missing announcement banner |
+| P2 | Home | Missing home-panel stats (total analyzed, accuracy) |
+| P2 | Report Detail | Missing legacy-format competitor labels |
+| P2 | Records | Minor copy differences in delete confirmation |
+| P2 | Favorites | Missing "add address" button |
 
 ### Expected Untracked Files
 

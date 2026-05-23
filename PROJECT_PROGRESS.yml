@@ -1,8 +1,8 @@
 current_phase: Phase 23N
-phase_status: autosuggest_passed_diag_removed_analyze_flow_ready
-latest_code_commit: 0b2dfde
-latest_code_commit_message: "fix: replace v-model with explicit :value/@input, add inputDiag for event trace"
-latest_docs_commit: 7496716
+phase_status: ui_web_alignment_phase23n2b_phone_login_blocked
+latest_code_commit: 1b388ad
+latest_code_commit_message: "fix: add phoneLoginDiag for getPhoneNumber debug, sync phone_number in register"
+latest_docs_commit: 80395b7
 unpushed: true
 
 validation:
@@ -84,9 +84,14 @@ phase23_uniapp:
     secret_scan: "PASS in uniapp/src and config files"
     copy_scan: "PASS: no misleading 生成中/扣点/支付/下载 PDF 报告/消耗 1 点 in uniapp/src"
   current_status:
-    overall_progress: "about 93%"
-    phase23n1_address_autosuggest: "~98% — user-verified in devtools; diagnostic UI removed; auto-suggest fires without pressing search"
-    phase23n2_analyze_flow: "~40% — /api/analyze SSE integration complete; 401/402/5xx/network error/success all handled; pending devtools verification"
+    overall_progress: "about 94%"
+    phase23n1_address_autosuggest: "~98% — user-verified; diagnostic UI removed; auto-suggest fires without pressing search"
+    phase23n2_analyze_flow: "~45% — 401/402/SSE error/network unreachable verified via curl; SSE step 1-4 structure correct; success path env-blocked by LLM/AMap config; report_uuid fix applied (1be5a5d)"
+    phone_login: "external blocked — requires real mini-program AppID + phone verification capability + privacy config; bypass available via /api/auth/register curl + DevTools Storage manual token injection"
+    ui_web_alignment: "~10% — gap audit complete; 4 high-impact fixes applied (analyze loading UI, provider=deepseek, store size validation matching Web, profile points default=0); major gaps remain (radar chart, PDF export, recharge modal, dimension analysis, POI detail lists)"
+    external_blockers:
+      - "Phone login: real WeChat Mini Program AppID required"
+      - "Analyze success: LLM API Key + AMap Web Key must be configured in backend .env"
     current_no_call_boundary: "No requestPayment, no /unlock-pdf, no /download."
     latest_user_direction: "Formal launch target: all uni-app UI/logic/copy/states must align with Web frontend master."
   current_worktree_caveat:

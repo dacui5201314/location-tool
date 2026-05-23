@@ -18,7 +18,7 @@
       <template v-else>
         <text class="avatar-fb">👤</text>
         <text class="uname">未登录</text>
-        <button class="top-login" @tap="showLoginSheet = true; phoneLoginDiag = ''">登录 / 注册</button>
+        <button class="top-login" @tap="showLoginSheet = true">登录 / 注册</button>
       </template>
       <text class="login-err" v-if="loginErr">{{ loginErr }}</text>
     </view>
@@ -99,10 +99,9 @@
         <text class="sheet-desc">使用手机号快速登录，体验完整功能</text>
 
         <!-- 手机号一键登录 -->
-        <button class="sheet-btn primary" open-type="getPhoneNumber" @getphonenumber="onPhoneLogin" @tap="phoneLoginDiag = 'tap: ' + new Date().toLocaleTimeString()">
+        <button class="sheet-btn primary" open-type="getPhoneNumber" @getphonenumber="onPhoneLogin">
           📱 手机号一键登录
         </button>
-        <text class="sheet-diag" v-if="phoneLoginDiag">{{ phoneLoginDiag }}</text>
 
         <!-- 微信登录（兜底） -->
         <button class="sheet-btn secondary" @tap="onWxLogin">
@@ -135,7 +134,7 @@ export default {
       phoneText: '',
       userName: '',
       uidText: '',
-      points: 3,
+      points: 0,
       freePointActive: true,
       freePointExpiry: '',
       memberDays: 0,
@@ -170,7 +169,7 @@ export default {
       if (token) {
         const user = auth.getUser() || {}
         this.loggedIn = true
-        this.points = user.balance_credits ?? 3
+        this.points = user.balance_credits ?? 0
         this.userName = user.nickname || user.name || ''
         this.avatarUrl = user.avatar_url || user.avatarUrl || ''
         const phone = user.phone_number || user.phone || ''
@@ -202,7 +201,8 @@ export default {
       const detail = e.detail || {}
       const errMsg = detail.errMsg || ''
       const code = detail.code || ''
-      this.phoneLoginDiag = `getphonenumber: errMsg=${errMsg || '(none)'} hasCode=${!!code}`
+      // [DEV] release 前移除 console 诊断
+      console.log('[phoneLoginDiag]', { errMsg, hasCode: !!code })
       if (errMsg && errMsg.indexOf('deny') >= 0) {
         this.loginErr = '手机号授权已取消'; return
       }
@@ -256,7 +256,7 @@ export default {
     goEdit () { uni.navigateTo({ url: '/pages/profile/edit' }) },
     onLogout () {
       auth.clearToken()
-      this.loggedIn = false; this.points = 3; this.reportCount = 0; this.favCount = 0
+      this.loggedIn = false; this.points = 0; this.reportCount = 0; this.favCount = 0
     },
     onUpgrade () { uni.showToast({ title: '会员充值接入中', icon: 'none' }) },
     onCDK () { uni.showToast({ title: '兑换码接入中', icon: 'none' }) },
@@ -316,5 +316,4 @@ export default {
 .sheet-btn.secondary { background:#f1f5f9; color:#475569; display:flex; align-items:center; justify-content:center; gap:8rpx; }
 .sheet-skip { display:block; font-size:24rpx; color:#94a3b8; padding:12rpx; }
 .sheet-privacy { display:block; font-size:20rpx; color:#cbd5e1; margin-top:16rpx; }
-.sheet-diag { display:block; font-size:20rpx; color:#f59e0b; margin-top:12rpx; word-break:break-all; }
 </style>
