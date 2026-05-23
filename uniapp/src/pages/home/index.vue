@@ -55,9 +55,9 @@
           @regionchange="onMapRegionChange"
           @updated="onMapUpdated"
         >
-          <cover-view class="map-center-marker">
-            <cover-view class="mcm-pin">📍</cover-view>
-          </cover-view>
+          <view class="map-center-marker">
+            <view class="mcm-pin">📍</view>
+          </view>
         </map>
         <view class="map-hint-bar" v-if="!addressText">
           <text class="mhb-text">点击地图选点 · 或使用上方搜索框输入地址</text>
@@ -74,6 +74,7 @@
           <text class="section-title">选择业态</text>
           <text class="section-link">全部业态 ›</text>
         </view>
+        <text class="field-err" v-if="industryLoadErr">{{ industryLoadErr }}</text>
         <IndustryPicker :selected="industry" :disabled="analyzing" :industries="industryList" @change="onIndustryChange" />
         <text class="field-err" v-if="errors.industry">{{ errors.industry }}</text>
       </view>
@@ -145,6 +146,7 @@ export default {
       suggestions: [],
       suggestErr: '',
       suggestDiag: '',
+      industryLoadErr: '',
       errors: { address: '', industry: '', brand: '', size: '' },
       industryList: [],
       trusts: [
@@ -177,7 +179,7 @@ export default {
   mounted () {
     api.fetchIndustries().then(r => {
       if (r.ok && Array.isArray(r.data?.industries)) this.industryList = r.data.industries
-    }).catch(() => {})
+    }).catch(() => { this.industryLoadErr = '业态加载失败，请确认后端服务已启动' })
   },
   methods: {
     async resolveAddressByLngLat (lng, lat, source) {
@@ -197,7 +199,7 @@ export default {
         const msg = e.errMsg || e.message || ''
         const coord = `经度 ${lng.toFixed(4)} · 纬度 ${lat.toFixed(4)}`
         this.addressText = coord; this.addressKeyword = coord
-        this.mapDiag = msg.includes('timeout') ? '请求超时，请确认后端服务可访问' : '地址解析失败，可继续手动输入'
+        this.mapDiag = msg.includes('timeout') ? '请求超时，请确认后端服务可访问' : '后端服务未连接，请确认 http://127.0.0.1:8000/api/health 可访问'
       }
     },
     onIndustryChange (name) {
@@ -303,7 +305,7 @@ export default {
         if (msg.includes('timeout')) {
           this.suggestErr = '请求超时，请确认后端服务可访问'; this.suggestDiag = `timeout: ${msg}`
         } else {
-          this.suggestErr = '网络异常，请确认后端可访问'; this.suggestDiag = `网络错误: ${msg || e}`
+          this.suggestErr = '后端服务未连接，请确认 http://127.0.0.1:8000/api/health 可访问'; this.suggestDiag = `网络错误: ${msg || e}`
         }
       }
     },
