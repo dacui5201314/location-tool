@@ -18,7 +18,7 @@
       <template v-else>
         <text class="avatar-fb">👤</text>
         <text class="uname">未登录</text>
-        <button class="top-login" @tap="showLoginSheet = true">登录 / 注册</button>
+        <button class="top-login" @tap="showLoginSheet = true; phoneLoginDiag = ''">登录 / 注册</button>
       </template>
       <text class="login-err" v-if="loginErr">{{ loginErr }}</text>
     </view>
@@ -99,9 +99,10 @@
         <text class="sheet-desc">使用手机号快速登录，体验完整功能</text>
 
         <!-- 手机号一键登录 -->
-        <button class="sheet-btn primary" open-type="getPhoneNumber" @getphonenumber="onPhoneLogin">
+        <button class="sheet-btn primary" open-type="getPhoneNumber" @getphonenumber="onPhoneLogin" @tap="phoneLoginDiag = 'tap: ' + new Date().toLocaleTimeString()">
           📱 手机号一键登录
         </button>
+        <text class="sheet-diag" v-if="phoneLoginDiag">{{ phoneLoginDiag }}</text>
 
         <!-- 微信登录（兜底） -->
         <button class="sheet-btn secondary" @tap="onWxLogin">
@@ -128,6 +129,7 @@ export default {
       loggedIn: false,
       loginLoading: false,
       loginErr: '',
+      phoneLoginDiag: '',
       showLoginSheet: false,
       avatarUrl: '',
       phoneText: '',
@@ -198,7 +200,10 @@ export default {
     onPhoneLogin (e) {
       this.loginErr = ''
       const detail = e.detail || {}
-      if (detail.errMsg && detail.errMsg.indexOf('deny') >= 0) {
+      const errMsg = detail.errMsg || ''
+      const code = detail.code || ''
+      this.phoneLoginDiag = `getphonenumber: errMsg=${errMsg || '(none)'} hasCode=${!!code}`
+      if (errMsg && errMsg.indexOf('deny') >= 0) {
         this.loginErr = '手机号授权已取消'; return
       }
       const phoneCode = detail.code
@@ -311,4 +316,5 @@ export default {
 .sheet-btn.secondary { background:#f1f5f9; color:#475569; display:flex; align-items:center; justify-content:center; gap:8rpx; }
 .sheet-skip { display:block; font-size:24rpx; color:#94a3b8; padding:12rpx; }
 .sheet-privacy { display:block; font-size:20rpx; color:#cbd5e1; margin-top:16rpx; }
+.sheet-diag { display:block; font-size:20rpx; color:#f59e0b; margin-top:12rpx; word-break:break-all; }
 </style>

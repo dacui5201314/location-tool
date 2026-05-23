@@ -296,18 +296,23 @@ def phone_register(
         total_points = 0
         free_expire = None
 
-    user = User(
-        balance_credits=total_points,
-        membership_tier="free",
-        free_point_expire_at=free_expire,
-        registration_ip=client_ip,
-        phone=phone,
-        password_hash=_hash_password(password),
-        channel="phone",
-        is_new_user=True,
-    )
-    db.add(user)
-    db.flush()
+    try:
+        user = User(
+            balance_credits=total_points,
+            membership_tier="free",
+            free_point_expire_at=free_expire,
+            registration_ip=client_ip,
+            phone=phone,
+            phone_number=phone,
+            password_hash=_hash_password(password),
+            channel="phone",
+            is_new_user=True,
+        )
+        db.add(user)
+        db.flush()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(status_code=409, detail="该手机号已注册，请直接登录")
 
     if give_free_points:
         db.add(BillingRecord(
