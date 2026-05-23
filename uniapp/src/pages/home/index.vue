@@ -32,13 +32,13 @@
         </view>
       </view>
       <view class="hero-copy">
-        <text class="hero-title">商铺选址<text class="hero-hl">先做一次初筛</text></text>
-        <text class="hero-desc">用周边 POI、业态与经营信息生成商业选址初筛参考</text>
+        <text class="hero-title">商铺选址<text class="hero-hl">先做一轮初筛</text></text>
+        <text class="hero-desc">结合周边 POI、业态与经营信息，生成商业选址初筛参考</text>
       </view>
       <view class="hero-tags">
         <text class="htag">全国城市适用</text>
         <text class="htag">POI 周边洞察</text>
-        <text class="htag">需线下验证</text>
+        <text class="htag">实地复核建议</text>
       </view>
       <view class="hero-visual" aria-hidden="true">
         <view class="hv-plate">
@@ -651,7 +651,7 @@ export default {
 .home-page { min-height:100vh; background:radial-gradient(circle at 50% -8%,rgba(49,91,255,0.12),transparent 34%),linear-gradient(180deg,#f8fbff 0%,#f2f6ff 48%,#eef3fb 100%); padding-bottom:108rpx; }
 
 /* ── Hero ── */
-.hero { background:linear-gradient(145deg,#06132f 0%,#0d2c70 48%,#3343c7 100%); padding:46rpx 28rpx 116rpx; position:relative; overflow:hidden; }
+.hero { background:linear-gradient(145deg,#12358f 0%,#173f9d 48%,#3343c7 100%); padding:46rpx 28rpx 116rpx; position:relative; overflow:hidden; }
 .hero-top { display:flex; align-items:center; margin-bottom:28rpx; }
 .hero-logo-box { width:70rpx; height:70rpx; border-radius:18rpx; margin-right:14rpx; display:flex; align-items:center; justify-content:center; overflow:hidden; background:linear-gradient(135deg,#f8fbff 0%,#dbeafe 48%,#3151d3 100%); box-shadow:0 10rpx 28rpx rgba(33,99,255,0.35); flex-shrink:0; }
 .hero-logo { width:62rpx; height:62rpx; display:block; border-radius:16rpx; }
