@@ -16,7 +16,6 @@
       <view class="top-bar">
         <text class="back" @tap="goBack">←</text>
         <text class="top-title">{{ recordTitle }}</text>
-        <text class="top-export" :class="record.is_pdf_unlocked ? 'free' : 'locked'">PDF 联调未开放</text>
       </view>
 
       <!-- ── 核心结果卡（Web parity: RecordDetail meta + score ring）── -->
@@ -78,9 +77,9 @@
             <text class="rb-val" :style="{ color: sc(d.value) }">{{ d.value }}</text>
           </view>
         </view>
-        <!-- 维度概要 (compact 2-col) -->
-        <view class="dim-compact" v-if="rptDims.length > 8">
-          <view class="dc-chip" v-for="d in rptDims" :key="d.key" :style="{ borderColor: sc(d.value) }">
+        <!-- 额外维度 (compact chips for non-radar dims) -->
+        <view class="dim-compact" v-if="extraDims.length">
+          <view class="dc-chip" v-for="d in extraDims" :key="d.key" :style="{ borderColor: sc(d.value) }">
             <text class="dc-chip-label">{{ d.label || d.key }}</text>
             <text class="dc-chip-val" :style="{ color: sc(d.value) }">{{ d.value }}</text>
           </view>
@@ -237,6 +236,10 @@ export default {
         return { key, label: labelMap[key] || key, value: d ? d.value : 0 }
       })
     },
+    extraDims () {
+      const radarKeys = ['population_density','traffic_accessibility','traffic_flow','consumer_profile','competition','complementary_businesses','category_advantage','cost_estimate']
+      return this.rptDims.filter(d => !radarKeys.includes(d.key))
+    },
     ringStyle () {
       const deg = this.scorePct * 3.6
       const color = this.sc(this.scorePct)
@@ -262,7 +265,6 @@ export default {
   methods: {
     sc: scoreColor, fmtTime: formatTime,
     goBack () { uni.navigateBack({ delta: 1 }).catch(() => uni.switchTab({ url: '/pages/records/index' })) },
-    onExport () { uni.showToast({ title: 'PDF / 下载 / 解锁联调未开放', icon: 'none' }) },
     parseReport (raw) {
       ['rptScore','rptDisclaimer','rptWarning','rptSummary','rptAdv','rptDis','rptDims','rptAction',
        'rptDir200','rptDir500','rptDir1000','rptSub200','rptSub500','rptSub1000',
@@ -469,8 +471,10 @@ export default {
         if (!Array.isArray(items) || !items.length) return null
         const names = items.slice(0, 8).map(d => {
           const name = d.name || d.title || d.poi_name || ''
-          const dist = d.distance
-          return dist ? `${name}（${dist}m）` : name
+          if (!name) return null
+          const dist = d.distance ?? d.dist
+          if (dist !== undefined && dist !== null && dist !== '') return `${name}（${dist}m）`
+          return name
         }).filter(Boolean)
         if (!names.length) return null
         return { ...cat, names, total: items.length }
@@ -486,7 +490,6 @@ export default {
 .error { text-align:center; padding:120rpx 32rpx; } .err-icon { font-size:80rpx; display:block; } .err-text { font-size:28rpx; color:#64748b; display:block; margin:16rpx 0; } .err-btn { margin-top:20rpx; background:#f1f5f9; color:#475569; border-radius:14rpx; padding:16rpx 40rpx; font-size:28rpx; }
 .top-bar { display:flex; align-items:center; padding:20rpx 24rpx; background:#fff; border-bottom:1rpx solid #e2e8f0; }
 .back { font-size:36rpx; color:#475569; padding-right:16rpx; } .top-title { flex:1; font-size:30rpx; font-weight:700; color:#1e293b; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-.top-export { font-size:22rpx; padding:6rpx 14rpx; border-radius:10rpx; } .top-export.free { background:#dbeafe; color:#1e40af; } .top-export.locked { background:#fef3c7; color:#92400e; }
 
 /* ── 核心结果卡 ── */
 .result-card { background:#fff; margin:20rpx 24rpx; border-radius:20rpx; padding:28rpx; box-shadow:0 2rpx 16rpx rgba(0,0,0,0.04); display:flex; }
