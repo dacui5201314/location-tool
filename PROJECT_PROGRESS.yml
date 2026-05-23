@@ -1,7 +1,7 @@
 current_phase: Phase 23N
 phase_status: address_autocomplete_regeocode_devtools_ready
-latest_code_commit: 75acc57
-latest_code_commit_message: "feat: add requiredPrivateInfos, regeocode endpoint, and map reverse geocode"
+latest_code_commit: 27f423b
+latest_code_commit_message: "fix: add timeout detection to locationSuggest catch, update project progress"
 latest_docs_commit: db0cfb4
 unpushed: true
 
@@ -40,7 +40,7 @@ sample_bank:
   partial: 10
   latest_industry_test_total: "2168 PASS, 0 FAIL"
 
-next_step: "Phase 23N-1 complete: verify all timeout fallbacks in WeChat devtools (getLocation, mapTap reverse geocode, locationSuggest, locationRegeocode). Then Phase 23N-2 WeChat login binding."
+next_step: "Phase 23N-1 manual devtools retest: getLocation requiredPrivateInfos, map tap reverse geocode, address suggestions, and timeout fallbacks."
 
 boundaries:
   no_push: true
