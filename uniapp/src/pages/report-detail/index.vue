@@ -55,7 +55,8 @@
         <view class="stats-grid">
           <view class="sg" v-for="m in rptStats" :key="m.key" :class="m.highlight || ''">
             <text class="sg-label">{{ m.icon }} {{ m.label }}</text>
-            <text class="sg-val">{{ m.s200 === '' ? '-' : m.s200 }} / {{ m.s500 === '' ? '-' : m.s500 }} / {{ m.s1000 === '' ? '-' : m.s1000 }}</text>
+            <text class="sg-val" v-if="m.total !== undefined">{{ m.total }}</text>
+            <text class="sg-val" v-else>{{ m.s200 === '' ? '-' : m.s200 }} / {{ m.s500 === '' ? '-' : m.s500 }} / {{ m.s1000 === '' ? '-' : m.s1000 }}</text>
           </view>
         </view>
       </view>
@@ -105,6 +106,20 @@
       <view class="section" v-if="rptDis.length">
         <view class="sec-title red">⚠️ 主要风险</view>
         <view class="item" v-for="(d,i) in rptDis" :key="'d'+i">{{ i+1 }}. {{ d }}</view>
+      </view>
+
+      <!-- ★ 指标雷达评分（Web parity: RadarChart 8维等价可视化） -->
+      <view class="section" v-if="rptDims.length">
+        <view class="sec-title">📊 指标雷达评分</view>
+        <view class="radar-bars">
+          <view class="rb-row" v-for="d in radarDims" :key="d.key">
+            <text class="rb-label">{{ d.label }}</text>
+            <view class="rb-track">
+              <view class="rb-fill" :style="{ width: d.value + '%', background: sc(d.value) }" />
+            </view>
+            <text class="rb-val" :style="{ color: sc(d.value) }">{{ d.value }}</text>
+          </view>
+        </view>
       </view>
 
       <!-- Dimension scores -->
@@ -244,6 +259,15 @@ export default {
       if (p >= 40) return '可考虑'
       return '谨慎'
     },
+    radarDims () {
+      // ★ 8 维固定顺序（Web/后端一致）
+      const order = ['population_density','traffic_accessibility','traffic_flow','consumer_profile','competition','complementary_businesses','category_advantage','cost_estimate']
+      const labelMap = { population_density:'人口密集度',traffic_accessibility:'交通可达性',traffic_flow:'客流特征',consumer_profile:'消费人群',competition:'竞争环境',complementary_businesses:'互补业态',category_advantage:'品类优势',cost_estimate:'成本预估' }
+      return order.map(key => {
+        const d = this.rptDims.find(x => x.key === key)
+        return { key, label: labelMap[key] || key, value: d ? d.value : 0 }
+      })
+    },
     ringStyle () {
       const deg = this.scorePct * 3.6
       const color = this.sc(this.scorePct)
@@ -373,20 +397,35 @@ export default {
       }
       const metricIcons = { residential:'🏘️',office:'🏢',restaurants:'🍽️',cafe_tea:'☕',shopping:'🛍️',schools:'🏫',hospitals:'🏥',subway:'🚇',bus:'🚌',hotels:'🏨',banks:'🏦',parking:'🅿️' }
       const metricLabels = { residential:'住宅小区',office:'写字楼',restaurants:'餐饮',cafe_tea:'咖啡茶饮',shopping:'购物商场',schools:'学校',hospitals:'医院',subway:'地铁站',bus:'公交站',hotels:'酒店',banks:'银行',parking:'停车场' }
-      const _highlight = (key, vals) => {
-        const v1k = parseInt(vals.s1000) || 0
+      const poiCounts = rd.poi_counts || {}
+      const _highlight = (key) => {
+        const v1k = parseInt(_val(s10, metricAliases[key])) || 0
+        const pc = parseInt(poiCounts[key]) || 0
         if (key === 'restaurants' && v1k > 100) return 'high'
-        if ((key === 'schools' || key === 'hospitals') && v1k > 0) return 'good'
-        if (key === 'subway' && v1k === 0) return 'high'
-        if (key === 'bus' && v1k > 10) return 'good'
-        if (key === 'residential' || key === 'office' || key === 'shopping') return 'info'
+        if (key === 'schools' && pc > 5) return 'good'
+        if (key === 'hospitals' && pc > 10) return 'good'
+        if (key === 'hospitals' && pc <= 10) return 'info'
+        if (key === 'subway' && pc === 0) return 'high'
+        if (key === 'subway' && pc > 0) return 'good'
+        if (key === 'bus' && pc > 10) return 'good'
+        if (key === 'residential' || key === 'office') return 'info'
         return ''
       }
-      this.rptStats = Object.keys(metricAliases).map(key => {
+      // 三段半径指标（residential ~ hotels）
+      const tripleKeys = ['residential','office','restaurants','cafe_tea','shopping','schools','hospitals','subway','bus','hotels']
+      // 单值指标（banks / parking 从 poi_counts 取总数）
+      const singleKeys = ['banks','parking']
+      const tripleStats = tripleKeys.map(key => {
         const s200 = _val(s2, metricAliases[key]); const s500 = _val(s5, metricAliases[key]); const s1000 = _val(s10, metricAliases[key])
         if (s200 === '' && s500 === '' && s1000 === '') return null
-        return { key, icon: metricIcons[key] || '', label: metricLabels[key], s200, s500, s1000, highlight: _highlight(key, { s200, s500, s1000 }) }
+        return { key, icon: metricIcons[key] || '', label: metricLabels[key], s200, s500, s1000, highlight: _highlight(key) }
       }).filter(Boolean)
+      const singleStats = singleKeys.map(key => {
+        const total = parseInt(poiCounts[key]) || 0
+        if (total === 0) return null
+        return { key, icon: metricIcons[key] || '', label: metricLabels[key], total, highlight: '' }
+      }).filter(Boolean)
+      this.rptStats = [...tripleStats, ...singleStats]
 
       // poi_lists with field/name aliases
       const _names = (arr) => {
@@ -403,30 +442,46 @@ export default {
 
       // ★ 各维度详细分析文本（Web parity: AnalysisResult.jsx detailLabels loop）
       const detailLabels = {
-        population_density: { emoji: '🏘️', label: '人口密集度' },
-        traffic_accessibility: { emoji: '🚇', label: '交通可达性' },
-        traffic_flow: { emoji: '🚶', label: '客流特征' },
-        consumer_profile: { emoji: '🛍️', label: '消费人群' },
-        competition: { emoji: '⚔️', label: '竞争环境' },
-        complementary_businesses: { emoji: '🤝', label: '互补业态' },
-        category_advantage: { emoji: '🌟', label: '品类优势' },
-        cost_estimate: { emoji: '💰', label: '成本估算' },
-        revenue_estimation: { emoji: '💵', label: '营收预估' },
-        site_suggestion: { emoji: '📋', label: '选址建议' }
+        population_density: { emoji: '🏘️', label: '人口密集度', hasScore: true },
+        traffic_accessibility: { emoji: '🚇', label: '交通可达性', hasScore: true },
+        traffic_flow: { emoji: '🚶', label: '客流特征', hasScore: true },
+        consumer_profile: { emoji: '🛍️', label: '消费人群', hasScore: true },
+        competition: { emoji: '⚔️', label: '竞争环境', hasScore: true },
+        complementary_businesses: { emoji: '🤝', label: '互补业态', hasScore: true },
+        category_advantage: { emoji: '🌟', label: '品类优势', hasScore: true },
+        cost_estimate: { emoji: '💰', label: '成本估算', hasScore: true },
+        revenue_estimation: { emoji: '💵', label: '营收预估', hasScore: false },
+        site_suggestion: { emoji: '📋', label: '选址建议', hasScore: false }
       }
+      // 预建 dimension_scores 映射：key → score（优先使用）
+      const dimScoreMap = {}
+      dimScores.forEach(d => { if (d.key) dimScoreMap[d.key] = d.score ?? d.value ?? 0 })
       const details = rpt.details || {}
+      const _stripScore = (t) => {
+        if (typeof t !== 'string') return t
+        return t.replace(/(?:评分|得分)[：:]\s*\d+\s*分?/g, '').replace(/\d+\s*分/g, '').trim()
+      }
       this.rptDetailTexts = Object.keys(detailLabels).map(key => {
         const raw = details[key]
         if (!raw) return null
         const cfg = detailLabels[key]
-        const text = typeof raw === 'string' ? raw : (raw.text || raw.description || '')
+        // 提取原始文本（object 兼容 text/description/content/message）
+        let rawText = ''
+        if (typeof raw === 'string') rawText = raw
+        else if (typeof raw === 'object' && raw !== null) rawText = raw.text || raw.description || raw.content || raw.message || ''
+        if (!rawText) return null
+        const text = _stripScore(rawText)
+        // 分数：优先 dimension_scores，没有则正则提取，revenue/site 不强制造分
         let score = 0
-        if (typeof raw === 'object' && raw.score !== undefined) score = parseFloat(raw.score) || 0
-        else {
-          const m = text.match(/(?:评分|得分)[：:]\s*(\d+)/) || text.match(/(\d+)\s*分/)
-          if (m) score = parseInt(m[1]) || 0
+        if (cfg.hasScore) {
+          if (dimScoreMap[key] !== undefined) {
+            score = parseFloat(dimScoreMap[key]) || 0
+          } else {
+            const m = rawText.match(/(?:评分|得分)[：:]\s*(\d+)/) || rawText.match(/(\d+)\s*分/)
+            if (m) score = parseInt(m[1]) || 0
+          }
         }
-        return { key, emoji: cfg.emoji, label: cfg.label, text, score: Math.max(0, Math.min(100, Math.round(score))) }
+        return { key, emoji: cfg.emoji, label: cfg.label, text, score: cfg.hasScore ? Math.max(0, Math.min(100, Math.round(score))) : 0 }
       }).filter(Boolean)
 
       // ★ POI 类别详情列表（Web parity: AnalysisResult poi_lists expandable section）
@@ -508,6 +563,14 @@ export default {
 .stats-grid { display:flex; flex-wrap:wrap; } .sg { width:33.3%; text-align:center; padding:12rpx 4rpx; box-sizing:border-box; } .sg-label { font-size:22rpx; color:#64748b; display:block; } .sg-val { font-size:24rpx; font-weight:700; color:#1e293b; display:block; }
 .sg.high .sg-val { color:#dc2626; } .sg.good .sg-val { color:#16a34a; } .sg.info .sg-val { color:#2563eb; }
 .item-sm { font-size:24rpx; color:#475569; padding:6rpx 0; } .more-hint { font-size:22rpx; color:#94a3b8; display:block; margin-top:4rpx; }
+/* ── 指标雷达评分 ── */
+.radar-bars { padding:8rpx 0; }
+.rb-row { display:flex; align-items:center; padding:10rpx 0; }
+.rb-label { width:120rpx; font-size:24rpx; color:#475569; flex-shrink:0; }
+.rb-track { flex:1; height:14rpx; background:#e2e8f0; border-radius:7rpx; overflow:hidden; margin:0 16rpx; }
+.rb-fill { height:100%; border-radius:7rpx; min-width:4rpx; transition:width 0.3s; }
+.rb-val { width:52rpx; font-size:24rpx; font-weight:700; text-align:right; flex-shrink:0; }
+
 /* ── 各维度详细分析 ── */
 .dt-item { padding:20rpx 0; border-bottom:1rpx solid #f1f5f9; } .dt-item:last-child { border-bottom:0; }
 .dt-head { display:flex; align-items:center; margin-bottom:10rpx; }

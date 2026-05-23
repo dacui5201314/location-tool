@@ -17,10 +17,10 @@ Latest code commit: `1b388ad` — `fix: add phoneLoginDiag for getPhoneNumber de
 - Success: 🔴 env-blocked (LLM/AMap API keys not configured)
 
 ### Web Alignment Audit: Complete
-- Full 6-page gap audit done
-- 5 fixes applied: optimistic step timer, analyze UI, provider=deepseek, store size validation, profile points=0
-- Major active remaining: report radar chart, dimension detail analysis, POI category detail lists, home free-point/welcome states, favorites/records/profile Web parity
-- Payment/PDF/download/recharge deferred by boundary
+- Full 6-page gap audit done. 2 rounds of fixes applied.
+- Report Detail ~50% aligned: dimension detail analysis, POI 20-category lists, location metadata, metric color coding, radar bar equivalent visualization.
+- Active remaining: radar SVG/canvas upgrade, score ring Web detail, legacy format display, home free-point/welcome states, favorites/records/profile Web parity.
+- Payment/PDF/download/recharge deferred by boundary.
 
 ## Phase 9 定向扩样（2026-05-19）
 
