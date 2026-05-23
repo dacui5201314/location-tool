@@ -9,8 +9,24 @@ export function clearToken () {
 }
 export function getUser () { return uni.getStorageSync('user') || null }
 export function setUser (user) {
+  // ★ 只 merge user 对象字段，不 merge profile 顶层对象（points/memberDays 等）
   const prev = getUser() || {}
-  uni.setStorageSync('user', Object.assign({}, prev, user))
+  // 过滤掉非用户字段（如 points/memberDays/freePointActive 等 profile 顶层字段）
+  const userFields = {}
+  const allowed = ['id','nickname','name','avatar_url','avatarUrl','phone','phone_number',
+    'balance_credits','membership_tier','membership_days_left','membership_expiry',
+    'is_member','free_point_active','free_point_expire_at','wx_unionid','wx_mini_openid']
+  Object.keys(user).forEach(k => {
+    if (allowed.includes(k) || k.startsWith('wx_') || k.startsWith('membership_')) {
+      userFields[k] = user[k]
+    }
+  })
+  // 如果调用方只传了少数几个字段（如 {avatarUrl:...}），直接合并
+  if (Object.keys(user).length <= 3 && !user.id) {
+    uni.setStorageSync('user', Object.assign({}, prev, user))
+    return
+  }
+  uni.setStorageSync('user', Object.assign({}, prev, userFields))
 }
 
 // ── 微信小程序登录 ──

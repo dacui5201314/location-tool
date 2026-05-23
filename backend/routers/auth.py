@@ -10,7 +10,7 @@ from pydantic import BaseModel
 
 from database import get_db
 from models.db_models import User, BillingRecord, SystemConfig
-from auth import create_token
+from auth import create_token, get_current_user
 from config import (
     SIGNUP_BONUS_CREDITS as _ENV_SIGNUP_BONUS,
     SIGNUP_FREE_CREDITS as _ENV_SIGNUP_FREE,
@@ -588,11 +588,143 @@ def wechat_mini_bind_phone(
     if not phone_number:
         raise HTTPException(status_code=400, detail="未获取到手机号")
 
-    # 3. 写入 User 表
+    # 3. 检查手机号是否已被其他账号占用
+    existing = db.query(User).filter(
+        User.phone_number == phone_number,
+        User.id != user["user_id"]
+    ).first()
+    if existing:
+        raise HTTPException(status_code=409, detail="该手机号已绑定其他账号")
+
+    # 4. 写入 User 表（双字段）
     db_user = db.query(User).filter(User.id == user["user_id"]).first()
     if not db_user:
         raise HTTPException(status_code=404, detail="用户不存在")
     db_user.phone_number = phone_number
+    db_user.phone = phone_number
     db.commit()
 
     return {"ok": True, "phone": phone_number}
+
+
+# ═══════════════════════════════════════════════════════════
+# Phase 23N: 微信小程序手机号一键登录
+# ═══════════════════════════════════════════════════════════
+
+class PhoneLoginBody(BaseModel):
+    login_code: str       # wx.login 返回的 code
+    phone_code: str       # getPhoneNumber 返回的 code
+
+
+@router.post("/wechat/mini/phone-login")
+def wechat_mini_phone_login(
+    body: PhoneLoginBody,
+    request: Request = None,
+    db: Session = Depends(get_db),
+):
+    """微信小程序手机号一键登录。
+    合并 wx.login + getPhoneNumber 两步为单一接口：
+    1. login_code → jscode2session → openid/unionid
+    2. phone_code → 换取手机号
+    3. find/create user → 绑定手机号 → 签发 JWT
+    不要求用户先完成微信登录再绑定手机号。
+    """
+    mini_appid = _get_config_str(db, "wx_mini_appid",
+                                 os.getenv("WECHAT_MINI_APPID", ""))
+    mini_secret = _get_config_str(db, "wx_mini_secret",
+                                  os.getenv("WECHAT_MINI_SECRET", ""))
+    if not mini_appid or not mini_secret:
+        raise HTTPException(
+            status_code=503,
+            detail="小程序未配置（请在管理后台 → 系统参数中填写 wx_mini_appid / wx_mini_secret）",
+        )
+
+    import httpx
+
+    # Step 1: login_code → openid
+    wx_url = (
+        "https://api.weixin.qq.com/sns/jscode2session"
+        f"?appid={mini_appid}"
+        f"&secret={mini_secret}"
+        f"&js_code={body.login_code}"
+        "&grant_type=authorization_code"
+    )
+    try:
+        wx_resp = httpx.get(wx_url, timeout=10)
+        wx_data = wx_resp.json()
+    except Exception:
+        raise HTTPException(status_code=502, detail="微信服务不可达")
+
+    openid = wx_data.get("openid", "")
+    unionid = wx_data.get("unionid", "")
+    if not openid:
+        raise HTTPException(status_code=400, detail="未获取到微信 OpenID，请检查小程序配置")
+
+    # Step 2: 获取 access_token 后换取手机号
+    try:
+        token_resp = httpx.get(
+            "https://api.weixin.qq.com/cgi-bin/token"
+            f"?grant_type=client_credential&appid={mini_appid}&secret={mini_secret}",
+            timeout=10,
+        )
+        token_data = token_resp.json()
+        access_token = token_data.get("access_token", "")
+        if not access_token:
+            raise HTTPException(status_code=502, detail="微信服务 token 获取失败")
+    except HTTPException:
+        raise
+    except Exception:
+        raise HTTPException(status_code=502, detail="微信服务不可达")
+
+    try:
+        phone_resp = httpx.post(
+            f"https://api.weixin.qq.com/wxa/business/getuserphonenumber?access_token={access_token}",
+            json={"code": body.phone_code},
+            timeout=10,
+        )
+        phone_data = phone_resp.json()
+    except Exception:
+        raise HTTPException(status_code=502, detail="微信手机号接口不可达")
+
+    if phone_data.get("errcode", 0) != 0:
+        raise HTTPException(
+            status_code=400,
+            detail=phone_data.get("errmsg", "手机号获取失败"),
+        )
+
+    phone_info = phone_data.get("phone_info", {})
+    phone_number = phone_info.get("purePhoneNumber", "")
+    if not phone_number:
+        raise HTTPException(status_code=400, detail="未获取到手机号")
+
+    # Step 3: 查找或创建用户 → 绑定手机号
+    client_ip = _get_client_ip(request) if request else ""
+    user, is_new, gift_note = _find_or_create_user(
+        db,
+        wx_mini_openid=openid,
+        wx_unionid=unionid,
+        phone=phone_number,
+        channel="mini_program",
+        client_ip=client_ip,
+    )
+
+    # 始终回写手机号（已有用户可能之前未绑定）
+    if not user.phone_number:
+        user.phone_number = phone_number
+    if not user.phone:
+        user.phone = phone_number
+    db.commit()
+
+    # Step 4: 签发 JWT
+    token = create_token(user.id, role="user")
+    resp = {
+        "token": token,
+        "user": user.to_dict(),
+        "is_new_user": is_new,
+        "gift_note": gift_note,
+        "wx_mini_openid": openid,
+        "phone": phone_number,
+    }
+    if unionid:
+        resp["wx_unionid"] = unionid
+    return resp

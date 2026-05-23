@@ -47,6 +47,10 @@ function bindPhone (code) {
   return request({ url: '/api/auth/wechat/mini/bind-phone', method: 'POST', data: { code } })
 }
 
+function phoneLogin (loginCode, phoneCode) {
+  return request({ url: '/api/auth/wechat/mini/phone-login', method: 'POST', data: { login_code: loginCode, phone_code: phoneCode }, auth: false })
+}
+
 // ── User / Records / Favorites ──
 function fetchProfile () { return request({ url: '/api/user/profile' }) }
 function fetchRecords (page = 1, pageSize = 20) { return request({ url: `/api/records?page=${page}&page_size=${pageSize}` }) }
@@ -134,7 +138,7 @@ function analyzeLocation (payload) {
 function getHealth () { return request({ url: '/api/health', auth: false }) }
 
 export default {
-  request, normalizeError, ensureAnonToken, wechatMiniLogin, bindPhone,
+  request, normalizeError, ensureAnonToken, wechatMiniLogin, bindPhone, phoneLogin,
   fetchProfile, fetchRecords, fetchRecordDetail, deleteRecord,
   fetchFavorites, deleteFavorite, fetchIndustries, locationSuggest, locationRegeocode, analyzeLocation, getHealth
 }

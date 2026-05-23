@@ -1,29 +1,26 @@
 <template>
   <view class="profile-page">
-    <!-- Top section — 对齐 Web ProfileView -->
+    <!-- Top section -->
     <view class="top">
-      <!-- 头像 -->
-      <view class="avatar-zone">
-        <image v-if="avatarUrl" class="avatar-img" :src="avatarUrl" mode="aspectFill" />
-        <text v-else class="avatar-fb">👤</text>
-        <button v-if="loggedIn" class="avatar-btn" open-type="chooseAvatar" @chooseavatar="onChooseAvatar">更换头像</button>
-      </view>
-      <!-- 昵称 -->
-      <view class="nick-zone" v-if="loggedIn">
-        <input class="nick-input" type="nickname" :value="userName" placeholder="点击设置昵称" @blur="onNicknameBlur" />
-      </view>
-      <text class="uname" v-if="!loggedIn">未登录</text>
-      <text class="uname" v-if="loggedIn">{{ displayName }}</text>
-      <text class="uid" v-if="loggedIn && uidText">{{ uidText }}</text>
-      <!-- 手机号 -->
-      <view class="phone-zone" v-if="loggedIn">
-        <text class="phone-text" v-if="phoneText">{{ phoneText }}</text>
-        <button v-else class="phone-btn" open-type="getPhoneNumber" @getphonenumber="onGetPhoneNumber">📱 绑定手机号</button>
-      </view>
-      <!-- 登录按钮 -->
-      <button v-if="!loggedIn" class="top-login" @tap="onLogin">{{ loginLoading ? '登录中...' : '微信一键登录' }}</button>
+      <!-- 已登录 -->
+      <template v-if="loggedIn">
+        <view class="top-row" @tap="goEdit">
+          <image v-if="avatarUrl" class="avatar-img" :src="avatarUrl" mode="aspectFill" />
+          <text v-else class="avatar-fb">👤</text>
+          <view class="top-mid">
+            <text class="uname">{{ displayName }}</text>
+            <text class="uid" v-if="uidText">{{ uidText }}</text>
+          </view>
+          <text class="arrow">›</text>
+        </view>
+      </template>
+      <!-- 未登录 -->
+      <template v-else>
+        <text class="avatar-fb">👤</text>
+        <text class="uname">未登录</text>
+        <button class="top-login" @tap="showLoginSheet = true">登录 / 注册</button>
+      </template>
       <text class="login-err" v-if="loginErr">{{ loginErr }}</text>
-      <text class="auth-err" v-if="authErr">{{ authErr }}</text>
     </view>
 
     <!-- Stats panel -->
@@ -66,13 +63,7 @@
         <text class="pc-num">{{ points }}</text>
         <text class="pc-unit">点</text>
         <text class="pc-desc">当前剩余点数 · 可用于生成选址分析报告</text>
-        <text class="pc-desc" v-if="!freePointActive">⚠️ 免费赠送点已过期（{{ freePointExpiry }}），实际有效点数为 {{ Math.max(0, points - 1) }}</text>
-      </view>
-      <view class="pc-flow">
-        <view class="pf" v-for="s in flowSteps" :key="s.label">
-          <text class="pf-icon">{{ s.icon }}</text>
-          <text class="pf-label">{{ s.label }}</text>
-        </view>
+        <text class="pc-desc warn" v-if="!freePointActive">⚠️ 免费赠送点已过期，实际有效 {{ Math.max(0, points - 1) }} 点</text>
       </view>
       <view class="pc-warn" v-if="!memberDays && points <= 3">
         <text>点数即将用完，建议充值或开通会员</text>
@@ -99,13 +90,37 @@
     </view>
 
     <view class="footer">(c) 2026 AI 选址初筛参考工具</view>
+
+    <!-- 登录底部弹层 -->
+    <view class="sheet-mask" v-if="showLoginSheet" @tap="showLoginSheet = false">
+      <view class="sheet" @tap.stop>
+        <view class="sheet-handle" />
+        <text class="sheet-title">登录址得选</text>
+        <text class="sheet-desc">使用手机号快速登录，体验完整功能</text>
+
+        <!-- 手机号一键登录 -->
+        <button class="sheet-btn primary" open-type="getPhoneNumber" @getphonenumber="onPhoneLogin">
+          📱 手机号一键登录
+        </button>
+
+        <!-- 微信登录（兜底） -->
+        <button class="sheet-btn secondary" @tap="onWxLogin">
+          <text class="wx-icon">💬</text> 微信登录
+        </button>
+
+        <!-- 暂时跳过 -->
+        <text class="sheet-skip" @tap="showLoginSheet = false">暂时跳过，先看看</text>
+
+        <!-- 隐私提示 -->
+        <text class="sheet-privacy">登录即表示同意《用户协议》和《隐私政策》</text>
+      </view>
+    </view>
   </view>
 </template>
 
 <script>
 import auth from '../../utils/auth'
 import api from '../../utils/api'
-import { maskOpenid } from '../../utils/format'
 
 export default {
   data () {
@@ -113,7 +128,7 @@ export default {
       loggedIn: false,
       loginLoading: false,
       loginErr: '',
-      authErr: '',
+      showLoginSheet: false,
       avatarUrl: '',
       phoneText: '',
       userName: '',
@@ -129,8 +144,7 @@ export default {
         { icon:'∞',label:'无限分析',desc:'次数不限' },{ icon:'PDF',label:'PDF导出',desc:'高清报告' },
         { icon:'⌁',label:'盈利预测',desc:'精准估算' },{ icon:'◎',label:'高级模型',desc:'多维评估' },
         { icon:'▥',label:'数据对比',desc:'深度分析' },{ icon:'☎',label:'专属客服',desc:'优先服务' }
-      ],
-      flowSteps: [{ icon:'⌖',label:'选地址' },{ icon:'✚',label:'AI分析' },{ icon:'▤',label:'生成报告' },{ icon:'↓',label:'导出使用' }]
+      ]
     }
   },
   computed: {
@@ -162,7 +176,6 @@ export default {
         this.uidText = user.id ? '用户编号：' + user.id : ''
         this.memberDays = user.membership_days_left || 0
         this.memberExpiry = user.membership_expiry || ''
-        // fetch最新 profile
         api.fetchProfile().then(r => {
           if (r.ok && r.data) {
             const p = r.data
@@ -173,32 +186,69 @@ export default {
             this.memberExpiry = p.membership_expiry || this.memberExpiry
             this.reportCount = p.total_reports ?? 0
             this.favCount = p.favorite_count ?? 0
-            auth.setUser(p)
+            // 只 merge user 对象，不 merge profile 顶层
+            if (p.user) auth.setUser(p.user)
           }
         }).catch(() => {})
       } else {
         this.loggedIn = false
       }
     },
-    onLogin () {
-      this.loginLoading = true; this.loginErr = ''
+    // ── 手机号一键登录 ──
+    onPhoneLogin (e) {
+      this.loginErr = ''
+      const detail = e.detail || {}
+      if (detail.errMsg && detail.errMsg.indexOf('deny') >= 0) {
+        this.loginErr = '手机号授权已取消'; return
+      }
+      const phoneCode = detail.code
+      if (!phoneCode) { this.loginErr = '获取手机号失败'; return }
+
+      this.loginLoading = true
+      this.showLoginSheet = false
+
+      uni.login({
+        provider: 'weixin',
+        success: (loginRes) => {
+          if (!loginRes.code) { this.loginLoading = false; this.loginErr = '微信登录失败'; return }
+          api.phoneLogin(loginRes.code, phoneCode).then(r => {
+            this.loginLoading = false
+            if (r.ok) {
+              const d = r.data
+              auth.setToken(d.token)
+              auth.setUser(d.user)
+              if (d.gift_note) uni.setStorageSync('gift_note', d.gift_note)
+              if (d.wx_mini_openid) uni.setStorageSync('wx_mini_openid', d.wx_mini_openid)
+              if (d.wx_unionid) uni.setStorageSync('wx_unionid', d.wx_unionid)
+              this.refreshState()
+            } else {
+              const sc = r.statusCode
+              if (sc === 503) this.loginErr = '小程序未配置，请联系管理员'
+              else if (sc === 400) this.loginErr = '登录参数无效，请重试'
+              else if (sc === 409) this.loginErr = '该手机号已绑定其他账号'
+              else this.loginErr = r.error || '登录失败'
+            }
+          }).catch(() => { this.loginLoading = false; this.loginErr = '网络异常' })
+        },
+        fail: () => { this.loginLoading = false; this.loginErr = '微信登录失败' }
+      })
+    },
+    // ── 微信登录（兜底）──
+    onWxLogin () {
+      this.loginLoading = true; this.loginErr = ''; this.showLoginSheet = false
       auth.wechatLogin().then(r => {
         this.loginLoading = false
-        if (r.ok) {
-          this.refreshState()
-        } else {
+        if (r.ok) { this.refreshState() } else {
           const sc = r.statusCode
           if (sc === 503) this.loginErr = '小程序登录未配置，请先在管理后台配置小程序凭据'
           else if (sc === 400) this.loginErr = '微信登录参数无效，请重新尝试'
           else if (sc === 409) this.loginErr = '微信身份已绑定其他账号'
           else if (sc) this.loginErr = '登录失败 (HTTP ' + sc + ')，请重试'
-          else this.loginErr = '登录失败，未收到服务端状态码，请确认后端日志'
+          else this.loginErr = '登录失败，请检查后端日志'
         }
-      }).catch(() => {
-        this.loginLoading = false
-        this.loginErr = '网络异常，请确认后端服务 http://127.0.0.1:8000 可访问'
-      })
+      }).catch(() => { this.loginLoading = false; this.loginErr = '网络异常，请确认后端 http://127.0.0.1:8000 可访问' })
     },
+    goEdit () { uni.navigateTo({ url: '/pages/profile/edit' }) },
     onLogout () {
       auth.clearToken()
       this.loggedIn = false; this.points = 3; this.reportCount = 0; this.favCount = 0
@@ -206,47 +256,7 @@ export default {
     onUpgrade () { uni.showToast({ title: '会员充值接入中', icon: 'none' }) },
     onCDK () { uni.showToast({ title: '兑换码接入中', icon: 'none' }) },
     onBuy () { uni.showToast({ title: '点数购买接入中', icon: 'none' }) },
-    onCS () { uni.showToast({ title: '客服接入中', icon: 'none' }) },
-    onChooseAvatar (e) {
-      const avatarUrl = e.detail && e.detail.avatarUrl
-      if (avatarUrl) {
-        this.avatarUrl = avatarUrl
-        auth.setUser({ avatarUrl })
-      }
-      this.authErr = ''
-    },
-    onNicknameBlur (e) {
-      const nickname = e.detail && e.detail.value
-      if (nickname && nickname.trim()) {
-        this.userName = nickname.trim()
-        auth.setUser({ nickname: this.userName })
-      }
-      this.authErr = ''
-    },
-    onGetPhoneNumber (e) {
-      this.authErr = ''
-      if (e.detail.errMsg && e.detail.errMsg.indexOf('deny') >= 0) {
-        this.authErr = '手机号授权已取消'
-        return
-      }
-      const code = e.detail.code
-      if (!code) {
-        this.authErr = '获取手机号失败'
-        return
-      }
-      // 交给后端换手机号
-      api.bindPhone(code).then(r => {
-        if (r.ok) {
-          this.phoneText = r.data?.phone || '已绑定'
-          this.authErr = ''
-          auth.setUser({ phone: this.phoneText })
-        } else {
-          this.authErr = r.data?.detail || '手机号绑定失败，请重试'
-        }
-      }).catch(() => {
-        this.authErr = '网络异常，请确认后端服务可访问'
-      })
-    }
+    onCS () { uni.showToast({ title: '客服接入中', icon: 'none' }) }
   }
 }
 </script>
@@ -254,17 +264,15 @@ export default {
 <style scoped>
 .profile-page { min-height:100vh; background:#eef3f9; padding-bottom:60rpx; }
 .top { background:linear-gradient(135deg,#02091d,#071843); padding:60rpx 32rpx 40rpx; text-align:center; color:#fff; }
+.top-row { display:flex; align-items:center; text-align:left; }
+.avatar-img { width:100rpx; height:100rpx; border-radius:50rpx; border:3rpx solid rgba(255,255,255,0.3); flex-shrink:0; }
 .avatar-fb { font-size:80rpx; }
-.uname { display:block; font-size:36rpx; font-weight:700; margin-top:12rpx; }
+.top-mid { flex:1; margin-left:24rpx; }
+.uname { display:block; font-size:36rpx; font-weight:700; }
 .uid { display:block; font-size:24rpx; color:rgba(255,255,255,0.6); margin-top:4rpx; }
+.arrow { font-size:40rpx; color:rgba(255,255,255,0.4); }
 .top-login { margin-top:28rpx; width:400rpx; background:#07c160; color:#fff; border-radius:40rpx; font-size:32rpx; font-weight:600; padding:20rpx 0; }
 .login-err { display:block; margin-top:14rpx; font-size:24rpx; color:#fca5a5; }
-.avatar-zone { position:relative; display:inline-block; }
-.avatar-img { width:120rpx; height:120rpx; border-radius:60rpx; border:3rpx solid rgba(255,255,255,0.3); }
-.avatar-btn { position:absolute; bottom:-6rpx; right:-10rpx; background:rgba(255,255,255,0.2); color:#fff; font-size:20rpx; padding:4rpx 14rpx; border-radius:20rpx; }
-.nick-zone { margin-top:16rpx; } .nick-input { text-align:center; color:#fff; font-size:28rpx; background:rgba(255,255,255,0.1); border-radius:12rpx; padding:12rpx 24rpx; width:400rpx; }
-.phone-zone { margin-top:14rpx; } .phone-text { font-size:24rpx; color:rgba(255,255,255,0.7); } .phone-btn { background:rgba(255,255,255,0.15); color:#fff; font-size:24rpx; padding:10rpx 28rpx; border-radius:20rpx; display:inline-block; }
-.auth-err { display:block; margin-top:10rpx; font-size:22rpx; color:#fca5a5; }
 
 .stats { display:flex; background:#fff; margin:-30rpx 24rpx 24rpx; border-radius:20rpx; padding:24rpx 0; box-shadow:0 4rpx 24rpx rgba(0,0,0,0.06); }
 .stat { flex:1; text-align:center; }
@@ -283,9 +291,7 @@ export default {
 .pc-actions { display:flex; gap:12rpx; } .pca { font-size:24rpx; padding:8rpx 20rpx; border-radius:14rpx; background:#f1f5f9; color:#475569; } .pca.primary { background:#246bff; color:#fff; }
 .pc-body { text-align:center; margin-bottom:24rpx; }
 .pc-num { font-size:80rpx; font-weight:900; color:#1e293b; } .pc-unit { font-size:28rpx; color:#667085; }
-.pc-desc { display:block; font-size:24rpx; color:#94a3b8; margin-top:8rpx; }
-.pc-flow { display:flex; justify-content:space-around; padding:16rpx 0; border-top:1rpx solid #f1f5f9; }
-.pf { text-align:center; } .pf-icon { font-size:32rpx; display:block; } .pf-label { font-size:20rpx; color:#667085; margin-top:4rpx; display:block; }
+.pc-desc { display:block; font-size:24rpx; color:#94a3b8; margin-top:8rpx; } .pc-desc.warn { color:#dc2626; }
 .pc-warn { margin-top:16rpx; padding:16rpx; background:#fef2f2; border-radius:12rpx; } .pc-warn text { font-size:24rpx; color:#dc2626; }
 
 .menu-card { background:#fff; margin:0 24rpx 24rpx; border-radius:20rpx; }
@@ -293,4 +299,16 @@ export default {
 .mi-icon { font-size:36rpx; margin-right:16rpx; } .mi-body { flex:1; } .mi-label { font-size:28rpx; color:#1e293b; display:block; } .mi-desc { font-size:22rpx; color:#94a3b8; }
 .mi-arrow { font-size:32rpx; color:#cbd5e1; }
 .footer { text-align:center; font-size:20rpx; color:#cbd5e1; padding:24rpx; }
+
+/* ── 登录底部弹层 ── */
+.sheet-mask { position:fixed; inset:0; background:rgba(0,0,0,0.45); z-index:500; display:flex; align-items:flex-end; }
+.sheet { width:100%; background:#fff; border-radius:24rpx 24rpx 0 0; padding:32rpx 28rpx 48rpx; text-align:center; }
+.sheet-handle { width:60rpx; height:6rpx; background:#e2e8f0; border-radius:3rpx; margin:0 auto 24rpx; }
+.sheet-title { display:block; font-size:34rpx; font-weight:800; color:#1e293b; }
+.sheet-desc { display:block; font-size:24rpx; color:#94a3b8; margin-top:8rpx; margin-bottom:32rpx; }
+.sheet-btn { width:100%; border-radius:16rpx; font-size:30rpx; font-weight:600; padding:24rpx 0; margin-bottom:16rpx; }
+.sheet-btn.primary { background:#07c160; color:#fff; }
+.sheet-btn.secondary { background:#f1f5f9; color:#475569; display:flex; align-items:center; justify-content:center; gap:8rpx; }
+.sheet-skip { display:block; font-size:24rpx; color:#94a3b8; padding:12rpx; }
+.sheet-privacy { display:block; font-size:20rpx; color:#cbd5e1; margin-top:16rpx; }
 </style>
