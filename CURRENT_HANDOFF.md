@@ -1267,12 +1267,10 @@ After address auto-suggest passes:
 |----------|------|-----|
 | P0 | Report Detail | Missing radar chart (8-dimension SVG) |
 | P0 | Report Detail | Missing per-dimension detailed text analysis |
-| P0 | Records | Missing PDF export functionality |
-| P0 | Profile | Missing recharge modal (SKU grid + CDK + QR) |
-| P1 | Home | Missing new-user welcome modal (free points gift) |
-| P1 | Home | Missing free-point countdown banner |
+| P0 | Report Detail | Missing 20+ POI category detail lists with distances |
+| P0 | Home | Missing new-user welcome modal (free points gift) |
+| P0 | Home | Missing free-point countdown banner |
 | P1 | Home | Favorite button not integrated with backend API |
-| P1 | Report Detail | Missing 20+ POI category detail lists with distances |
 | P1 | Report Detail | Missing color-coded metric badges |
 | P1 | Records | Missing map thumbnail on record cards |
 | P1 | Records | Missing star rating visualization |
@@ -1286,6 +1284,14 @@ After address auto-suggest passes:
 | P2 | Report Detail | Missing legacy-format competitor labels |
 | P2 | Records | Minor copy differences in delete confirmation |
 | P2 | Favorites | Missing "add address" button |
+
+### Deferred by Current Boundary (payment/PDF/recharge phase)
+| Item | Reason |
+|------|--------|
+| PDF export | blocked by /unlock-pdf boundary |
+| /download | blocked by /download boundary |
+| Recharge modal (SKU/CDK/purchase) | blocked by requestPayment boundary |
+| requestPayment integration | blocked by requestPayment boundary |
 
 ### Expected Untracked Files
 

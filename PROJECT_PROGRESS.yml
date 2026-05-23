@@ -88,7 +88,8 @@ phase23_uniapp:
     phase23n1_address_autosuggest: "~98% — user-verified; diagnostic UI removed; auto-suggest fires without pressing search"
     phase23n2_analyze_flow: "~45% — 401/402/SSE error/network unreachable verified via curl; SSE step 1-4 structure correct; success path env-blocked by LLM/AMap config; report_uuid fix applied (1be5a5d)"
     phone_login: "external blocked — requires real mini-program AppID + phone verification capability + privacy config; bypass available via /api/auth/register curl + DevTools Storage manual token injection"
-    ui_web_alignment: "~10% — gap audit complete; 4 high-impact fixes applied (analyze loading UI, provider=deepseek, store size validation matching Web, profile points default=0); major gaps remain (radar chart, PDF export, recharge modal, dimension analysis, POI detail lists)"
+    ui_web_alignment: "~15% — gap audit complete; 5 fixes applied (optimistic step timer, Web-aligned analyze UI, provider=deepseek, store size validation matching Web, profile points default=0); active P0/P1: radar chart, dimension analysis, POI detail lists, new-user welcome, free-point countdown, favorites API, records thumbnails/stars, profile stat nav/customer service"
+    deferred_by_boundary: "PDF export, /download, /unlock-pdf, recharge modal (SKU/CDK/purchase), requestPayment — blocked by current no-payment/PDF boundary"
     external_blockers:
       - "Phone login: real WeChat Mini Program AppID required"
       - "Analyze success: LLM API Key + AMap Web Key must be configured in backend .env"

@@ -155,6 +155,7 @@ export default {
       analyzeErr: '',
       analyzeStatus: '',
       currentStep: 0,
+      stepTimer: null,
       isFaved: false,
       selectedLocationSource: '',
       showUserLocation: false,
@@ -210,6 +211,8 @@ export default {
       uni.showToast({ title: '已加载收藏地址', icon: 'none' })
     }
   },
+  onHide () { this.clearAnalyzeTimer() },
+  onUnload () { this.clearAnalyzeTimer() },
   mounted () {
     api.fetchIndustries().then(r => {
       if (r.ok && Array.isArray(r.data?.industries)) this.industryList = r.data.industries
@@ -408,7 +411,9 @@ export default {
       if (!this.industry) { e.industry = '请选择业态'; ok = false }
       if (!this.brandName || !this.brandName.trim()) { e.brand = '请输入品牌或特色'; ok = false }
       const sz = parseFloat(this.storeSize)
-      if (isNaN(sz) || sz <= 0) { e.size = '请输入有效的门店面积'; ok = false } else if (sz > 10000) { e.size = '面积数值较大，请确认'; ok = false }
+      if (!this.storeSize || this.storeSize.toString().trim() === '') { e.size = '请输入门店预估面积，用于租金与人效精算'; ok = false }
+      else if (isNaN(sz) || sz <= 0) { e.size = '店面面积必须大于 0'; ok = false }
+      else if (sz > 10000) { e.size = '面积数值较大，请确认输入无误'; ok = false }
       this.errors = e; return ok
     },
     async onAnalyze () {
@@ -433,25 +438,35 @@ export default {
       }
       if (industryId !== undefined) payload.industry_id = industryId
 
-      this.analyzing = true; this.analyzeErr = ''; this.analyzeSteps = []; this.currentStep = 0; this.analyzeStatus = '正在连接分析服务...'
+      this.analyzing = true; this.analyzeErr = ''; this.analyzeSteps = []; this.analyzeStatus = '正在连接分析服务...'
+      // ★ 乐观步骤推进：step 1 立刻显示 active
+      this.currentStep = 1
+      if (this.stepTimer) clearTimeout(this.stepTimer)
+      this.stepTimer = setTimeout(() => {
+        if (this.analyzing && this.currentStep < 2) this.currentStep = 2
+        this.stepTimer = setTimeout(() => {
+          if (this.analyzing && this.currentStep < 3) this.currentStep = 3
+        }, 5000)
+      }, 3000)
       try {
         const r = await api.analyzeLocation(payload)
+        this.clearAnalyzeTimer()
         if (r.ok && r.result) {
           this.analyzeSteps = r.steps || []
           this.currentStep = 4
           this.analyzeStatus = '报告生成完毕！'
-          // 存入全局缓存供 report-detail 使用
           uni.setStorageSync('latest_analysis', { recordId: r.recordId, result: r.result, steps: r.steps })
-          // 延迟跳转让用户看到完成状态
-          setTimeout(() => {
+          this.stepTimer = setTimeout(() => {
             this.analyzing = false
             uni.navigateTo({ url: `/pages/report-detail/index?id=${r.recordId}` })
           }, 600)
         } else {
-          this.analyzeSteps = r.steps || []
-          // set currentStep to latest completed step from SSE
+          // 以真实 SSE steps 为准
           const steps = r.steps || []
-          this.currentStep = steps.length ? Math.max(...steps.map(s => typeof s.step === 'number' ? s.step : 0)) : 0
+          if (steps.length) {
+            this.analyzeSteps = steps
+            this.currentStep = Math.max(...steps.map(s => typeof s.step === 'number' ? s.step : 0))
+          }
           if (r.statusCode === 401) {
             this.analyzeErr = '登录已过期，请去「我的」页面重新登录后再试'
           } else if (r.statusCode === 402) {
@@ -462,9 +477,13 @@ export default {
           this.analyzing = false
         }
       } catch (e) {
+        this.clearAnalyzeTimer()
         this.analyzeErr = typeof e === 'string' ? e : (e.message || e.errMsg || '分析请求失败，请确认后端服务已启动')
         this.analyzing = false
       }
+    },
+    clearAnalyzeTimer () {
+      if (this.stepTimer) { clearTimeout(this.stepTimer); this.stepTimer = null }
     }
   }
 }
