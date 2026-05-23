@@ -628,7 +628,7 @@ async def analyze_location(req: AnalyzeRequest, user: dict = Depends(get_current
                 raise RuntimeError("DB_SAVE_FAILED: 分析记录保存失败，报告未落库")
 
             # ★ normalize_report_result 已完成加权总分计算，此处不再覆盖
-            result["record_id"] = str(record.id)  # ★ uni-app 前端需要 UUID 跳转报告页
+            result["record_id"] = str(record.report_uuid)  # ★ uni-app 前端需要 UUID 跳转报告页
             _stream_ok = True  # ★ 标记流完整成功，finally 块不退款
             yield _sse(4, "✅ 报告生成完毕！", result=result)
             await asyncio.sleep(0)

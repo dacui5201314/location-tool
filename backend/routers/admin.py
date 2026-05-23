@@ -8,7 +8,7 @@ from typing import List
 import random, string
 from fastapi import APIRouter, Depends, Query, HTTPException, UploadFile, File, Request
 from sqlalchemy.orm import Session
-from sqlalchemy import func, update
+from sqlalchemy import func, update, or_
 from pydantic import BaseModel, ConfigDict
 from database import get_db
 from models.db_models import User, AnalysisRecord, SavedLocation, RedeemCode, SystemConfig, OperationLog, BillingRecord
@@ -147,7 +147,7 @@ def list_users(
         if phone.isdigit():
             query = query.filter(User.id == int(phone))
         else:
-            query = query.filter(User.phone.contains(phone))
+            query = query.filter(or_(User.phone.contains(phone), User.phone_number.contains(phone)))
     if member == "1":
         query = query.filter(User.membership_expiry != None, User.membership_expiry > datetime.now())
     elif member == "0":

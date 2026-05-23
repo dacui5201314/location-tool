@@ -166,6 +166,7 @@ def _find_or_create_user(
         wx_mini_openid=wx_mini_openid or None,
         wx_unionid=wx_unionid or None,
         phone=phone or None,
+        phone_number=phone or None,
         channel=channel,
         is_new_user=True,
     )
