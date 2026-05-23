@@ -1,5 +1,5 @@
 current_phase: Phase 23N
-phase_status: next_codex_handoff_ready_for_devtools_autosuggest_verify
+phase_status: autosuggest_passed_diag_removed_analyze_flow_ready
 latest_code_commit: 0b2dfde
 latest_code_commit_message: "fix: replace v-model with explicit :value/@input, add inputDiag for event trace"
 latest_docs_commit: 7496716
@@ -40,7 +40,7 @@ sample_bank:
   partial: 10
   latest_industry_test_total: "2168 PASS, 0 FAIL"
 
-next_step: "Next Codex window: review Claude's devtools auto-suggest verification, then continue Phase 23N-2 analyze flow parity with Web."
+next_step: "Phase 23N-2: devtools test analyze flow — 401/402/5xx/success → report-detail?id=<record_id>."
 
 boundaries:
   no_push: true
@@ -85,9 +85,9 @@ phase23_uniapp:
     copy_scan: "PASS: no misleading 生成中/扣点/支付/下载 PDF 报告/消耗 1 点 in uniapp/src"
   current_status:
     overall_progress: "about 93%"
-    phase23n1_address_autosuggest: "about 95% code-side; waiting for WeChat DevTools confirmation that latest dist is loaded and inputDiag/auto-suggest fire without pressing search"
-    phase23n2_analyze_flow: "about 40%; /api/analyze is now intentionally connected through uniapp/src/utils/api.js and must be verified against Web behavior"
-    current_no_call_boundary: "No requestPayment, no /unlock-pdf, no /download. Do not claim no /api/analyze in current Phase 23N."
+    phase23n1_address_autosuggest: "~98% — user-verified in devtools; diagnostic UI removed; auto-suggest fires without pressing search"
+    phase23n2_analyze_flow: "~40% — /api/analyze SSE integration complete; 401/402/5xx/network error/success all handled; pending devtools verification"
+    current_no_call_boundary: "No requestPayment, no /unlock-pdf, no /download."
     latest_user_direction: "Formal launch target: all uni-app UI/logic/copy/states must align with Web frontend master."
   current_worktree_caveat:
     - "Expected untracked: tmp_latest_report_text.txt, tmp_report_images/, tmp_report_pages/, miniprogram/pages/profile/profile.json."

@@ -19,10 +19,7 @@
           <input class="field" :value="addressKeyword" placeholder="输入地址搜索或在地图上选点" :disabled="analyzing" @input="onAddressInput" @confirm="onSearch" />
           <button class="s-btn" :disabled="analyzing || !addressKeyword" @tap="onSearch">搜索</button>
         </view>
-        <!-- input 诊断行 -->
-        <view class="input-diag" v-if="inputDiag">{{ inputDiag }}</view>
         <!-- 候选列表 -->
-        <view class="suggest-diag" v-if="suggestDiag">{{ suggestDiag }}</view>
         <view class="suggest-list" v-if="suggestions.length">
           <view class="suggest-item" v-for="(s, i) in suggestions" :key="i" @tap="onSelectSuggestion(s)">
             <text class="sg-name">{{ s.name }}</text>
@@ -493,8 +490,6 @@ export default {
 .map-hint-bar.selected { background:#f0fdf4; border:1rpx solid #bbf7d0; }
 .mhb-text { font-size:24rpx; color:#64748b; }
 .map-diag { font-size:20rpx; color:#94a3b8; padding:4rpx 0; text-align:center; }
-.input-diag { font-size:20rpx; color:#94a3b8; padding:4rpx 0; }
-.suggest-diag { font-size:20rpx; color:#64748b; padding:8rpx 0; }
 .dual { display:flex; gap:14rpx; } .dual-half { flex:1; }
 
 .analyze-zone { margin-top:8rpx; }
