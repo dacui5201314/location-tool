@@ -62,8 +62,8 @@
         <view class="map-hint-bar selected" v-if="addressText">
           <text class="mhb-text">已选位置 · 点击地图可重新选点</text>
         </view>
-        <view class="map-hint-bar" v-if="mapDiag && mapDiag.indexOf('地址解析失败') >= 0">
-          <text class="mhb-text warn">{{ mapDiag }}</text>
+        <view class="map-hint-bar" v-if="mapNotice">
+          <text class="mhb-text warn">{{ mapNotice }}</text>
         </view>
       </view>
 
@@ -121,7 +121,6 @@
       <!-- 信任行 -->
       <view class="trust-row">
         <view class="trust-item" v-for="t in trusts" :key="t.title">
-          <text class="ti-icon">{{ t.icon }}</text>
           <text class="ti-title">{{ t.title }}</text>
           <text class="ti-desc">{{ t.desc }}</text>
         </view>
@@ -156,7 +155,7 @@ export default {
       stepTimer: null,
       selectedLocationSource: '',
       showUserLocation: false,
-      mapDiag: '',
+      mapNotice: '',
       suggestTimer: null,
       suggestLoading: false,
       suggestions: [],
@@ -164,9 +163,9 @@ export default {
       errors: { address: '', industry: '', brand: '', size: '' },
       industryList: [],
       trusts: [
-        { icon: '', title: '真实 POI 数据', desc: '高德地图实时采集' },
-        { icon: '', title: 'AI 商业评估', desc: '大模型多维度分析' },
-        { icon: '', title: '选址初筛参考', desc: '降低实地考察成本' }
+        { title: '真实 POI 数据', desc: '高德地图实时采集' },
+        { title: 'AI 商业评估', desc: '大模型多维度分析' },
+        { title: '选址初筛参考', desc: '降低实地考察成本' }
       ]
     }
   },
@@ -223,17 +222,17 @@ export default {
         if (r.ok && r.data?.ok && r.data?.data?.address) {
           this.addressText = r.data.data.address
           this.addressKeyword = r.data.data.address
-          this.mapDiag = `地址解析: ${r.data.data.address}`
+          this.mapNotice = ''
         } else {
           const coord = `经度 ${lng.toFixed(4)} · 纬度 ${lat.toFixed(4)}`
           this.addressText = coord; this.addressKeyword = coord
-          this.mapDiag = '地址解析失败，可继续手动输入'
+          this.mapNotice = '未识别到详细地址，可继续使用当前坐标或手动搜索'
         }
       } catch (e) {
         const msg = e.errMsg || e.message || ''
         const coord = `经度 ${lng.toFixed(4)} · 纬度 ${lat.toFixed(4)}`
         this.addressText = coord; this.addressKeyword = coord
-        this.mapDiag = msg.includes('timeout') ? '请求超时，请确认后端服务可访问' : '后端服务未连接，请确认 http://127.0.0.1:8000/api/health 可访问'
+        this.mapNotice = msg.includes('timeout') ? '地址服务暂时不可用，可手动输入地址' : '地址服务暂不可用，可手动输入地址'
       }
     },
     onIndustryChange (name) {
@@ -354,7 +353,7 @@ export default {
         if (msg.includes('timeout')) {
           this.suggestErr = '请求超时，请确认后端服务可访问'
         } else {
-          this.suggestErr = '后端服务未连接，请确认 http://127.0.0.1:8000/api/health 可访问'
+          this.suggestErr = '地址服务暂不可用，可手动输入地址或在地图上选点'
         }
       } finally {
         this.suggestLoading = false
@@ -376,7 +375,7 @@ export default {
       this.suggestErr = ''
     },
     onMapRegionChange (e) {
-      if (e && e.type === 'end') this.mapDiag = '地图已拖动/缩放 (regionchange end)'
+      // regionchange handled internally by map component
     },
     async onMapTap (e) {
       if (e.detail && e.detail.latitude) {
@@ -394,7 +393,7 @@ export default {
       this.addressKeyword = ''
       this.selectedLocationSource = ''
       this.showUserLocation = false
-      this.mapDiag = ''
+      this.mapNotice = ''
       this.suggestions = []
       this.suggestErr = ''
       this.errors.address = ''
@@ -511,7 +510,6 @@ export default {
 .map-hint-bar { background:#f1f5f9; border-radius:12rpx; padding:14rpx 20rpx; margin-top:8rpx; text-align:center; }
 .map-hint-bar.selected { background:#f0fdf4; border:1rpx solid #bbf7d0; }
 .mhb-text { font-size:24rpx; color:#64748b; } .mhb-text.warn { color:#dc2626; }
-.map-diag { font-size:20rpx; color:#94a3b8; padding:4rpx 0; text-align:center; }
 .dual { display:flex; gap:14rpx; } .dual-half { flex:1; }
 
 .analyze-zone { margin-top:8rpx; }
@@ -530,6 +528,6 @@ export default {
 
 .trust-row { display:flex; justify-content:space-around; margin-top:28rpx; padding-top:20rpx; border-top:1rpx solid #f1f5f9; }
 .trust-item { display:flex; flex-direction:column; align-items:center; }
-.ti-icon { font-size:32rpx; color:#246bff; } .ti-title { font-size:22rpx; font-weight:600; color:#334155; margin-top:4rpx; } .ti-desc { font-size:22rpx; color:#667085; margin-top:4rpx; }
+.ti-title { font-size:24rpx; font-weight:600; color:#334155; } .ti-desc { font-size:22rpx; color:#667085; margin-top:4rpx; }
 .footer { text-align:center; font-size:20rpx; color:#94a3b8; padding:20rpx 32rpx; line-height:1.6; }
 </style>

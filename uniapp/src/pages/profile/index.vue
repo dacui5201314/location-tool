@@ -251,7 +251,7 @@ export default {
           else if (sc) this.loginErr = '登录失败 (HTTP ' + sc + ')，请重试'
           else this.loginErr = '登录失败，请检查后端日志'
         }
-      }).catch(() => { this.loginLoading = false; this.loginErr = '网络异常，请确认后端 http://127.0.0.1:8000 可访问' })
+      }).catch(() => { this.loginLoading = false; this.loginErr = '网络异常，请确认后端服务已启动' })
     },
     goEdit () { uni.navigateTo({ url: '/pages/profile/edit' }) },
     onLogout () {

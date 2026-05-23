@@ -128,7 +128,7 @@ function analyzeLocation (payload) {
       },
       fail (err) {
         const msg = err.errMsg || err.message || ''
-        reject(msg.includes('timeout') ? '请求超时，请确认后端服务可访问' : '后端服务未连接，请确认 http://127.0.0.1:8000/api/health 可访问')
+        reject(msg.includes('timeout') ? '请求超时，请确认后端服务可访问' : '后端服务未连接，请稍后重试')
       }
     })
   })
