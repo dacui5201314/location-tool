@@ -58,6 +58,8 @@ function fetchRecordDetail (uuid) { return request({ url: `/api/records/${uuid}`
 function deleteRecord (uuid) { return request({ url: `/api/records/${uuid}`, method: 'DELETE' }) }
 function fetchFavorites () { return request({ url: '/api/favorites' }) }
 function deleteFavorite (id) { return request({ url: `/api/favorites/${id}`, method: 'DELETE' }) }
+function checkFavorite (lat, lng) { return request({ url: `/api/favorites/check?latitude=${lat}&longitude=${lng}`, auth: false }) }
+function addFavorite (data) { return request({ url: '/api/favorites', method: 'POST', data }) }
 function fetchIndustries () { return request({ url: '/api/industries/active', auth: false }) }
 
 // ── Location ──
@@ -134,11 +136,14 @@ function analyzeLocation (payload) {
   })
 }
 
+// ── Config ──
+function fetchUiConfig () { return request({ url: '/api/admin/ui-config', auth: false }) }
+
 // ── Health ──
 function getHealth () { return request({ url: '/api/health', auth: false }) }
 
 export default {
   request, normalizeError, ensureAnonToken, wechatMiniLogin, bindPhone, phoneLogin,
   fetchProfile, fetchRecords, fetchRecordDetail, deleteRecord,
-  fetchFavorites, deleteFavorite, fetchIndustries, locationSuggest, locationRegeocode, analyzeLocation, getHealth
+  fetchFavorites, deleteFavorite, checkFavorite, addFavorite, fetchIndustries, locationSuggest, locationRegeocode, analyzeLocation, fetchUiConfig, getHealth
 }

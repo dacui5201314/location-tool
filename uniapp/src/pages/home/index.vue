@@ -1,5 +1,25 @@
 <template>
   <view class="home-page">
+    <!-- 欢迎弹层 -->
+    <view class="welcome-mask" v-if="welcomeOpen" @tap="dismissWelcome">
+      <view class="welcome-modal" @tap.stop>
+        <view class="wm-icon">🎁</view>
+        <view class="wm-title">欢迎使用址得选</view>
+        <view class="wm-body">系统已赠送免费初筛额度，请尽快使用</view>
+        <button class="wm-btn" @tap="dismissWelcome">开始体验</button>
+      </view>
+    </view>
+
+    <!-- 免费额度倒计时 -->
+    <view class="free-banner" v-if="freePointBanner">
+      <text>免费初筛额度剩余 {{ freePointBanner }} · 请尽快使用</text>
+    </view>
+
+    <!-- 全局公告 -->
+    <view class="ann-banner" v-if="announcement">
+      <text>{{ announcement }}</text>
+    </view>
+
     <!-- Hero -->
     <view class="hero">
       <view class="hero-brand">址得选</view>
@@ -40,13 +60,19 @@
             <text class="ap-text">{{ addressText }}</text>
             <text class="ap-src" v-if="selectedLocationSource">来源：{{ srcLabel }}</text>
           </view>
+          <text class="ap-fav" @tap="toggleFav">{{ favLoading ? '·' : (favId ? '★' : '☆') }}</text>
           <text class="ap-clear" @tap="clearAddress">重选</text>
         </view>
         <text class="field-err" v-if="errors.address">{{ errors.address }}</text>
 
-        <map class="map-view" :latitude="mapLat" :longitude="mapLng" scale="15" :show-location="showUserLocation" :enable-scroll="true" :enable-zoom="true" :enable-rotate="false" @tap="onMapTap" @regionchange="onMapRegionChange" @updated="onMapUpdated">
-          <view class="map-center-marker"><view class="mcm-dot" /></view>
-        </map>
+        <view class="map-wrap">
+          <map class="map-view" :latitude="mapLat" :longitude="mapLng" scale="15" :show-location="showUserLocation" :enable-scroll="!analyzing" :enable-zoom="!analyzing" :enable-rotate="false" @tap="onMapTap" @regionchange="onMapRegionChange" @updated="onMapUpdated">
+            <view class="map-center-marker"><view class="mcm-dot" /></view>
+          </map>
+          <view class="map-overlay" v-if="analyzing">
+            <text class="mo-text">分析中，请稍后...</text>
+          </view>
+        </view>
         <view class="map-status" :class="{ done: addressText }">
           <text>{{ addressText ? '已选位置 · 点击地图可重新选点' : '点击地图选点 · 或使用上方搜索框输入地址' }}</text>
         </view>
@@ -81,8 +107,7 @@
       <view class="cta-zone">
         <button class="cta-btn" :disabled="analyzing || !canAnalyze" @tap="onAnalyze">
           <text class="cta-main">{{ analyzing ? '分析中...' : '生成初筛报告' }}</text>
-          <text class="cta-sub" v-if="!analyzing">客流 · 竞品 · 消费力 · 风险点初筛参考</text>
-          <text class="cta-sub" v-else>{{ analyzeStatus || '正在处理...' }}</text>
+          <text class="cta-sub">{{ ctaSubText }}</text>
         </button>
         <view class="analyze-steps" v-if="analyzing">
           <view class="as-step" v-for="(item, i) in analyzeStepItems" :key="i" :class="item.status">
@@ -133,6 +158,12 @@ export default {
       selectedLocationSource: '',
       showUserLocation: false,
       mapNotice: '',
+      welcomeOpen: false,
+      freePointBanner: '',
+      countdownTimer: null,
+      announcement: '',
+      favId: null,
+      favLoading: false,
       suggestTimer: null,
       suggestLoading: false,
       suggestions: [],
@@ -166,6 +197,12 @@ export default {
         return { ...s, status: 'pending', icon: '○' }
       })
     },
+    ctaSubText () {
+      if (this.analyzing) return this.analyzeStatus || '正在处理...'
+      if (!this.addressText) return '请先搜索或定位门店地址'
+      if (!this.canAnalyze) return '请完整填写门店位置、业态和经营信息'
+      return '客流 · 竞品 · 消费力 · 风险点初筛参考'
+    },
     srcLabel () {
       if (this.selectedLocationSource === 'locate') return '当前位置'
       if (this.selectedLocationSource === 'map') return '地图选点'
@@ -184,14 +221,104 @@ export default {
       uni.showToast({ title: '已加载收藏地址', icon: 'none' })
     }
   },
-  onHide () { this.clearAnalyzeTimer() },
-  onUnload () { this.clearAnalyzeTimer() },
+  onHide () {
+    this.clearAnalyzeTimer()
+    if (this.countdownTimer) { clearInterval(this.countdownTimer); this.countdownTimer = null }
+  },
+  onUnload () {
+    this.clearAnalyzeTimer()
+    if (this.countdownTimer) { clearInterval(this.countdownTimer); this.countdownTimer = null }
+  },
   mounted () {
     api.fetchIndustries().then(r => {
       if (r.ok && Array.isArray(r.data?.industries)) this.industryList = r.data.industries
     }).catch(() => { this.industryLoadErr = '业态加载失败，请稍后重试' })
+    this.initHomeData()
   },
   methods: {
+    async initHomeData () {
+      const token = uni.getStorageSync('token')
+      if (!token) return
+      // Profile + free point
+      try {
+        const p = await api.fetchProfile()
+        if (p.ok && p.data) {
+          const u = p.data.user || {}
+          if (u.free_point_active && u.free_point_expire_at) {
+            this.startCountdown(u.free_point_expire_at)
+          }
+          // Welcome modal
+          const dismissed = uni.getStorageSync('welcome_dismissed')
+          if (!dismissed && (p.data.is_new_user || u.is_new_user)) {
+            this.welcomeOpen = true
+          }
+        }
+      } catch (e) { /* silent */ }
+      // Announcement
+      try {
+        const a = await api.fetchUiConfig()
+        if (a.ok && a.data && a.data.announcement) {
+          this.announcement = a.data.announcement
+        }
+      } catch (e) { /* silent */ }
+    },
+    startCountdown (expireAt) {
+      const tick = () => {
+        const now = Date.now()
+        const expire = new Date(expireAt).getTime()
+        const diff = expire - now
+        if (diff <= 0) {
+          this.freePointBanner = ''
+          if (this.countdownTimer) { clearInterval(this.countdownTimer); this.countdownTimer = null }
+          return
+        }
+        const h = Math.floor(diff / 3600000)
+        const m = Math.floor((diff % 3600000) / 60000)
+        this.freePointBanner = `${h}小时${m}分`
+      }
+      tick()
+      if (this.countdownTimer) clearInterval(this.countdownTimer)
+      this.countdownTimer = setInterval(tick, 30000)
+    },
+    dismissWelcome () {
+      this.welcomeOpen = false
+      uni.setStorageSync('welcome_dismissed', '1')
+    },
+    async checkFavStatus () {
+      if (!this.addressText || !this.mapLat || !this.mapLng) { this.favId = null; return }
+      try {
+        const r = await api.checkFavorite(this.mapLat, this.mapLng)
+        if (r.ok && r.data) {
+          this.favId = r.data.id || null
+        } else { this.favId = null }
+      } catch (e) { this.favId = null }
+    },
+    async toggleFav () {
+      if (!this.addressText) return
+      const token = uni.getStorageSync('token')
+      if (!token) { uni.showToast({ title: '请先登录后收藏', icon: 'none' }); return }
+      this.favLoading = true
+      try {
+        if (this.favId) {
+          const r = await api.deleteFavorite(this.favId)
+          if (r.ok) { this.favId = null; uni.showToast({ title: '已取消收藏', icon: 'none' }) }
+          else if (r.statusCode === 401) { uni.showToast({ title: '请先登录后收藏', icon: 'none' }) }
+          else { uni.showToast({ title: '取消收藏失败', icon: 'none' }) }
+        } else {
+          const r = await api.addFavorite({
+            custom_name: this.addressText,
+            address: this.addressText,
+            latitude: this.mapLat,
+            longitude: this.mapLng
+          })
+          if (r.ok) { this.favId = r.data.id || true; uni.showToast({ title: '收藏成功', icon: 'none' }) }
+          else if (r.statusCode === 401) { uni.showToast({ title: '请先登录后收藏', icon: 'none' }) }
+          else { uni.showToast({ title: '收藏失败', icon: 'none' }) }
+        }
+      } catch (e) { uni.showToast({ title: '网络异常', icon: 'none' }) }
+      finally { this.favLoading = false }
+    },
+    onMapUpdated () { /* noop — map component内部事件 */ },
     async resolveAddressByLngLat (lng, lat, source) {
       this.selectedLocationSource = source
       try {
@@ -200,6 +327,7 @@ export default {
           this.addressText = r.data.data.address
           this.addressKeyword = r.data.data.address
           this.mapNotice = ''
+          this.checkFavStatus()
         } else {
           const coord = `经度 ${lng.toFixed(4)} · 纬度 ${lat.toFixed(4)}`
           this.addressText = coord; this.addressKeyword = coord
@@ -347,6 +475,7 @@ export default {
       this.addressKeyword = this.addressText
       if (s.location) { this.mapLng = s.location.lng; this.mapLat = s.location.lat }
       this.selectedLocationSource = 'search'
+      this.checkFavStatus()
       this.errors.address = ''
       this.suggestions = []
       this.suggestErr = ''
@@ -491,10 +620,13 @@ export default {
 .suggest-list { background:#fff; border-radius:12rpx; margin-top:8rpx; box-shadow:0 4rpx 20rpx rgba(0,0,0,0.08); max-height:340rpx; overflow-y:auto; } .suggest-item { padding:22rpx 20rpx; border-bottom:1px solid #f1f5f9; } .sg-name { font-size:28rpx; color:#1e293b; display:block; } .sg-addr { font-size:22rpx; color:#94a3b8; margin-top:4rpx; display:block; } .suggest-empty { padding:20rpx; font-size:24rpx; color:#94a3b8; text-align:center; }
 .locate-row { margin-top:12rpx; } .locate-btn { width:100%; background:#f8fafc; color:#475569; border:1px solid #d1d5db; border-radius:12rpx; font-size:28rpx; padding:18rpx 0; }
 .addr-pick { display:flex; align-items:center; margin-top:12rpx; padding:14rpx 16rpx; background:#f0fdf4; border:1px solid #86efac; border-radius:12rpx; }
-.ap-mid { flex:1; display:flex; flex-direction:column; } .ap-text { font-size:26rpx; color:#166534; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; } .ap-src { font-size:20rpx; color:#94a3b8; margin-top:2rpx; } .ap-clear { font-size:26rpx; color:#64748b; padding:4rpx 12rpx; }
+.ap-mid { flex:1; display:flex; flex-direction:column; } .ap-text { font-size:26rpx; color:#166534; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; } .ap-src { font-size:20rpx; color:#94a3b8; margin-top:2rpx; } .ap-fav { font-size:32rpx; color:#d6a84f; padding:0 8rpx; } .ap-clear { font-size:26rpx; color:#64748b; padding:4rpx 12rpx; }
 
 /* ── Map ── */
-.map-view { width:100%; height:380rpx; border-radius:12rpx; margin-top:12rpx; }
+.map-wrap { position:relative; margin-top:12rpx; }
+.map-view { width:100%; height:380rpx; border-radius:12rpx; }
+.map-overlay { position:absolute; inset:0; background:rgba(0,0,0,0.35); border-radius:12rpx; display:flex; align-items:center; justify-content:center; }
+.mo-text { color:#fff; font-size:28rpx; font-weight:600; }
 .map-center-marker { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); pointer-events:none; z-index:10; }
 .mcm-dot { width:24rpx; height:24rpx; background:#dc2626; border:4rpx solid #fff; border-radius:50%; box-shadow:0 2rpx 12rpx rgba(0,0,0,0.3); }
 .map-status { text-align:center; padding:12rpx 0 4rpx; font-size:24rpx; color:#94a3b8; }
@@ -524,4 +656,14 @@ export default {
 .trust-item { display:flex; flex-direction:column; align-items:center; }
 .ti-title { font-size:24rpx; font-weight:600; color:#475569; } .ti-desc { font-size:22rpx; color:#94a3b8; margin-top:2rpx; }
 .footer { text-align:center; font-size:22rpx; color:#94a3b8; padding:24rpx 32rpx; line-height:1.6; }
+
+/* ── Welcome modal ── */
+.welcome-mask { position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:500; display:flex; align-items:center; justify-content:center; }
+.welcome-modal { width:580rpx; background:#fff; border-radius:20rpx; padding:48rpx 32rpx; text-align:center; }
+.wm-icon { font-size:80rpx; } .wm-title { font-size:32rpx; font-weight:800; color:#1e293b; margin-top:16rpx; } .wm-body { font-size:26rpx; color:#64748b; margin-top:12rpx; line-height:1.5; }
+.wm-btn { width:100%; background:#0f172a; color:#fff; border-radius:14rpx; font-size:30rpx; font-weight:700; padding:22rpx 0; margin-top:28rpx; }
+
+/* ── Banners ── */
+.free-banner { background:#fef3c7; padding:16rpx 24rpx; text-align:center; font-size:24rpx; color:#92400e; }
+.ann-banner { background:#dbeafe; padding:16rpx 24rpx; text-align:center; font-size:24rpx; color:#1e40af; }
 </style>
