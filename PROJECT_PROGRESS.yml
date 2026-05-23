@@ -1,7 +1,7 @@
 current_phase: Phase 23N
-phase_status: address_autocomplete_input_binding_fixing
-latest_code_commit: 71e53ad
-latest_code_commit_message: "feat: integrate uni-app analyze flow with existing backend SSE endpoint"
+phase_status: address_autocomplete_input_binding_devtools_verify
+latest_code_commit: 0b2dfde
+latest_code_commit_message: "fix: replace v-model with explicit :value/@input, add inputDiag for event trace"
 latest_docs_commit: db0cfb4
 unpushed: true
 
@@ -40,7 +40,7 @@ sample_bank:
   partial: 10
   latest_industry_test_total: "2168 PASS, 0 FAIL"
 
-next_step: "Match Web address autocomplete input behavior in uni-app."
+next_step: "Force devtools to load latest dist; verify inputDiag and auto-suggest on every keystroke."
 
 boundaries:
   no_push: true
@@ -75,7 +75,6 @@ phase23_uniapp:
     - "Phase 23F: home 生成中 copy removed; records/favorites 401 loading reset with finally"
     - "Phase 23G: result page mock cleared to placeholder; all 6 pages state audited; routing/components verified"
   verified_no_calls:
-    - "/api/analyze"
     - "requestPayment"
     - "/unlock-pdf"
     - "/download"
