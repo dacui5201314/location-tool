@@ -41,18 +41,20 @@
         </view>
       </view>
 
-      <!-- Location info -->
-      <view class="section" v-if="rptCity">
+      <!-- Location info（Web parity: city/district/township/business_areas/roads） -->
+      <view class="section" v-if="rptCity || rptDistrict || rptTownship">
         <view class="sec-title">📍 位置范围</view>
-        <view class="loc-row"><text>{{ rptCity }}{{ rptDistrict ? ' · ' + rptDistrict : '' }}</text></view>
+        <view class="loc-row"><text>{{ [rptCity, rptDistrict, rptTownship].filter(Boolean).join(' · ') || '-' }}</text></view>
+        <view class="loc-sub" v-if="rptBizAreas">商圈：{{ rptBizAreas }}</view>
+        <view class="loc-sub" v-if="rptRoads">周边道路：{{ rptRoads }}</view>
       </view>
 
-      <!-- Stats triple-radius metrics -->
+      <!-- Stats triple-radius metrics（Web parity: MetricBadge color coding） -->
       <view class="section" v-if="hasStats">
         <view class="sec-title">📊 周边数据（200m / 500m / 1km）</view>
         <view class="stats-grid">
-          <view class="sg" v-for="m in rptStats" :key="m.key">
-            <text class="sg-label">{{ m.label }}</text>
+          <view class="sg" v-for="m in rptStats" :key="m.key" :class="m.highlight || ''">
+            <text class="sg-label">{{ m.icon }} {{ m.label }}</text>
             <text class="sg-val">{{ m.s200 === '' ? '-' : m.s200 }} / {{ m.s500 === '' ? '-' : m.s500 }} / {{ m.s1000 === '' ? '-' : m.s1000 }}</text>
           </view>
         </view>
@@ -120,6 +122,19 @@
         </view>
       </view>
 
+      <!-- ★ 各维度详细分析（Web parity: AnalysisResult section 8） -->
+      <view class="section" v-if="rptDetailTexts.length">
+        <view class="sec-title">📝 各维度详细分析</view>
+        <view class="dt-item" v-for="d in rptDetailTexts" :key="d.key">
+          <view class="dt-head">
+            <text class="dt-emoji">{{ d.emoji }}</text>
+            <text class="dt-label">{{ d.label }}</text>
+            <text class="dt-score" :style="{ color: sc(d.score) }" v-if="d.score > 0">{{ d.score }} 分</text>
+          </view>
+          <text class="dt-text">{{ d.text }}</text>
+        </view>
+      </view>
+
       <!-- Competition data -->
       <view class="section" v-if="hasCompetition">
         <view class="sec-title">🎯 直接竞品（同类业态 · 严谨口径）</view>
@@ -136,6 +151,19 @@
       <view class="section" v-if="rptAnc500 > 0 || rptAnc1000 > 0">
         <view class="sec-title green">🟢 客流锚点（商业活跃度参考 · 非竞品）</view>
         <view class="comp-row"><text>200m: {{ rptAnc200 }} · 500m: {{ rptAnc500 }} · 1km: {{ rptAnc1000 }}</text></view>
+      </view>
+
+      <!-- ★ POI 类别详情列表（Web parity: AnalysisResult poi_lists expandable） -->
+      <view class="section" v-if="rptPoiCats.length">
+        <view class="sec-title">📋 周边业态明细</view>
+        <view class="poi-cat" v-for="cat in rptPoiCats" :key="cat.key">
+          <text class="poi-cat-icon">{{ cat.icon }}</text>
+          <view class="poi-cat-body">
+            <text class="poi-cat-label">{{ cat.label }}（{{ cat.total }}）</text>
+            <text class="poi-cat-names">{{ cat.names.join(' · ') }}</text>
+            <text class="poi-cat-more" v-if="cat.more > 0">还有 {{ cat.more }} 条未展开</text>
+          </view>
+        </view>
       </view>
 
       <!-- Irrelevant excluded -->
@@ -191,8 +219,11 @@ export default {
       rptAnc200: 0, rptAnc500: 0, rptAnc1000: 0,
       rptIrr: 0, rptBrands: [],
       rptQual: [],
-      rptCity: '', rptDistrict: '',
+      rptCity: '', rptDistrict: '', rptTownship: '',
+      rptBizAreas: '', rptRoads: '',
       rptStats: [],
+      rptDetailTexts: [],  // ★ per-dimension detailed analysis text (Web parity)
+      rptPoiCats: [],       // ★ POI category detail lists (Web parity)
       rptDirList: [], rptSubList: [], rptAncList: [],
       rptIrrList: [],
       rptDirMore: 0, rptSubMore: 0, rptAncMore: 0
@@ -201,7 +232,7 @@ export default {
   computed: {
     recordTitle () { return this.record.brand_desc || this.record.business_type || '报告详情' },
     hasCompetition () { return this.rptDir200 + this.rptDir500 + this.rptDir1000 > 0 },
-    hasContent () { return this.rptScore > 0 || this.rptSummary || this.rptAdv.length || this.rptDims.length || this.rptQual.length || this.rptBrands.length || this.rptIrr > 0 || this.rptCity || this.hasStats || this.rptDirList.length },
+    hasContent () { return this.rptScore > 0 || this.rptSummary || this.rptAdv.length || this.rptDims.length || this.rptQual.length || this.rptBrands.length || this.rptIrr > 0 || this.rptCity || this.hasStats || this.rptDirList.length || this.rptDetailTexts.length || this.rptPoiCats.length },
     hasStats () { return this.rptStats.length > 0 },
     scorePct () {
       const v = Number(this.rptScore)
@@ -246,8 +277,9 @@ export default {
       ['rptScore','rptDisclaimer','rptWarning','rptSummary','rptAdv','rptDis','rptDims','rptAction',
        'rptDir200','rptDir500','rptDir1000','rptSub200','rptSub500','rptSub1000',
        'rptAnc200','rptAnc500','rptAnc1000','rptIrr','rptBrands','rptQual',
-       'rptCity','rptDistrict','rptStats','rptDirList','rptSubList','rptAncList','rptIrrList',
-       'rptDirMore','rptSubMore','rptAncMore'
+       'rptCity','rptDistrict','rptTownship','rptBizAreas','rptRoads',
+       'rptStats','rptDirList','rptSubList','rptAncList','rptIrrList',
+       'rptDirMore','rptSubMore','rptAncMore','rptDetailTexts','rptPoiCats'
       ].forEach(k => { this[k] = Array.isArray(this[k]) ? [] : (typeof this[k] === 'number' ? 0 : '') })
 
       let rpt = null
@@ -310,9 +342,12 @@ export default {
         this.rptIrrList = irrList.map(d => d.name || d.title || d.poi_name || '').filter(Boolean).slice(0, 5)
       }
 
-      // city / district: real_data first, then top-level report_json
+      // city / district / township / business_areas / roads (Web parity)
       this.rptCity = rd.city || rpt.city || ''
       this.rptDistrict = rd.district || rpt.district || ''
+      this.rptTownship = rd.township || rpt.township || ''
+      this.rptBizAreas = Array.isArray(rd.business_areas) ? rd.business_areas.join('、') : (rd.business_areas || '')
+      this.rptRoads = Array.isArray(rd.nearby_roads) ? rd.nearby_roads.join('、') : (rd.nearby_roads || '')
 
       // stats triple-radius: alias-aware key lookup
       const s2 = rd.stats_200m || {}
@@ -336,11 +371,22 @@ export default {
         banks: ['banks','bank'],
         parking: ['parking','parking_lots']
       }
+      const metricIcons = { residential:'🏘️',office:'🏢',restaurants:'🍽️',cafe_tea:'☕',shopping:'🛍️',schools:'🏫',hospitals:'🏥',subway:'🚇',bus:'🚌',hotels:'🏨',banks:'🏦',parking:'🅿️' }
       const metricLabels = { residential:'住宅小区',office:'写字楼',restaurants:'餐饮',cafe_tea:'咖啡茶饮',shopping:'购物商场',schools:'学校',hospitals:'医院',subway:'地铁站',bus:'公交站',hotels:'酒店',banks:'银行',parking:'停车场' }
-      this.rptStats = Object.keys(metricAliases).map(key => ({
-        key, label: metricLabels[key],
-        s200: _val(s2, metricAliases[key]), s500: _val(s5, metricAliases[key]), s1000: _val(s10, metricAliases[key])
-      })).filter(m => m.s200 !== '' || m.s500 !== '' || m.s1000 !== '')
+      const _highlight = (key, vals) => {
+        const v1k = parseInt(vals.s1000) || 0
+        if (key === 'restaurants' && v1k > 100) return 'high'
+        if ((key === 'schools' || key === 'hospitals') && v1k > 0) return 'good'
+        if (key === 'subway' && v1k === 0) return 'high'
+        if (key === 'bus' && v1k > 10) return 'good'
+        if (key === 'residential' || key === 'office' || key === 'shopping') return 'info'
+        return ''
+      }
+      this.rptStats = Object.keys(metricAliases).map(key => {
+        const s200 = _val(s2, metricAliases[key]); const s500 = _val(s5, metricAliases[key]); const s1000 = _val(s10, metricAliases[key])
+        if (s200 === '' && s500 === '' && s1000 === '') return null
+        return { key, icon: metricIcons[key] || '', label: metricLabels[key], s200, s500, s1000, highlight: _highlight(key, { s200, s500, s1000 }) }
+      }).filter(Boolean)
 
       // poi_lists with field/name aliases
       const _names = (arr) => {
@@ -354,6 +400,70 @@ export default {
       this.rptDirList = dl.slice(0, 5); this.rptDirMore = dl.length > 5 ? dl.length - 5 : 0
       this.rptSubList = sl.slice(0, 5); this.rptSubMore = sl.length > 5 ? sl.length - 5 : 0
       this.rptAncList = al.slice(0, 5); this.rptAncMore = al.length > 5 ? al.length - 5 : 0
+
+      // ★ 各维度详细分析文本（Web parity: AnalysisResult.jsx detailLabels loop）
+      const detailLabels = {
+        population_density: { emoji: '🏘️', label: '人口密集度' },
+        traffic_accessibility: { emoji: '🚇', label: '交通可达性' },
+        traffic_flow: { emoji: '🚶', label: '客流特征' },
+        consumer_profile: { emoji: '🛍️', label: '消费人群' },
+        competition: { emoji: '⚔️', label: '竞争环境' },
+        complementary_businesses: { emoji: '🤝', label: '互补业态' },
+        category_advantage: { emoji: '🌟', label: '品类优势' },
+        cost_estimate: { emoji: '💰', label: '成本估算' },
+        revenue_estimation: { emoji: '💵', label: '营收预估' },
+        site_suggestion: { emoji: '📋', label: '选址建议' }
+      }
+      const details = rpt.details || {}
+      this.rptDetailTexts = Object.keys(detailLabels).map(key => {
+        const raw = details[key]
+        if (!raw) return null
+        const cfg = detailLabels[key]
+        const text = typeof raw === 'string' ? raw : (raw.text || raw.description || '')
+        let score = 0
+        if (typeof raw === 'object' && raw.score !== undefined) score = parseFloat(raw.score) || 0
+        else {
+          const m = text.match(/(?:评分|得分)[：:]\s*(\d+)/) || text.match(/(\d+)\s*分/)
+          if (m) score = parseInt(m[1]) || 0
+        }
+        return { key, emoji: cfg.emoji, label: cfg.label, text, score: Math.max(0, Math.min(100, Math.round(score))) }
+      }).filter(Boolean)
+
+      // ★ POI 类别详情列表（Web parity: AnalysisResult poi_lists expandable section）
+      const poiCats = [
+        { key: 'residential', label: '住宅小区', icon: '🏘️' },
+        { key: 'office', label: '写字楼', icon: '🏢' },
+        { key: 'schools', label: '学校', icon: '🏫' },
+        { key: 'hospitals', label: '医院/诊所', icon: '🏥' },
+        { key: 'shopping', label: '购物商场', icon: '🛍️' },
+        { key: 'restaurants', label: '餐饮门店', icon: '🍽️' },
+        { key: 'cafe_tea', label: '咖啡茶饮', icon: '☕' },
+        { key: 'fast_food', label: '快餐', icon: '🍔' },
+        { key: 'chinese_restaurants', label: '中餐', icon: '🥢' },
+        { key: 'foreign_restaurants', label: '异国料理', icon: '🍝' },
+        { key: 'hotels', label: '酒店', icon: '🏨' },
+        { key: 'subway', label: '地铁站', icon: '🚇' },
+        { key: 'bus', label: '公交站', icon: '🚌' },
+        { key: 'parking', label: '停车场', icon: '🅿️' },
+        { key: 'banks', label: '银行', icon: '🏦' },
+        { key: 'convenience', label: '便利店', icon: '🏪' },
+        { key: 'pharmacy', label: '药店', icon: '💊' },
+        { key: 'beauty', label: '美容美发', icon: '💇' },
+        { key: 'pets', label: '宠物', icon: '🐾' },
+        { key: 'bars', label: '酒吧', icon: '🍺' }
+      ]
+      const poiLists = rd.poi_lists || {}
+      this.rptPoiCats = poiCats.map(cat => {
+        const items = poiLists[cat.key]
+        if (!Array.isArray(items) || !items.length) return null
+        const names = items.slice(0, 8).map(d => {
+          const name = d.name || d.title || d.poi_name || ''
+          const dist = d.distance || d.dist || ''
+          return dist ? `${name}（${dist}m）` : name
+        }).filter(Boolean)
+        if (!names.length) return null
+        return { ...cat, names, total: items.length, more: items.length > 8 ? items.length - 8 : 0 }
+      }).filter(Boolean)
     }
   }
 }
@@ -394,9 +504,25 @@ export default {
 .comp-row { font-size:26rpx; color:#475569; }
 .ql { font-size:24rpx; color:#64748b; display:block; padding:6rpx 0; }
 .brands { display:flex; flex-wrap:wrap; gap:10rpx; } .brand { font-size:24rpx; padding:8rpx 16rpx; background:#f1f5f9; border-radius:12rpx; color:#334155; }
-.loc-row { font-size:26rpx; color:#475569; }
-.stats-grid { display:flex; flex-wrap:wrap; } .sg { width:33.3%; text-align:center; padding:12rpx 0; } .sg-label { font-size:22rpx; color:#64748b; display:block; } .sg-val { font-size:24rpx; font-weight:700; color:#1e293b; display:block; }
+.loc-row { font-size:26rpx; color:#475569; } .loc-sub { font-size:24rpx; color:#64748b; margin-top:6rpx; }
+.stats-grid { display:flex; flex-wrap:wrap; } .sg { width:33.3%; text-align:center; padding:12rpx 4rpx; box-sizing:border-box; } .sg-label { font-size:22rpx; color:#64748b; display:block; } .sg-val { font-size:24rpx; font-weight:700; color:#1e293b; display:block; }
+.sg.high .sg-val { color:#dc2626; } .sg.good .sg-val { color:#16a34a; } .sg.info .sg-val { color:#2563eb; }
 .item-sm { font-size:24rpx; color:#475569; padding:6rpx 0; } .more-hint { font-size:22rpx; color:#94a3b8; display:block; margin-top:4rpx; }
+/* ── 各维度详细分析 ── */
+.dt-item { padding:20rpx 0; border-bottom:1rpx solid #f1f5f9; } .dt-item:last-child { border-bottom:0; }
+.dt-head { display:flex; align-items:center; margin-bottom:10rpx; }
+.dt-emoji { font-size:28rpx; margin-right:8rpx; }
+.dt-label { font-size:26rpx; font-weight:600; color:#1e293b; flex:1; }
+.dt-score { font-size:24rpx; font-weight:700; }
+.dt-text { font-size:24rpx; color:#475569; line-height:1.8; }
+
+/* ── POI 类别详情 ── */
+.poi-cat { display:flex; padding:16rpx 0; border-bottom:1rpx solid #f1f5f9; } .poi-cat:last-child { border-bottom:0; }
+.poi-cat-icon { font-size:30rpx; width:48rpx; flex-shrink:0; }
+.poi-cat-body { flex:1; } .poi-cat-label { font-size:24rpx; font-weight:600; color:#1e293b; display:block; }
+.poi-cat-names { font-size:22rpx; color:#64748b; line-height:1.6; display:block; margin-top:4rpx; }
+.poi-cat-more { font-size:20rpx; color:#94a3b8; display:block; margin-top:4rpx; }
+
 .bottom-bar { position:fixed; bottom:0; left:0; right:0; padding:20rpx 24rpx; background:#fff; border-top:1rpx solid #e2e8f0; display:flex; gap:14rpx; }
 .bb-export { flex:1; background:#246bff; color:#fff; border-radius:14rpx; font-size:28rpx; padding:20rpx 0; font-weight:600; }
 .bb-unlock { flex:1; background:#f59e0b; color:#fff; border-radius:14rpx; font-size:28rpx; padding:20rpx 0; font-weight:600; }
