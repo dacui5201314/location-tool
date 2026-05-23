@@ -1,8 +1,8 @@
 <template>
   <view class="home-page">
     <!-- 欢迎弹层 -->
-    <view class="welcome-mask" v-if="welcomeOpen" @tap="dismissWelcome">
-      <view class="welcome-modal" @tap.stop>
+    <view class="welcome-mask" v-if="welcomeOpen">
+      <view class="welcome-modal">
         <view class="wm-icon">🎁</view>
         <view class="wm-title">欢迎使用址得选</view>
         <view class="wm-body">系统已赠送免费初筛额度，请尽快使用</view>
@@ -23,7 +23,9 @@
     <!-- ── Hero（Web 对齐：logo lockup + hero copy）── -->
     <view class="hero">
       <view class="hero-top">
-        <image class="hero-logo" src="/static/brand-logo.png" mode="aspectFit" />
+        <view class="hero-logo-box">
+          <image class="hero-logo" src="/static/brand-logo.png" mode="aspectFit" />
+        </view>
         <view class="hero-lockup">
           <text class="hero-brand">址得选</text>
           <text class="hero-slogan">AI 智能选址</text>
@@ -59,8 +61,8 @@
         <view class="sc-input-row">
           <text class="sc-icon">⌖</text>
           <input class="sc-field" :value="addressKeyword" placeholder="输入地址搜索门店位置" :disabled="analyzing" @input="onAddressInput" @confirm="onSearch" />
-          <button class="sc-action" :disabled="analyzing" @tap.stop="onLocate" v-if="!addressText">◎</button>
-          <button class="sc-action fav" :disabled="favLoading || analyzing" @tap.stop="toggleFav" v-if="addressText">
+          <button class="sc-action" :disabled="analyzing" @tap="onLocate" v-if="!addressText">◎</button>
+          <button class="sc-action fav" :disabled="favLoading || analyzing" @tap="toggleFav" v-if="addressText">
             {{ favLoading ? '·' : (favId ? '★' : '☆') }}
           </button>
         </view>
@@ -94,7 +96,7 @@
             <text class="ab-src" v-if="selectedLocationSource">来源：{{ srcLabel }}</text>
           </view>
         </view>
-        <button class="ab-edit" @tap.stop="clearAddress">重选</button>
+        <button class="ab-edit" @tap="clearAddress">重选</button>
       </view>
       <text class="field-err" v-if="errors.address">{{ errors.address }}</text>
 
@@ -651,7 +653,8 @@ export default {
 /* ── Hero ── */
 .hero { background:linear-gradient(145deg,#06132f 0%,#102c78 52%,#3343c7 100%); padding:46rpx 28rpx 116rpx; position:relative; overflow:hidden; }
 .hero-top { display:flex; align-items:center; margin-bottom:28rpx; }
-.hero-logo { width:62rpx; height:62rpx; border-radius:16rpx; margin-right:14rpx; box-shadow:0 8rpx 22rpx rgba(33,99,255,0.35); }
+.hero-logo-box { width:70rpx; height:70rpx; border-radius:18rpx; margin-right:14rpx; display:flex; align-items:center; justify-content:center; overflow:hidden; background:linear-gradient(135deg,#f8fbff 0%,#dbeafe 48%,#3151d3 100%); box-shadow:0 10rpx 28rpx rgba(33,99,255,0.35); flex-shrink:0; }
+.hero-logo { width:62rpx; height:62rpx; display:block; border-radius:16rpx; }
 .hero-lockup { display:flex; flex-direction:column; }
 .hero-brand { font-size:40rpx; font-weight:900; color:#fff; line-height:1.1; }
 .hero-slogan { font-size:24rpx; color:rgba(219,234,254,0.78); margin-top:2rpx; }
