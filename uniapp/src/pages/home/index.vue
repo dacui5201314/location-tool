@@ -3,22 +3,27 @@
     <!-- Hero -->
     <view class="hero">
       <view class="hero-brand">址得选</view>
-      <view class="hero-tagline">AI帮你判断<text class="hl">这个位置能不能</text><text class="gold">开起来</text></view>
-      <view class="hero-sub">商业选址初筛参考 · 数据驱动决策 · 需实地验证</view>
+      <view class="hero-desc">用周边 POI、业态与经营信息生成商业选址初筛参考</view>
+      <view class="hero-tags">
+        <text class="htag">全国城市适用</text>
+        <text class="htag">POI 周边洞察</text>
+        <text class="htag">需线下验证</text>
+      </view>
     </view>
 
-    <!-- 分析面板 -->
-    <view class="panel">
-      <!-- 地址输入 -->
-      <view class="section">
-        <view class="section-head">
-          <text class="section-title">门店地址</text>
+    <view class="work-area">
+      <!-- ── Step 1：选择门店位置 ── -->
+      <view class="step-card">
+        <view class="step-head">
+          <text class="step-num">1</text>
+          <text class="step-title">选择门店位置</text>
+          <text class="step-status" v-if="!addressText">未选择</text>
+          <text class="step-status done" v-else>已选择</text>
         </view>
         <view class="input-row">
           <input class="field" :value="addressKeyword" placeholder="输入地址搜索或在地图上选点" :disabled="analyzing" @input="onAddressInput" @confirm="onSearch" />
           <button class="s-btn" :disabled="analyzing || !addressKeyword" @tap="onSearch">搜索</button>
         </view>
-        <!-- 候选列表 -->
         <view class="suggest-list" v-if="suggestions.length">
           <view class="suggest-item" v-for="(s, i) in suggestions" :key="i" @tap="onSelectSuggestion(s)">
             <text class="sg-name">{{ s.name }}</text>
@@ -28,60 +33,36 @@
         <view class="suggest-empty" v-if="suggestErr">{{ suggestErr }}</view>
 
         <view class="locate-row" v-if="!addressText">
-          <button class="locate-btn" @tap="onLocate">📍 定位当前位置</button>
+          <button class="locate-btn" @tap="onLocate">定位当前位置</button>
         </view>
         <view class="addr-pick" v-if="addressText">
-          <text class="ap-pin">📍</text>
           <view class="ap-mid">
             <text class="ap-text">{{ addressText }}</text>
             <text class="ap-src" v-if="selectedLocationSource">来源：{{ srcLabel }}</text>
           </view>
-          <text class="ap-clear" @tap="clearAddress">✕</text>
+          <text class="ap-clear" @tap="clearAddress">重选</text>
         </view>
         <text class="field-err" v-if="errors.address">{{ errors.address }}</text>
-        <map
-          class="map-view"
-          :latitude="mapLat"
-          :longitude="mapLng"
-          scale="15"
-          :show-location="showUserLocation"
-          :enable-scroll="true"
-          :enable-zoom="true"
-          :enable-rotate="false"
-          @tap="onMapTap"
-          @regionchange="onMapRegionChange"
-          @updated="onMapUpdated"
-        >
-          <view class="map-center-marker">
-            <view class="mcm-pin">📍</view>
-          </view>
+
+        <map class="map-view" :latitude="mapLat" :longitude="mapLng" scale="15" :show-location="showUserLocation" :enable-scroll="true" :enable-zoom="true" :enable-rotate="false" @tap="onMapTap" @regionchange="onMapRegionChange" @updated="onMapUpdated">
+          <view class="map-center-marker"><view class="mcm-dot" /></view>
         </map>
-        <view class="map-hint-bar" v-if="!addressText">
-          <text class="mhb-text">点击地图选点 · 或使用上方搜索框输入地址</text>
+        <view class="map-status" :class="{ done: addressText }">
+          <text>{{ addressText ? '已选位置 · 点击地图可重新选点' : '点击地图选点 · 或使用上方搜索框输入地址' }}</text>
         </view>
-        <view class="map-hint-bar selected" v-if="addressText">
-          <text class="mhb-text">已选位置 · 点击地图可重新选点</text>
-        </view>
-        <view class="map-hint-bar" v-if="mapNotice">
-          <text class="mhb-text warn">{{ mapNotice }}</text>
-        </view>
+        <view class="map-status warn" v-if="mapNotice"><text>{{ mapNotice }}</text></view>
       </view>
 
-      <!-- 选择业态 -->
-      <view class="section">
-        <view class="section-head">
-          <text class="section-title">选择业态</text>
+      <!-- ── Step 2：补充经营信息 ── -->
+      <view class="step-card">
+        <view class="step-head">
+          <text class="step-num">2</text>
+          <text class="step-title">补充经营信息</text>
         </view>
         <text class="field-err" v-if="industryLoadErr">{{ industryLoadErr }}</text>
         <IndustryPicker :selected="industry" :disabled="analyzing" :industries="industryList" @change="onIndustryChange" />
         <text class="field-err" v-if="errors.industry">{{ errors.industry }}</text>
-      </view>
 
-      <!-- 经营画像 -->
-      <view class="section">
-        <view class="section-head">
-          <text class="section-title">经营画像</text>
-        </view>
         <view class="dual">
           <view class="dual-half">
             <view class="label">品牌/特色 <text class="req">*</text></view>
@@ -96,16 +77,13 @@
         </view>
       </view>
 
-      <!-- 分析按钮 -->
-      <view class="analyze-zone">
-        <button class="analyze-btn" :disabled="analyzing || !canAnalyze" @tap="onAnalyze">
-          <text class="ab-mark">{{ analyzing ? '⏳' : '✦' }}</text>
-          <view class="ab-text">
-            <text class="ab-strong">{{ analyzing ? 'AI 分析中...' : '开始选址分析' }}</text>
-            <text class="ab-em">{{ analyzing ? (analyzeStatus || '正在处理...') : '填写完成后点击开始分析' }}</text>
-          </view>
+      <!-- ── CTA ── -->
+      <view class="cta-zone">
+        <button class="cta-btn" :disabled="analyzing || !canAnalyze" @tap="onAnalyze">
+          <text class="cta-main">{{ analyzing ? '分析中...' : '生成初筛报告' }}</text>
+          <text class="cta-sub" v-if="!analyzing">客流 · 竞品 · 消费力 · 风险点初筛参考</text>
+          <text class="cta-sub" v-else>{{ analyzeStatus || '正在处理...' }}</text>
         </button>
-        <!-- 分析中步骤指示器（对齐 Web AnalysisLoadingPanel） -->
         <view class="analyze-steps" v-if="analyzing">
           <view class="as-step" v-for="(item, i) in analyzeStepItems" :key="i" :class="item.status">
             <text class="as-icon">{{ item.icon }}</text>
@@ -118,7 +96,7 @@
         <text class="field-err" v-if="analyzeErr">{{ analyzeErr }}</text>
       </view>
 
-      <!-- 信任行 -->
+      <!-- Trust row -->
       <view class="trust-row">
         <view class="trust-item" v-for="t in trusts" :key="t.title">
           <text class="ti-title">{{ t.title }}</text>
@@ -127,7 +105,6 @@
       </view>
     </view>
 
-    <!-- 页脚 -->
     <view class="footer">以上分析仅供参考，不构成投资建议。实际决策请结合实地考察与多方因素综合判断。</view>
   </view>
 </template>
@@ -163,9 +140,9 @@ export default {
       errors: { address: '', industry: '', brand: '', size: '' },
       industryList: [],
       trusts: [
-        { title: '真实 POI 数据', desc: '高德地图实时采集' },
-        { title: 'AI 商业评估', desc: '大模型多维度分析' },
-        { title: '选址初筛参考', desc: '降低实地考察成本' }
+        { title: '真实 POI 数据', desc: '高德地图周边采集' },
+        { title: '多维度初筛', desc: '竞品/客流/消费力评估' },
+        { title: '需实地验证', desc: '初筛结果仅供参考' }
       ]
     }
   },
@@ -483,54 +460,68 @@ export default {
 </script>
 
 <style scoped>
-.home-page { min-height:100vh; background:#eef3f9; padding-bottom:60rpx; }
-.hero { background:linear-gradient(180deg,#0b1120 0%,#13203d 100%); padding:64rpx 32rpx 76rpx; text-align:center; }
-.hero-brand { font-size:40rpx; font-weight:800; color:#fff; }
-.hero-tagline { font-size:34rpx; font-weight:700; color:rgba(255,255,255,0.92); margin-top:12rpx; line-height:1.45; }
-.hl { color:rgba(255,255,255,0.7); } .gold { color:#60a5fa; }
-.hero-sub { font-size:24rpx; color:rgba(255,255,255,0.42); margin-top:12rpx; }
+.home-page { min-height:100vh; background:#edf2f7; padding-bottom:80rpx; }
 
-.panel { background:#fff; border-radius:20rpx; padding:32rpx 24rpx; margin:-36rpx 16rpx 28rpx; box-shadow:0 2rpx 24rpx rgba(9,24,54,0.08); }
-.section { margin-bottom:24rpx; }
-.section:last-child { margin-bottom:0; }
-.section + .section { padding-top:0; }
-.section-head { margin-bottom:12rpx; }
-.section-title { font-size:28rpx; font-weight:700; color:#111827; }
+/* ── Hero ── */
+.hero { background:linear-gradient(180deg,#070e1a 0%,#0f1d36 100%); padding:56rpx 32rpx 48rpx; text-align:center; }
+.hero-brand { font-size:44rpx; font-weight:800; color:#fff; }
+.hero-desc { font-size:26rpx; color:rgba(255,255,255,0.55); margin-top:16rpx; line-height:1.6; padding:0 16rpx; }
+.hero-tags { display:flex; justify-content:center; gap:16rpx; margin-top:24rpx; }
+.htag { font-size:22rpx; color:rgba(255,255,255,0.45); border:1px solid rgba(255,255,255,0.2); border-radius:6rpx; padding:6rpx 16rpx; }
+
+/* ── Work area ── */
+.work-area { padding:0 20rpx; margin-top:-20rpx; }
+
+/* ── Step card ── */
+.step-card { background:#fff; border-radius:16rpx; padding:28rpx 24rpx; margin-bottom:16rpx; box-shadow:0 1px 12rpx rgba(0,0,0,0.04); }
+.step-head { display:flex; align-items:center; margin-bottom:18rpx; }
+.step-num { width:40rpx; height:40rpx; line-height:40rpx; text-align:center; background:#0f172a; color:#fff; border-radius:10rpx; font-size:24rpx; font-weight:700; margin-right:12rpx; flex-shrink:0; }
+.step-title { font-size:28rpx; font-weight:700; color:#111827; flex:1; }
+.step-status { font-size:22rpx; color:#94a3b8; } .step-status.done { color:#16a34a; }
+
+/* ── Form fields ── */
 .label { font-size:26rpx; font-weight:600; color:#334155; margin-bottom:8rpx; }
 .req { color:#ef4444; font-size:24rpx; }
 .field-err { font-size:22rpx; color:#dc2626; margin-top:6rpx; display:block; }
 .input-row { display:flex; gap:12rpx; }
-.field { flex:1; border:1px solid #e2e8f0; border-radius:12rpx; padding:18rpx 16rpx; font-size:28rpx; background:#fff; color:#1e293b; }
+.field { flex:1; border:1px solid #d1d5db; border-radius:12rpx; padding:18rpx 16rpx; font-size:28rpx; background:#fff; color:#1e293b; }
+.field:disabled { background:#f9fafb; color:#9ca3af; }
 .s-btn { background:#0f172a; color:#fff; border-radius:12rpx; padding:0 28rpx; font-size:28rpx; line-height:80rpx; font-weight:600; }
-.s-btn[disabled] { opacity:0.4; }
-.suggest-list { background:#fff; border-radius:12rpx; margin-top:8rpx; box-shadow:0 4rpx 20rpx rgba(0,0,0,0.08); max-height:400rpx; overflow-y:auto; } .suggest-item { padding:22rpx 20rpx; border-bottom:1rpx solid #f1f5f9; } .sg-name { font-size:28rpx; color:#1e293b; display:block; } .sg-addr { font-size:22rpx; color:#94a3b8; margin-top:4rpx; display:block; } .suggest-empty { padding:20rpx; font-size:24rpx; color:#94a3b8; text-align:center; }
-.locate-row { margin-top:12rpx; } .locate-btn { width:100%; background:#f8fafc; color:#475569; border:1px solid #e2e8f0; border-radius:12rpx; font-size:28rpx; padding:18rpx 0; }
-.addr-pick { display:flex; align-items:center; margin-top:12rpx; padding:14rpx 16rpx; background:#f0fdf4; border:1px solid #bbf7d0; border-radius:12rpx; }
-.ap-mid { flex:1; display:flex; flex-direction:column; margin-left:4rpx; } .ap-text { font-size:26rpx; color:#166534; } .ap-src { font-size:20rpx; color:#94a3b8; margin-top:2rpx; } .ap-clear { font-size:28rpx; color:#94a3b8; padding:0 4rpx; }
-.map-view { width:100%; height:400rpx; border-radius:14rpx; margin-top:12rpx; box-shadow:0 2rpx 16rpx rgba(0,0,0,0.06); }
-.map-center-marker { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); pointer-events:none; z-index:10; }
-.mcm-pin { font-size:44rpx; }
-.map-hint-bar { background:#f8fafc; border:1px solid #e2e8f0; border-radius:10rpx; padding:12rpx 16rpx; margin-top:8rpx; text-align:center; }
-.map-hint-bar.selected { background:#f0fdf4; border-color:#bbf7d0; }
-.mhb-text { font-size:24rpx; color:#64748b; } .mhb-text.warn { color:#dc2626; }
-.dual { display:flex; gap:14rpx; } .dual-half { flex:1; }
+.s-btn[disabled] { opacity:0.35; }
+.suggest-list { background:#fff; border-radius:12rpx; margin-top:8rpx; box-shadow:0 4rpx 20rpx rgba(0,0,0,0.08); max-height:340rpx; overflow-y:auto; } .suggest-item { padding:22rpx 20rpx; border-bottom:1px solid #f1f5f9; } .sg-name { font-size:28rpx; color:#1e293b; display:block; } .sg-addr { font-size:22rpx; color:#94a3b8; margin-top:4rpx; display:block; } .suggest-empty { padding:20rpx; font-size:24rpx; color:#94a3b8; text-align:center; }
+.locate-row { margin-top:12rpx; } .locate-btn { width:100%; background:#f8fafc; color:#475569; border:1px solid #d1d5db; border-radius:12rpx; font-size:28rpx; padding:18rpx 0; }
+.addr-pick { display:flex; align-items:center; margin-top:12rpx; padding:14rpx 16rpx; background:#f0fdf4; border:1px solid #86efac; border-radius:12rpx; }
+.ap-mid { flex:1; display:flex; flex-direction:column; } .ap-text { font-size:26rpx; color:#166534; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; } .ap-src { font-size:20rpx; color:#94a3b8; margin-top:2rpx; } .ap-clear { font-size:26rpx; color:#64748b; padding:4rpx 12rpx; }
 
-.analyze-zone { margin-top:4rpx; }
-.analyze-btn { width:100%; background:linear-gradient(135deg,#0f172a,#1e3a5f); color:#fff; border-radius:14rpx; padding:22rpx 20rpx; display:flex; align-items:center; justify-content:center; gap:10rpx; border:none; }
-.analyze-btn[disabled] { opacity:0.35; }
-.analyze-steps { background:#f8fafc; border:1px solid #e2e8f0; border-radius:12rpx; padding:20rpx; margin-top:12rpx; }
+/* ── Map ── */
+.map-view { width:100%; height:380rpx; border-radius:12rpx; margin-top:12rpx; }
+.map-center-marker { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); pointer-events:none; z-index:10; }
+.mcm-dot { width:24rpx; height:24rpx; background:#dc2626; border:4rpx solid #fff; border-radius:50%; box-shadow:0 2rpx 12rpx rgba(0,0,0,0.3); }
+.map-status { text-align:center; padding:12rpx 0 4rpx; font-size:24rpx; color:#94a3b8; }
+.map-status.done { color:#16a34a; } .map-status.warn { color:#dc2626; }
+
+/* ── Dual ── */
+.dual { display:flex; gap:14rpx; margin-top:20rpx; } .dual-half { flex:1; }
+
+/* ── CTA ── */
+.cta-zone { margin-top:8rpx; margin-bottom:8rpx; }
+.cta-btn { width:100%; background:#0f172a; color:#fff; border-radius:14rpx; padding:28rpx 24rpx; display:flex; flex-direction:column; align-items:center; border:none; }
+.cta-btn[disabled] { opacity:0.3; background:#475569; }
+.cta-main { font-size:32rpx; font-weight:700; }
+.cta-sub { font-size:24rpx; color:rgba(255,255,255,0.55); margin-top:6rpx; }
+
+/* ── Analyze steps ── */
+.analyze-steps { background:#f8fafc; border:1px solid #e2e8f0; border-radius:12rpx; padding:20rpx; margin-top:16rpx; }
 .as-step { display:flex; align-items:flex-start; padding:6rpx 0; }
-.as-step.pending .as-icon, .as-step.pending .as-label { color:#cbd5e1; }
+.as-step.pending .as-icon,.as-step.pending .as-label { color:#cbd5e1; }
 .as-step.active .as-icon { color:#2563eb; } .as-step.active .as-label { color:#1e293b; font-weight:600; }
 .as-step.done .as-icon { color:#16a34a; } .as-step.done .as-label { color:#475569; }
 .as-icon { width:44rpx; font-size:28rpx; text-align:center; flex-shrink:0; margin-right:10rpx; line-height:34rpx; }
 .as-body { flex:1; } .as-label { font-size:25rpx; color:#475569; display:block; } .as-msg { font-size:22rpx; color:#94a3b8; display:block; }
-.ab-mark { font-size:36rpx; } .ab-text { display:flex; flex-direction:column; text-align:left; }
-.ab-strong { font-size:28rpx; font-weight:700; }
-.ab-em { font-size:22rpx; color:rgba(255,255,255,0.6); margin-top:2rpx; }
 
-.trust-row { display:flex; justify-content:center; gap:48rpx; margin-top:20rpx; padding-top:20rpx; border-top:1px solid #e2e8f0; }
+/* ── Trust ── */
+.trust-row { display:flex; justify-content:center; gap:56rpx; padding:24rpx 0 8rpx; }
 .trust-item { display:flex; flex-direction:column; align-items:center; }
 .ti-title { font-size:24rpx; font-weight:600; color:#475569; } .ti-desc { font-size:22rpx; color:#94a3b8; margin-top:2rpx; }
-.footer { text-align:center; font-size:22rpx; color:#94a3b8; padding:20rpx 32rpx; line-height:1.6; }
+.footer { text-align:center; font-size:22rpx; color:#94a3b8; padding:24rpx 32rpx; line-height:1.6; }
 </style>
