@@ -142,7 +142,7 @@ export default {
       reportCount: 0,
       favCount: 0,
       benefits: [
-        { icon:'∞',label:'无限分析',desc:'次数不限' },{ icon:'PDF',label:'PDF导出',desc:'高清报告' },
+        { icon:'∞',label:'无限分析',desc:'次数不限' },{ icon:'📄',label:'高级报告',desc:'多维评估' },
         { icon:'⌁',label:'盈利预测',desc:'精准估算' },{ icon:'◎',label:'高级模型',desc:'多维评估' },
         { icon:'▥',label:'数据对比',desc:'深度分析' },{ icon:'☎',label:'专属客服',desc:'优先服务' }
       ]

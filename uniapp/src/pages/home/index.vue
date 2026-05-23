@@ -3,7 +3,7 @@
     <!-- Hero -->
     <view class="hero">
       <view class="hero-brand">址得选</view>
-      <view class="hero-tagline">AI帮你判断<text class="hl">这个位置能不能</text><text class="gold">赚钱</text></view>
+      <view class="hero-tagline">AI帮你判断<text class="hl">这个位置能不能</text><text class="gold">开店</text></view>
       <view class="hero-sub">智能选址 · 科学决策 · 降低风险</view>
     </view>
 
@@ -13,7 +13,6 @@
       <view class="section">
         <view class="section-head">
           <text class="section-title">门店地址</text>
-          <text class="section-hint" v-if="!addressText">选择位置后，可一键收藏地址</text>
         </view>
         <view class="input-row">
           <input class="field" :value="addressKeyword" placeholder="输入地址搜索或在地图上选点" :disabled="analyzing" @input="onAddressInput" @confirm="onSearch" />
@@ -62,7 +61,7 @@
           <text class="mhb-text">点击地图选点 · 或使用上方搜索框输入地址</text>
         </view>
         <view class="map-hint-bar selected" v-if="addressText">
-          <text class="mhb-text">已选坐标 · 后续将接入地址解析</text>
+          <text class="mhb-text">已选位置 · 点击地图可重新选点</text>
         </view>
         <view class="map-diag" v-if="mapDiag">{{ mapDiag }}</view>
       </view>
@@ -71,7 +70,6 @@
       <view class="section">
         <view class="section-head">
           <text class="section-title">选择业态</text>
-          <text class="section-link">全部业态 ›</text>
         </view>
         <text class="field-err" v-if="industryLoadErr">{{ industryLoadErr }}</text>
         <IndustryPicker :selected="industry" :disabled="analyzing" :industries="industryList" @change="onIndustryChange" />
@@ -82,7 +80,6 @@
       <view class="section">
         <view class="section-head">
           <text class="section-title">经营画像</text>
-          <text class="section-hint">品牌与面积越清晰，报告越准</text>
         </view>
         <view class="dual">
           <view class="dual-half">
@@ -103,7 +100,7 @@
         <button class="analyze-btn" :disabled="analyzing || !canAnalyze" @tap="onAnalyze">
           <text class="ab-mark">{{ analyzing ? '⏳' : '✦' }}</text>
           <view class="ab-text">
-            <text class="ab-strong">{{ analyzing ? 'AI 分析中...' : '✦ AI 选址分析' }}</text>
+            <text class="ab-strong">{{ analyzing ? 'AI 分析中...' : '开始选址分析' }}</text>
             <text class="ab-em">{{ analyzing ? (analyzeStatus || '正在处理...') : '填写完成后点击开始分析' }}</text>
           </view>
         </button>
@@ -131,7 +128,7 @@
     </view>
 
     <!-- 页脚 -->
-    <view class="footer">数据底座：全网多维度商业 POI 聚合数据库 | 仅供参考，实际决策请结合实地考察与多方因素</view>
+    <view class="footer">以上分析仅供参考，不构成投资建议。实际决策请结合实地考察与多方因素综合判断。</view>
   </view>
 </template>
 
@@ -501,8 +498,6 @@ export default {
 .section { margin-bottom:32rpx; }
 .section-head { display:flex; justify-content:space-between; align-items:baseline; margin-bottom:12rpx; }
 .section-title { font-size:28rpx; font-weight:700; color:#111827; }
-.section-link { font-size:24rpx; color:#246bff; }
-.section-hint { font-size:22rpx; color:#667085; }
 .label { font-size:26rpx; font-weight:600; color:#334155; margin-bottom:8rpx; }
 .req { color:#ef4444; }
 .field-err { font-size:22rpx; color:#dc2626; margin-top:6rpx; display:block; }

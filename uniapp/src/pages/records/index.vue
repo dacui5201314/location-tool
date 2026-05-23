@@ -50,7 +50,6 @@
           <view class="actions">
             <text class="act" @tap.stop="onDelete(r)">删除</text>
             <text class="act" @tap.stop="onDetail(r)">查看报告</text>
-            <text class="act" :class="r.is_pdf_unlocked ? '' : 'lock'">{{ r.is_pdf_unlocked ? '导出PDF' : '导出PDF 🔒' }}</text>
           </view>
         </view>
       </view>
@@ -81,7 +80,7 @@ export default {
       loading: false,
       isLoggedIn: false,
       activeTab: 'all',
-      tabs: [{ key:'all',label:'全部' },{ key:'done',label:'已完成' },{ key:'analyzing',label:'分析中' },{ key:'exported',label:'已导出' }],
+      tabs: [{ key:'all',label:'全部' },{ key:'done',label:'已完成' },{ key:'analyzing',label:'分析中' }],
       records: [],
       delTarget: null,
       delLoading: false
@@ -90,7 +89,6 @@ export default {
   computed: {
     displayList () {
       let r = this.records
-      if (this.activeTab === 'exported') r = r.filter(x => x.is_pdf_unlocked)
       if (this.activeTab === 'analyzing') return []
       return r
     },
