@@ -117,7 +117,7 @@ function analyzeLocation (payload) {
           }
           resolve({ ok: false, statusCode: 402, error: detail, steps: [] })
         } else if (res.statusCode >= 500) {
-          resolve({ ok: false, statusCode: res.statusCode, error: '后端服务异常，请稍后重试', steps: [] })
+          resolve({ ok: false, statusCode: res.statusCode, error: '分析服务暂不可用，请稍后重试', steps: [] })
         } else if (sseError && !result) {
           resolve({ ok: false, statusCode: res.statusCode, error: sseError, steps })
         } else if (result) {
@@ -128,7 +128,7 @@ function analyzeLocation (payload) {
       },
       fail (err) {
         const msg = err.errMsg || err.message || ''
-        reject(msg.includes('timeout') ? '请求超时，请确认后端服务可访问' : '后端服务未连接，请稍后重试')
+        reject(msg.includes('timeout') ? '分析请求超时，请稍后重试' : '分析服务暂不可用，请稍后重试')
       }
     })
   })
