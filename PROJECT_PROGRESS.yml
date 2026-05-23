@@ -1,7 +1,7 @@
 current_phase: Phase 23N
-phase_status: analyze_integration_started_with_autosuggest_fix
-latest_code_commit: 71e53ad
-latest_code_commit_message: "feat: integrate uni-app analyze flow with existing backend SSE endpoint"
+phase_status: analyze_integration_autosuggest_fixed_web_alignment_principle_added
+latest_code_commit: 7daa555
+latest_code_commit_message: "fix: read input value from event, add race guard to prevent stale suggest results"
 latest_docs_commit: db0cfb4
 unpushed: true
 
@@ -40,7 +40,7 @@ sample_bank:
   partial: 10
   latest_industry_test_total: "2168 PASS, 0 FAIL"
 
-next_step: "Fix auto suggest stale input, then devtools test analyze flow."
+next_step: "Align uni-app auto-suggest and analyze flow with Web frontend/master behavior."
 
 boundaries:
   no_push: true
@@ -55,6 +55,13 @@ boundaries:
 phase23_uniapp:
   product_direction: "uniapp is future main client; WeChat Mini Program first, later Douyin Mini Program and App"
   web_master: "frontend/ remains product master/reference; do not modify unless explicitly requested"
+  global_principle: "ALL uni-app pages/logic/UI/copy/states must align with Web frontend/ as target. Different implementation allowed for mini-program constraints, but UX must converge. Before adding uni-app feature, FIRST inspect Web page/logic, THEN replicate."
+  alignment_priority:
+    - "1. Fix auto-suggest to match Web behavior"
+    - "2. Analyze flow parity with Web /api/analyze SSE"
+    - "3. Home UI parity with Web first screen"
+    - "4. Report-detail UI parity with Web report page"
+    - "5. Records / Favorites / Profile page-by-page"
   native_miniprogram: "frozen for new feature work; keep only as WeChat login reference"
   accepted_baseline: "a3cc115 chore: fix uni-app build dependencies with pinned alpha versions"
   latest_uniapp_commit: "83c3d6f chore: complete Phase 23G self-check with result page placeholder"

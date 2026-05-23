@@ -1135,3 +1135,31 @@ The user explicitly said report accuracy logic must not be touched. Treat this a
 - Do not generate reports or expand samples.
 
 ---
+
+## Phase 23N Global Principle — Web Master Alignment (2026-05-23)
+
+### Core Principle
+
+**uni-app is the future main client, but Web `frontend/` remains the product master/reference.**
+
+All uni-app pages, logic, UI, copy, and state flows MUST align with the Web frontend as the target. Different implementation strategies are allowed when WeChat Mini Program technical constraints require them, but the end-user experience must converge as closely as possible.
+
+Before adding any new uni-app feature, FIRST inspect the corresponding Web page/logic in `frontend/`, THEN replicate it in uni-app. Do not design mini-program logic from scratch.
+
+### Current Priority Order
+
+| # | Priority | Target |
+|---|----------|--------|
+| 1 | Fix auto-suggest to match Web behavior | Address input auto-complete parity |
+| 2 | Analyze flow parity with Web | `/api/analyze` SSE → result → report-detail |
+| 3 | Home page UI parity with Web first screen | Layout, copy, states |
+| 4 | Report-detail UI parity with Web report page | Full report_json rendering |
+| 5 | Records / Favorites / Profile | Page-by-page alignment |
+
+### Boundaries (unchanged)
+
+- Do NOT copy Web DOM/CSS verbatim — adapt to uni-app/Vue/小程序 conventions.
+- Do NOT modify Web `frontend/` unless the user explicitly asks.
+- Do NOT modify report accuracy logic, POI, rules, prompt, fact_guard, classification, or DB schema.
+- Do NOT commit secrets.
+- Do NOT push.
