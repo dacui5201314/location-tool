@@ -518,3 +518,81 @@ def wechat_mini_login(
     if unionid:
         resp["wx_unionid"] = unionid
     return resp
+
+
+# ═══════════════════════════════════════════════════════════
+# Phase 23N: 微信小程序手机号绑定
+# ═══════════════════════════════════════════════════════════
+
+class BindPhoneBody(BaseModel):
+    code: str
+
+
+@router.post("/wechat/mini/bind-phone")
+def wechat_mini_bind_phone(
+    body: BindPhoneBody,
+    user: dict = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """微信小程序手机号快速验证。
+    小程序端 button open-type="getPhoneNumber" 返回 code，
+    后端调用 getPhoneNumber 接口换取手机号，写入 User.phone 字段。
+    使用已有 wx_mini_appid / wx_mini_secret 配置。
+    """
+    mini_appid = _get_config_str(db, "wx_mini_appid",
+                                 os.getenv("WECHAT_MINI_APPID", ""))
+    mini_secret = _get_config_str(db, "wx_mini_secret",
+                                  os.getenv("WECHAT_MINI_SECRET", ""))
+    if not mini_appid or not mini_secret:
+        raise HTTPException(
+            status_code=503,
+            detail="小程序未配置，无法绑定手机号",
+        )
+
+    # 1. 获取 access_token
+    import httpx
+    try:
+        token_resp = httpx.get(
+            "https://api.weixin.qq.com/cgi-bin/token"
+            f"?grant_type=client_credential&appid={mini_appid}&secret={mini_secret}",
+            timeout=10,
+        )
+        token_data = token_resp.json()
+        access_token = token_data.get("access_token", "")
+        if not access_token:
+            raise HTTPException(status_code=502, detail="微信服务 token 获取失败")
+    except HTTPException:
+        raise
+    except Exception:
+        raise HTTPException(status_code=502, detail="微信服务不可达")
+
+    # 2. 换取手机号
+    try:
+        phone_resp = httpx.post(
+            f"https://api.weixin.qq.com/wxa/business/getuserphonenumber?access_token={access_token}",
+            json={"code": body.code},
+            timeout=10,
+        )
+        phone_data = phone_resp.json()
+    except Exception:
+        raise HTTPException(status_code=502, detail="微信手机号接口不可达")
+
+    if phone_data.get("errcode", 0) != 0:
+        raise HTTPException(
+            status_code=400,
+            detail=phone_data.get("errmsg", "手机号获取失败"),
+        )
+
+    phone_info = phone_data.get("phone_info", {})
+    phone_number = phone_info.get("purePhoneNumber", "")
+    if not phone_number:
+        raise HTTPException(status_code=400, detail="未获取到手机号")
+
+    # 3. 写入 User 表
+    db_user = db.query(User).filter(User.id == user["user_id"]).first()
+    if not db_user:
+        raise HTTPException(status_code=404, detail="用户不存在")
+    db_user.phone_number = phone_number
+    db.commit()
+
+    return {"ok": True, "phone": phone_number}

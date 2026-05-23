@@ -2,15 +2,28 @@
   <view class="profile-page">
     <!-- Top section — 对齐 Web ProfileView -->
     <view class="top">
-      <text class="avatar-fb">👤</text>
-      <text class="uname">{{ loggedIn ? (userName || '用户') : '未登录' }}</text>
+      <!-- 头像 -->
+      <view class="avatar-zone">
+        <image v-if="avatarUrl" class="avatar-img" :src="avatarUrl" mode="aspectFill" />
+        <text v-else class="avatar-fb">👤</text>
+        <button v-if="loggedIn" class="avatar-btn" open-type="chooseAvatar" @chooseavatar="onChooseAvatar">更换头像</button>
+      </view>
+      <!-- 昵称 -->
+      <view class="nick-zone" v-if="loggedIn">
+        <input class="nick-input" type="nickname" :value="userName" placeholder="点击设置昵称" @blur="onNicknameBlur" />
+      </view>
+      <text class="uname" v-if="!loggedIn">未登录</text>
+      <text class="uname" v-if="loggedIn">{{ displayName }}</text>
       <text class="uid" v-if="loggedIn && uidText">{{ uidText }}</text>
+      <!-- 手机号 -->
+      <view class="phone-zone" v-if="loggedIn">
+        <text class="phone-text" v-if="phoneText">{{ phoneText }}</text>
+        <button v-else class="phone-btn" open-type="getPhoneNumber" @getphonenumber="onGetPhoneNumber">📱 绑定手机号</button>
+      </view>
+      <!-- 登录按钮 -->
       <button v-if="!loggedIn" class="top-login" @tap="onLogin">{{ loginLoading ? '登录中...' : '微信一键登录' }}</button>
       <text class="login-err" v-if="loginErr">{{ loginErr }}</text>
-      <view class="top-hints" v-if="loggedIn">
-        <text class="th-text">微信头像/昵称需用户主动授权填写</text>
-        <text class="th-text">手机号需用户授权绑定</text>
-      </view>
+      <text class="auth-err" v-if="authErr">{{ authErr }}</text>
     </view>
 
     <!-- Stats panel -->
@@ -53,6 +66,7 @@
         <text class="pc-num">{{ points }}</text>
         <text class="pc-unit">点</text>
         <text class="pc-desc">当前剩余点数 · 可用于生成选址分析报告</text>
+        <text class="pc-desc" v-if="!freePointActive">⚠️ 免费赠送点已过期（{{ freePointExpiry }}），实际有效点数为 {{ Math.max(0, points - 1) }}</text>
       </view>
       <view class="pc-flow">
         <view class="pf" v-for="s in flowSteps" :key="s.label">
@@ -99,9 +113,14 @@ export default {
       loggedIn: false,
       loginLoading: false,
       loginErr: '',
+      authErr: '',
+      avatarUrl: '',
+      phoneText: '',
       userName: '',
       uidText: '',
       points: 3,
+      freePointActive: true,
+      freePointExpiry: '',
       memberDays: 0,
       memberExpiry: '',
       reportCount: 0,
@@ -115,6 +134,11 @@ export default {
     }
   },
   computed: {
+    displayName () {
+      if (this.userName) return this.userName
+      if (this.phoneText) return this.phoneText
+      return '用户' + (this.uidText ? ' ' + this.uidText : '')
+    },
     stats () {
       return [
         { value: this.points, label: '剩余点数', sub: '可用点数' },
@@ -132,6 +156,9 @@ export default {
         this.loggedIn = true
         this.points = user.balance_credits ?? 3
         this.userName = user.nickname || user.name || ''
+        this.avatarUrl = user.avatar_url || user.avatarUrl || ''
+        const phone = user.phone_number || user.phone || ''
+        this.phoneText = phone ? phone.replace(/(\d{3})\d{4}(\d{4})/, '$1****$2') : ''
         this.uidText = user.id ? '用户编号：' + user.id : ''
         this.memberDays = user.membership_days_left || 0
         this.memberExpiry = user.membership_expiry || ''
@@ -139,7 +166,9 @@ export default {
         api.fetchProfile().then(r => {
           if (r.ok && r.data) {
             const p = r.data
-            this.points = p.balance_credits ?? this.points
+            this.points = p.points ?? (p.user && p.user.balance_credits) ?? this.points
+            this.freePointActive = (p.user && p.user.free_point_active) ?? true
+            this.freePointExpiry = (p.user && p.user.free_point_expire_at) || ''
             this.memberDays = p.membership_days_left ?? this.memberDays
             this.memberExpiry = p.membership_expiry || this.memberExpiry
             this.reportCount = p.total_reports ?? 0
@@ -177,7 +206,47 @@ export default {
     onUpgrade () { uni.showToast({ title: '会员充值接入中', icon: 'none' }) },
     onCDK () { uni.showToast({ title: '兑换码接入中', icon: 'none' }) },
     onBuy () { uni.showToast({ title: '点数购买接入中', icon: 'none' }) },
-    onCS () { uni.showToast({ title: '客服接入中', icon: 'none' }) }
+    onCS () { uni.showToast({ title: '客服接入中', icon: 'none' }) },
+    onChooseAvatar (e) {
+      const avatarUrl = e.detail && e.detail.avatarUrl
+      if (avatarUrl) {
+        this.avatarUrl = avatarUrl
+        auth.setUser({ avatarUrl })
+      }
+      this.authErr = ''
+    },
+    onNicknameBlur (e) {
+      const nickname = e.detail && e.detail.value
+      if (nickname && nickname.trim()) {
+        this.userName = nickname.trim()
+        auth.setUser({ nickname: this.userName })
+      }
+      this.authErr = ''
+    },
+    onGetPhoneNumber (e) {
+      this.authErr = ''
+      if (e.detail.errMsg && e.detail.errMsg.indexOf('deny') >= 0) {
+        this.authErr = '手机号授权已取消'
+        return
+      }
+      const code = e.detail.code
+      if (!code) {
+        this.authErr = '获取手机号失败'
+        return
+      }
+      // 交给后端换手机号
+      api.bindPhone(code).then(r => {
+        if (r.ok) {
+          this.phoneText = r.data?.phone || '已绑定'
+          this.authErr = ''
+          auth.setUser({ phone: this.phoneText })
+        } else {
+          this.authErr = r.data?.detail || '手机号绑定失败，请重试'
+        }
+      }).catch(() => {
+        this.authErr = '网络异常，请确认后端服务可访问'
+      })
+    }
   }
 }
 </script>
@@ -190,7 +259,12 @@ export default {
 .uid { display:block; font-size:24rpx; color:rgba(255,255,255,0.6); margin-top:4rpx; }
 .top-login { margin-top:28rpx; width:400rpx; background:#07c160; color:#fff; border-radius:40rpx; font-size:32rpx; font-weight:600; padding:20rpx 0; }
 .login-err { display:block; margin-top:14rpx; font-size:24rpx; color:#fca5a5; }
-.top-hints { margin-top:18rpx; } .th-text { display:block; font-size:22rpx; color:rgba(255,255,255,0.5); text-align:center; padding:4rpx 0; }
+.avatar-zone { position:relative; display:inline-block; }
+.avatar-img { width:120rpx; height:120rpx; border-radius:60rpx; border:3rpx solid rgba(255,255,255,0.3); }
+.avatar-btn { position:absolute; bottom:-6rpx; right:-10rpx; background:rgba(255,255,255,0.2); color:#fff; font-size:20rpx; padding:4rpx 14rpx; border-radius:20rpx; }
+.nick-zone { margin-top:16rpx; } .nick-input { text-align:center; color:#fff; font-size:28rpx; background:rgba(255,255,255,0.1); border-radius:12rpx; padding:12rpx 24rpx; width:400rpx; }
+.phone-zone { margin-top:14rpx; } .phone-text { font-size:24rpx; color:rgba(255,255,255,0.7); } .phone-btn { background:rgba(255,255,255,0.15); color:#fff; font-size:24rpx; padding:10rpx 28rpx; border-radius:20rpx; display:inline-block; }
+.auth-err { display:block; margin-top:10rpx; font-size:22rpx; color:#fca5a5; }
 
 .stats { display:flex; background:#fff; margin:-30rpx 24rpx 24rpx; border-radius:20rpx; padding:24rpx 0; box-shadow:0 4rpx 24rpx rgba(0,0,0,0.06); }
 .stat { flex:1; text-align:center; }

@@ -43,6 +43,10 @@ function wechatMiniLogin (code) {
   return request({ url: '/api/auth/wechat/mini', method: 'POST', data: { code }, auth: false })
 }
 
+function bindPhone (code) {
+  return request({ url: '/api/auth/wechat/mini/bind-phone', method: 'POST', data: { code } })
+}
+
 // ── User / Records / Favorites ──
 function fetchProfile () { return request({ url: '/api/user/profile' }) }
 function fetchRecords (page = 1, pageSize = 20) { return request({ url: `/api/records?page=${page}&page_size=${pageSize}` }) }
@@ -103,8 +107,11 @@ function analyzeLocation (payload) {
         if (res.statusCode === 401) {
           resolve({ ok: false, statusCode: 401, error: '登录已过期，请去「我的」重新登录', steps: [] })
         } else if (res.statusCode === 402) {
-          const detail = (typeof body === 'string' ? body : '') || '余额不足'
-          resolve({ ok: false, statusCode: 402, error: detail.indexOf('余额') >= 0 ? detail : '余额不足，请充值后重试', steps: [] })
+          let detail = '余额不足，请充值后重试'
+          if (typeof body === 'string') {
+            try { const parsed = JSON.parse(body); detail = parsed.detail || detail } catch (e) { detail = body || detail }
+          }
+          resolve({ ok: false, statusCode: 402, error: detail, steps: [] })
         } else if (res.statusCode >= 500) {
           resolve({ ok: false, statusCode: res.statusCode, error: '后端服务异常，请稍后重试', steps: [] })
         } else if (sseError && !result) {
@@ -127,7 +134,7 @@ function analyzeLocation (payload) {
 function getHealth () { return request({ url: '/api/health', auth: false }) }
 
 export default {
-  request, normalizeError, ensureAnonToken, wechatMiniLogin,
+  request, normalizeError, ensureAnonToken, wechatMiniLogin, bindPhone,
   fetchProfile, fetchRecords, fetchRecordDetail, deleteRecord,
   fetchFavorites, deleteFavorite, fetchIndustries, locationSuggest, locationRegeocode, analyzeLocation, getHealth
 }

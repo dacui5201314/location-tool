@@ -8,7 +8,10 @@ export function clearToken () {
   keys.forEach(k => { try { uni.removeStorageSync(k) } catch (e) { /* ignore */ } })
 }
 export function getUser () { return uni.getStorageSync('user') || null }
-export function setUser (user) { uni.setStorageSync('user', user) }
+export function setUser (user) {
+  const prev = getUser() || {}
+  uni.setStorageSync('user', Object.assign({}, prev, user))
+}
 
 // ── 微信小程序登录 ──
 export function wechatLogin () {
