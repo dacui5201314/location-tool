@@ -1163,3 +1163,84 @@ Before adding any new uni-app feature, FIRST inspect the corresponding Web page/
 - Do NOT modify report accuracy logic, POI, rules, prompt, fact_guard, classification, or DB schema.
 - Do NOT commit secrets.
 - Do NOT push.
+
+---
+
+## Phase 23N Next Codex Window Handoff (2026-05-23)
+
+### Situation
+
+- The user is now treating uni-app as a formal launch target, not a demo shell.
+- The standing product rule is: **all uni-app UI, logic, copy, and states must converge with Web `frontend/` as the master/reference**. Implementation may differ because of WeChat Mini Program constraints, but UX must match.
+- Claude has already been given the latest instruction to stop guessing and verify the address auto-suggest path using diagnostics before more code changes.
+- Latest reviewed code commit: `0b2dfde` (`fix: replace v-model with explicit :value/@input, add inputDiag for event trace`).
+- Latest docs principle commit before this handoff: `ec81413` (`docs: add Web master alignment principle and uni-app parity priority order`).
+
+### Current Uni-App Progress
+
+- Overall uni-app progress: about **93%**.
+- Phase 23N-1 address auto-suggest: about **95% code-side**, still waiting for WeChat DevTools confirmation that latest `dist/build/mp-weixin` is loaded.
+- Phase 23N-2 analyze flow: about **40%**. `/api/analyze` has been integrated in uni-app through `api.analyzeLocation(payload)` and backend SSE result now includes `record_id` for navigation.
+- Payment, PDF unlock, and download remain **not connected**.
+
+### Important Correction
+
+Older sections in this handoff still mention "no `/api/analyze` call" because they describe Phase 23B-23F pre-integration history. That is no longer true for current Phase 23N.
+
+Current rule:
+
+- `/api/analyze` **is now intentionally connected** in `uniapp/src/utils/api.js`.
+- The correct no-call boundary is now: **no `requestPayment`, no `/unlock-pdf`, no `/download`**.
+- Do not report "uniapp has no analyze call" anymore.
+
+### Address Auto-Suggest Diagnostic Plan
+
+When reviewing Claude's next result, insist on this exact WeChat DevTools verification:
+
+| Step | Expected Result |
+|---|---|
+| Rebuild | `cd uniapp && npm run build:mp-weixin` passes |
+| Import/compile | DevTools imports `uniapp/dist/build/mp-weixin`, not source dir |
+| Type `陕` | UI shows `input: 陕` |
+| Type `陕西省宝鸡` | UI first shows `自动联想: 陕西省宝鸡...` after debounce |
+| Request returns | UI shows `关键词: 陕西省宝鸡 | HTTP 200 | 候选: N 条` |
+| Delete all input | inputDiag / suggestDiag / suggestions all clear |
+
+Decision tree:
+
+- If `input: xxx` does not appear, the latest dist is not loaded or `@input` is not firing. Do not rewrite suggest logic first; fix DevTools cache/import/build state.
+- If `input: xxx` appears but `自动联想` does not appear, inspect `suggestTimer` / debounce path. For launch, prefer immediate reliable suggestions over clever debounce.
+- If `自动联想` appears but candidate count is zero, inspect backend `/api/location/suggest` and `AMAP_WEB_KEY`.
+- If candidates appear only after pressing search, auto-trigger still differs from Web and remains incomplete.
+
+### Analyze Flow Next
+
+After address auto-suggest passes:
+
+1. Verify `/api/analyze` in DevTools against the running backend.
+2. Match Web behavior for:
+   - not logged in / expired token
+   - balance insufficient
+   - backend error
+   - successful SSE result
+   - navigation to `report-detail?id=<record_id>`
+3. Keep the current buffered SSE approach only if it works reliably enough in WeChat DevTools. If it times out, evaluate a mini-program-safe approach without changing report accuracy logic.
+
+### Hard Boundaries For Next Codex
+
+- Do not push.
+- Do not commit secrets.
+- Do not process `tmp_*`.
+- Do not modify `frontend/` unless explicitly requested.
+- Do not continue native `miniprogram/` feature work.
+- Do not modify report accuracy logic, POI, rules, prompt, `report_fact_guard`, classification, or DB schema.
+- Backend capability wiring is now authorized by the user, but only for app integration surfaces such as location proxy/analyze transport. Accuracy logic remains frozen.
+
+### Expected Untracked Files
+
+- `tmp_latest_report_text.txt`
+- `tmp_report_images/`
+- `tmp_report_pages/`
+- `miniprogram/pages/profile/profile.json`
+
+Do not include them in commits unless the user explicitly asks.
