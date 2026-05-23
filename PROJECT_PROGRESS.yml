@@ -1,7 +1,7 @@
 current_phase: Phase 23N
-phase_status: ui_web_alignment_phase23n2b_phone_login_blocked
-latest_code_commit: 1b388ad
-latest_code_commit_message: "fix: add phoneLoginDiag for getPhoneNumber debug, sync phone_number in register"
+phase_status: ui_web_alignment_phase23n_home_visual_polish_next
+latest_code_commit: eeb87db
+latest_code_commit_message: "fix: rename mapDiag to mapNotice, remove dev URLs from UI, clean trust row"
 latest_docs_commit: 80395b7
 unpushed: true
 
@@ -40,7 +40,7 @@ sample_bank:
   partial: 10
   latest_industry_test_total: "2168 PASS, 0 FAIL"
 
-next_step: "Phase 23N-2: devtools test analyze flow — 401/402/5xx/success → report-detail?id=<record_id>."
+next_step: "Phase 23N: clean remaining developer-facing uni-app UI copy, then start first real Home visual polish pass toward Web master."
 
 boundaries:
   no_push: true
@@ -85,10 +85,12 @@ phase23_uniapp:
     copy_scan: "PASS: no misleading 生成中/扣点/支付/下载 PDF 报告/消耗 1 点 in uniapp/src"
   current_status:
     overall_progress: "about 94%"
-    phase23n1_address_autosuggest: "~98% — user-verified; diagnostic UI removed; auto-suggest fires without pressing search"
-    phase23n2_analyze_flow: "~45% — 401/402/SSE error/network unreachable verified via curl; SSE step 1-4 structure correct; success path env-blocked by LLM/AMap config; report_uuid fix applied (1be5a5d)"
-    phone_login: "external blocked — requires real mini-program AppID + phone verification capability + privacy config; bypass available via /api/auth/register curl + DevTools Storage manual token injection"
-    ui_web_alignment: "~15% — gap audit complete; 5 fixes applied (optimistic step timer, Web-aligned analyze UI, provider=deepseek, store size validation matching Web, profile points default=0); active P0/P1: radar chart, dimension analysis, POI detail lists, new-user welcome, free-point countdown, favorites API, records thumbnails/stars, profile stat nav/customer service"
+    phase23n1_address_autosuggest: "~98% - user-verified; diagnostic UI/state removed; auto-suggest fires without pressing search"
+    phase23n2_analyze_flow: "~45% - 401/402/SSE error/network unreachable verified or code-covered; SSE step 1-4 structure correct; success path env-blocked by LLM/AMap config; report_uuid fix applied (1be5a5d)"
+    phone_login: "external blocked - requires real mini-program AppID + phone verification capability + privacy config; bypass available via /api/auth/register curl + DevTools Storage manual token injection"
+    report_detail_web_alignment: "~60% - dimension text, POI lists, location metadata, metric badges, radar bars, duplicate module convergence, PDF/dead UI cleanup complete"
+    home_ui_web_alignment: "~40% - fake/deferred UI copy cleaned; fake favorite removed; mapDiag renamed to mapNotice; next clean remaining developer-facing UI copy and do visual polish"
+    ui_web_alignment: "Active focus is Home polish. Do not add new features before visual/copy convergence. Continue reading Web frontend as reference only."
     deferred_by_boundary: "PDF export, /download, /unlock-pdf, recharge modal (SKU/CDK/purchase), requestPayment — blocked by current no-payment/PDF boundary"
     external_blockers:
       - "Phone login: real WeChat Mini Program AppID required"
@@ -97,4 +99,4 @@ phase23_uniapp:
     latest_user_direction: "Formal launch target: all uni-app UI/logic/copy/states must align with Web frontend master."
   current_worktree_caveat:
     - "Expected untracked: tmp_latest_report_text.txt, tmp_report_images/, tmp_report_pages/, miniprogram/pages/profile/profile.json."
-  next_step: "Phase 23N: verify address auto-suggest diagnostics in WeChat DevTools, then continue analyze flow parity with Web."
+  next_step: "Phase 23N: clean remaining developer-facing copy in uniapp/src, then perform first real Home visual polish pass toward Web master."

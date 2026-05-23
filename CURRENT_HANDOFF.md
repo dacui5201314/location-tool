@@ -1,5 +1,139 @@
 # Current Handoff - 2026-05-23
 
+## READ THIS FIRST - Phase 23N Current Authoritative State
+
+This top section supersedes older Phase 23B-23N notes below. Older sections are kept only as history and may contain outdated statements such as "no `/api/analyze` call".
+
+### Current Reviewed Position
+
+- Current phase: **Phase 23N**.
+- uni-app overall progress: about **94%**.
+- Latest reviewed Claude code commit: `eeb87db` — `fix: rename mapDiag to mapNotice, remove dev URLs from UI, clean trust row`.
+- Latest accepted direction: uni-app is the formal launch target, not a demo shell.
+- Web React `frontend/` remains the product master/reference. Do **not** modify `frontend/` unless the user explicitly asks; read it only as reference.
+- Native `miniprogram/` is frozen for new feature work. Keep it only as WeChat login reference.
+- Do not push.
+
+### What Is Already Done
+
+- Phase 23N-1 address auto-suggest: about **98%**.
+  - User verified: typing address text automatically shows candidates without pressing search.
+  - Deleting input clears candidate state.
+  - Diagnostic UI/state (`inputDiag`, `suggestDiag`, `mapDiag`) has been removed/renamed/cleaned.
+- Phase 23N-2 analyze flow: about **45%**.
+  - `/api/analyze` is intentionally connected in uni-app.
+  - 401/402/SSE error/network error paths are code-ready or partially verified.
+  - Successful full generation remains environment-blocked unless backend has valid LLM and AMap keys.
+  - Report navigation uses `report_uuid` (`report-detail?id=<report_uuid>`), not numeric DB id.
+- Report detail Web alignment: about **60%**.
+  - Detailed dimension text, POI category lists, location metadata, metric badges, radar-bar equivalent, duplicate module convergence, dead PDF UI cleanup are in place.
+- Home UI Web alignment: about **40%**.
+  - Deferred/fake UI copy removed.
+  - Fake local favorite star removed.
+  - `mapDiag` renamed to `mapNotice`; debug state no longer shown as product UI.
+  - Developer URLs removed from visible UI, but remaining developer-style words still need one more cleanup pass.
+
+### Critical Correction
+
+Do **not** report that uni-app has no `/api/analyze` call. That was true only in older pre-integration phases.
+
+Current no-call boundary is:
+
+- no `requestPayment`
+- no `/unlock-pdf`
+- no `/download`
+
+Payment, PDF unlock/export, and download are deliberately deferred. Do not connect them and do not create fake buttons for them.
+
+### Hard Boundaries
+
+- Do not push.
+- Do not commit AppID/AppSecret/API keys.
+- Do not process or include `tmp_*`.
+- Do not modify `frontend/` unless explicitly requested.
+- Do not continue native `miniprogram/` feature work.
+- Do not modify report accuracy logic, POI, rules, prompt, `report_fact_guard`, classification, or DB schema.
+- Backend changes are allowed only for app integration surfaces when explicitly needed; accuracy logic remains frozen.
+- Current expected untracked files:
+  - `tmp_latest_report_text.txt`
+  - `tmp_report_images/`
+  - `tmp_report_pages/`
+  - `miniprogram/pages/profile/profile.json`
+
+### Current External Blockers
+
+- WeChat phone one-click login cannot be fully tested without:
+  - real Mini Program AppID
+  - phone number verification capability
+  - privacy policy configuration
+  - preferably real-device testing
+- Do not spend more cycles trying to make `getPhoneNumber` work under a test AppID. Use manual token injection for analyze testing if needed:
+  - register/login through backend test API
+  - write `token` and `user` into WeChat DevTools Storage
+- Analyze success path needs valid LLM API key and AMap Web key in backend environment.
+
+### Latest Audit Result For `eeb87db`
+
+Accepted direction, but next step must clean the remaining developer-facing copy and then start real Home visual polish.
+
+Known remaining cleanup targets:
+
+- Search in `uniapp/src`:
+  - `后端服务`
+  - `127.0.0.1`
+  - `api/health`
+  - `开发者工具`
+  - `authorize`
+  - `authSetting`
+  - `服务已启动`
+  - `服务可访问`
+- `127.0.0.1` is allowed only in config/comment contexts, not user-visible UI.
+- User-visible copy should say product-level messages such as:
+  - `服务暂不可用，请稍后重试`
+  - `分析服务暂不可用，请稍后重试`
+  - `分析请求超时，请稍后重试`
+  - `地址搜索超时，请稍后重试或手动输入`
+  - `业态加载失败，请稍后重试`
+  - `定位失败，请检查定位权限或手动输入地址`
+
+### Next Instruction For Claude
+
+Continue Phase 23N UI-Web alignment, but do only these two things next:
+
+1. Clean remaining developer-facing user copy in `uniapp/src`.
+   - No user-visible `后端`, `后端服务`, `开发者工具`, `authorize`, `authSetting`, `api/health`.
+   - Keep product-friendly error messages.
+   - Do not change analyze/report accuracy logic.
+
+2. Begin the first real Home visual polish pass.
+   - Read Web `frontend/` as reference, but do not modify it.
+   - Polish only uni-app Home UI/layout/CSS/copy.
+   - Focus hero, address/search/map card, industry selector, brand/area fields, main CTA, trust row, spacing, visual hierarchy.
+   - Do not add new features.
+   - Do not add fake favorite/payment/PDF/download actions.
+
+Required validation after Claude changes:
+
+- `cd uniapp && npm run build:mp-weixin`
+- JSON parse: `uniapp/package.json`, `uniapp/src/manifest.json`, `uniapp/src/pages.json`, `uniapp/dist/build/mp-weixin/app.json`
+- `rg "requestPayment|unlock-pdf|/download" uniapp/src`
+- `rg "后端服务|127.0.0.1|api/health|开发者工具|authorize|authSetting|服务已启动|服务可访问" uniapp/src`
+- secret scan
+- `git status` must only show expected modifications and known untracked files
+
+Claude final report must include:
+
+- uni-app overall progress %
+- Home UI Web alignment progress %
+- developer-facing copy cleanup result
+- Home visual polish result
+- modified files
+- build / JSON / scan results
+- commit SHA
+- explicit "not pushed"
+
+---
+
 ## Phase 23N-2B Status
 
 Latest code commit: `1b388ad` — `fix: add phoneLoginDiag for getPhoneNumber debug, sync phone_number in register`
