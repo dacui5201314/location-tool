@@ -67,9 +67,9 @@
           <text class="sc-state" :class="{ ready: addressText }">{{ addressText ? '已选择' : '先选位置' }}</text>
         </view>
         <view class="sc-input-row">
-          <text class="sc-icon">⌖</text>
+          <text class="sc-icon">定位</text>
           <input class="sc-field" :value="addressKeyword" placeholder="输入地址搜索门店位置" :disabled="analyzing" @input="onAddressInput" @confirm="onSearch" />
-          <button class="sc-action" :disabled="analyzing" @tap="onLocate" v-if="!addressText">◎</button>
+          <button class="sc-action" :disabled="analyzing" @tap="onLocate" v-if="!addressText">定位</button>
           <button class="sc-action fav" :disabled="favLoading || analyzing" @tap="toggleFav" v-if="addressText">
             {{ favLoading ? '·' : (favId ? '★' : '☆') }}
           </button>
@@ -255,8 +255,17 @@ export default {
         id: 1,
         latitude: this.mapLat,
         longitude: this.mapLng,
-        width: 28,
-        height: 28
+        width: 30,
+        height: 30,
+        callout: {
+          content: '门店位置',
+          color: '#ffffff',
+          fontSize: 12,
+          borderRadius: 8,
+          bgColor: '#ef4444',
+          padding: 8,
+          display: 'ALWAYS'
+        }
       }]
     },
     srcLabel () {
@@ -659,8 +668,8 @@ export default {
 .home-page { min-height:100vh; background:radial-gradient(circle at 50% -8%,rgba(49,91,255,0.12),transparent 34%),linear-gradient(180deg,#f8fbff 0%,#f2f6ff 48%,#eef3fb 100%); padding-bottom:108rpx; }
 
 /* ── Hero ── */
-.hero { background:radial-gradient(circle at 76% 34%,rgba(93,171,255,0.58),transparent 24%),radial-gradient(circle at 62% 58%,rgba(248,200,97,0.14),transparent 22%),linear-gradient(160deg,#0d4bdc 0%,#0f45d0 24%,#1533b4 64%,#1d2497 100%); padding:46rpx 28rpx 122rpx; position:relative; overflow:hidden; }
-.hero::before { content:''; position:absolute; left:-110rpx; top:-158rpx; width:680rpx; height:340rpx; border-radius:0 0 58% 58%; background:linear-gradient(180deg,rgba(255,255,255,0.18),rgba(255,255,255,0.02)); transform:rotate(8deg); }
+.hero { background:radial-gradient(circle at 76% 38%,rgba(93,171,255,0.54),transparent 24%),radial-gradient(circle at 62% 58%,rgba(248,200,97,0.13),transparent 22%),linear-gradient(180deg,#0d4bdc 0%,#0d4bdc 14%,#0f45d0 38%,#1533b4 70%,#1d2497 100%); padding:46rpx 28rpx 122rpx; position:relative; overflow:hidden; }
+.hero::before { content:''; position:absolute; left:-130rpx; top:-236rpx; width:720rpx; height:420rpx; border-radius:0 0 58% 58%; background:linear-gradient(180deg,rgba(255,255,255,0.10),rgba(255,255,255,0.015)); transform:rotate(7deg); }
 .hero::after { content:''; position:absolute; left:0; right:0; bottom:0; height:230rpx; background:linear-gradient(180deg,rgba(255,255,255,0),rgba(219,234,254,0.26)); }
 .hero-top { display:flex; align-items:center; margin-bottom:28rpx; position:relative; z-index:2; }
 .hero-logo-box { width:70rpx; height:70rpx; border-radius:18rpx; margin-right:14rpx; display:flex; align-items:center; justify-content:center; overflow:hidden; background:linear-gradient(135deg,#ffffff 0%,#dbeafe 46%,#2545cb 100%); box-shadow:0 12rpx 30rpx rgba(5,22,88,0.32),0 0 0 1px rgba(248,200,97,0.22); flex-shrink:0; }
@@ -689,8 +698,10 @@ export default {
 .ring-a { width:136rpx; height:42rpx; left:48rpx; top:26rpx; }
 .ring-b { width:86rpx; height:24rpx; left:72rpx; top:36rpx; opacity:0.78; }
 .hv-orbit { position:absolute; left:18rpx; right:22rpx; bottom:88rpx; height:62rpx; border:3rpx solid rgba(248,200,97,0.52); border-radius:50%; transform:rotate(-8deg); box-shadow:0 0 22rpx rgba(248,200,97,0.24); }
-.hv-pin { position:absolute; right:68rpx; top:4rpx; width:98rpx; height:140rpx; border-radius:52rpx 52rpx 52rpx 10rpx; transform:rotate(45deg); background:linear-gradient(145deg,#67d4ff 0%,#2563ff 48%,#5949f4 100%); box-shadow:0 18rpx 42rpx rgba(59,130,246,0.46),inset -8rpx -8rpx 18rpx rgba(55,48,163,0.18),inset 8rpx 8rpx 18rpx rgba(255,255,255,0.16); }
-.hv-pin-core { position:absolute; top:26rpx; left:26rpx; width:42rpx; height:42rpx; border-radius:50%; background:#fff; box-shadow:0 0 0 10rpx rgba(255,255,255,0.20),inset 0 0 0 8rpx rgba(79,70,229,0.10); }
+.hv-pin { position:absolute; right:66rpx; top:0; width:108rpx; height:146rpx; background:transparent; }
+.hv-pin::before { content:''; position:absolute; left:10rpx; top:0; width:88rpx; height:88rpx; border-radius:52rpx 52rpx 52rpx 12rpx; transform:rotate(-45deg); background:linear-gradient(145deg,#66d7ff 0%,#2468ff 48%,#5b4be6 100%); box-shadow:0 18rpx 42rpx rgba(37,99,235,0.46),inset -8rpx -8rpx 18rpx rgba(55,48,163,0.18),inset 8rpx 8rpx 18rpx rgba(255,255,255,0.16); }
+.hv-pin::after { content:''; position:absolute; left:48rpx; top:78rpx; width:12rpx; height:40rpx; border-radius:999rpx; background:linear-gradient(180deg,rgba(255,255,255,0.72),rgba(147,197,253,0.18)); box-shadow:0 10rpx 22rpx rgba(37,99,235,0.24); }
+.hv-pin-core { position:absolute; top:24rpx; left:36rpx; width:36rpx; height:36rpx; border-radius:50%; background:#fff; box-shadow:0 0 0 10rpx rgba(255,255,255,0.22),inset 0 0 0 7rpx rgba(79,70,229,0.10); z-index:1; }
 
 /* ── Search card ── */
 .search-section { position:relative; z-index:30; margin:-72rpx 24rpx 0; }
@@ -700,9 +711,11 @@ export default {
 .sc-state { font-size:21rpx; color:#94a3b8; background:#f1f5f9; border-radius:999rpx; padding:5rpx 14rpx; }
 .sc-state.ready { color:#047857; background:#dcfce7; }
 .sc-input-row { display:flex; align-items:center; }
-.sc-icon { width:58rpx; text-align:center; font-size:30rpx; color:#64748b; flex-shrink:0; display:block; }
+.sc-icon { position:relative; width:56rpx; height:58rpx; text-align:center; font-size:0; color:transparent; flex-shrink:0; display:block; }
+.sc-icon::before { content:''; position:absolute; left:13rpx; top:7rpx; width:30rpx; height:30rpx; border-radius:18rpx 18rpx 18rpx 4rpx; transform:rotate(-45deg); background:linear-gradient(145deg,#ff6b6b,#ef4444); box-shadow:0 8rpx 18rpx rgba(239,68,68,0.22); }
+.sc-icon::after { content:''; position:absolute; left:24rpx; top:18rpx; width:8rpx; height:8rpx; border-radius:50%; background:#fff; box-shadow:0 0 0 5rpx rgba(255,255,255,0.24); }
 .sc-field { flex:1; height:76rpx; font-size:30rpx; color:#0f172a; padding:0 8rpx; border:none; background:transparent; font-weight:600; }
-.sc-action { width:66rpx; height:66rpx; min-width:66rpx; padding:0; margin:0; border-radius:50%; background:linear-gradient(135deg,#3b82f6,#4f46e5); color:#fff; font-size:30rpx; line-height:66rpx; display:flex; align-items:center; justify-content:center; flex-shrink:0; box-shadow:0 10rpx 24rpx rgba(59,130,246,0.26); }
+.sc-action { width:92rpx; height:64rpx; min-width:92rpx; padding:0; margin:0; border-radius:999rpx; background:linear-gradient(135deg,#1e6bff,#4f46e5); color:#fff; font-size:24rpx; font-weight:900; line-height:64rpx; display:flex; align-items:center; justify-content:center; flex-shrink:0; box-shadow:0 12rpx 28rpx rgba(37,99,235,0.30),0 0 0 1px rgba(248,200,97,0.18); }
 .sc-action::after { border:none; }
 .sc-action[disabled] { opacity:0.45; }
 .sc-action.fav { background:#fff7ed; color:#d6a84f; box-shadow:none; border:1px solid #fed7aa; }
@@ -764,7 +777,7 @@ export default {
 .field:disabled { background:#f9fafb; color:#9ca3af; }
 
 /* ── CTA ── */
-.cta-zone { padding:0 20rpx; margin-top:22rpx; }
+.cta-zone { padding:0 20rpx; margin-top:30rpx; }
 .cta-btn { width:100%; background:linear-gradient(135deg,#0d4bdc 0%,#1735b8 55%,#5b4be6 100%); color:#fff; border-radius:16rpx; padding:24rpx 24rpx; display:flex; flex-direction:column; align-items:center; border:none; box-shadow:0 18rpx 38rpx rgba(22,54,184,0.30),0 0 0 1px rgba(248,200,97,0.16); }
 .cta-btn::after { border:none; }
 .cta-btn[disabled] { opacity:1; background:linear-gradient(180deg,#ffffff,#f5f8ff); color:#315bff; box-shadow:0 10rpx 24rpx rgba(74,111,172,0.08); border:1px dashed rgba(49,91,255,0.34); }
@@ -782,13 +795,13 @@ export default {
 .as-body { flex:1; } .as-label { font-size:25rpx; color:#475569; display:block; } .as-msg { font-size:22rpx; color:#94a3b8; display:block; }
 
 /* ── Features ── */
-.features { display:flex; gap:16rpx; margin:20rpx 28rpx 0; padding:0; background:transparent; box-shadow:none; }
-.ft { flex:1; display:flex; align-items:center; justify-content:center; gap:8rpx; text-align:left; background:transparent; border-radius:0; padding:0; box-shadow:none; border:0; min-width:0; }
-.ft:first-child,.ft:last-child { border-radius:0; }
-.ft-mark { display:block; width:30rpx; height:30rpx; line-height:30rpx; text-align:center; border-radius:9rpx; color:#fff; background:linear-gradient(135deg,#2f6dff,#5b4be6); font-size:18rpx; flex-shrink:0; box-shadow:0 8rpx 16rpx rgba(88,105,255,0.14); }
-.ft:nth-child(3) .ft-mark { background:linear-gradient(135deg,#f8c861,#d8a23d); box-shadow:0 8rpx 16rpx rgba(216,162,61,0.16); }
-.ft-title { font-size:22rpx; font-weight:900; color:#17244e; display:block; white-space:nowrap; }
-.ft-desc { display:none; }
+.features { display:flex; gap:0; margin:28rpx 28rpx 0; padding:18rpx 10rpx; background:rgba(255,255,255,0.92); border:1px solid rgba(219,230,255,0.86); border-radius:20rpx; box-shadow:0 16rpx 34rpx rgba(79,119,186,0.08); }
+.ft { flex:1; display:flex; flex-direction:column; align-items:flex-start; justify-content:flex-start; gap:8rpx; text-align:left; background:transparent; border-radius:0; padding:8rpx 14rpx; box-shadow:none; border-right:1rpx solid rgba(219,230,255,0.78); min-width:0; }
+.ft:last-child { border-right:0; }
+.ft-mark { display:block; width:44rpx; height:44rpx; line-height:44rpx; text-align:center; border-radius:14rpx; color:#fff; background:linear-gradient(135deg,#2f6dff,#5b4be6); font-size:26rpx; flex-shrink:0; box-shadow:0 10rpx 20rpx rgba(88,105,255,0.16); }
+.ft:nth-child(3) .ft-mark { background:linear-gradient(135deg,#f8c861,#d8a23d); box-shadow:0 10rpx 20rpx rgba(216,162,61,0.18); }
+.ft-title { font-size:24rpx; font-weight:900; color:#17244e; display:block; white-space:nowrap; line-height:1.1; }
+.ft-desc { display:block; font-size:20rpx; color:#8b99b6; line-height:1.25; }
 .footer { text-align:center; font-size:20rpx; color:#94a3b8; padding:18rpx 44rpx 10rpx; line-height:1.65; }
 
 /* ── Welcome modal ── */
