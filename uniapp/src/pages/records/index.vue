@@ -147,8 +147,9 @@ export default {
 
 <style scoped>
 .records-page { min-height:100vh; padding:0 24rpx 118rpx; background:linear-gradient(180deg,#eaf2ff 0%,#f2f6ff 42%,#eef3fb 100%); }
-.header { margin:0 -24rpx 22rpx; padding:62rpx 48rpx 82rpx; background:linear-gradient(145deg,#155dff 0%,#1151e8 48%,#2738c7 100%); position:relative; overflow:hidden; }
-.header::before { content:''; position:absolute; left:-120rpx; top:-150rpx; width:620rpx; height:300rpx; border-radius:0 0 50% 50%; background:rgba(255,255,255,0.08); transform:rotate(8deg); }
+.header { margin:0 -24rpx 22rpx; padding:62rpx 48rpx 82rpx; background:radial-gradient(circle at 78% 32%,rgba(125,211,252,0.58),transparent 24%),linear-gradient(160deg,#155dff 0%,#155dff 18%,#0f4fe8 54%,#2435c8 100%); position:relative; overflow:hidden; }
+.header::before { content:''; position:absolute; left:-120rpx; top:-150rpx; width:660rpx; height:320rpx; border-radius:0 0 56% 56%; background:linear-gradient(180deg,rgba(255,255,255,0.16),rgba(255,255,255,0.02)); transform:rotate(8deg); }
+.header::after { content:''; position:absolute; right:56rpx; bottom:0; width:38rpx; height:154rpx; border-radius:9rpx 9rpx 0 0; background:linear-gradient(180deg,rgba(219,234,254,0.56),rgba(37,99,235,0.08)); box-shadow:-54rpx 30rpx 0 rgba(191,219,254,0.34),-108rpx 66rpx 0 rgba(191,219,254,0.24),54rpx 20rpx 0 rgba(191,219,254,0.28),106rpx 54rpx 0 rgba(191,219,254,0.18); opacity:0.58; }
 .title { font-size:42rpx; font-weight:900; color:#fff; display:block; position:relative; z-index:1; } .sub { font-size:24rpx; color:rgba(232,240,255,0.76); margin-top:8rpx; position:relative; z-index:1; }
 .login-guide { text-align:center; padding:82rpx 28rpx; background:rgba(255,255,255,0.92); border:1px solid rgba(219,230,255,0.9); border-radius:22rpx; box-shadow:0 18rpx 38rpx rgba(79,119,186,0.10); }
 .lg-text { display:block; font-size:28rpx; color:#64748b; margin-bottom:24rpx; }

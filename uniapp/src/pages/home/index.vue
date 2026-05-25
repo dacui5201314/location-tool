@@ -40,11 +40,19 @@
         <text class="htag">POI 周边洞察</text>
         <text class="htag">实地复核建议</text>
       </view>
+      <view class="hero-city" aria-hidden="true">
+        <view class="hc-building hc-a" />
+        <view class="hc-building hc-b" />
+        <view class="hc-building hc-c" />
+        <view class="hc-building hc-d" />
+        <view class="hc-building hc-e" />
+      </view>
       <view class="hero-visual" aria-hidden="true">
         <view class="hv-plate">
           <view class="hv-ring ring-a" />
           <view class="hv-ring ring-b" />
         </view>
+        <view class="hv-orbit" />
         <view class="hv-pin">
           <view class="hv-pin-core" />
         </view>
@@ -651,9 +659,9 @@ export default {
 .home-page { min-height:100vh; background:radial-gradient(circle at 50% -8%,rgba(49,91,255,0.12),transparent 34%),linear-gradient(180deg,#f8fbff 0%,#f2f6ff 48%,#eef3fb 100%); padding-bottom:108rpx; }
 
 /* ── Hero ── */
-.hero { background:linear-gradient(145deg,#155dff 0%,#1151e8 46%,#2738c7 100%); padding:46rpx 28rpx 116rpx; position:relative; overflow:hidden; }
-.hero::before { content:''; position:absolute; left:-120rpx; top:-150rpx; width:620rpx; height:300rpx; border-radius:0 0 50% 50%; background:rgba(255,255,255,0.08); transform:rotate(8deg); }
-.hero::after { content:''; position:absolute; right:-70rpx; bottom:58rpx; width:310rpx; height:250rpx; border-radius:42rpx; background:linear-gradient(135deg,rgba(255,255,255,0.10),rgba(255,255,255,0)); transform:skewX(-12deg); }
+.hero { background:radial-gradient(circle at 76% 34%,rgba(125,211,252,0.72),transparent 25%),linear-gradient(160deg,#155dff 0%,#155dff 18%,#0f4fe8 54%,#2435c8 100%); padding:46rpx 28rpx 122rpx; position:relative; overflow:hidden; }
+.hero::before { content:''; position:absolute; left:-110rpx; top:-158rpx; width:680rpx; height:340rpx; border-radius:0 0 58% 58%; background:linear-gradient(180deg,rgba(255,255,255,0.18),rgba(255,255,255,0.02)); transform:rotate(8deg); }
+.hero::after { content:''; position:absolute; left:0; right:0; bottom:0; height:230rpx; background:linear-gradient(180deg,rgba(255,255,255,0),rgba(219,234,254,0.26)); }
 .hero-top { display:flex; align-items:center; margin-bottom:28rpx; position:relative; z-index:2; }
 .hero-logo-box { width:70rpx; height:70rpx; border-radius:18rpx; margin-right:14rpx; display:flex; align-items:center; justify-content:center; overflow:hidden; background:linear-gradient(135deg,#f8fbff 0%,#dbeafe 48%,#3151d3 100%); box-shadow:0 10rpx 28rpx rgba(33,99,255,0.35); flex-shrink:0; }
 .hero-logo { width:62rpx; height:62rpx; display:block; border-radius:16rpx; }
@@ -661,18 +669,27 @@ export default {
 .hero-brand { font-size:40rpx; font-weight:900; color:#fff; line-height:1.1; }
 .hero-slogan { font-size:24rpx; color:rgba(219,234,254,0.78); margin-top:2rpx; }
 .hero-copy { text-align:left; margin-bottom:24rpx; padding-right:210rpx; position:relative; z-index:2; }
-.hero-title { display:block; font-size:52rpx; font-weight:900; color:#fff; line-height:1.14; }
-.hero-hl { display:block; color:#b9d9ff; }
-.hero-desc { display:block; font-size:24rpx; color:rgba(232,240,255,0.74); margin-top:18rpx; line-height:1.55; }
+.hero-title { display:block; font-size:52rpx; font-weight:900; color:#fff; line-height:1.14; text-shadow:0 8rpx 28rpx rgba(6,20,80,0.28); }
+.hero-hl { display:block; color:#d7e8ff; }
+.hero-desc { display:block; font-size:24rpx; color:rgba(232,240,255,0.80); margin-top:18rpx; line-height:1.55; }
 .hero-tags { display:flex; gap:10rpx; position:relative; z-index:2; }
-.htag { font-size:20rpx; color:rgba(255,255,255,0.78); background:rgba(255,255,255,0.09); border:1px solid rgba(255,255,255,0.18); border-radius:999rpx; padding:8rpx 16rpx; backdrop-filter:blur(8px); }
-.hero-visual { position:absolute; right:24rpx; top:168rpx; width:196rpx; height:188rpx; pointer-events:none; z-index:2; }
-.hv-plate { position:absolute; left:12rpx; right:8rpx; bottom:12rpx; height:72rpx; border-radius:30rpx; transform:skewX(-14deg); background:linear-gradient(135deg,rgba(226,236,255,0.92),rgba(149,187,255,0.58)); box-shadow:0 20rpx 48rpx rgba(6,18,48,0.30); }
-.hv-ring { position:absolute; border:3rpx solid rgba(37,99,235,0.34); border-radius:50%; transform:skewX(14deg); }
-.ring-a { width:104rpx; height:32rpx; left:36rpx; top:20rpx; }
-.ring-b { width:64rpx; height:18rpx; left:56rpx; top:28rpx; opacity:0.75; }
-.hv-pin { position:absolute; right:42rpx; top:0; width:82rpx; height:116rpx; border-radius:44rpx 44rpx 44rpx 8rpx; transform:rotate(45deg); background:linear-gradient(145deg,#5ea8ff,#4f46e5 72%); box-shadow:0 14rpx 36rpx rgba(59,130,246,0.42); }
-.hv-pin-core { position:absolute; top:22rpx; left:22rpx; width:34rpx; height:34rpx; border-radius:50%; background:#fff; box-shadow:inset 0 0 0 8rpx rgba(79,70,229,0.10); }
+.htag { font-size:20rpx; color:rgba(255,255,255,0.88); background:rgba(255,255,255,0.12); border:1px solid rgba(255,255,255,0.24); border-radius:999rpx; padding:9rpx 16rpx; box-shadow:inset 0 1rpx 0 rgba(255,255,255,0.20); }
+.hero-city { position:absolute; right:-8rpx; bottom:124rpx; width:330rpx; height:238rpx; z-index:1; opacity:0.54; pointer-events:none; }
+.hc-building { position:absolute; bottom:0; width:40rpx; border-radius:9rpx 9rpx 0 0; background:linear-gradient(180deg,rgba(219,234,254,0.78),rgba(37,99,235,0.10)); box-shadow:inset 0 0 0 1px rgba(255,255,255,0.12),0 0 28rpx rgba(147,197,253,0.10); }
+.hc-building::after { content:''; position:absolute; inset:15rpx 10rpx; background:repeating-linear-gradient(180deg,rgba(255,255,255,0.36) 0 6rpx,transparent 6rpx 18rpx); }
+.hc-a { right:204rpx; height:86rpx; }
+.hc-b { right:154rpx; height:138rpx; }
+.hc-c { right:104rpx; height:190rpx; }
+.hc-d { right:54rpx; height:118rpx; }
+.hc-e { right:4rpx; height:154rpx; }
+.hero-visual { position:absolute; right:20rpx; top:132rpx; width:260rpx; height:252rpx; pointer-events:none; z-index:2; }
+.hv-plate { position:absolute; left:12rpx; right:8rpx; bottom:22rpx; height:92rpx; border-radius:38rpx; transform:skewX(-13deg); background:linear-gradient(135deg,rgba(239,246,255,0.96),rgba(147,197,253,0.62)); box-shadow:0 22rpx 58rpx rgba(6,18,48,0.30),inset 0 1rpx 0 rgba(255,255,255,0.70); }
+.hv-ring { position:absolute; border:3rpx solid rgba(37,99,235,0.34); border-radius:50%; transform:skewX(13deg); }
+.ring-a { width:136rpx; height:42rpx; left:48rpx; top:26rpx; }
+.ring-b { width:86rpx; height:24rpx; left:72rpx; top:36rpx; opacity:0.78; }
+.hv-orbit { position:absolute; left:18rpx; right:22rpx; bottom:88rpx; height:62rpx; border:3rpx solid rgba(191,219,254,0.84); border-radius:50%; transform:rotate(-8deg); box-shadow:0 0 22rpx rgba(191,219,254,0.34); }
+.hv-pin { position:absolute; right:68rpx; top:4rpx; width:98rpx; height:140rpx; border-radius:52rpx 52rpx 52rpx 10rpx; transform:rotate(45deg); background:linear-gradient(145deg,#67d4ff 0%,#2563ff 48%,#5949f4 100%); box-shadow:0 18rpx 42rpx rgba(59,130,246,0.46),inset -8rpx -8rpx 18rpx rgba(55,48,163,0.18),inset 8rpx 8rpx 18rpx rgba(255,255,255,0.16); }
+.hv-pin-core { position:absolute; top:26rpx; left:26rpx; width:42rpx; height:42rpx; border-radius:50%; background:#fff; box-shadow:0 0 0 10rpx rgba(255,255,255,0.20),inset 0 0 0 8rpx rgba(79,70,229,0.10); }
 
 /* ── Search card ── */
 .search-section { position:relative; z-index:30; margin:-72rpx 24rpx 0; }

@@ -268,17 +268,17 @@ export default {
 
 <style scoped>
 .profile-page { min-height:100vh; background:radial-gradient(circle at 50% -8%,rgba(49,91,255,0.12),transparent 34%),linear-gradient(180deg,#f8fbff 0%,#f2f6ff 48%,#eef3fb 100%); padding-bottom:118rpx; }
-.top { background:linear-gradient(145deg,#155dff 0%,#1151e8 48%,#2738c7 100%); padding:56rpx 32rpx 76rpx; text-align:center; color:#fff; position:relative; overflow:hidden; }
-.top::before { content:''; position:absolute; left:-120rpx; top:-150rpx; width:620rpx; height:300rpx; border-radius:0 0 50% 50%; background:rgba(255,255,255,0.08); transform:rotate(8deg); }
-.top::after { content:''; position:absolute; right:-80rpx; bottom:-110rpx; width:260rpx; height:260rpx; border-radius:50%; background:rgba(255,255,255,0.09); }
-.top-row { display:flex; align-items:center; text-align:left; }
+.top { background:radial-gradient(circle at 78% 32%,rgba(125,211,252,0.58),transparent 24%),linear-gradient(160deg,#155dff 0%,#155dff 18%,#0f4fe8 54%,#2435c8 100%); padding:56rpx 32rpx 76rpx; text-align:center; color:#fff; position:relative; overflow:hidden; }
+.top::before { content:''; position:absolute; left:-120rpx; top:-150rpx; width:660rpx; height:320rpx; border-radius:0 0 56% 56%; background:linear-gradient(180deg,rgba(255,255,255,0.16),rgba(255,255,255,0.02)); transform:rotate(8deg); }
+.top::after { content:''; position:absolute; right:52rpx; bottom:0; width:40rpx; height:164rpx; border-radius:9rpx 9rpx 0 0; background:linear-gradient(180deg,rgba(219,234,254,0.56),rgba(37,99,235,0.08)); box-shadow:-58rpx 34rpx 0 rgba(191,219,254,0.34),-114rpx 72rpx 0 rgba(191,219,254,0.22),58rpx 24rpx 0 rgba(191,219,254,0.28); opacity:0.58; }
+.top-row { display:flex; align-items:center; text-align:left; position:relative; z-index:1; }
 .avatar-img { width:104rpx; height:104rpx; border-radius:30rpx; border:3rpx solid rgba(255,255,255,0.28); flex-shrink:0; background:#fff; }
 .avatar-fb { font-size:72rpx; display:inline-flex; align-items:center; justify-content:center; width:104rpx; height:104rpx; border-radius:30rpx; background:rgba(255,255,255,0.14); }
 .top-mid { flex:1; margin-left:24rpx; }
 .uname { display:block; font-size:38rpx; font-weight:900; }
 .uid { display:block; font-size:24rpx; color:rgba(255,255,255,0.6); margin-top:4rpx; }
 .arrow { font-size:40rpx; color:rgba(255,255,255,0.4); }
-.top-login { margin-top:28rpx; width:400rpx; background:#fff; color:#315bff; border-radius:18rpx; font-size:32rpx; font-weight:900; padding:20rpx 0; box-shadow:0 16rpx 34rpx rgba(5,16,51,0.16); }
+.top-login { margin-top:28rpx; width:400rpx; background:#fff; color:#315bff; border-radius:18rpx; font-size:32rpx; font-weight:900; padding:20rpx 0; box-shadow:0 16rpx 34rpx rgba(5,16,51,0.16); position:relative; z-index:1; }
 .top-login::after { border:none; }
 .login-err { display:block; margin-top:14rpx; font-size:24rpx; color:#fca5a5; }
 
