@@ -16,10 +16,7 @@
       <template v-else>
         <text class="avatar-fb"></text>
         <text class="uname">未登录</text>
-        <text class="login-desc">授权手机号即可登录，无需注册</text>
-        <button class="top-login" open-type="getPhoneNumber" @getphonenumber="onPhoneNumberLogin" :disabled="loginLoading">
-          {{ loginLoading ? '登录中...' : '手机号一键登录' }}
-        </button>
+        <button class="top-login" @tap="showLoginSheet = true">登录 / 注册</button>
       </template>
       <text class="login-err" v-if="loginErr">{{ loginErr }}</text>
     </view>
@@ -451,9 +448,7 @@ export default {
 .uname { display:block; font-size:36rpx; font-weight:700; }
 .uid { display:block; font-size:24rpx; color:rgba(255,255,255,0.6); margin-top:4rpx; }
 .arrow { font-size:40rpx; color:rgba(255,255,255,0.4); }
-.login-desc { display:block; font-size:24rpx; color:rgba(255,255,255,0.55); margin-top:10rpx; }
-.login-actions { display:flex; gap:16rpx; margin-top:20rpx; justify-content:center; position:relative; z-index:2; }
-.top-login { width:400rpx; height:72rpx; line-height:72rpx; padding:0; background:linear-gradient(135deg,#fff3c4,#f8c861 58%,#dba640); color:#17244e; border:1px solid rgba(255,255,255,0.48); border-radius:999rpx; font-size:28rpx; font-weight:900; position:relative; z-index:3; margin-top:16rpx; }
+.top-login { width:280rpx; height:64rpx; line-height:64rpx; padding:0; background:linear-gradient(135deg,#fff3c4,#f8c861 58%,#dba640); color:#17244e; border:1px solid rgba(255,255,255,0.48); border-radius:999rpx; font-size:26rpx; font-weight:900; margin:20rpx auto 0; }
 .top-login.secondary { background:rgba(255,255,255,0.15); color:rgba(255,255,255,0.9); border-color:rgba(255,255,255,0.25); box-shadow:none; }
 .top-login::after { border:none; }
 .login-err { display:block; margin-top:14rpx; font-size:24rpx; color:#fca5a5; }
@@ -465,7 +460,7 @@ export default {
 .vip-card { background:linear-gradient(135deg,#0b3fbd,#151f8f 58%,#5b3fd9); margin:0 24rpx 20rpx; border-radius:20rpx; padding:28rpx; color:#fff; box-shadow:0 18rpx 42rpx rgba(21,31,143,0.24); }
 .vc-top { display:flex; justify-content:space-between; align-items:center; margin-bottom:24rpx; }
 .vc-title { font-size:30rpx; font-weight:700; display:block; } .vc-desc { font-size:24rpx; color:rgba(255,255,255,0.7); display:block; margin-top:4rpx; }
-.vc-btn { background:linear-gradient(135deg,#fff3c4,#f8c861 58%,#dba640); color:#17244e; border-radius:14rpx; font-size:26rpx; font-weight:800; padding:14rpx 28rpx; border:1px solid rgba(255,255,255,0.48); box-shadow:0 14rpx 28rpx rgba(248,200,97,0.16); }
+.vc-btn { background:linear-gradient(135deg,#fff3c4,#f8c861 58%,#dba640); color:#17244e; border-radius:12rpx; font-size:24rpx; font-weight:700; padding:10rpx 22rpx; border:1px solid rgba(255,255,255,0.48); flex-shrink:0; margin-left:16rpx; }
 .vc-btn::after { border:none; }
 .vc-benefits { display:flex; flex-wrap:wrap; gap:16rpx; }
 .vb { width:calc(33.3% - 12rpx); text-align:center; } .vb-icon { font-size:36rpx; display:block; } .vb-label { font-size:22rpx; display:block; margin-top:4rpx; } .vb-desc { font-size:20rpx; color:rgba(255,255,255,0.5); display:block; }
