@@ -165,7 +165,7 @@
           </view>
         </view>
       </view>
-      <text class="field-err" v-if="analyzeErr">{{ analyzeErr }}</text>
+      <text class="field-err analyze-err" v-if="analyzeErr">{{ analyzeErr }}</text>
     </view>
 
     <!-- ── Feature tiles ── -->
@@ -773,6 +773,7 @@ export default {
 .label { font-size:24rpx; font-weight:900; color:#1f2d4f; margin-bottom:12rpx; }
 .req { color:#ef4444; font-size:24rpx; }
 .field-err { font-size:22rpx; color:#dc2626; margin-top:8rpx; display:block; }
+.analyze-err { text-align:center; margin:14rpx auto 0; line-height:1.45; max-width:640rpx; }
 .field { width:100%; height:74rpx; border:1px solid rgba(199,215,246,0.95); border-radius:14rpx; padding:0 20rpx; font-size:28rpx; font-weight:700; background:#fff; color:#1e293b; box-sizing:border-box; box-shadow:inset 0 1rpx 0 rgba(255,255,255,0.9),0 8rpx 18rpx rgba(74,111,172,0.04); }
 .field:disabled { background:#f9fafb; color:#9ca3af; }
 
@@ -795,8 +796,8 @@ export default {
 .as-body { flex:1; } .as-label { font-size:25rpx; color:#475569; display:block; } .as-msg { font-size:22rpx; color:#94a3b8; display:block; }
 
 /* ── Features ── */
-.features { display:flex; gap:0; margin:28rpx 28rpx 0; padding:18rpx 10rpx; background:rgba(255,255,255,0.92); border:1px solid rgba(219,230,255,0.86); border-radius:20rpx; box-shadow:0 16rpx 34rpx rgba(79,119,186,0.08); }
-.ft { flex:1; display:flex; flex-direction:column; align-items:flex-start; justify-content:flex-start; gap:8rpx; text-align:left; background:transparent; border-radius:0; padding:8rpx 14rpx; box-shadow:none; border-right:1rpx solid rgba(219,230,255,0.78); min-width:0; }
+.features { display:flex; gap:0; margin:28rpx 28rpx 0; padding:20rpx 10rpx; background:rgba(255,255,255,0.92); border:1px solid rgba(219,230,255,0.86); border-radius:20rpx; box-shadow:0 16rpx 34rpx rgba(79,119,186,0.08); }
+.ft { flex:1; display:flex; flex-direction:column; align-items:center; justify-content:flex-start; gap:8rpx; text-align:center; background:transparent; border-radius:0; padding:8rpx 10rpx; box-shadow:none; border-right:1rpx solid rgba(219,230,255,0.78); min-width:0; }
 .ft:last-child { border-right:0; }
 .ft-mark { display:block; width:44rpx; height:44rpx; line-height:44rpx; text-align:center; border-radius:14rpx; color:#fff; background:linear-gradient(135deg,#2f6dff,#5b4be6); font-size:26rpx; flex-shrink:0; box-shadow:0 10rpx 20rpx rgba(88,105,255,0.16); }
 .ft:nth-child(3) .ft-mark { background:linear-gradient(135deg,#f8c861,#d8a23d); box-shadow:0 10rpx 20rpx rgba(216,162,61,0.18); }

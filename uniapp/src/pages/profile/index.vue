@@ -289,7 +289,7 @@ export default {
 .vip-card { background:linear-gradient(135deg,#101b48,#1735b8 58%,#5b4be6); margin:0 24rpx 20rpx; border-radius:22rpx; padding:30rpx; color:#fff; box-shadow:0 18rpx 42rpx rgba(22,54,184,0.24),inset 0 1rpx 0 rgba(248,200,97,0.20); }
 .vc-top { display:flex; justify-content:space-between; align-items:center; margin-bottom:24rpx; }
 .vc-title { font-size:30rpx; font-weight:900; display:block; } .vc-desc { font-size:24rpx; color:rgba(255,255,255,0.74); display:block; margin-top:4rpx; }
-.vc-btn { background:linear-gradient(135deg,#fff7df,#f8c861); color:#17244e; border-radius:14rpx; font-size:26rpx; font-weight:900; padding:14rpx 28rpx; }
+.vc-btn { background:rgba(255,255,255,0.14); color:#fff; border:1px solid rgba(255,255,255,0.30); border-radius:14rpx; font-size:26rpx; font-weight:900; padding:14rpx 28rpx; box-shadow:inset 0 1rpx 0 rgba(255,255,255,0.18); }
 .vc-btn::after { border:none; }
 .vc-benefits { display:flex; flex-wrap:wrap; gap:16rpx; }
 .vb { width:calc(33.3% - 12rpx); text-align:center; background:rgba(255,255,255,0.10); border-radius:16rpx; padding:14rpx 4rpx; box-sizing:border-box; } .vb-icon { font-size:34rpx; display:block; } .vb-label { font-size:22rpx; font-weight:800; display:block; margin-top:4rpx; } .vb-desc { font-size:20rpx; color:rgba(255,255,255,0.58); display:block; }

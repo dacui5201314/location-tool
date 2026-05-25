@@ -80,7 +80,7 @@ export default {
       loading: false,
       isLoggedIn: false,
       activeTab: 'all',
-      tabs: [{ key:'all',label:'全部' },{ key:'done',label:'已完成' },{ key:'analyzing',label:'分析中' }],
+      tabs: [{ key:'all',label:'全部' },{ key:'done',label:'已完成' }],
       records: [],
       delTarget: null,
       delLoading: false
@@ -89,12 +89,11 @@ export default {
   computed: {
     displayList () {
       let r = this.records
-      if (this.activeTab === 'analyzing') return []
       return r
     },
     counts () {
       const r = this.records
-      return { all: r.length, done: r.length, analyzing: 0 }
+      return { all: r.length, done: r.length }
     }
   },
   onShow () {
