@@ -302,17 +302,31 @@ export default {
       try {
         const r = await api.createPrepay(sku.id)
         if (r.ok) {
-          // 微信支付 params → uni.requestPayment
           const pp = r.data
+          const outTradeNo = pp.out_trade_no
           uni.requestPayment({
             timeStamp: pp.timeStamp,
             nonceStr: pp.nonceStr,
             package: pp.package,
             signType: pp.signType || 'RSA',
             paySign: pp.paySign,
-            success: () => {
-              uni.showToast({ title: '支付成功', icon: 'success' })
-              this.showRecharge = false
+            success: async () => {
+              // 轮询订单确认到账
+              this.payErr = '支付处理中，请稍后刷新...'
+              for (let i = 0; i < 6; i++) {
+                await new Promise(resolve => setTimeout(resolve, 2000))
+                try {
+                  const qr = await api.queryOrder(outTradeNo)
+                  if (qr.ok && qr.data && qr.data.status === 'PAID') {
+                    uni.showToast({ title: '支付成功，点数已到账', icon: 'success' })
+                    this.payErr = ''
+                    this.showRecharge = false
+                    this.refreshState()
+                    return
+                  }
+                } catch (e) { /* retry */ }
+              }
+              this.payErr = '支付处理中，请稍后刷新页面查看'
               this.refreshState()
             },
             fail: (e) => {
@@ -322,7 +336,8 @@ export default {
           })
         } else {
           if (r.statusCode === 503) this.payErr = '支付服务暂不可用，请联系管理员配置'
-          else if (r.statusCode === 501) this.payErr = '支付服务即将上线'
+          else if (r.statusCode === 400 && (r.data?.detail || '').indexOf('微信') >= 0) this.payErr = '请先在微信中登录并授权后再支付'
+          else if (r.statusCode === 400) this.payErr = r.data?.detail || '请求参数有误'
           else this.payErr = r.data?.detail || '支付请求失败'
         }
       } catch (e) { this.payErr = '网络异常' }

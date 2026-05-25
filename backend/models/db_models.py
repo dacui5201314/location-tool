@@ -266,3 +266,39 @@ class BusinessIndustry(Base):
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "updated_at": self.updated_at.isoformat() if self.updated_at else None,
         }
+
+
+# ═══════════════════════════════════════════════════════════
+# Phase 23O: 微信支付订单
+# ═══════════════════════════════════════════════════════════
+class PaymentOrder(Base):
+    __tablename__ = "payment_orders"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    out_trade_no = Column(String(64), unique=True, index=True, nullable=False)
+    transaction_id = Column(String(64), default="")
+    user_id = Column(Integer, index=True, nullable=False)
+    sku_id = Column(Integer, default=0)
+    sku_snapshot = Column(Text, default="")
+    amount_fen = Column(Integer, default=0)
+    credits = Column(Integer, default=0)
+    membership_days = Column(Integer, default=0)
+    status = Column(String(20), default="CREATED")
+    paid_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, default=func.now())
+    updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "out_trade_no": self.out_trade_no,
+            "transaction_id": self.transaction_id or "",
+            "user_id": self.user_id,
+            "sku_id": self.sku_id,
+            "amount_fen": self.amount_fen,
+            "credits": self.credits,
+            "membership_days": self.membership_days,
+            "status": self.status or "CREATED",
+            "paid_at": self.paid_at.isoformat() if self.paid_at else None,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+        }
