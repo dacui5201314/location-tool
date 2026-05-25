@@ -17,8 +17,8 @@
         <text class="avatar-fb"></text>
         <text class="uname">未登录</text>
         <view class="login-actions">
-          <button class="top-login" @tap="goLogin">手机号登录</button>
-          <button class="top-login secondary" @tap="showLoginSheet = true">微信登录</button>
+          <button class="top-login" @tap.stop="goLogin">手机号登录</button>
+          <button class="top-login secondary" @tap.stop="showLoginSheet = true">微信登录</button>
         </view>
       </template>
       <text class="login-err" v-if="loginErr">{{ loginErr }}</text>
@@ -319,7 +319,14 @@ export default {
         }
       } catch (e) { this.payErr = '网络异常' }
     },
-    goLogin () { uni.navigateTo({ url: '/pages/profile/login' }) },
+    goLogin () {
+      // [DEBUG] release 前移除 console
+      console.log('[goLogin] navigating to login page')
+      uni.navigateTo({
+        url: '/pages/profile/login',
+        fail: (e) => { uni.showToast({ title: '页面跳转失败: ' + (e.errMsg || '未知'), icon: 'none' }) }
+      })
+    },
     goRecords () { uni.switchTab({ url: '/pages/records/index' }) },
     goFavorites () { uni.switchTab({ url: '/pages/favorites/index' }) },
     goEdit () { uni.navigateTo({ url: '/pages/profile/edit' }) },
@@ -405,8 +412,8 @@ export default {
 .uname { display:block; font-size:36rpx; font-weight:700; }
 .uid { display:block; font-size:24rpx; color:rgba(255,255,255,0.6); margin-top:4rpx; }
 .arrow { font-size:40rpx; color:rgba(255,255,255,0.4); }
-.login-actions { display:flex; gap:16rpx; margin-top:20rpx; justify-content:center; }
-.top-login { width:240rpx; height:64rpx; line-height:64rpx; padding:0; background:linear-gradient(135deg,#fff3c4,#f8c861 58%,#dba640); color:#17244e; border:1px solid rgba(255,255,255,0.48); border-radius:999rpx; font-size:26rpx; font-weight:900; }
+.login-actions { display:flex; gap:16rpx; margin-top:20rpx; justify-content:center; position:relative; z-index:2; }
+.top-login { width:240rpx; height:64rpx; line-height:64rpx; padding:0; background:linear-gradient(135deg,#fff3c4,#f8c861 58%,#dba640); color:#17244e; border:1px solid rgba(255,255,255,0.48); border-radius:999rpx; font-size:26rpx; font-weight:900; position:relative; z-index:3; }
 .top-login.secondary { background:rgba(255,255,255,0.15); color:rgba(255,255,255,0.9); border-color:rgba(255,255,255,0.25); box-shadow:none; }
 .top-login::after { border:none; }
 .login-err { display:block; margin-top:14rpx; font-size:24rpx; color:#fca5a5; }
