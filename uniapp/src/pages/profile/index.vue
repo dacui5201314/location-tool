@@ -273,12 +273,12 @@ export default {
 .top::after { content:''; position:absolute; right:52rpx; bottom:0; width:40rpx; height:164rpx; border-radius:9rpx 9rpx 0 0; background:linear-gradient(180deg,rgba(219,234,254,0.56),rgba(37,99,235,0.08)); box-shadow:-58rpx 34rpx 0 rgba(191,219,254,0.34),-114rpx 72rpx 0 rgba(191,219,254,0.22),58rpx 24rpx 0 rgba(191,219,254,0.28); opacity:0.58; }
 .top-row { display:flex; align-items:center; text-align:left; position:relative; z-index:1; }
 .avatar-img { width:104rpx; height:104rpx; border-radius:30rpx; border:3rpx solid rgba(255,255,255,0.28); flex-shrink:0; background:#fff; }
-.avatar-fb { font-size:72rpx; display:inline-flex; align-items:center; justify-content:center; width:104rpx; height:104rpx; border-radius:30rpx; background:rgba(255,255,255,0.14); }
+.avatar-fb { font-size:62rpx; display:inline-flex; align-items:center; justify-content:center; width:108rpx; height:108rpx; border-radius:32rpx; background:linear-gradient(145deg,rgba(255,255,255,0.20),rgba(255,255,255,0.08)); border:1px solid rgba(248,200,97,0.34); box-shadow:0 16rpx 34rpx rgba(5,16,51,0.18),inset 0 1rpx 0 rgba(255,255,255,0.20); position:relative; z-index:1; }
 .top-mid { flex:1; margin-left:24rpx; }
 .uname { display:block; font-size:38rpx; font-weight:900; }
 .uid { display:block; font-size:24rpx; color:rgba(255,255,255,0.6); margin-top:4rpx; }
 .arrow { font-size:40rpx; color:rgba(255,255,255,0.4); }
-.top-login { margin-top:28rpx; width:400rpx; background:#fff; color:#315bff; border-radius:18rpx; font-size:32rpx; font-weight:900; padding:20rpx 0; box-shadow:0 16rpx 34rpx rgba(5,16,51,0.16); position:relative; z-index:1; }
+.top-login { margin-top:24rpx; width:auto; min-width:248rpx; height:64rpx; line-height:64rpx; padding:0 42rpx; background:linear-gradient(135deg,#fff3c4,#f8c861 58%,#dba640); color:#17244e; border:1px solid rgba(255,255,255,0.48); border-radius:999rpx; font-size:26rpx; font-weight:900; box-shadow:0 14rpx 28rpx rgba(248,200,97,0.18),inset 0 1rpx 0 rgba(255,255,255,0.45); position:relative; z-index:1; }
 .top-login::after { border:none; }
 .login-err { display:block; margin-top:14rpx; font-size:24rpx; color:#fca5a5; }
 
