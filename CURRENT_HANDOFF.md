@@ -1,3 +1,143 @@
+# Current Handoff - 2026-05-25
+
+## READ THIS FIRST - Phase 23O Current Authoritative State
+
+This top section supersedes all older Phase 23B-23N notes below. Older sections are history and may contain outdated instructions or stale progress numbers.
+
+### Current Reviewed Position
+
+- Current phase: **Phase 23O handoff**; next phase is **audit-driven uni-app gap closure**.
+- Latest accepted code commit: `2ca94b1` - `style: tighten login buttons and avatar`.
+- Important recent UI commits:
+  - `6593d15` - `style: align native nav bar with deep blue palette`
+  - `4e221cb` - `style: tune deep blue purple palette and vip CTA`
+  - `c5061ff` - `style: refine home trust and profile CTA`
+  - `bef8bcb` - `style: refine home map and industry UI`
+  - `814128f` - `style: deepen blue palette with gold accents`
+- uni-app is the formal launch target, not a demo shell.
+- Web React `frontend/` remains the product master/reference. Do **not** modify `frontend/` unless the user explicitly asks; read it only as reference.
+- Native `miniprogram/` is frozen for new feature work.
+- Do not push.
+
+### What Was Finished In This Stage
+
+- Home UI received a full Web-inspired visual pass:
+  - deep blue / purple visual system with light gold accents
+  - unified native top nav color
+  - brand logo visible in hero
+  - polished search/location card, map area, industry selector, CTA, and trust row
+  - map height reduced/tuned to reduce accidental scroll conflict
+- Records, Favorites, and Profile received first-pass visual alignment to the same system.
+- Login entry buttons and logged-out avatar styling were tightened.
+- Fake/unsupported `analyzing` tab was removed from Records because analysis does not continue in background after switching pages.
+- Developer-facing visible copy was cleaned from uni-app user UI.
+- Home tap targets were restored after visual refactor.
+
+### Current Progress Estimate
+
+- uni-app overall: about **95%**.
+- Home UI Web alignment: about **75%**.
+- Report Detail Web alignment: about **60%**.
+- Records / Favorites / Profile Web alignment: about **55-60%**.
+- Phase 23N-1 address auto-suggest: about **98%**, user-verified.
+- Phase 23N-2 analyze flow: about **45%**; success remains blocked by real LLM/AMap environment.
+
+### Audit File For Next Phase
+
+Read `C:\Users\admin\Desktop\问题审计.txt` before starting Phase 23O work.
+
+Audit summary:
+
+- Core selection-analysis chain is connected:
+  - address suggest
+  - reverse geocode
+  - POI collection
+  - `/api/analyze` SSE
+  - report JSON save
+  - `report_uuid` navigation
+  - billing deduction / 402 handling
+- Auth is partially aligned:
+  - token, WeChat mini login, phone-login shell, bind phone exist
+  - phone/password login exists on backend/Web but not uni-app
+  - one-click phone login remains externally blocked by real AppID/capability/privacy config
+- Profile has real points/membership/free quota/report/favorite display, but still has audit gaps around empty-shell actions and navigation.
+- Records list/detail/delete are connected; gaps remain around Web-style star score and map thumbnail/placeholder.
+- Favorites list/check/add/delete are connected; gaps remain around sorting and batch management.
+- Admin/Web have several real capabilities that uni-app must either connect or hide cleanly depending on current boundaries.
+
+### Phase 23O Priority
+
+The next phase is **not** more random visual tweaking. It should close audit-identified uni-app gaps and empty shells while keeping the current visual system coherent.
+
+Priority order:
+
+1. Remove or replace uni-app empty-shell actions.
+   - No visible toast-only "接入中" buttons unless explicitly accepted by the user.
+   - If a backend/Web feature is real and within boundary, wire it.
+   - If the feature is blocked by payment/PDF/download boundary, hide it or present a truthful non-action state.
+2. Inspect Web implementation first for every gap, then implement the uni-app equivalent.
+3. Safe parity targets:
+   - Profile stats click navigation to Records/Favorites where appropriate.
+   - CDK activation only if existing backend endpoint is real and no payment boundary is crossed.
+   - Customer service QR display from existing UI config/admin upload if available.
+   - Favorites sorting and possibly batch manage if UX is simple and real.
+   - Records star score display.
+   - Records map thumbnail/placeholder consistent with Web.
+   - Phone/password login only after checking Web/backend flow and mini-program fit.
+4. Continue visual consistency only as part of functional gap closure.
+
+### Hard Boundaries
+
+- Do not push.
+- Do not commit AppID/AppSecret/API keys.
+- Do not process or include `tmp_*`.
+- Do not modify `frontend/` unless explicitly requested.
+- Do not continue native `miniprogram/` feature work.
+- Do not modify report accuracy logic, POI, rules, prompt, `report_fact_guard`, classification, or DB schema.
+- `/api/analyze` is allowed and intentionally connected in uni-app.
+- Still forbidden:
+  - `requestPayment`
+  - `/unlock-pdf`
+  - `/download`
+- Do not add fake payment/PDF/download buttons.
+- Backend changes are allowed only for app integration surfaces when explicitly needed; accuracy logic remains frozen.
+
+### Known Worktree Caveat
+
+Expected untracked files can include:
+
+- `tmp_latest_report_text.txt`
+- `tmp_report_images/`
+- `tmp_report_pages/`
+- `miniprogram/pages/profile/profile.json`
+- `uniapp/project.config.json`
+- `uniapp/project.private.config.json`
+
+Do not include `tmp_*`. Be careful before committing project config files because they may be local DevTools artifacts.
+
+### Required Validation For Next Code Changes
+
+- `cd uniapp && npm run build:mp-weixin`
+- JSON parse:
+  - `uniapp/package.json`
+  - `uniapp/src/manifest.json`
+  - `uniapp/src/pages.json`
+  - `uniapp/dist/build/mp-weixin/app.json`
+- `rg "requestPayment|unlock-pdf|/download" uniapp/src`
+- developer-copy scan for forbidden user-visible terms
+- secret scan
+- `git status --short`
+
+Next report must include:
+
+- changed files
+- which audit items were fixed
+- build / JSON / scan results
+- commit SHA
+- explicit "not pushed"
+
+---
+
 # Current Handoff - 2026-05-23
 
 ## READ THIS FIRST - Phase 23N Current Authoritative State
