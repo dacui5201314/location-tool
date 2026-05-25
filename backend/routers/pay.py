@@ -1,7 +1,8 @@
 """微信支付 — JSAPI v3 prepay + notify + order query
-所有商户号/密钥/证书 从环境变量读取，禁止硬编码。
+优先读管理后台 DB SystemConfig，环境变量作为 fallback。
+私钥/平台证书路径仅从环境变量读取（文件路径不适配 DB）。
 """
-import os, json, hashlib, time, base64, hmac
+import os, json, hashlib, time, base64
 from datetime import datetime, timedelta
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import JSONResponse
@@ -9,7 +10,7 @@ from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from database import get_db, SessionLocal
 from models.db_models import User, BillingRecord, PaymentOrder
-from services.runtime_config import get_user_skus
+from services.runtime_config import get_user_skus, get_core_config
 from auth import get_current_user
 
 try:
@@ -22,21 +23,26 @@ except ImportError:
 router = APIRouter(prefix="/api/pay", tags=["支付"])
 
 
-# ── 环境变量读取 ──
-def _pay_env():
+# ── 支付配置：DB 优先（管理后台填写），环境变量 fallback ──
+def _pay_config(db=None):
+    """返回 (mchid, appid, api_v3_key, cert_serial, pk_path, notify_url, plat_cert_path)
+    DB SystemConfig 优先，未配置时 fallback 环境变量。
+    """
+    cfg = get_core_config(db) if db else {}
+    env = os.getenv
     return (
-        os.getenv("WX_PAY_MCHID", ""),
-        os.getenv("WX_PAY_APPID", ""),
-        os.getenv("WX_PAY_API_V3_KEY", ""),
-        os.getenv("WX_PAY_CERT_SERIAL_NO", ""),
-        os.getenv("WX_PAY_PRIVATE_KEY_PATH", ""),
-        os.getenv("WX_PAY_NOTIFY_URL", ""),
-        os.getenv("WX_PAY_PLATFORM_CERT_PATH", ""),
+        cfg.get("wx_mch_id") or env("WX_PAY_MCHID", ""),
+        cfg.get("wx_app_id") or env("WX_PAY_APPID", ""),
+        cfg.get("wx_api_key") or env("WX_PAY_API_V3_KEY", ""),
+        cfg.get("wx_cert_sn") or env("WX_PAY_CERT_SERIAL_NO", ""),
+        env("WX_PAY_PRIVATE_KEY_PATH", ""),
+        cfg.get("wx_notify_url") or env("WX_PAY_NOTIFY_URL", ""),
+        env("WX_PAY_PLATFORM_CERT_PATH", ""),
     )
 
 
-def _configured():
-    vals = _pay_env()
+def _configured(db=None):
+    vals = _pay_config(db)
     return all(vals)
 
 
@@ -83,9 +89,9 @@ def wechat_prepay(
     db: Session = Depends(get_db),
 ):
     """真实微信 JSAPI v3 预支付下单"""
-    if not _configured():
-        raise HTTPException(status_code=503, detail="支付服务暂不可用，请联系管理员配置微信支付")
-    mchid, appid, api_v3_key, cert_serial, pk_path, notify_url, _ = _pay_env()
+    if not _configured(db):
+        raise HTTPException(status_code=503, detail="支付服务暂不可用，请在管理后台配置微信支付商户信息")
+    mchid, appid, api_v3_key, cert_serial, pk_path, notify_url, _ = _pay_config(db)
 
     user_id = int(user["user_id"])
     db_user = db.query(User).filter(User.id == user_id).first()
@@ -180,10 +186,10 @@ def wechat_prepay(
 @router.post("/wechat/notify")
 async def wechat_notify(request: Request, db: Session = Depends(get_db)):
     """微信支付回调 — 平台证书验签 + AES-GCM 解密 + 安全校验 + 幂等到账"""
-    if not _configured():
+    if not _configured(db):
         return JSONResponse(status_code=500, content={"code": "FAIL", "message": "not configured"})
 
-    mchid, appid, api_v3_key, cert_serial, pk_path, notify_url, plat_cert_path = _pay_env()
+    mchid, appid, api_v3_key, cert_serial, pk_path, notify_url, plat_cert_path = _pay_config(db)
 
     # 1. 使用微信平台证书验签（不是商户私钥）
     ts = request.headers.get("Wechatpay-Timestamp", "")
