@@ -200,14 +200,19 @@ async def wechat_notify(request: Request, db: Session = Depends(get_db)):
     sign_raw = f"{ts}\n{nonce}\n{body_str}\n"
 
     try:
-        if plat_cert_path:
-            with open(plat_cert_path, "rb") as f:
-                plat_cert = serialization.load_pem_public_key(f.read())
-        else:
-            # fallback: use merchant cert serial to load from platform path
-            raise FileNotFoundError("platform cert not configured")
+        if not plat_cert_path:
+            raise FileNotFoundError("WX_PAY_PLATFORM_CERT_PATH not configured")
+        with open(plat_cert_path, "rb") as f:
+            cert_raw = f.read()
+        # 优先按 x509 证书解析（微信平台证书），失败再按裸公钥
+        try:
+            from cryptography import x509
+            cert = x509.load_pem_x509_certificate(cert_raw)
+            plat_key = cert.public_key()
+        except Exception:
+            plat_key = serialization.load_pem_public_key(cert_raw)
         sig_bytes = base64.b64decode(sig_header)
-        plat_cert.verify(sig_bytes, sign_raw.encode(), padding.PKCS1v15(), hashes.SHA256())
+        plat_key.verify(sig_bytes, sign_raw.encode(), padding.PKCS1v15(), hashes.SHA256())
     except Exception:
         return JSONResponse(status_code=400, content={"code": "FAIL", "message": "signature verification failed"})
 
@@ -227,12 +232,15 @@ async def wechat_notify(request: Request, db: Session = Depends(get_db)):
 
     # 3. 安全校验
     out_trade_no = trade_data.get("out_trade_no", "")
+    transaction_id = trade_data.get("transaction_id", "")
     if trade_data.get("mchid", "") != mchid:
         return JSONResponse(status_code=400, content={"code": "FAIL", "message": "mchid mismatch"})
     if trade_data.get("appid", "") != appid:
         return JSONResponse(status_code=400, content={"code": "FAIL", "message": "appid mismatch"})
     if trade_data.get("trade_state", "") != "SUCCESS":
         return JSONResponse(status_code=200, content={"code": "SUCCESS", "message": "not success state"})
+    if not transaction_id:
+        return JSONResponse(status_code=400, content={"code": "FAIL", "message": "missing transaction_id"})
 
     # 4. 幂等到账
     order = db.query(PaymentOrder).filter(PaymentOrder.out_trade_no == out_trade_no).first()
