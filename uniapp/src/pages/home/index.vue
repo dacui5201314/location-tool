@@ -668,7 +668,7 @@ export default {
 .home-page { min-height:100vh; background:radial-gradient(circle at 50% -8%,rgba(49,91,255,0.12),transparent 34%),linear-gradient(180deg,#f8fbff 0%,#f2f6ff 48%,#eef3fb 100%); padding-bottom:108rpx; }
 
 /* ── Hero ── */
-.hero { background:radial-gradient(circle at 76% 38%,rgba(93,171,255,0.54),transparent 24%),radial-gradient(circle at 62% 58%,rgba(248,200,97,0.13),transparent 22%),linear-gradient(180deg,#0d4bdc 0%,#0d4bdc 14%,#0f45d0 38%,#1533b4 70%,#1d2497 100%); padding:46rpx 28rpx 122rpx; position:relative; overflow:hidden; }
+.hero { background:radial-gradient(circle at 76% 38%,rgba(83,137,255,0.48),transparent 24%),radial-gradient(circle at 66% 60%,rgba(139,92,246,0.24),transparent 26%),radial-gradient(circle at 58% 58%,rgba(248,200,97,0.10),transparent 22%),linear-gradient(180deg,#0b3fbd 0%,#0d35ad 28%,#151f8f 68%,#241b83 100%); padding:46rpx 28rpx 122rpx; position:relative; overflow:hidden; }
 .hero::before { content:''; position:absolute; left:-130rpx; top:-236rpx; width:720rpx; height:420rpx; border-radius:0 0 58% 58%; background:linear-gradient(180deg,rgba(255,255,255,0.10),rgba(255,255,255,0.015)); transform:rotate(7deg); }
 .hero::after { content:''; position:absolute; left:0; right:0; bottom:0; height:230rpx; background:linear-gradient(180deg,rgba(255,255,255,0),rgba(219,234,254,0.26)); }
 .hero-top { display:flex; align-items:center; margin-bottom:28rpx; position:relative; z-index:2; }
@@ -779,7 +779,7 @@ export default {
 
 /* ── CTA ── */
 .cta-zone { padding:0 20rpx; margin-top:30rpx; }
-.cta-btn { width:100%; background:linear-gradient(135deg,#0d4bdc 0%,#1735b8 55%,#5b4be6 100%); color:#fff; border-radius:16rpx; padding:24rpx 24rpx; display:flex; flex-direction:column; align-items:center; border:none; box-shadow:0 18rpx 38rpx rgba(22,54,184,0.30),0 0 0 1px rgba(248,200,97,0.16); }
+.cta-btn { width:100%; background:linear-gradient(135deg,#0b3fbd 0%,#151f8f 58%,#5b3fd9 100%); color:#fff; border-radius:16rpx; padding:24rpx 24rpx; display:flex; flex-direction:column; align-items:center; border:none; box-shadow:0 18rpx 38rpx rgba(21,31,143,0.32),0 0 0 1px rgba(248,200,97,0.16); }
 .cta-btn::after { border:none; }
 .cta-btn[disabled] { opacity:1; background:linear-gradient(180deg,#ffffff,#f5f8ff); color:#315bff; box-shadow:0 10rpx 24rpx rgba(74,111,172,0.08); border:1px dashed rgba(49,91,255,0.34); }
 .cta-main { font-size:30rpx; font-weight:900; line-height:1.2; }
