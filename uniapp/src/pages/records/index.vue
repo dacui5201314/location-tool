@@ -152,7 +152,7 @@ export default {
 .title { font-size:42rpx; font-weight:900; color:#fff; display:block; position:relative; z-index:1; } .sub { font-size:24rpx; color:rgba(232,240,255,0.76); margin-top:8rpx; position:relative; z-index:1; }
 .login-guide { text-align:center; padding:64rpx 28rpx; background:rgba(255,255,255,0.92); border:1px solid rgba(219,230,255,0.9); border-radius:22rpx; box-shadow:0 18rpx 38rpx rgba(79,119,186,0.10); }
 .lg-text { display:block; font-size:28rpx; color:#64748b; margin-bottom:22rpx; }
-.lg-btn { width:auto; min-width:236rpx; height:64rpx; line-height:64rpx; margin:0 auto; padding:0 42rpx; background:linear-gradient(135deg,#fff3c4,#f8c861 58%,#dba640); color:#17244e; border:1px solid rgba(255,255,255,0.48); border-radius:999rpx; font-size:26rpx; font-weight:900; box-shadow:0 14rpx 28rpx rgba(248,200,97,0.16),inset 0 1rpx 0 rgba(255,255,255,0.45); }
+.lg-btn { width:236rpx; height:64rpx; line-height:64rpx; margin:0 auto; padding:0; background:linear-gradient(135deg,#fff3c4,#f8c861 58%,#dba640); color:#17244e; border:1px solid rgba(255,255,255,0.48); border-radius:999rpx; font-size:26rpx; font-weight:900; box-shadow:0 14rpx 28rpx rgba(248,200,97,0.16),inset 0 1rpx 0 rgba(255,255,255,0.45); }
 .lg-btn::after { border:none; }
 .tabs { display:flex; gap:12rpx; padding-bottom:20rpx; }
 .tab { padding:14rpx 26rpx; border-radius:999rpx; background:rgba(255,255,255,0.86); border:1px solid rgba(219,230,255,0.95); font-size:25rpx; font-weight:800; color:#5c677d; box-shadow:0 8rpx 18rpx rgba(74,111,172,0.05); }
