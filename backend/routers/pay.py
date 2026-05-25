@@ -31,12 +31,13 @@ def _pay_env():
         os.getenv("WX_PAY_CERT_SERIAL_NO", ""),
         os.getenv("WX_PAY_PRIVATE_KEY_PATH", ""),
         os.getenv("WX_PAY_NOTIFY_URL", ""),
+        os.getenv("WX_PAY_PLATFORM_CERT_PATH", ""),
     )
 
 
 def _configured():
-    mchid, appid, key, cert, pk, notify = _pay_env()
-    return all([mchid, appid, key, cert, pk, notify])
+    vals = _pay_env()
+    return all(vals)
 
 
 # ── APIv3 签名 ──
@@ -84,7 +85,7 @@ def wechat_prepay(
     """真实微信 JSAPI v3 预支付下单"""
     if not _configured():
         raise HTTPException(status_code=503, detail="支付服务暂不可用，请联系管理员配置微信支付")
-    mchid, appid, api_v3_key, cert_serial, pk_path, notify_url = _pay_env()
+    mchid, appid, api_v3_key, cert_serial, pk_path, notify_url, _ = _pay_env()
 
     user_id = int(user["user_id"])
     db_user = db.query(User).filter(User.id == user_id).first()
@@ -178,27 +179,29 @@ def wechat_prepay(
 
 @router.post("/wechat/notify")
 async def wechat_notify(request: Request, db: Session = Depends(get_db)):
-    """微信支付回调 — 验签 + 解密 + 幂等到账"""
+    """微信支付回调 — 平台证书验签 + AES-GCM 解密 + 安全校验 + 幂等到账"""
     if not _configured():
         return JSONResponse(status_code=500, content={"code": "FAIL", "message": "not configured"})
 
-    mchid, appid, api_v3_key, cert_serial, pk_path, notify_url = _pay_env()
+    mchid, appid, api_v3_key, cert_serial, pk_path, notify_url, plat_cert_path = _pay_env()
 
-    # 1. 验签
+    # 1. 使用微信平台证书验签（不是商户私钥）
     ts = request.headers.get("Wechatpay-Timestamp", "")
     nonce = request.headers.get("Wechatpay-Nonce", "")
     sig_header = request.headers.get("Wechatpay-Signature", "")
-    serial = request.headers.get("Wechatpay-Serial", "")
     body_bytes = await request.body()
     body_str = body_bytes.decode()
-
     sign_raw = f"{ts}\n{nonce}\n{body_str}\n"
+
     try:
-        with open(pk_path, "rb") as f:
-            priv = serialization.load_pem_private_key(f.read(), password=None)
-        pub = priv.public_key()
+        if plat_cert_path:
+            with open(plat_cert_path, "rb") as f:
+                plat_cert = serialization.load_pem_public_key(f.read())
+        else:
+            # fallback: use merchant cert serial to load from platform path
+            raise FileNotFoundError("platform cert not configured")
         sig_bytes = base64.b64decode(sig_header)
-        pub.verify(sig_bytes, sign_raw.encode(), padding.PKCS1v15(), hashes.SHA256())
+        plat_cert.verify(sig_bytes, sign_raw.encode(), padding.PKCS1v15(), hashes.SHA256())
     except Exception:
         return JSONResponse(status_code=400, content={"code": "FAIL", "message": "signature verification failed"})
 
@@ -207,31 +210,31 @@ async def wechat_notify(request: Request, db: Session = Depends(get_db)):
         notify_data = json.loads(body_str)
         resource = notify_data.get("resource", {})
         cipher = resource.get("ciphertext", "")
-        nonce = resource.get("nonce", "")
+        r_nonce = resource.get("nonce", "")
         associated_data = resource.get("associated_data", "")
-        # AEAD_AES_256_GCM 解密
         from cryptography.hazmat.primitives.ciphers.aead import AESGCM
         aesgcm = AESGCM(api_v3_key.encode())
-        decrypted = aesgcm.decrypt(nonce.encode(), base64.b64decode(cipher), associated_data.encode())
+        decrypted = aesgcm.decrypt(r_nonce.encode(), base64.b64decode(cipher), associated_data.encode())
         trade_data = json.loads(decrypted)
     except Exception as e:
         return JSONResponse(status_code=400, content={"code": "FAIL", "message": f"decrypt failed: {str(e)[:100]}"})
 
+    # 3. 安全校验
     out_trade_no = trade_data.get("out_trade_no", "")
-    transaction_id = trade_data.get("transaction_id", "")
-    trade_state = trade_data.get("trade_state", "")
-
-    if trade_state != "SUCCESS":
+    if trade_data.get("mchid", "") != mchid:
+        return JSONResponse(status_code=400, content={"code": "FAIL", "message": "mchid mismatch"})
+    if trade_data.get("appid", "") != appid:
+        return JSONResponse(status_code=400, content={"code": "FAIL", "message": "appid mismatch"})
+    if trade_data.get("trade_state", "") != "SUCCESS":
         return JSONResponse(status_code=200, content={"code": "SUCCESS", "message": "not success state"})
 
-    # 3. 幂等到账
+    # 4. 幂等到账
     order = db.query(PaymentOrder).filter(PaymentOrder.out_trade_no == out_trade_no).first()
     if not order:
         return JSONResponse(status_code=404, content={"code": "FAIL", "message": "order not found"})
     if order.status == "PAID":
         return JSONResponse(status_code=200, content={"code": "SUCCESS", "message": "already paid"})
 
-    # 校验金额
     wx_amount = trade_data.get("amount", {}).get("total", 0)
     if wx_amount != order.amount_fen:
         return JSONResponse(status_code=400, content={"code": "FAIL", "message": "amount mismatch"})

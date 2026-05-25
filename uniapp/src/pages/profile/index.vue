@@ -111,8 +111,9 @@
           <text class="rc-tab" :class="{ active: rechargeTab === 'membership' }" @tap="rechargeTab = 'membership'">会员套餐</text>
         </view>
 
-        <view class="rc-list" v-if="rechargeTab === 'points' && pointSkus.length">
-          <view class="rc-item" v-for="s in pointSkus" :key="s.id">
+        <!-- points tab -->
+        <view class="rc-list" v-if="rechargeTab === 'points'">
+          <view class="rc-item" v-for="s in pointSkus" :key="s.id" @tap="onBuy(s)">
             <view class="rci-left">
               <text class="rci-label">{{ s.label }}</text>
               <text class="rci-desc">{{ s.desc }}</text>
@@ -122,9 +123,13 @@
               <text class="rci-credits">+{{ s.credits }}点</text>
             </view>
           </view>
+          <view class="rc-empty" v-if="!pointSkus.length">
+            <text>暂无点数套餐，请联系客服</text>
+          </view>
         </view>
-        <view class="rc-list" v-if="rechargeTab === 'membership' && memberSkus.length">
-          <view class="rc-item" v-for="s in memberSkus" :key="s.id">
+        <!-- membership tab -->
+        <view class="rc-list" v-if="rechargeTab === 'membership'">
+          <view class="rc-item" v-for="s in memberSkus" :key="s.id" @tap="onBuy(s)">
             <view class="rci-left">
               <text class="rci-label">{{ s.label }}</text>
               <text class="rci-desc">{{ s.desc || s.duration_days+'天' }}</text>
@@ -134,9 +139,9 @@
               <text class="rci-credits" v-if="s.credits">+{{ s.credits }}点</text>
             </view>
           </view>
-        </view>
-        <view class="rc-empty" v-if="rechargeTab === 'points' && !pointSkus.length && rechargeTab === 'membership' && !memberSkus.length">
-          <text>暂无可用套餐，请联系客服</text>
+          <view class="rc-empty" v-if="!memberSkus.length">
+            <text>暂无会员套餐，请联系客服</text>
+          </view>
         </view>
 
         <!-- 客服二维码 -->
@@ -273,6 +278,47 @@ export default {
       }
     },
     openRecharge () { this.rechargeOpen = true; this.payErr = '' },
+    async onBuy (sku) {
+      this.payErr = ''
+      if (!sku || !sku.id) return
+      try {
+        const r = await api.createPrepay(sku.id)
+        if (r.ok) {
+          const pp = r.data
+          const outTradeNo = pp.out_trade_no
+          uni.requestPayment({
+            timeStamp: pp.timeStamp, nonceStr: pp.nonceStr,
+            package: pp.package, signType: pp.signType || 'RSA', paySign: pp.paySign,
+            success: async () => {
+              this.payErr = '支付处理中...'
+              for (let i = 0; i < 8; i++) {
+                await new Promise(resolve => setTimeout(resolve, 2500))
+                try {
+                  const qr = await api.queryOrder(outTradeNo)
+                  if (qr.ok && qr.data && qr.data.status === 'PAID') {
+                    this.payErr = ''
+                    this.rechargeOpen = false
+                    uni.showToast({ title: '支付成功，已到账', icon: 'success' })
+                    this.refreshState()
+                    return
+                  }
+                } catch (e) { /* retry */ }
+              }
+              this.payErr = '支付处理中，请稍后刷新页面查看'
+              this.refreshState()
+            },
+            fail: (e) => {
+              if (e.errMsg && e.errMsg.indexOf('cancel') >= 0) this.payErr = '支付已取消'
+              else this.payErr = '支付失败，请稍后重试'
+            }
+          })
+        } else {
+          if (r.statusCode === 503) this.payErr = '支付服务暂不可用'
+          else if (r.statusCode === 400 && (r.data?.detail || '').includes('微信')) this.payErr = '请先在微信中登录授权后再支付'
+          else this.payErr = r.data?.detail || '支付请求失败'
+        }
+      } catch (e) { this.payErr = '网络异常' }
+    },
     goLogin () { uni.navigateTo({ url: '/pages/profile/login' }) },
     goRecords () { uni.switchTab({ url: '/pages/records/index' }) },
     goFavorites () { uni.switchTab({ url: '/pages/favorites/index' }) },
