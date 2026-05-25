@@ -29,6 +29,7 @@ from routers.user import router as user_router
 from routers.admin import router as admin_router
 from routers.auth import router as auth_router
 from routers.industries import router as industries_router, public_router as industries_public_router
+from routers.pay import router as pay_router
 from routers.location import router as location_router
 
 app = FastAPI(title="址得选 API", version="3.7.0", description="址得选 — AI 选址分析 SaaS 平台后端服务")
@@ -39,6 +40,7 @@ app.include_router(user_router)
 app.include_router(admin_router)
 app.include_router(industries_router)
 app.include_router(industries_public_router)
+app.include_router(pay_router)
 app.include_router(location_router)
 
 # 挂载静态资源目录（上传的二维码等）— 按 /assets 对外暴露

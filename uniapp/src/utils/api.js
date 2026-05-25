@@ -136,9 +136,12 @@ function analyzeLocation (payload) {
   })
 }
 
-// ── Config ──
+// ── Config / Pay ──
 function fetchUiConfig () { return request({ url: '/api/admin/ui-config', auth: false }) }
 function fetchCsQr () { return request({ url: '/api/admin/customer-service-qrcode', auth: false }) }
+function fetchSkus () { return request({ url: '/api/user/skus' }) }
+function activateCdk (code) { return request({ url: '/api/admin/cdk/activate', method: 'POST', data: { code } }) }
+function createPrepay (skuId) { return request({ url: '/api/pay/wechat/prepay', method: 'POST', data: { sku_id: skuId } }) }
 
 // ── Health ──
 function getHealth () { return request({ url: '/api/health', auth: false }) }
@@ -146,5 +149,5 @@ function getHealth () { return request({ url: '/api/health', auth: false }) }
 export default {
   request, normalizeError, ensureAnonToken, wechatMiniLogin, bindPhone, phoneLogin,
   fetchProfile, fetchRecords, fetchRecordDetail, deleteRecord,
-  fetchFavorites, deleteFavorite, checkFavorite, addFavorite, fetchIndustries, locationSuggest, locationRegeocode, analyzeLocation, fetchUiConfig, fetchCsQr, getHealth
+  fetchFavorites, deleteFavorite, checkFavorite, addFavorite, fetchIndustries, locationSuggest, locationRegeocode, analyzeLocation, fetchUiConfig, fetchCsQr, fetchSkus, activateCdk, createPrepay, getHealth
 }

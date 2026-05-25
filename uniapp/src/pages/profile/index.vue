@@ -18,7 +18,10 @@
       <template v-else>
         <text class="avatar-fb"></text>
         <text class="uname">未登录</text>
-        <button class="top-login" @tap="showLoginSheet = true">登录 / 注册</button>
+        <view class="login-actions">
+          <button class="top-login" @tap="goLogin">手机号登录</button>
+          <button class="top-login secondary" @tap="showLoginSheet = true">微信登录</button>
+        </view>
       </template>
       <text class="login-err" v-if="loginErr">{{ loginErr }}</text>
     </view>
@@ -63,6 +66,7 @@
     <view class="points-card">
       <view class="pc-head">
         <text class="pc-title">● 我的点数</text>
+        <text class="pca primary" @tap="showRecharge = !showRecharge">{{ showRecharge ? '收起' : '获取点数' }}</text>
       </view>
       <view class="pc-body">
         <text class="pc-num">{{ points }}</text>
@@ -70,8 +74,27 @@
         <text class="pc-desc">当前剩余点数 · 可用于生成选址分析报告</text>
         <text class="pc-desc warn" v-if="freePointExpiry && !freePointActive">⚠️ 免费赠送点已过期，实际有效 {{ Math.max(0, points - 1) }} 点</text>
       </view>
+      <!-- SKU 套餐列表 -->
+      <view class="sku-list" v-if="showRecharge && skus.length">
+        <view class="sku-item" v-for="s in skus" :key="s.id" @tap="onBuy(s)">
+          <view class="sku-left">
+            <text class="sku-label">{{ s.label }}</text>
+            <text class="sku-desc">{{ s.desc }}</text>
+          </view>
+          <view class="sku-right">
+            <text class="sku-price">¥{{ s.price }}</text>
+            <text class="sku-credits" v-if="s.credits">+{{ s.credits }}点</text>
+          </view>
+        </view>
+        <text class="sku-note" v-if="payErr">{{ payErr }}</text>
+      </view>
+      <!-- CDK 兑换 -->
+      <view class="cdk-row" v-if="loggedIn && showRecharge">
+        <input class="cdk-input" v-model="cdkCode" placeholder="输入兑换码" />
+        <button class="cdk-btn" :disabled="cdkLoading || !cdkCode" @tap="onCdkRedeem">{{ cdkLoading ? '兑换中' : '兑换' }}</button>
+      </view>
       <view class="pc-warn" v-if="!memberDays && points <= 3">
-        <text>剩余点数较少，可通过管理后台配置补充</text>
+        <text>剩余点数较少</text>
       </view>
     </view>
 
@@ -144,6 +167,11 @@ export default {
       freePointActive: true,
       freePointExpiry: '',
       csQrUrl: '',
+      showRecharge: false,
+      skus: [],
+      cdkCode: '',
+      cdkLoading: false,
+      payErr: '',
       memberDays: 0,
       memberExpiry: '',
       reportCount: 0,
@@ -192,9 +220,12 @@ export default {
             if (p.user) auth.setUser(p.user)
           }
         }).catch(() => {})
-        // 客服二维码（独立拉取，失败静默）
+        // 客服二维码 + SKU（独立拉取，失败静默）
         api.fetchCsQr().then(r => {
           if (r.ok && r.data && r.data.url) this.csQrUrl = r.data.url
+        }).catch(() => {})
+        api.fetchSkus().then(r => {
+          if (r.ok && Array.isArray(r.data?.skus)) this.skus = r.data.skus.filter(s => s.visible)
         }).catch(() => {})
       } else {
         this.loggedIn = false
@@ -263,8 +294,56 @@ export default {
       auth.clearToken()
       this.loggedIn = false; this.points = 0; this.reportCount = 0; this.favCount = 0
     },
+    goLogin () { uni.navigateTo({ url: '/pages/profile/login' }) },
     goRecords () { uni.switchTab({ url: '/pages/records/index' }) },
     goFavorites () { uni.switchTab({ url: '/pages/favorites/index' }) },
+    async onBuy (sku) {
+      this.payErr = ''
+      try {
+        const r = await api.createPrepay(sku.id)
+        if (r.ok) {
+          // 微信支付 params → uni.requestPayment
+          const pp = r.data
+          uni.requestPayment({
+            timeStamp: pp.timeStamp,
+            nonceStr: pp.nonceStr,
+            package: pp.package,
+            signType: pp.signType || 'RSA',
+            paySign: pp.paySign,
+            success: () => {
+              uni.showToast({ title: '支付成功', icon: 'success' })
+              this.showRecharge = false
+              this.refreshState()
+            },
+            fail: (e) => {
+              if (e.errMsg && e.errMsg.indexOf('cancel') >= 0) this.payErr = '支付已取消'
+              else this.payErr = '支付失败，请稍后重试'
+            }
+          })
+        } else {
+          if (r.statusCode === 503) this.payErr = '支付服务暂不可用，请联系管理员配置'
+          else if (r.statusCode === 501) this.payErr = '支付服务即将上线'
+          else this.payErr = r.data?.detail || '支付请求失败'
+        }
+      } catch (e) { this.payErr = '网络异常' }
+    },
+    async onCdkRedeem () {
+      if (!this.cdkCode.trim()) return
+      this.cdkLoading = true; this.payErr = ''
+      try {
+        const r = await api.activateCdk(this.cdkCode.trim().toUpperCase())
+        if (r.ok) {
+          uni.showToast({ title: `兑换成功，+${r.data.credits_added} 点`, icon: 'success' })
+          this.cdkCode = ''
+          this.refreshState()
+        } else {
+          if (r.statusCode === 404) this.payErr = '兑换码不存在'
+          else if (r.statusCode === 429) this.payErr = '尝试次数过多，请稍后重试'
+          else this.payErr = r.data?.detail || '兑换失败'
+        }
+      } catch (e) { this.payErr = '网络异常' }
+      finally { this.cdkLoading = false }
+    },
     previewCsQr () {
       if (!this.csQrUrl) return
       const url = this.csQrUrl.startsWith('/') ? config.API_BASE_URL + this.csQrUrl : this.csQrUrl
@@ -288,7 +367,9 @@ export default {
 .uname { display:block; font-size:38rpx; font-weight:900; }
 .uid { display:block; font-size:24rpx; color:rgba(255,255,255,0.6); margin-top:4rpx; }
 .arrow { font-size:40rpx; color:rgba(255,255,255,0.4); }
-.top-login { margin-top:24rpx; width:280rpx; height:64rpx; line-height:64rpx; padding:0; background:linear-gradient(135deg,#fff3c4,#f8c861 58%,#dba640); color:#17244e; border:1px solid rgba(255,255,255,0.48); border-radius:999rpx; font-size:26rpx; font-weight:900; box-shadow:0 14rpx 28rpx rgba(248,200,97,0.18),inset 0 1rpx 0 rgba(255,255,255,0.45); position:relative; z-index:1; }
+.login-actions { display:flex; gap:16rpx; margin-top:20rpx; justify-content:center; }
+.top-login { width:240rpx; height:64rpx; line-height:64rpx; padding:0; background:linear-gradient(135deg,#fff3c4,#f8c861 58%,#dba640); color:#17244e; border:1px solid rgba(255,255,255,0.48); border-radius:999rpx; font-size:26rpx; font-weight:900; box-shadow:0 14rpx 28rpx rgba(248,200,97,0.18),inset 0 1rpx 0 rgba(255,255,255,0.45); position:relative; z-index:1; }
+.top-login.secondary { background:rgba(255,255,255,0.15); color:rgba(255,255,255,0.9); border-color:rgba(255,255,255,0.25); box-shadow:none; }
 .top-login::after { border:none; }
 .login-err { display:block; margin-top:14rpx; font-size:24rpx; color:#fca5a5; }
 
@@ -313,6 +394,14 @@ export default {
 .pc-num { font-size:80rpx; font-weight:900; color:#315bff; } .pc-unit { font-size:28rpx; color:#8b99b6; }
 .pc-desc { display:block; font-size:24rpx; color:#94a3b8; margin-top:8rpx; } .pc-desc.warn { color:#dc2626; }
 .pc-warn { margin-top:16rpx; padding:16rpx; background:#fef2f2; border-radius:12rpx; } .pc-warn text { font-size:24rpx; color:#dc2626; }
+.sku-list { margin-top:20rpx; }
+.sku-item { display:flex; justify-content:space-between; align-items:center; padding:18rpx 0; border-top:1px solid #f1f5f9; }
+.sku-left { flex:1; } .sku-label { font-size:26rpx; font-weight:700; color:#1e293b; display:block; } .sku-desc { font-size:22rpx; color:#8b99b6; }
+.sku-right { text-align:right; } .sku-price { font-size:28rpx; font-weight:800; color:#315bff; display:block; } .sku-credits { font-size:22rpx; color:#16a34a; }
+.sku-note { font-size:22rpx; color:#dc2626; text-align:center; padding:10rpx 0; }
+.cdk-row { display:flex; gap:12rpx; margin-top:16rpx; padding-top:16rpx; border-top:1px solid #f1f5f9; }
+.cdk-input { flex:1; border:1px solid #d1d5db; border-radius:10rpx; padding:14rpx 14rpx; font-size:26rpx; }
+.cdk-btn { background:#0f172a; color:#fff; border-radius:10rpx; font-size:26rpx; padding:14rpx 28rpx; }
 
 .menu-card { background:rgba(255,255,255,0.94); margin:0 24rpx 24rpx; border-radius:22rpx; border:1px solid rgba(219,230,255,0.92); box-shadow:0 18rpx 38rpx rgba(79,119,186,0.10); overflow:hidden; }
 .menu-item { display:flex; align-items:center; padding:28rpx; border-bottom:1rpx solid rgba(219,230,255,0.78); }
