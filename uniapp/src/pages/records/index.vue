@@ -52,8 +52,8 @@
           <text class="time" v-if="r.created_at">分析时间：{{ fmtTime(r.created_at) }}</text>
           <text class="time" v-else>-</text>
           <view class="actions">
-            <text class="act" @tap="onDelete(r)">删除</text>
-            <text class="act" @tap="onDetail(r)">查看报告</text>
+            <text class="act" @tap.stop="onDelete(r)">删除</text>
+            <text class="act" @tap.stop="onDetail(r)">查看报告</text>
           </view>
         </view>
       </view>
@@ -108,8 +108,8 @@ export default {
     sc: scoreColor,
     fmtTime: formatTime,
     stars (score) {
-      const n = Math.round(score / 20)
-      return '★'.repeat(n) + '☆'.repeat(5 - n)
+      const v = Math.max(0, Math.min(5, Math.round(Number(score || 0) / 20)))
+      return '★'.repeat(v) + '☆'.repeat(5 - v)
     },
     cardTitle (r) {
       const parts = [r.brand_desc, r.business_type, r.address?.slice(0, 20)].filter(Boolean)

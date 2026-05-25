@@ -138,6 +138,7 @@ function analyzeLocation (payload) {
 
 // ── Config ──
 function fetchUiConfig () { return request({ url: '/api/admin/ui-config', auth: false }) }
+function fetchCsQr () { return request({ url: '/api/admin/customer-service-qrcode', auth: false }) }
 
 // ── Health ──
 function getHealth () { return request({ url: '/api/health', auth: false }) }
@@ -145,5 +146,5 @@ function getHealth () { return request({ url: '/api/health', auth: false }) }
 export default {
   request, normalizeError, ensureAnonToken, wechatMiniLogin, bindPhone, phoneLogin,
   fetchProfile, fetchRecords, fetchRecordDetail, deleteRecord,
-  fetchFavorites, deleteFavorite, checkFavorite, addFavorite, fetchIndustries, locationSuggest, locationRegeocode, analyzeLocation, fetchUiConfig, getHealth
+  fetchFavorites, deleteFavorite, checkFavorite, addFavorite, fetchIndustries, locationSuggest, locationRegeocode, analyzeLocation, fetchUiConfig, fetchCsQr, getHealth
 }

@@ -112,7 +112,10 @@ export default {
     sortedList () {
       let items = [...this.filteredList]
       if (this.sortBy === 'analyzed') {
-        items.sort((a, b) => (b.is_analyzed ? 1 : 0) - (a.is_analyzed ? 1 : 0))
+        items.sort((a, b) => (b.is_analyzed ? 1 : 0) - (a.is_analyzed ? 1 : 0) || new Date(b.created_at || 0) - new Date(a.created_at || 0))
+      } else {
+        // 'newest' — 显式按 created_at 倒序
+        items.sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0))
       }
       return items
     },
@@ -194,18 +197,23 @@ export default {
       })
       if (!confirmed) return
       this.delLoading = true
-      let ok = 0
+      const okIds = []
+      let failed = 0
       for (const id of this.selectedIds) {
         try {
           const r = await api.deleteFavorite(id)
-          if (r.ok || r.statusCode === 404) ok++
-        } catch (e) { /* continue */ }
+          if (r.ok || r.statusCode === 404) okIds.push(id)
+          else failed++
+        } catch (e) { failed++ }
       }
-      this.list = this.list.filter(x => !this.selectedIds.includes(x.id))
-      this.selectedIds = []
+      // 只移除成功删除的项
+      this.list = this.list.filter(x => !okIds.includes(x.id))
+      this.selectedIds = this.selectedIds.filter(x => !okIds.includes(x))
       this.batchMode = false
       this.delLoading = false
-      uni.showToast({ title: `已删除 ${ok} 条`, icon: 'none' })
+      if (okIds.length && !failed) uni.showToast({ title: `已删除 ${okIds.length} 条`, icon: 'none' })
+      else if (okIds.length) uni.showToast({ title: `已删除 ${okIds.length} 条，${failed} 条失败`, icon: 'none' })
+      else uni.showToast({ title: '删除失败，请重试', icon: 'none' })
     }
   }
 }

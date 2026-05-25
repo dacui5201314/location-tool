@@ -47,7 +47,7 @@
       <view class="vc-top">
         <view class="vc-copy">
           <text class="vc-title">VIP会员 {{ memberDays > 0 ? memberDays+'天' : '未开通' }}</text>
-          <text class="vc-desc">{{ memberDays > 0 ? '有效期至 '+memberExpiry : '开通会员，解锁全部高级功能' }}</text>
+          <text class="vc-desc">{{ memberDays > 0 ? '有效期至 '+memberExpiry : '当前为普通状态，已购点数可用于单次分析' }}</text>
         </view>
       </view>
       <view class="vc-benefits">
@@ -71,7 +71,7 @@
         <text class="pc-desc warn" v-if="freePointExpiry && !freePointActive">⚠️ 免费赠送点已过期，实际有效 {{ Math.max(0, points - 1) }} 点</text>
       </view>
       <view class="pc-warn" v-if="!memberDays && points <= 3">
-        <text>点数即将用完，建议充值或开通会员</text>
+        <text>剩余点数较少，可通过管理后台配置补充</text>
       </view>
     </view>
 
@@ -80,6 +80,11 @@
       <view class="menu-item" @tap="goEdit">
         <text class="mi-icon">◈</text>
         <view class="mi-body"><text class="mi-label">完善资料</text><text class="mi-desc">头像、昵称、手机号</text></view>
+        <text class="mi-arrow">›</text>
+      </view>
+      <view class="menu-item" v-if="csQrUrl" @tap="previewCsQr">
+        <text class="mi-icon">☎</text>
+        <view class="mi-body"><text class="mi-label">联系客服</text><text class="mi-desc">扫码添加客服微信</text></view>
         <text class="mi-arrow">›</text>
       </view>
       <view class="menu-item" v-if="loggedIn" @tap="onLogout">
@@ -121,6 +126,7 @@
 <script>
 import auth from '../../utils/auth'
 import api from '../../utils/api'
+import config from '../../utils/config'
 
 export default {
   data () {
@@ -137,6 +143,7 @@ export default {
       points: 0,
       freePointActive: true,
       freePointExpiry: '',
+      csQrUrl: '',
       memberDays: 0,
       memberExpiry: '',
       reportCount: 0,
@@ -184,6 +191,10 @@ export default {
             // 只 merge user 对象，不 merge profile 顶层
             if (p.user) auth.setUser(p.user)
           }
+        }).catch(() => {})
+        // 客服二维码（独立拉取，失败静默）
+        api.fetchCsQr().then(r => {
+          if (r.ok && r.data && r.data.url) this.csQrUrl = r.data.url
         }).catch(() => {})
       } else {
         this.loggedIn = false
@@ -253,7 +264,12 @@ export default {
       this.loggedIn = false; this.points = 0; this.reportCount = 0; this.favCount = 0
     },
     goRecords () { uni.switchTab({ url: '/pages/records/index' }) },
-    goFavorites () { uni.switchTab({ url: '/pages/favorites/index' }) }
+    goFavorites () { uni.switchTab({ url: '/pages/favorites/index' }) },
+    previewCsQr () {
+      if (!this.csQrUrl) return
+      const url = this.csQrUrl.startsWith('/') ? config.API_BASE_URL + this.csQrUrl : this.csQrUrl
+      uni.previewImage({ urls: [url], current: url })
+    }
   }
 }
 </script>
