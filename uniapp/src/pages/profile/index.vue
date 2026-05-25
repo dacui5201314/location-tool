@@ -16,10 +16,10 @@
       <template v-else>
         <text class="avatar-fb"></text>
         <text class="uname">未登录</text>
-        <view class="login-actions">
-          <button class="top-login" @tap.stop="goLogin">手机号登录</button>
-          <button class="top-login secondary" @tap.stop="showLoginSheet = true">微信登录</button>
-        </view>
+        <text class="login-desc">授权手机号即可登录，无需注册</text>
+        <button class="top-login" open-type="getPhoneNumber" @getphonenumber="onPhoneNumberLogin" :disabled="loginLoading">
+          {{ loginLoading ? '登录中...' : '手机号一键登录' }}
+        </button>
       </template>
       <text class="login-err" v-if="loginErr">{{ loginErr }}</text>
     </view>
@@ -277,6 +277,45 @@ export default {
         this.loggedIn = false
       }
     },
+    // ── 小程序标准登录：getPhoneNumber 一键授权 ──
+    async onPhoneNumberLogin (e) {
+      this.loginErr = ''
+      const detail = e.detail || {}
+      if (detail.errMsg && detail.errMsg.indexOf('deny') >= 0) {
+        this.loginErr = '手机号授权已取消'; return
+      }
+      const phoneCode = detail.code
+      if (!phoneCode) { this.loginErr = '获取手机号失败，请重试'; return }
+
+      this.loginLoading = true
+      try {
+        // Step 1: wx.login 拿到 login code
+        const loginRes = await new Promise((resolve, reject) => {
+          uni.login({ provider: 'weixin', success: resolve, fail: reject })
+        })
+        if (!loginRes.code) { this.loginLoading = false; this.loginErr = '微信登录失败'; return }
+
+        // Step 2: 后端 phone-login（合并 wx.login code + getPhoneNumber code）
+        const r = await api.phoneLogin(loginRes.code, phoneCode)
+        if (r.ok) {
+          auth.setToken(r.data.token)
+          auth.setUser(r.data.user)
+          if (r.data.wx_mini_openid) uni.setStorageSync('wx_mini_openid', r.data.wx_mini_openid)
+          uni.showToast({ title: '登录成功', icon: 'success' })
+          this.refreshState()
+        } else {
+          const sc = r.statusCode
+          if (sc === 503) this.loginErr = '登录服务暂不可用'
+          else if (sc === 400) this.loginErr = '登录失败，请重试'
+          else if (sc === 409) this.loginErr = '该手机号已绑定其他账号'
+          else this.loginErr = '登录失败，请稍后重试'
+        }
+      } catch (e) {
+        this.loginErr = '网络异常，请稍后重试'
+      } finally {
+        this.loginLoading = false
+      }
+    },
     openRecharge () { this.rechargeOpen = true; this.payErr = '' },
     async onBuy (sku) {
       this.payErr = ''
@@ -412,8 +451,9 @@ export default {
 .uname { display:block; font-size:36rpx; font-weight:700; }
 .uid { display:block; font-size:24rpx; color:rgba(255,255,255,0.6); margin-top:4rpx; }
 .arrow { font-size:40rpx; color:rgba(255,255,255,0.4); }
+.login-desc { display:block; font-size:24rpx; color:rgba(255,255,255,0.55); margin-top:10rpx; }
 .login-actions { display:flex; gap:16rpx; margin-top:20rpx; justify-content:center; position:relative; z-index:2; }
-.top-login { width:240rpx; height:64rpx; line-height:64rpx; padding:0; background:linear-gradient(135deg,#fff3c4,#f8c861 58%,#dba640); color:#17244e; border:1px solid rgba(255,255,255,0.48); border-radius:999rpx; font-size:26rpx; font-weight:900; position:relative; z-index:3; }
+.top-login { width:400rpx; height:72rpx; line-height:72rpx; padding:0; background:linear-gradient(135deg,#fff3c4,#f8c861 58%,#dba640); color:#17244e; border:1px solid rgba(255,255,255,0.48); border-radius:999rpx; font-size:28rpx; font-weight:900; position:relative; z-index:3; margin-top:16rpx; }
 .top-login.secondary { background:rgba(255,255,255,0.15); color:rgba(255,255,255,0.9); border-color:rgba(255,255,255,0.25); box-shadow:none; }
 .top-login::after { border:none; }
 .login-err { display:block; margin-top:14rpx; font-size:24rpx; color:#fca5a5; }
