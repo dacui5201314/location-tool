@@ -651,8 +651,10 @@ export default {
 .home-page { min-height:100vh; background:radial-gradient(circle at 50% -8%,rgba(49,91,255,0.12),transparent 34%),linear-gradient(180deg,#f8fbff 0%,#f2f6ff 48%,#eef3fb 100%); padding-bottom:108rpx; }
 
 /* ── Hero ── */
-.hero { background:linear-gradient(145deg,#12358f 0%,#173f9d 48%,#3343c7 100%); padding:46rpx 28rpx 116rpx; position:relative; overflow:hidden; }
-.hero-top { display:flex; align-items:center; margin-bottom:28rpx; }
+.hero { background:linear-gradient(145deg,#155dff 0%,#1151e8 46%,#2738c7 100%); padding:46rpx 28rpx 116rpx; position:relative; overflow:hidden; }
+.hero::before { content:''; position:absolute; left:-120rpx; top:-150rpx; width:620rpx; height:300rpx; border-radius:0 0 50% 50%; background:rgba(255,255,255,0.08); transform:rotate(8deg); }
+.hero::after { content:''; position:absolute; right:-70rpx; bottom:58rpx; width:310rpx; height:250rpx; border-radius:42rpx; background:linear-gradient(135deg,rgba(255,255,255,0.10),rgba(255,255,255,0)); transform:skewX(-12deg); }
+.hero-top { display:flex; align-items:center; margin-bottom:28rpx; position:relative; z-index:2; }
 .hero-logo-box { width:70rpx; height:70rpx; border-radius:18rpx; margin-right:14rpx; display:flex; align-items:center; justify-content:center; overflow:hidden; background:linear-gradient(135deg,#f8fbff 0%,#dbeafe 48%,#3151d3 100%); box-shadow:0 10rpx 28rpx rgba(33,99,255,0.35); flex-shrink:0; }
 .hero-logo { width:62rpx; height:62rpx; display:block; border-radius:16rpx; }
 .hero-lockup { display:flex; flex-direction:column; }
@@ -664,7 +666,7 @@ export default {
 .hero-desc { display:block; font-size:24rpx; color:rgba(232,240,255,0.74); margin-top:18rpx; line-height:1.55; }
 .hero-tags { display:flex; gap:10rpx; position:relative; z-index:2; }
 .htag { font-size:20rpx; color:rgba(255,255,255,0.78); background:rgba(255,255,255,0.09); border:1px solid rgba(255,255,255,0.18); border-radius:999rpx; padding:8rpx 16rpx; backdrop-filter:blur(8px); }
-.hero-visual { position:absolute; right:24rpx; top:168rpx; width:196rpx; height:188rpx; pointer-events:none; z-index:1; }
+.hero-visual { position:absolute; right:24rpx; top:168rpx; width:196rpx; height:188rpx; pointer-events:none; z-index:2; }
 .hv-plate { position:absolute; left:12rpx; right:8rpx; bottom:12rpx; height:72rpx; border-radius:30rpx; transform:skewX(-14deg); background:linear-gradient(135deg,rgba(226,236,255,0.92),rgba(149,187,255,0.58)); box-shadow:0 20rpx 48rpx rgba(6,18,48,0.30); }
 .hv-ring { position:absolute; border:3rpx solid rgba(37,99,235,0.34); border-radius:50%; transform:skewX(14deg); }
 .ring-a { width:104rpx; height:32rpx; left:36rpx; top:20rpx; }

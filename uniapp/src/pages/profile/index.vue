@@ -268,7 +268,8 @@ export default {
 
 <style scoped>
 .profile-page { min-height:100vh; background:radial-gradient(circle at 50% -8%,rgba(49,91,255,0.12),transparent 34%),linear-gradient(180deg,#f8fbff 0%,#f2f6ff 48%,#eef3fb 100%); padding-bottom:118rpx; }
-.top { background:linear-gradient(145deg,#102c78 0%,#173a96 52%,#3343c7 100%); padding:56rpx 32rpx 76rpx; text-align:center; color:#fff; position:relative; overflow:hidden; }
+.top { background:linear-gradient(145deg,#155dff 0%,#1151e8 48%,#2738c7 100%); padding:56rpx 32rpx 76rpx; text-align:center; color:#fff; position:relative; overflow:hidden; }
+.top::before { content:''; position:absolute; left:-120rpx; top:-150rpx; width:620rpx; height:300rpx; border-radius:0 0 50% 50%; background:rgba(255,255,255,0.08); transform:rotate(8deg); }
 .top::after { content:''; position:absolute; right:-80rpx; bottom:-110rpx; width:260rpx; height:260rpx; border-radius:50%; background:rgba(255,255,255,0.09); }
 .top-row { display:flex; align-items:center; text-align:left; }
 .avatar-img { width:104rpx; height:104rpx; border-radius:30rpx; border:3rpx solid rgba(255,255,255,0.28); flex-shrink:0; background:#fff; }

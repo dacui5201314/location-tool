@@ -82,10 +82,10 @@ export default {
 .label { font-size: 28rpx; font-weight: 600; color: #334155; margin-bottom: 16rpx; }
 .cat-scroll { white-space: nowrap; padding-bottom: 8rpx; }
 .cat-tile { display: inline-flex; flex-direction: column; align-items: center; width: 118rpx; padding: 18rpx 8rpx; margin-right: 12rpx; border-radius: 18rpx; background: linear-gradient(180deg,#ffffff,#fbfdff); border: 1px solid rgba(219,230,255,0.95); box-shadow: 0 10rpx 22rpx rgba(74,111,172,0.07); }
-.cat-tile.active { background: linear-gradient(180deg,#ffffff,#f4f7ff); border-color: rgba(74,117,255,0.56); box-shadow: 0 14rpx 28rpx rgba(68,84,255,0.16); }
-.cat-icon { position: relative; width: 48rpx; height: 48rpx; line-height: 48rpx; text-align: center; border-radius: 16rpx; background: linear-gradient(135deg,#f7f2ff,#eef5ff); color: transparent; font-size: 0; box-shadow: inset 0 0 0 1px rgba(126,105,255,0.08); }
-.cat-icon::before { content: ''; position: absolute; left: 13rpx; top: 13rpx; width: 20rpx; height: 20rpx; border-radius: 6rpx; border: 3rpx solid #7c55ff; box-sizing: border-box; }
-.cat-tile.active .cat-icon { background: linear-gradient(135deg,#4a75ff,#7c55ff); box-shadow: 0 10rpx 18rpx rgba(88,105,255,0.22); }
+.cat-tile.active { background: linear-gradient(180deg,#ffffff,#f3f7ff); border-color: rgba(21,93,255,0.58); box-shadow: 0 14rpx 30rpx rgba(21,93,255,0.16); }
+.cat-icon { position: relative; width: 50rpx; height: 50rpx; line-height: 50rpx; text-align: center; border-radius: 16rpx; background: linear-gradient(135deg,#f1f6ff,#ffffff); color: transparent; font-size: 0; box-shadow: inset 0 0 0 1px rgba(21,93,255,0.08); }
+.cat-icon::before { content: ''; position: absolute; left: 13rpx; top: 13rpx; width: 22rpx; height: 22rpx; border-radius: 6rpx; border: 3rpx solid #155dff; box-sizing: border-box; }
+.cat-tile.active .cat-icon { background: linear-gradient(135deg,#155dff,#6d5cff); box-shadow: 0 10rpx 20rpx rgba(21,93,255,0.24); }
 .cat-tile.active .cat-icon::before { border-color: #fff; }
 .cat-food .cat-icon::before,.cat-drink .cat-icon::before { border-radius: 50%; border-width: 4rpx; }
 .cat-retail .cat-icon::before { border-radius: 4rpx; }
@@ -93,7 +93,7 @@ export default {
 .cat-service .cat-icon::before { width: 22rpx; height: 10rpx; top: 19rpx; border-radius: 999rpx; }
 .cat-entertainment .cat-icon::before { transform: rotate(45deg); border-radius: 4rpx; }
 .cat-name { font-size: 22rpx; font-weight: 900; color: #17244e; margin-top: 10rpx; }
-.cat-tile.active .cat-name { color: #315bff; }
+.cat-tile.active .cat-name { color: #155dff; }
 .sub-panel { margin-top: 16rpx; display: flex; flex-wrap: wrap; gap: 12rpx; padding: 16rpx; border-radius: 16rpx; background: linear-gradient(180deg,#f8fbff,#ffffff); border: 1px solid rgba(219,230,255,0.78); }
 .chip { padding: 12rpx 24rpx; border-radius: 16rpx; background: #fff; font-size: 26rpx; font-weight: 700; color: #5c677d; border: 1px solid rgba(219,230,255,0.95); box-shadow: 0 8rpx 18rpx rgba(74,111,172,0.05); }
 .chip.selected { background: #f3f7ff; color: #315bff; border-color: rgba(88,105,255,0.44); box-shadow: 0 10rpx 20rpx rgba(68,84,255,0.11); }
