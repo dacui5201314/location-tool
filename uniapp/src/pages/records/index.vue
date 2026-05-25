@@ -147,7 +147,7 @@ export default {
 
 <style scoped>
 .records-page { min-height:100vh; padding:0 24rpx 118rpx; background:linear-gradient(180deg,#eaf2ff 0%,#f2f6ff 42%,#eef3fb 100%); }
-.header { margin:0 -24rpx 22rpx; padding:62rpx 48rpx 82rpx; background:radial-gradient(circle at 78% 32%,rgba(125,211,252,0.58),transparent 24%),linear-gradient(160deg,#155dff 0%,#155dff 18%,#0f4fe8 54%,#2435c8 100%); position:relative; overflow:hidden; }
+.header { margin:0 -24rpx 22rpx; padding:62rpx 48rpx 82rpx; background:radial-gradient(circle at 78% 32%,rgba(93,171,255,0.48),transparent 24%),radial-gradient(circle at 64% 62%,rgba(248,200,97,0.12),transparent 24%),linear-gradient(160deg,#0d4bdc 0%,#0f45d0 24%,#1533b4 64%,#1d2497 100%); position:relative; overflow:hidden; }
 .header::before { content:''; position:absolute; left:-120rpx; top:-150rpx; width:660rpx; height:320rpx; border-radius:0 0 56% 56%; background:linear-gradient(180deg,rgba(255,255,255,0.16),rgba(255,255,255,0.02)); transform:rotate(8deg); }
 .header::after { content:''; position:absolute; right:56rpx; bottom:0; width:38rpx; height:154rpx; border-radius:9rpx 9rpx 0 0; background:linear-gradient(180deg,rgba(219,234,254,0.56),rgba(37,99,235,0.08)); box-shadow:-54rpx 30rpx 0 rgba(191,219,254,0.34),-108rpx 66rpx 0 rgba(191,219,254,0.24),54rpx 20rpx 0 rgba(191,219,254,0.28),106rpx 54rpx 0 rgba(191,219,254,0.18); opacity:0.58; }
 .title { font-size:42rpx; font-weight:900; color:#fff; display:block; position:relative; z-index:1; } .sub { font-size:24rpx; color:rgba(232,240,255,0.76); margin-top:8rpx; position:relative; z-index:1; }

@@ -659,21 +659,22 @@ export default {
 .home-page { min-height:100vh; background:radial-gradient(circle at 50% -8%,rgba(49,91,255,0.12),transparent 34%),linear-gradient(180deg,#f8fbff 0%,#f2f6ff 48%,#eef3fb 100%); padding-bottom:108rpx; }
 
 /* ── Hero ── */
-.hero { background:radial-gradient(circle at 76% 34%,rgba(125,211,252,0.72),transparent 25%),linear-gradient(160deg,#155dff 0%,#155dff 18%,#0f4fe8 54%,#2435c8 100%); padding:46rpx 28rpx 122rpx; position:relative; overflow:hidden; }
+.hero { background:radial-gradient(circle at 76% 34%,rgba(93,171,255,0.58),transparent 24%),radial-gradient(circle at 62% 58%,rgba(248,200,97,0.14),transparent 22%),linear-gradient(160deg,#0d4bdc 0%,#0f45d0 24%,#1533b4 64%,#1d2497 100%); padding:46rpx 28rpx 122rpx; position:relative; overflow:hidden; }
 .hero::before { content:''; position:absolute; left:-110rpx; top:-158rpx; width:680rpx; height:340rpx; border-radius:0 0 58% 58%; background:linear-gradient(180deg,rgba(255,255,255,0.18),rgba(255,255,255,0.02)); transform:rotate(8deg); }
 .hero::after { content:''; position:absolute; left:0; right:0; bottom:0; height:230rpx; background:linear-gradient(180deg,rgba(255,255,255,0),rgba(219,234,254,0.26)); }
 .hero-top { display:flex; align-items:center; margin-bottom:28rpx; position:relative; z-index:2; }
-.hero-logo-box { width:70rpx; height:70rpx; border-radius:18rpx; margin-right:14rpx; display:flex; align-items:center; justify-content:center; overflow:hidden; background:linear-gradient(135deg,#f8fbff 0%,#dbeafe 48%,#3151d3 100%); box-shadow:0 10rpx 28rpx rgba(33,99,255,0.35); flex-shrink:0; }
+.hero-logo-box { width:70rpx; height:70rpx; border-radius:18rpx; margin-right:14rpx; display:flex; align-items:center; justify-content:center; overflow:hidden; background:linear-gradient(135deg,#ffffff 0%,#dbeafe 46%,#2545cb 100%); box-shadow:0 12rpx 30rpx rgba(5,22,88,0.32),0 0 0 1px rgba(248,200,97,0.22); flex-shrink:0; }
 .hero-logo { width:62rpx; height:62rpx; display:block; border-radius:16rpx; }
 .hero-lockup { display:flex; flex-direction:column; }
 .hero-brand { font-size:40rpx; font-weight:900; color:#fff; line-height:1.1; }
 .hero-slogan { font-size:24rpx; color:rgba(219,234,254,0.78); margin-top:2rpx; }
 .hero-copy { text-align:left; margin-bottom:24rpx; padding-right:210rpx; position:relative; z-index:2; }
 .hero-title { display:block; font-size:52rpx; font-weight:900; color:#fff; line-height:1.14; text-shadow:0 8rpx 28rpx rgba(6,20,80,0.28); }
-.hero-hl { display:block; color:#d7e8ff; }
+.hero-hl { display:block; color:#d4e5ff; }
 .hero-desc { display:block; font-size:24rpx; color:rgba(232,240,255,0.80); margin-top:18rpx; line-height:1.55; }
 .hero-tags { display:flex; gap:10rpx; position:relative; z-index:2; }
-.htag { font-size:20rpx; color:rgba(255,255,255,0.88); background:rgba(255,255,255,0.12); border:1px solid rgba(255,255,255,0.24); border-radius:999rpx; padding:9rpx 16rpx; box-shadow:inset 0 1rpx 0 rgba(255,255,255,0.20); }
+.htag { font-size:20rpx; color:rgba(255,255,255,0.88); background:rgba(255,255,255,0.10); border:1px solid rgba(255,255,255,0.22); border-radius:999rpx; padding:9rpx 16rpx; box-shadow:inset 0 1rpx 0 rgba(255,255,255,0.18); }
+.htag:nth-child(3) { color:#ffe8b0; background:rgba(248,200,97,0.12); border-color:rgba(248,200,97,0.38); }
 .hero-city { position:absolute; right:-8rpx; bottom:124rpx; width:330rpx; height:238rpx; z-index:1; opacity:0.54; pointer-events:none; }
 .hc-building { position:absolute; bottom:0; width:40rpx; border-radius:9rpx 9rpx 0 0; background:linear-gradient(180deg,rgba(219,234,254,0.78),rgba(37,99,235,0.10)); box-shadow:inset 0 0 0 1px rgba(255,255,255,0.12),0 0 28rpx rgba(147,197,253,0.10); }
 .hc-building::after { content:''; position:absolute; inset:15rpx 10rpx; background:repeating-linear-gradient(180deg,rgba(255,255,255,0.36) 0 6rpx,transparent 6rpx 18rpx); }
@@ -683,11 +684,11 @@ export default {
 .hc-d { right:54rpx; height:118rpx; }
 .hc-e { right:4rpx; height:154rpx; }
 .hero-visual { position:absolute; right:20rpx; top:132rpx; width:260rpx; height:252rpx; pointer-events:none; z-index:2; }
-.hv-plate { position:absolute; left:12rpx; right:8rpx; bottom:22rpx; height:92rpx; border-radius:38rpx; transform:skewX(-13deg); background:linear-gradient(135deg,rgba(239,246,255,0.96),rgba(147,197,253,0.62)); box-shadow:0 22rpx 58rpx rgba(6,18,48,0.30),inset 0 1rpx 0 rgba(255,255,255,0.70); }
+.hv-plate { position:absolute; left:12rpx; right:8rpx; bottom:22rpx; height:92rpx; border-radius:38rpx; transform:skewX(-13deg); background:linear-gradient(135deg,rgba(239,246,255,0.96),rgba(147,197,253,0.60)); box-shadow:0 22rpx 58rpx rgba(6,18,48,0.32),0 0 34rpx rgba(248,200,97,0.14),inset 0 1rpx 0 rgba(255,255,255,0.70); }
 .hv-ring { position:absolute; border:3rpx solid rgba(37,99,235,0.34); border-radius:50%; transform:skewX(13deg); }
 .ring-a { width:136rpx; height:42rpx; left:48rpx; top:26rpx; }
 .ring-b { width:86rpx; height:24rpx; left:72rpx; top:36rpx; opacity:0.78; }
-.hv-orbit { position:absolute; left:18rpx; right:22rpx; bottom:88rpx; height:62rpx; border:3rpx solid rgba(191,219,254,0.84); border-radius:50%; transform:rotate(-8deg); box-shadow:0 0 22rpx rgba(191,219,254,0.34); }
+.hv-orbit { position:absolute; left:18rpx; right:22rpx; bottom:88rpx; height:62rpx; border:3rpx solid rgba(248,200,97,0.52); border-radius:50%; transform:rotate(-8deg); box-shadow:0 0 22rpx rgba(248,200,97,0.24); }
 .hv-pin { position:absolute; right:68rpx; top:4rpx; width:98rpx; height:140rpx; border-radius:52rpx 52rpx 52rpx 10rpx; transform:rotate(45deg); background:linear-gradient(145deg,#67d4ff 0%,#2563ff 48%,#5949f4 100%); box-shadow:0 18rpx 42rpx rgba(59,130,246,0.46),inset -8rpx -8rpx 18rpx rgba(55,48,163,0.18),inset 8rpx 8rpx 18rpx rgba(255,255,255,0.16); }
 .hv-pin-core { position:absolute; top:26rpx; left:26rpx; width:42rpx; height:42rpx; border-radius:50%; background:#fff; box-shadow:0 0 0 10rpx rgba(255,255,255,0.20),inset 0 0 0 8rpx rgba(79,70,229,0.10); }
 
@@ -764,7 +765,7 @@ export default {
 
 /* ── CTA ── */
 .cta-zone { padding:0 20rpx; margin-top:22rpx; }
-.cta-btn { width:100%; background:linear-gradient(135deg,#1e75ff 0%,#315bff 54%,#6d5cff 100%); color:#fff; border-radius:16rpx; padding:24rpx 24rpx; display:flex; flex-direction:column; align-items:center; border:none; box-shadow:0 16rpx 34rpx rgba(49,91,255,0.28); }
+.cta-btn { width:100%; background:linear-gradient(135deg,#0d4bdc 0%,#1735b8 55%,#5b4be6 100%); color:#fff; border-radius:16rpx; padding:24rpx 24rpx; display:flex; flex-direction:column; align-items:center; border:none; box-shadow:0 18rpx 38rpx rgba(22,54,184,0.30),0 0 0 1px rgba(248,200,97,0.16); }
 .cta-btn::after { border:none; }
 .cta-btn[disabled] { opacity:1; background:linear-gradient(180deg,#ffffff,#f5f8ff); color:#315bff; box-shadow:0 10rpx 24rpx rgba(74,111,172,0.08); border:1px dashed rgba(49,91,255,0.34); }
 .cta-main { font-size:30rpx; font-weight:900; line-height:1.2; }
@@ -784,7 +785,8 @@ export default {
 .features { display:flex; gap:16rpx; margin:20rpx 28rpx 0; padding:0; background:transparent; box-shadow:none; }
 .ft { flex:1; display:flex; align-items:center; justify-content:center; gap:8rpx; text-align:left; background:transparent; border-radius:0; padding:0; box-shadow:none; border:0; min-width:0; }
 .ft:first-child,.ft:last-child { border-radius:0; }
-.ft-mark { display:block; width:30rpx; height:30rpx; line-height:30rpx; text-align:center; border-radius:9rpx; color:#fff; background:linear-gradient(135deg,#4a75ff,#7c55ff); font-size:18rpx; flex-shrink:0; box-shadow:0 8rpx 16rpx rgba(88,105,255,0.14); }
+.ft-mark { display:block; width:30rpx; height:30rpx; line-height:30rpx; text-align:center; border-radius:9rpx; color:#fff; background:linear-gradient(135deg,#2f6dff,#5b4be6); font-size:18rpx; flex-shrink:0; box-shadow:0 8rpx 16rpx rgba(88,105,255,0.14); }
+.ft:nth-child(3) .ft-mark { background:linear-gradient(135deg,#f8c861,#d8a23d); box-shadow:0 8rpx 16rpx rgba(216,162,61,0.16); }
 .ft-title { font-size:22rpx; font-weight:900; color:#17244e; display:block; white-space:nowrap; }
 .ft-desc { display:none; }
 .footer { text-align:center; font-size:20rpx; color:#94a3b8; padding:18rpx 44rpx 10rpx; line-height:1.65; }
