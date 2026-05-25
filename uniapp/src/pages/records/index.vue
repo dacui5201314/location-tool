@@ -34,11 +34,15 @@
         <view class="card-top">
           <text class="card-title">{{ cardTitle(r) }}</text>
           <view class="score-block" v-if="r.overall_score > 0">
+            <text class="stars">{{ stars(r.overall_score) }}</text>
             <text class="score-num" :style="{ color: sc(r.overall_score) }">{{ r.overall_score }}</text>
             <text class="score-unit">分</text>
           </view>
         </view>
-        <view class="card-addr">📍 {{ r.address || '-' }}</view>
+        <view class="card-body-row">
+          <view class="map-thumb" />
+          <view class="card-addr">📍 {{ r.address || '-' }}</view>
+        </view>
         <view class="card-tags">
           <text class="tag" v-if="r.business_type">{{ r.business_type }}</text>
           <text class="tag" v-if="r.brand_desc && r.brand_desc !== r.business_type">{{ r.brand_desc }}</text>
@@ -103,6 +107,10 @@ export default {
   methods: {
     sc: scoreColor,
     fmtTime: formatTime,
+    stars (score) {
+      const n = Math.round(score / 20)
+      return '★'.repeat(n) + '☆'.repeat(5 - n)
+    },
     cardTitle (r) {
       const parts = [r.brand_desc, r.business_type, r.address?.slice(0, 20)].filter(Boolean)
       return parts[0] || '未命名'
@@ -163,8 +171,10 @@ export default {
 .card { background:rgba(255,255,255,0.94); border-radius:22rpx; padding:28rpx; margin-bottom:18rpx; box-shadow:0 18rpx 38rpx rgba(79,119,186,0.10); border:1px solid rgba(219,230,255,0.92); }
 .card-top { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:8rpx; }
 .card-title { font-size:30rpx; font-weight:900; color:#17244e; flex:1; }
-.score-block { text-align:right; } .score-num { font-size:44rpx; font-weight:900; } .score-unit { font-size:22rpx; color:#94a3b8; }
-.card-addr { font-size:24rpx; color:#64748b; margin-bottom:12rpx; line-height:1.45; }
+.score-block { text-align:right; } .stars { font-size:24rpx; color:#d6a84f; letter-spacing:2rpx; display:block; } .score-num { font-size:44rpx; font-weight:900; } .score-unit { font-size:22rpx; color:#94a3b8; }
+.card-body-row { display:flex; align-items:flex-start; gap:14rpx; margin-bottom:12rpx; }
+.map-thumb { width:80rpx; height:80rpx; background:#e8edf5; border-radius:10rpx; flex-shrink:0; }
+.card-addr { font-size:24rpx; color:#64748b; line-height:1.45; flex:1; }
 .card-tags { margin-bottom:14rpx; } .tag { display:inline-block; font-size:20rpx; font-weight:700; padding:6rpx 14rpx; border-radius:999rpx; background:#f3f7ff; color:#315bff; margin-right:8rpx; border:1px solid rgba(219,230,255,0.95); }
 .card-footer { display:flex; justify-content:space-between; align-items:center; font-size:22rpx; color:#8b99b6; border-top:1rpx solid rgba(219,230,255,0.78); padding-top:16rpx; }
 .actions { display:flex; gap:14rpx; } .act { color:#315bff; font-size:24rpx; font-weight:800; } .act.lock { color:#d6a84f; }

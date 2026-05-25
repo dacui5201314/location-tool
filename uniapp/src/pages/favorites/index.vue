@@ -17,10 +17,18 @@
       <text class="sc-sub" v-if="list.length">点击卡片可快速开始分析</text>
     </view>
 
-    <!-- Filter tabs -->
-    <view class="tabs" v-if="isLoggedIn">
-      <view v-for="tab in tabs" :key="tab.key" class="tab" :class="{ active: activeTab === tab.key }" @tap="activeTab = tab.key">
-        {{ tab.label }} {{ counts[tab.key] || '' }}
+    <!-- Filter + Sort + Batch -->
+    <view class="controls" v-if="isLoggedIn">
+      <view class="tabs">
+        <view v-for="tab in tabs" :key="tab.key" class="tab" :class="{ active: activeTab === tab.key }" @tap="activeTab = tab.key">
+          {{ tab.label }} {{ counts[tab.key] || '' }}
+        </view>
+      </view>
+      <view class="sort-row">
+        <text class="sort-label">排序：</text>
+        <text class="sort-opt" :class="{ active: sortBy === 'newest' }" @tap="sortBy = 'newest'">最新</text>
+        <text class="sort-opt" :class="{ active: sortBy === 'analyzed' }" @tap="sortBy = 'analyzed'">已分析优先</text>
+        <text class="batch-toggle" @tap="batchMode = !batchMode">{{ batchMode ? '完成' : '批量管理' }}</text>
       </view>
     </view>
 
@@ -40,10 +48,19 @@
       <text class="emp-desc">把待评估铺位加入收藏，后续可快速生成报告</text>
     </view>
 
+    <!-- Batch actions -->
+    <view class="batch-bar" v-if="batchMode && selectedIds.length">
+      <text>已选 {{ selectedIds.length }} 项</text>
+      <button class="batch-del" @tap="batchDelete">批量删除</button>
+    </view>
+
     <!-- Cards -->
     <view class="list" v-if="!loading && !errMsg && filteredList.length">
-      <view class="card" v-for="f in filteredList" :key="f.id">
-        <view class="card-body" @tap="onSelect(f)">
+      <view class="card" v-for="f in sortedList" :key="f.id" :class="{ batch: batchMode, checked: selectedIds.includes(f.id) }">
+        <view class="card-check" v-if="batchMode" @tap="toggleSelect(f.id)">
+          <text>{{ selectedIds.includes(f.id) ? '◉' : '○' }}</text>
+        </view>
+        <view class="card-body" @tap="batchMode ? toggleSelect(f.id) : onSelect(f)">
           <view class="card-top">
             <text class="card-title">{{ favTitle(f) }}</text>
             <text class="badge" :class="f.is_analyzed ? 'done' : 'pending'">{{ f.is_analyzed ? '已分析' : '待分析' }}</text>
@@ -85,10 +102,20 @@ export default {
       activeTab: 'all',
       tabs: [{ key:'all',label:'全部' },{ key:'pending',label:'待分析' },{ key:'done',label:'已分析' }],
       list: [],
-      delTarget: null, delLoading: false
+      delTarget: null, delLoading: false,
+      sortBy: 'newest',
+      batchMode: false,
+      selectedIds: []
     }
   },
   computed: {
+    sortedList () {
+      let items = [...this.filteredList]
+      if (this.sortBy === 'analyzed') {
+        items.sort((a, b) => (b.is_analyzed ? 1 : 0) - (a.is_analyzed ? 1 : 0))
+      }
+      return items
+    },
     filteredList () {
       if (this.activeTab === 'done') return this.list.filter(f => f.is_analyzed)
       if (this.activeTab === 'pending') return this.list.filter(f => !f.is_analyzed)
@@ -150,6 +177,35 @@ export default {
         }
       } catch (e) { uni.showToast({ title: '网络异常', icon: 'none' }) }
       this.delLoading = false; this.delTarget = null
+    },
+    toggleSelect (id) {
+      const idx = this.selectedIds.indexOf(id)
+      if (idx >= 0) this.selectedIds.splice(idx, 1)
+      else this.selectedIds.push(id)
+    },
+    async batchDelete () {
+      if (!this.selectedIds.length) return
+      const confirmed = await new Promise(resolve => {
+        uni.showModal({
+          title: '确认批量删除',
+          content: `将删除 ${this.selectedIds.length} 个收藏地址，不可恢复`,
+          success: r => resolve(r.confirm)
+        })
+      })
+      if (!confirmed) return
+      this.delLoading = true
+      let ok = 0
+      for (const id of this.selectedIds) {
+        try {
+          const r = await api.deleteFavorite(id)
+          if (r.ok || r.statusCode === 404) ok++
+        } catch (e) { /* continue */ }
+      }
+      this.list = this.list.filter(x => !this.selectedIds.includes(x.id))
+      this.selectedIds = []
+      this.batchMode = false
+      this.delLoading = false
+      uni.showToast({ title: `已删除 ${ok} 条`, icon: 'none' })
     }
   }
 }
@@ -165,7 +221,17 @@ export default {
 .lg-btn::after { border:none; }
 .summary-card { background:linear-gradient(135deg,#0b3fbd,#151f8f 58%,#5b3fd9); border-radius:22rpx; padding:30rpx; color:#fff; margin-bottom:20rpx; box-shadow:0 18rpx 42rpx rgba(21,31,143,0.24),inset 0 1rpx 0 rgba(248,200,97,0.22); }
 .sc-text { font-size:30rpx; font-weight:700; display:block; } .sc-sub { font-size:24rpx; color:rgba(255,255,255,0.7); display:block; margin-top:6rpx; }
-.tabs { display:flex; gap:12rpx; margin-bottom:18rpx; } .tab { padding:14rpx 26rpx; border-radius:999rpx; background:rgba(255,255,255,0.86); border:1px solid rgba(219,230,255,0.95); font-size:25rpx; font-weight:800; color:#5c677d; box-shadow:0 8rpx 18rpx rgba(74,111,172,0.05); } .tab.active { background:#f3f7ff; color:#315bff; border-color:rgba(88,105,255,0.44); }
+.controls { margin-bottom:14rpx; }
+.tabs { display:flex; gap:12rpx; margin-bottom:14rpx; } .tab { padding:14rpx 26rpx; border-radius:999rpx; background:rgba(255,255,255,0.86); border:1px solid rgba(219,230,255,0.95); font-size:25rpx; font-weight:800; color:#5c677d; box-shadow:0 8rpx 18rpx rgba(74,111,172,0.05); } .tab.active { background:#f3f7ff; color:#315bff; border-color:rgba(88,105,255,0.44); }
+.sort-row { display:flex; align-items:center; gap:8rpx; padding:8rpx 0; }
+.sort-label { font-size:22rpx; color:#8b99b6; }
+.sort-opt { font-size:22rpx; color:#64748b; padding:6rpx 14rpx; border-radius:8rpx; } .sort-opt.active { background:#f3f7ff; color:#315bff; font-weight:700; }
+.batch-toggle { font-size:22rpx; color:#315bff; font-weight:700; margin-left:auto; padding:6rpx 14rpx; }
+.batch-bar { display:flex; align-items:center; justify-content:space-between; background:#fff3cd; border-radius:14rpx; padding:16rpx 20rpx; margin-bottom:14rpx; font-size:24rpx; color:#92400e; }
+.batch-del { background:#ef4444; color:#fff; border-radius:10rpx; font-size:24rpx; padding:10rpx 20rpx; }
+.card.batch { border-color:rgba(219,230,255,0.6); }
+.card.checked { border-color:#315bff; background:rgba(243,247,255,0.98); }
+.card-check { width:52rpx; text-align:center; font-size:28rpx; color:#94a3b8; flex-shrink:0; margin-right:8rpx; }
 .loading { text-align:center; padding:60rpx 0; } .ld-dots { font-size:60rpx; letter-spacing:12rpx; color:#94a3b8; display:block; } .ld-text { font-size:26rpx; color:#94a3b8; display:block; margin-top:8rpx; }
 .error-box { text-align:center; padding:70rpx 28rpx; background:rgba(255,255,255,0.92); border:1px solid rgba(254,202,202,0.9); border-radius:22rpx; } .error-box text { display:block; font-size:26rpx; color:#dc2626; margin-bottom:16rpx; } .err-btn { background:#f3f7ff; color:#315bff; border-radius:14rpx; padding:16rpx 40rpx; font-size:28rpx; }
 .empty { text-align:center; padding:86rpx 28rpx; background:rgba(255,255,255,0.92); border:1px solid rgba(219,230,255,0.9); border-radius:22rpx; } .emp-icon { font-size:72rpx; display:block; } .emp-title { font-size:30rpx; font-weight:800; color:#17244e; display:block; margin:16rpx 0 8rpx; } .emp-desc { font-size:26rpx; color:#8b99b6; }

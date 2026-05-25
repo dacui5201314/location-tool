@@ -23,12 +23,22 @@
       <text class="login-err" v-if="loginErr">{{ loginErr }}</text>
     </view>
 
-    <!-- Stats panel -->
+    <!-- Stats panel (clickable) -->
     <view class="stats">
-      <view class="stat" v-for="s in stats" :key="s.label">
-        <text class="sv">{{ s.value }}</text>
-        <text class="sl">{{ s.label }}</text>
-        <text class="ss">{{ s.sub }}</text>
+      <view class="stat" @tap="goRecords">
+        <text class="sv">{{ reportCount }}</text>
+        <text class="sl">已生成报告</text>
+        <text class="ss">累计分析</text>
+      </view>
+      <view class="stat" @tap="goFavorites">
+        <text class="sv">{{ favCount }}</text>
+        <text class="sl">收藏地址</text>
+        <text class="ss">机会池</text>
+      </view>
+      <view class="stat">
+        <text class="sv">{{ points }}</text>
+        <text class="sl">剩余点数</text>
+        <text class="ss">可用点数</text>
       </view>
     </view>
 
@@ -39,7 +49,6 @@
           <text class="vc-title">VIP会员 {{ memberDays > 0 ? memberDays+'天' : '未开通' }}</text>
           <text class="vc-desc">{{ memberDays > 0 ? '有效期至 '+memberExpiry : '开通会员，解锁全部高级功能' }}</text>
         </view>
-        <button class="vc-btn" @tap="onUpgrade">{{ memberDays > 0 ? '立即续费' : '立即开通' }}</button>
       </view>
       <view class="vc-benefits">
         <view class="vb" v-for="b in benefits" :key="b.label">
@@ -54,10 +63,6 @@
     <view class="points-card">
       <view class="pc-head">
         <text class="pc-title">● 我的点数</text>
-        <view class="pc-actions">
-          <text class="pca" @tap="onCDK">兑换码</text>
-          <text class="pca primary" @tap="onBuy">获取点数</text>
-        </view>
       </view>
       <view class="pc-body">
         <text class="pc-num">{{ points }}</text>
@@ -72,14 +77,9 @@
 
     <!-- Menu card -->
     <view class="menu-card">
-      <view class="menu-item" @tap="onUpgrade">
-        <text class="mi-icon">◇</text>
-        <view class="mi-body"><text class="mi-label">会员权益</text><text class="mi-desc">了解会员特权</text></view>
-        <text class="mi-arrow">›</text>
-      </view>
-      <view class="menu-item" @tap="onCS">
-        <text class="mi-icon">☎</text>
-        <view class="mi-body"><text class="mi-label">联系客服</text><text class="mi-desc">专属客服支持</text></view>
+      <view class="menu-item" @tap="goEdit">
+        <text class="mi-icon">◈</text>
+        <view class="mi-body"><text class="mi-label">完善资料</text><text class="mi-desc">头像、昵称、手机号</text></view>
         <text class="mi-arrow">›</text>
       </view>
       <view class="menu-item" v-if="loggedIn" @tap="onLogout">
@@ -154,13 +154,7 @@ export default {
       if (this.phoneText) return this.phoneText
       return '用户' + (this.uidText ? ' ' + this.uidText : '')
     },
-    stats () {
-      return [
-        { value: this.points, label: '剩余点数', sub: '可用点数' },
-        { value: this.reportCount, label: '已生成报告', sub: '累计分析' },
-        { value: this.favCount, label: '收藏地址', sub: '机会池' }
-      ]
-    }
+    stats () { return [] },
   },
   onShow () { this.refreshState() },
   methods: {
@@ -258,10 +252,8 @@ export default {
       auth.clearToken()
       this.loggedIn = false; this.points = 0; this.reportCount = 0; this.favCount = 0
     },
-    onUpgrade () { uni.showToast({ title: '会员充值接入中', icon: 'none' }) },
-    onCDK () { uni.showToast({ title: '兑换码接入中', icon: 'none' }) },
-    onBuy () { uni.showToast({ title: '点数购买接入中', icon: 'none' }) },
-    onCS () { uni.showToast({ title: '客服接入中', icon: 'none' }) }
+    goRecords () { uni.switchTab({ url: '/pages/records/index' }) },
+    goFavorites () { uni.switchTab({ url: '/pages/favorites/index' }) }
   }
 }
 </script>
