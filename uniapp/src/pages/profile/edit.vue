@@ -4,9 +4,11 @@
     <view class="section">
       <view class="sec-title">头像</view>
       <view class="avatar-row">
-        <image v-if="displayAvatarUrl" class="avatar-img" :src="displayAvatarUrl" mode="aspectFill" />
-        <text v-else class="avatar-fb">👤</text>
-        <button class="avatar-btn" open-type="chooseAvatar" @chooseavatar="onChooseAvatar">更换头像</button>
+        <button class="avatar-pick" open-type="chooseAvatar" @chooseavatar="onChooseAvatar">
+          <image v-if="displayAvatarUrl" class="avatar-img" :src="displayAvatarUrl" mode="aspectFill" />
+          <text v-else class="avatar-fb">👤</text>
+        </button>
+        <text class="avatar-hint">点击头像更换</text>
       </view>
     </view>
 
@@ -107,6 +109,11 @@ export default {
     },
     async onSave () {
       this.errMsg = ''
+      // onboarding 模式昵称必填
+      if (this.isOnboarding && !this.nickname.trim()) {
+        this.errMsg = '请填写昵称'
+        return
+      }
       uni.showLoading({ title: '保存中...' })
       let avatarUrl = this.avatarUrl || ''
       // 仅当用户选择了新头像时才上传
@@ -178,7 +185,9 @@ export default {
 .avatar-row { display:flex; align-items:center; gap:20rpx; }
 .avatar-img { width:100rpx; height:100rpx; border-radius:50rpx; }
 .avatar-fb { font-size:80rpx; }
-.avatar-btn { background:#f1f5f9; color:#475569; font-size:26rpx; padding:14rpx 24rpx; border-radius:14rpx; }
+.avatar-pick { background:transparent; border:0; padding:0; margin:0; line-height:1; display:flex; align-items:center; justify-content:center; }
+.avatar-pick::after { border:none; }
+.avatar-hint { font-size:24rpx; color:#94a3b8; }
 .nick-input { border:2rpx solid #e2e8f0; border-radius:14rpx; padding:20rpx; font-size:28rpx; background:#fff; }
 .phone-row { display:flex; align-items:center; justify-content:space-between; }
 .phone-val { font-size:28rpx; color:#1e293b; }

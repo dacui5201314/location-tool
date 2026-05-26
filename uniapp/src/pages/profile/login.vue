@@ -95,10 +95,11 @@ export default {
       if (!user) return true
       const nick = (user.nickname || user.name || '').trim()
       const av = (user.avatar_url || user.avatarUrl || '')
-      // 昵称为空或头像为临时URL → 需要补全
+      // 昵称为空 → 需要补全
       if (!nick) return true
-      if (!av) return true
-      if (av.indexOf('__tmp__') >= 0 || av.indexOf('tmp.weixin.qq.com') >= 0 || av.indexOf('127.0.0.1:26205') >= 0 || av.indexOf('http://tmp/') >= 0) return true
+      // 头像是临时URL → 需要补全
+      if (av && (av.indexOf('__tmp__') >= 0 || av.indexOf('tmp.weixin.qq.com') >= 0 || av.indexOf('127.0.0.1:26205') >= 0 || av.indexOf('http://tmp/') >= 0)) return true
+      // 昵称有值 + 头像为空或为永久URL → 资料可用，不打扰
       return false
     },
     async goToEditOnboarding () {

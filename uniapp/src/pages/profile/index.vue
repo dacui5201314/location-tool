@@ -3,14 +3,16 @@
     <!-- Top section -->
     <view class="top">
       <template v-if="loggedIn">
-        <view class="top-row" @tap="goEdit">
-          <image v-if="displayAvatarUrl" class="avatar-img" :src="displayAvatarUrl" mode="aspectFill" />
-          <text v-else class="avatar-fb">👤</text>
-          <view class="top-mid">
+        <view class="top-row">
+          <button class="avatar-pick-btn" open-type="chooseAvatar" @chooseavatar="onProfileAvatar">
+            <image v-if="displayAvatarUrl" class="avatar-img" :src="displayAvatarUrl" mode="aspectFill" />
+            <text v-else class="avatar-fb">👤</text>
+          </button>
+          <view class="top-mid" @tap="goEdit">
             <text class="uname">{{ displayName }}</text>
             <text class="uid" v-if="uidText">{{ uidText }}</text>
           </view>
-          <text class="arrow">›</text>
+          <text class="arrow" @tap="goEdit">›</text>
         </view>
       </template>
       <template v-else>
@@ -324,6 +326,25 @@ export default {
     goRecords () { uni.switchTab({ url: '/pages/records/index' }) },
     goFavorites () { uni.switchTab({ url: '/pages/favorites/index' }) },
     goEdit () { uni.navigateTo({ url: '/pages/profile/edit' }) },
+    async onProfileAvatar (e) {
+      const url = e.detail && e.detail.avatarUrl
+      if (!url) return
+      uni.showLoading({ title: '上传中...' })
+      try {
+        const uploadR = await api.uploadAvatar(url)
+        uni.hideLoading()
+        if (uploadR.ok && uploadR.data && uploadR.data.avatar_url) {
+          if (uploadR.data.user) auth.setUser(uploadR.data.user)
+          this.avatarUrl = uploadR.data.avatar_url
+          uni.showToast({ title: '头像已更新', icon: 'success' })
+        } else {
+          uni.showToast({ title: uploadR.data?.detail || '头像上传失败', icon: 'none' })
+        }
+      } catch (e) {
+        uni.hideLoading()
+        uni.showToast({ title: '头像上传失败', icon: 'none' })
+      }
+    },
     openCsSheet () { this.csSheetOpen = true },
     copyCs (text) { uni.setClipboardData({ data: text, success: () => uni.showToast({ title: '已复制', icon: 'none' }) }) },
     callCs (phone) { uni.makePhoneCall({ phoneNumber: phone }) },
@@ -358,6 +379,8 @@ export default {
 .top-row { display:flex; align-items:center; text-align:left; }
 .avatar-img { width:100rpx; height:100rpx; border-radius:50%; border:3rpx solid rgba(255,255,255,0.3); flex-shrink:0; }
 .avatar-fb { font-size:80rpx; }
+.avatar-pick-btn { background:transparent; border:0; padding:0; margin:0; line-height:1; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+.avatar-pick-btn::after { border:none; }
 .top-mid { flex:1; margin-left:24rpx; }
 .uname { display:block; font-size:36rpx; font-weight:700; }
 .uid { display:block; font-size:24rpx; color:rgba(255,255,255,0.6); margin-top:4rpx; }
