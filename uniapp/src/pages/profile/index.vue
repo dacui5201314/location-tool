@@ -193,10 +193,7 @@ export default {
       avatarUrl: '', phoneText: '', userName: '', uidText: '',
       points: 0, freePointActive: true, freePointExpiry: '',
       memberDays: 0, memberExpiry: '', reportCount: 0, favCount: 0,
-      rechargeOpen: false, rechargeTab: 'points',
-      cdkOpen: false, cdkCode: '', cdkLoading: false, payErr: '',
-      csSheetOpen: false, csQrUrl: '', csWechat: '', csPhone: '',
-      skus: [],
+      csQrUrl: '', csWechat: '', csPhone: '',
       benefits: [
         { icon:'∞',label:'无限分析',desc:'次数不限' },
         { icon:'📄',label:'高级报告',desc:'多维评估' },

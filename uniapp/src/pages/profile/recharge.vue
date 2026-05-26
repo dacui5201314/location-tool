@@ -54,6 +54,7 @@
 
 <script>
 import api from '../../utils/api'
+import auth from '../../utils/auth'
 import config from '../../utils/config'
 
 export default {
@@ -105,6 +106,10 @@ export default {
                   const qr = await api.queryOrder(outTradeNo)
                   if (qr.ok && qr.data && qr.data.status === 'PAID') {
                     this.payErr = ''
+                    try {
+                      const p = await api.fetchProfile()
+                      if (p.ok && p.data) auth.setUser(p.data.user || p.data)
+                    } catch (e) {}
                     uni.showToast({ title: '支付成功，已到账', icon: 'success' })
                     return
                   }

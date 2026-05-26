@@ -16,6 +16,7 @@
 
 <script>
 import api from '../../utils/api'
+import auth from '../../utils/auth'
 
 export default {
   data () { return { code: '', loading: false, resultMsg: '', resultOk: false } },
@@ -29,6 +30,12 @@ export default {
           this.resultOk = true
           this.resultMsg = `兑换成功，+${r.data.credits_added} 点已到账`
           this.code = ''
+          // 刷新后端点数到本地
+          try {
+            const p = await api.fetchProfile()
+            if (p.ok && p.data) auth.setUser(p.data.user || p.data)
+          } catch (e) {}
+          setTimeout(() => uni.navigateBack({ delta: 1 }), 1200)
         } else {
           this.resultOk = false
           if (r.statusCode === 404) this.resultMsg = '兑换码不存在'
