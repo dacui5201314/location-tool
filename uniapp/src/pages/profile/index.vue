@@ -46,7 +46,7 @@
           <text class="vc-title">VIP会员 {{ memberDays > 0 ? memberDays+'天' : '未开通' }}</text>
           <text class="vc-desc">{{ memberDays > 0 ? '有效期至 '+memberExpiry : '开通会员，解锁全部高级功能' }}</text>
         </view>
-        <button class="vc-btn" @tap="openRecharge">{{ memberDays > 0 ? '立即续费' : '立即开通' }}</button>
+        <button class="vc-btn" @tap="goRecharge">{{ memberDays > 0 ? '立即续费' : '立即开通' }}</button>
       </view>
       <view class="vc-benefits">
         <view class="vb" v-for="b in benefits" :key="b.label">
@@ -62,8 +62,8 @@
       <view class="pc-head">
         <text class="pc-title">● 我的点数</text>
         <view class="pc-actions">
-          <text class="pca" @tap="cdkOpen = true">兑换码</text>
-          <text class="pca primary" @tap="openRecharge">获取点数</text>
+          <text class="pca" @tap="goRedeem">兑换码</text>
+          <text class="pca primary" @tap="goRecharge">获取点数</text>
         </view>
       </view>
       <view class="pc-body">
@@ -84,7 +84,7 @@
         <view class="mi-body"><text class="mi-label">完善资料</text></view>
         <text class="mi-arrow">›</text>
       </view>
-      <view class="menu-item" v-if="csQrUrl || csWechat || csPhone" @tap="openCsSheet">
+      <view class="menu-item" v-if="csQrUrl || csWechat || csPhone" @tap="goRecharge">
         <text class="mi-icon">☎</text>
         <view class="mi-body"><text class="mi-label">联系客服</text></view>
         <text class="mi-arrow">›</text>
@@ -305,9 +305,9 @@ export default {
         }
       } catch (e) { this.payErr = '网络异常' }
     },
-    goLogin () {
-      uni.navigateTo({ url: '/pages/profile/login' })
-    },
+    goLogin () { uni.navigateTo({ url: '/pages/profile/login' }) },
+    goRedeem () { uni.navigateTo({ url: '/pages/profile/redeem' }) },
+    goRecharge () { uni.navigateTo({ url: '/pages/profile/recharge' }) },
     goRecords () { uni.switchTab({ url: '/pages/records/index' }) },
     goFavorites () { uni.switchTab({ url: '/pages/favorites/index' }) },
     goEdit () { uni.navigateTo({ url: '/pages/profile/edit' }) },

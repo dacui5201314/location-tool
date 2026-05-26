@@ -25,6 +25,14 @@
       }
     },
     {
+      "path": "pages/profile/redeem",
+      "style": { "navigationBarTitleText": "兑换码", "navigationBarBackgroundColor": "#0b3fbd", "navigationBarTextStyle": "white" }
+    },
+    {
+      "path": "pages/profile/recharge",
+      "style": { "navigationBarTitleText": "充值中心", "navigationBarBackgroundColor": "#0b3fbd", "navigationBarTextStyle": "white" }
+    },
+    {
       "path": "pages/profile/login",
       "style": {
         "navigationBarTitleText": "登录",
