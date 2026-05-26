@@ -277,45 +277,6 @@ export default {
         this.loggedIn = false
       }
     },
-    // ── 小程序标准登录：getPhoneNumber 一键授权 ──
-    async onPhoneNumberLogin (e) {
-      this.loginErr = ''
-      const detail = e.detail || {}
-      if (detail.errMsg && detail.errMsg.indexOf('deny') >= 0) {
-        this.loginErr = '手机号授权已取消'; return
-      }
-      const phoneCode = detail.code
-      if (!phoneCode) { this.loginErr = '获取手机号失败，请重试'; return }
-
-      this.loginLoading = true
-      try {
-        // Step 1: wx.login 拿到 login code
-        const loginRes = await new Promise((resolve, reject) => {
-          uni.login({ provider: 'weixin', success: resolve, fail: reject })
-        })
-        if (!loginRes.code) { this.loginLoading = false; this.loginErr = '微信登录失败'; return }
-
-        // Step 2: 后端 phone-login（合并 wx.login code + getPhoneNumber code）
-        const r = await api.phoneLogin(loginRes.code, phoneCode)
-        if (r.ok) {
-          auth.setToken(r.data.token)
-          auth.setUser(r.data.user)
-          if (r.data.wx_mini_openid) uni.setStorageSync('wx_mini_openid', r.data.wx_mini_openid)
-          uni.showToast({ title: '登录成功', icon: 'success' })
-          this.refreshState()
-        } else {
-          const sc = r.statusCode
-          if (sc === 503) this.loginErr = '登录服务暂不可用'
-          else if (sc === 400) this.loginErr = '登录失败，请重试'
-          else if (sc === 409) this.loginErr = '该手机号已绑定其他账号'
-          else this.loginErr = '登录失败，请稍后重试'
-        }
-      } catch (e) {
-        this.loginErr = '网络异常，请稍后重试'
-      } finally {
-        this.loginLoading = false
-      }
-    },
     openRecharge () { this.rechargeOpen = true; this.payErr = '' },
     async onBuy (sku) {
       this.payErr = ''
@@ -359,12 +320,7 @@ export default {
       } catch (e) { this.payErr = '网络异常' }
     },
     goLogin () {
-      // [DEBUG] release 前移除 console
-      console.log('[goLogin] navigating to login page')
-      uni.navigateTo({
-        url: '/pages/profile/login',
-        fail: (e) => { uni.showToast({ title: '页面跳转失败: ' + (e.errMsg || '未知'), icon: 'none' }) }
-      })
+      uni.navigateTo({ url: '/pages/profile/login' })
     },
     goRecords () { uni.switchTab({ url: '/pages/records/index' }) },
     goFavorites () { uni.switchTab({ url: '/pages/favorites/index' }) },
