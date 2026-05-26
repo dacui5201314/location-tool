@@ -471,10 +471,17 @@ export default function AdminPage() {
     if (filter.dateFrom) params.set('date_from', filter.dateFrom)
     if (filter.dateTo) params.set('date_to', filter.dateTo)
     const qs = params.toString()
-    adminFetch(`/users?${qs}`).then(r => r.json()).then(d => {
-      setUsers(d.users || [])
-      setUsersTotal(d.total || 0)
-      setUsersPage(d.page || page)
+    adminFetch(`/users?${qs}`).then(r => {
+      if (!r.ok) {
+        if (r.status === 401) { clearAdminToken(); setAuthed(false); showToast('管理员登录已过期，请重新登录') }
+        else throw new Error(`HTTP ${r.status}`)
+        return
+      }
+      return r.json().then(d => {
+        setUsers(d.users || [])
+        setUsersTotal(d.total || 0)
+        setUsersPage(d.page || page)
+      })
     }).catch(() => showToast('用户列表加载失败'))
   }
   const handleUserFilter = () => {
