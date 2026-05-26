@@ -665,9 +665,7 @@ export default {
 </script>
 
 <style scoped>
-/* 首帧防白：page 默认白底在热重载瞬间会闪白，用页面底色兜底 */
-page { background-color:#f2f6ff; }
-.home-page { min-height:100vh; background:radial-gradient(circle at 50% -8%,rgba(49,91,255,0.12),transparent 34%),linear-gradient(180deg,#f8fbff 0%,#f2f6ff 48%,#eef3fb 100%); padding-bottom:108rpx; overflow-x:hidden; }
+.home-page { min-height:100vh; background-color:#dce4f2; background-image:radial-gradient(circle at 50% -8%,rgba(49,91,255,0.12),transparent 34%),linear-gradient(180deg,#dce4f2 0%,#e6edf7 48%,#dce4f2 100%); padding-bottom:108rpx; overflow-x:hidden; }
 
 /* ── Hero ── */
 .hero { background:radial-gradient(circle at 76% 38%,rgba(83,137,255,0.48),transparent 24%),radial-gradient(circle at 66% 60%,rgba(139,92,246,0.24),transparent 26%),radial-gradient(circle at 58% 58%,rgba(248,200,97,0.10),transparent 22%),linear-gradient(180deg,#0b3fbd 0%,#0d35ad 28%,#151f8f 68%,#241b83 100%); padding:46rpx 28rpx 122rpx; position:relative; overflow:hidden; }
