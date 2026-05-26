@@ -203,12 +203,12 @@ async def wechat_notify(request: Request, db: Session = Depends(get_db)):
 
     mchid, appid, api_v3_key, cert_serial, pk_path, notify_url, plat_cert_path = _pay_config(db)
 
-    # 0. Wechatpay-Serial 校验
+    # 0. Wechatpay-Serial 校验（是平台证书序列号，不是商户证书序列号）
     wx_serial = request.headers.get("Wechatpay-Serial", "")
     if not wx_serial:
         return JSONResponse(status_code=400, content={"code": "FAIL", "message": "missing Wechatpay-Serial header"})
 
-    # 1. 使用微信平台证书验签
+    # 1. 加载平台证书 + 验签 + 序列号比对
     ts = request.headers.get("Wechatpay-Timestamp", "")
     nonce = request.headers.get("Wechatpay-Nonce", "")
     sig_header = request.headers.get("Wechatpay-Signature", "")
@@ -221,21 +221,21 @@ async def wechat_notify(request: Request, db: Session = Depends(get_db)):
             raise FileNotFoundError("WX_PAY_PLATFORM_CERT_PATH not configured")
         with open(plat_cert_path, "rb") as f:
             cert_raw = f.read()
-        # 微信平台证书是 x509 PEM
-        try:
-            from cryptography import x509 as x509_mod
-            cert = x509_mod.load_pem_x509_certificate(cert_raw)
-            plat_key = cert.public_key()
-        except Exception:
-            plat_key = serialization.load_pem_public_key(cert_raw)
+        # 微信平台证书是 x509 PEM；从证书提取序列号
+        from cryptography import x509 as x509_mod
+        cert = x509_mod.load_pem_x509_certificate(cert_raw)
+        plat_key = cert.public_key()
+        # serial_number 是 int，微信 header 是 hex 大写字符串
+        plat_serial = format(cert.serial_number, 'X')
+        # 验签
         sig_bytes = base64.b64decode(sig_header)
         plat_key.verify(sig_bytes, sign_raw.encode(), padding.PKCS1v15(), hashes.SHA256())
     except Exception:
         return JSONResponse(status_code=400, content={"code": "FAIL", "message": "signature verification failed"})
 
-    # 1b. serial 一致性检查
-    if wx_serial != cert_serial:
-        print(f"[Pay Notify] serial mismatch: header={wx_serial[:20]}... config={cert_serial[:20]}...", flush=True)
+    # 平台证书序列号必须与 header 一致
+    if wx_serial.upper() != plat_serial:
+        return JSONResponse(status_code=400, content={"code": "FAIL", "message": "platform serial mismatch"})
 
     # 2. AES-GCM 解密
     try:

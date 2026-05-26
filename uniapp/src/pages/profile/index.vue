@@ -186,6 +186,7 @@
         <text class="sheet-desc">使用手机号快速登录，体验完整功能</text>
         <button class="sheet-btn primary" open-type="getPhoneNumber" @getphonenumber="onPhoneLogin">📱 手机号一键登录</button>
         <button class="sheet-btn secondary" @tap="onWxLogin">💬 微信登录</button>
+        <text class="sheet-phone-link" @tap="showLoginSheet = false; goLogin()">手机号密码登录</text>
         <text class="sheet-skip" @tap="showLoginSheet = false">暂时跳过，先看看</text>
         <text class="sheet-privacy">登录即表示同意《用户协议》和《隐私政策》</text>
       </view>
@@ -516,6 +517,7 @@ export default {
 .sheet-btn { width:100%; border-radius:16rpx; font-size:30rpx; font-weight:600; padding:24rpx 0; margin-bottom:16rpx; }
 .sheet-btn.primary { background:#07c160; color:#fff; }
 .sheet-btn.secondary { background:#f1f5f9; color:#475569; }
+.sheet-phone-link { display:block; font-size:24rpx; color:#315bff; padding:10rpx; }
 .sheet-skip { display:block; font-size:24rpx; color:#94a3b8; padding:12rpx; }
 .sheet-privacy { display:block; font-size:20rpx; color:#cbd5e1; margin-top:16rpx; }
 </style>
