@@ -1,21 +1,24 @@
 """微信支付 — JSAPI v3 prepay + notify + order query
-优先读管理后台 DB SystemConfig，环境变量作为 fallback。
-私钥/平台证书路径仅从环境变量读取（文件路径不适配 DB）。
+DB 优先（管理后台 SystemConfig），环境变量 fallback。
+私钥/平台证书路径仅从环境变量读取。
+API_V3_KEY 必须是 32 字节（AES-256-GCM 要求）。
 """
-import os, json, hashlib, time, base64
+import os, json, time, base64, secrets
 from datetime import datetime, timedelta
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
-from database import get_db, SessionLocal
+from database import get_db
 from models.db_models import User, BillingRecord, PaymentOrder
 from services.runtime_config import get_user_skus, get_core_config
 from auth import get_current_user
 
 try:
+    import cryptography  # noqa: F401
     from cryptography.hazmat.primitives import hashes, serialization
     from cryptography.hazmat.primitives.asymmetric import padding
+    from cryptography.hazmat.primitives.ciphers.aead import AESGCM
     _CRYPTO_OK = True
 except ImportError:
     _CRYPTO_OK = False
@@ -23,11 +26,13 @@ except ImportError:
 router = APIRouter(prefix="/api/pay", tags=["支付"])
 
 
-# ── 支付配置：DB 优先（管理后台填写），环境变量 fallback ──
+# ── 安全随机 nonce ──
+def _rand_nonce():
+    return secrets.token_urlsafe(12)[:16]
+
+
+# ── 支付配置：DB 优先，env fallback ──
 def _pay_config(db=None):
-    """返回 (mchid, appid, api_v3_key, cert_serial, pk_path, notify_url, plat_cert_path)
-    DB SystemConfig 优先，未配置时 fallback 环境变量。
-    """
     cfg = get_core_config(db) if db else {}
     env = os.getenv
     return (
@@ -41,17 +46,24 @@ def _pay_config(db=None):
     )
 
 
-def _configured(db=None):
+def _prepay_configured(db=None):
+    """prepay 只需要商户配置 + 私钥，不需要平台证书"""
+    mchid, appid, key, cert, pk, notify, _ = _pay_config(db)
+    return all([mchid, appid, key, cert, pk, notify]) and len(key) == 32
+
+
+def _notify_configured(db=None):
+    """notify 额外需要平台证书"""
     vals = _pay_config(db)
-    return all(vals)
+    return all(vals) and len(vals[2]) == 32
 
 
-# ── APIv3 签名 ──
+# ── APIv3 SHA256-RSA2048 签名 ──
 def _sign(method, url_path, body_str, mchid, cert_serial, pk_path):
     if not _CRYPTO_OK:
-        raise HTTPException(status_code=500, detail="cryptography library required")
+        raise HTTPException(status_code=500, detail="cryptography 依赖未安装")
     ts = str(int(time.time()))
-    nonce = hashlib.md5(ts.encode()).hexdigest()[:16]
+    nonce = _rand_nonce()
     sign_raw = f"{method}\n{url_path}\n{ts}\n{nonce}\n{body_str}\n"
     with open(pk_path, "rb") as f:
         priv = serialization.load_pem_private_key(f.read(), password=None)
@@ -89,8 +101,8 @@ def wechat_prepay(
     db: Session = Depends(get_db),
 ):
     """真实微信 JSAPI v3 预支付下单"""
-    if not _configured(db):
-        raise HTTPException(status_code=503, detail="支付服务暂不可用，请在管理后台配置微信支付商户信息")
+    if not _prepay_configured(db):
+        raise HTTPException(status_code=503, detail="支付服务暂不可用，请在管理后台完善微信支付商户配置（商户号/AppID/APIv3密钥32位/证书序列号/私钥路径/回调地址）")
     mchid, appid, api_v3_key, cert_serial, pk_path, notify_url, _ = _pay_config(db)
 
     user_id = int(user["user_id"])
@@ -163,9 +175,9 @@ def wechat_prepay(
         db.commit()
         raise HTTPException(status_code=502, detail=f"微信支付下单失败: {json.dumps(wx_resp, ensure_ascii=False)[:200]}")
 
-    # 生成小程序调起支付参数
+    # 生成小程序调起支付参数（安全随机 nonce）
     ts = str(int(time.time()))
-    nonce = hashlib.md5(ts.encode()).hexdigest()[:16]
+    nonce = _rand_nonce()
     package = f"prepay_id={prepay_id}"
     sign_raw = f"{appid}\n{ts}\n{nonce}\n{package}\n"
     with open(pk_path, "rb") as f:
@@ -185,13 +197,18 @@ def wechat_prepay(
 
 @router.post("/wechat/notify")
 async def wechat_notify(request: Request, db: Session = Depends(get_db)):
-    """微信支付回调 — 平台证书验签 + AES-GCM 解密 + 安全校验 + 幂等到账"""
-    if not _configured(db):
-        return JSONResponse(status_code=500, content={"code": "FAIL", "message": "not configured"})
+    """微信支付回调 — 平台证书验签 + serial 校验 + AES-GCM 解密 + 安全校验 + 幂等到账"""
+    if not _notify_configured(db):
+        return JSONResponse(status_code=500, content={"code": "FAIL", "message": "notify not fully configured"})
 
     mchid, appid, api_v3_key, cert_serial, pk_path, notify_url, plat_cert_path = _pay_config(db)
 
-    # 1. 使用微信平台证书验签（不是商户私钥）
+    # 0. Wechatpay-Serial 校验
+    wx_serial = request.headers.get("Wechatpay-Serial", "")
+    if not wx_serial:
+        return JSONResponse(status_code=400, content={"code": "FAIL", "message": "missing Wechatpay-Serial header"})
+
+    # 1. 使用微信平台证书验签
     ts = request.headers.get("Wechatpay-Timestamp", "")
     nonce = request.headers.get("Wechatpay-Nonce", "")
     sig_header = request.headers.get("Wechatpay-Signature", "")
@@ -204,10 +221,10 @@ async def wechat_notify(request: Request, db: Session = Depends(get_db)):
             raise FileNotFoundError("WX_PAY_PLATFORM_CERT_PATH not configured")
         with open(plat_cert_path, "rb") as f:
             cert_raw = f.read()
-        # 优先按 x509 证书解析（微信平台证书），失败再按裸公钥
+        # 微信平台证书是 x509 PEM
         try:
-            from cryptography import x509
-            cert = x509.load_pem_x509_certificate(cert_raw)
+            from cryptography import x509 as x509_mod
+            cert = x509_mod.load_pem_x509_certificate(cert_raw)
             plat_key = cert.public_key()
         except Exception:
             plat_key = serialization.load_pem_public_key(cert_raw)
@@ -216,14 +233,17 @@ async def wechat_notify(request: Request, db: Session = Depends(get_db)):
     except Exception:
         return JSONResponse(status_code=400, content={"code": "FAIL", "message": "signature verification failed"})
 
-    # 2. 解密 resource
+    # 1b. serial 一致性检查
+    if wx_serial != cert_serial:
+        print(f"[Pay Notify] serial mismatch: header={wx_serial[:20]}... config={cert_serial[:20]}...", flush=True)
+
+    # 2. AES-GCM 解密
     try:
         notify_data = json.loads(body_str)
         resource = notify_data.get("resource", {})
         cipher = resource.get("ciphertext", "")
         r_nonce = resource.get("nonce", "")
         associated_data = resource.get("associated_data", "")
-        from cryptography.hazmat.primitives.ciphers.aead import AESGCM
         aesgcm = AESGCM(api_v3_key.encode())
         decrypted = aesgcm.decrypt(r_nonce.encode(), base64.b64decode(cipher), associated_data.encode())
         trade_data = json.loads(decrypted)
