@@ -4,7 +4,7 @@
     <view class="top">
       <template v-if="loggedIn">
         <view class="top-row">
-          <button class="avatar-pick-btn" open-type="chooseAvatar" @chooseavatar="onProfileAvatar">
+          <button class="avatar-pick-btn" open-type="chooseAvatar" @chooseavatar="onProfileAvatar" :disabled="avatarUploading">
             <image v-if="displayAvatarUrl" class="avatar-img" :src="displayAvatarUrl" mode="aspectFill" />
             <text v-else class="avatar-fb">👤</text>
           </button>
@@ -192,6 +192,7 @@ export default {
   data () {
     return {
       loggedIn: false, loginLoading: false, loginErr: '',
+      avatarUploading: false,
       avatarUrl: '', phoneText: '', userName: '', uidText: '',
       points: 0, freePointActive: true, freePointExpiry: '',
       memberDays: 0, memberExpiry: '', reportCount: 0, favCount: 0,
@@ -327,8 +328,10 @@ export default {
     goFavorites () { uni.switchTab({ url: '/pages/favorites/index' }) },
     goEdit () { uni.navigateTo({ url: '/pages/profile/edit' }) },
     async onProfileAvatar (e) {
+      if (this.avatarUploading) return
       const url = e.detail && e.detail.avatarUrl
       if (!url) return
+      this.avatarUploading = true
       uni.showLoading({ title: '上传中...' })
       try {
         const uploadR = await api.uploadAvatar(url)
@@ -344,6 +347,7 @@ export default {
         uni.hideLoading()
         uni.showToast({ title: '头像上传失败', icon: 'none' })
       }
+      this.avatarUploading = false
     },
     openCsSheet () { this.csSheetOpen = true },
     copyCs (text) { uni.setClipboardData({ data: text, success: () => uni.showToast({ title: '已复制', icon: 'none' }) }) },
@@ -379,7 +383,7 @@ export default {
 .top-row { display:flex; align-items:center; text-align:left; }
 .avatar-img { width:100rpx; height:100rpx; border-radius:50%; border:3rpx solid rgba(255,255,255,0.3); flex-shrink:0; }
 .avatar-fb { font-size:80rpx; }
-.avatar-pick-btn { background:transparent; border:0; padding:0; margin:0; line-height:1; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+.avatar-pick-btn { background:transparent; border:0; padding:0; margin:0; line-height:1; display:flex; align-items:center; justify-content:center; flex-shrink:0; border-radius:50%; }
 .avatar-pick-btn::after { border:none; }
 .top-mid { flex:1; margin-left:24rpx; }
 .uname { display:block; font-size:36rpx; font-weight:700; }

@@ -33,7 +33,7 @@
     <text class="err" v-if="errMsg">{{ errMsg }}</text>
 
     <!-- 保存 -->
-    <button class="save-btn" @tap="onSave">{{ isOnboarding ? '完成并进入' : '保存' }}</button>
+    <button class="save-btn" :disabled="saving" @tap="onSave">{{ saving ? '保存中...' : (isOnboarding ? '完成并进入' : '保存') }}</button>
   </view>
 </template>
 
@@ -46,6 +46,7 @@ export default {
   data () {
     return {
       isOnboarding: false,
+      saving: false,
       avatarUrl: '',
       avatarChanged: false,
       nickname: '',
@@ -108,12 +109,14 @@ export default {
       }).catch(() => { this.phoneBindErr = '网络异常' })
     },
     async onSave () {
+      if (this.saving) return
       this.errMsg = ''
       // onboarding 模式昵称必填
       if (this.isOnboarding && !this.nickname.trim()) {
         this.errMsg = '请填写昵称'
         return
       }
+      this.saving = true
       uni.showLoading({ title: '保存中...' })
       let avatarUrl = this.avatarUrl || ''
       // 仅当用户选择了新头像时才上传
@@ -127,6 +130,7 @@ export default {
             })
             if (dl.statusCode < 200 || dl.statusCode >= 300 || !dl.tempFilePath) {
               uni.hideLoading()
+              this.saving = false
               this.errMsg = '头像上传失败，请稍后重试'
               return
             }
@@ -137,11 +141,13 @@ export default {
             avatarUrl = uploadR.data.avatar_url
           } else {
             uni.hideLoading()
+            this.saving = false
             this.errMsg = uploadR.data?.detail || '头像上传失败，请稍后重试'
             return
           }
         } catch (e) {
           uni.hideLoading()
+          this.saving = false
           this.errMsg = '头像上传失败，请稍后重试'
           return
         }
@@ -173,6 +179,7 @@ export default {
         uni.hideLoading()
         this.errMsg = '网络异常，请重试'
       }
+      this.saving = false
     }
   }
 }
@@ -185,7 +192,7 @@ export default {
 .avatar-row { display:flex; align-items:center; gap:20rpx; }
 .avatar-img { width:100rpx; height:100rpx; border-radius:50rpx; }
 .avatar-fb { font-size:80rpx; }
-.avatar-pick { background:transparent; border:0; padding:0; margin:0; line-height:1; display:flex; align-items:center; justify-content:center; }
+.avatar-pick { background:transparent; border:0; padding:0; margin:0; line-height:1; display:flex; align-items:center; justify-content:center; border-radius:50%; }
 .avatar-pick::after { border:none; }
 .avatar-hint { font-size:24rpx; color:#94a3b8; }
 .nick-input { border:2rpx solid #e2e8f0; border-radius:14rpx; padding:20rpx; font-size:28rpx; background:#fff; }
