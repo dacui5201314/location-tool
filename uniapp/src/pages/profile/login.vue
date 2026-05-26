@@ -56,9 +56,11 @@
       </view>
 
       <!-- 协议勾选 -->
-      <view class="agree-row" @tap="toggleAgree">
-        <text class="agree-check">{{ agreed ? '●' : '○' }}</text>
-        <text class="agree-text">已阅读并同意《用户协议》《隐私政策》</text>
+      <view class="agree-row">
+        <text class="agree-check" @tap="toggleAgree">{{ agreed ? '●' : '○' }}</text>
+        <text class="agree-text">已阅读并同意</text>
+        <text class="agree-link" @tap="openUserAgreement">《用户协议》</text>
+        <text class="agree-link" @tap="openPrivacyPolicy">《隐私政策》</text>
       </view>
       <text class="agree-err" v-if="showAgreeErr">请先阅读并同意用户协议和隐私政策</text>
 
@@ -87,6 +89,8 @@ export default {
     toggleAgree () { this.agreed = !this.agreed; this.showAgreeErr = false; this.errMsg = '' },
     switchMode (m) { this.mode = m; this.showAgreeErr = false; this.errMsg = '' },
     goBack () { uni.navigateBack({ delta: 1 }).catch(() => uni.switchTab({ url: '/pages/home/index' })) },
+    openUserAgreement () { uni.navigateTo({ url: '/pages/legal/user-agreement' }) },
+    openPrivacyPolicy () { uni.navigateTo({ url: '/pages/legal/privacy-policy' }) },
     requireAgreement () {
       this.showAgreeErr = true
       this.errMsg = ''
@@ -137,7 +141,13 @@ export default {
           const sc = r.statusCode
           if (sc === 404) this.errMsg = '后端登录接口未更新，请重启服务'
           else if (sc === 503) this.errMsg = '微信登录配置未完成'
-          else if (sc === 400) this.errMsg = '微信登录参数无效，请稍后重试'
+          else if (sc === 400) {
+            if (r.data?.detail === 'invalid_code') {
+              this.errMsg = '当前环境无法使用手机号快捷登录，请切换至密码登录'
+            } else {
+              this.errMsg = r.data?.detail || '登录失败'
+            }
+          }
           else this.errMsg = r.data?.detail || '登录失败'
         }
       } catch (e) { uni.hideLoading(); this.errMsg = '网络异常' }
@@ -202,6 +212,7 @@ export default {
 .agree-row { display:flex; align-items:center; margin-top:28rpx; padding:0 8rpx; }
 .agree-check { font-size:24rpx; color:#8b99b6; margin-right:10rpx; }
 .agree-text { font-size:24rpx; color:#8b99b6; }
+.agree-link { font-size:24rpx; color:#315bff; font-weight:600; }
 .agree-err { font-size:22rpx; color:#dc2626; padding-left:40rpx; display:block; }
 .err-msg { display:block; text-align:center; font-size:24rpx; color:#dc2626; margin-top:14rpx; }
 .bottom-section { text-align:center; padding:32rpx 0 48rpx; }

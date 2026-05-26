@@ -510,7 +510,7 @@ def wechat_mini_login(
     openid = wx_data.get("openid", "")
     unionid = wx_data.get("unionid", "")
     if not openid:
-        raise HTTPException(status_code=400, detail="未获取到微信 OpenID，请检查小程序配置")
+        raise HTTPException(status_code=400, detail="invalid_code")
 
     # 2. 查找或创建用户
     client_ip = _get_client_ip(request) if request else ""
@@ -673,10 +673,13 @@ def wechat_mini_phone_login(
     except Exception:
         raise HTTPException(status_code=502, detail="微信服务不可达")
 
+    wx_err = wx_data.get("errcode", 0)
+    if wx_err:
+        raise HTTPException(status_code=400, detail="invalid_code")
     openid = wx_data.get("openid", "")
     unionid = wx_data.get("unionid", "")
     if not openid:
-        raise HTTPException(status_code=400, detail="未获取到微信 OpenID，请检查小程序配置")
+        raise HTTPException(status_code=400, detail="invalid_code")
 
     # Step 2: 获取 access_token 后换取手机号
     try:

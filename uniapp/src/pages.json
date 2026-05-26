@@ -71,6 +71,22 @@
         "navigationBarBackgroundColor": "#0b3fbd",
         "navigationBarTextStyle": "white"
       }
+    },
+    {
+      "path": "pages/legal/user-agreement",
+      "style": {
+        "navigationBarTitleText": "用户协议",
+        "navigationBarBackgroundColor": "#0b3fbd",
+        "navigationBarTextStyle": "white"
+      }
+    },
+    {
+      "path": "pages/legal/privacy-policy",
+      "style": {
+        "navigationBarTitleText": "隐私政策",
+        "navigationBarBackgroundColor": "#0b3fbd",
+        "navigationBarTextStyle": "white"
+      }
     }
   ],
   "tabBar": {
