@@ -91,6 +91,28 @@ export default {
       this.showAgreeErr = true
       this.errMsg = ''
     },
+    isProfileIncomplete (user) {
+      if (!user) return true
+      const nick = (user.nickname || user.name || '').trim()
+      const av = (user.avatar_url || user.avatarUrl || '')
+      // 昵称为空或头像为临时URL → 需要补全
+      if (!nick) return true
+      if (!av) return true
+      if (av.indexOf('__tmp__') >= 0 || av.indexOf('tmp.weixin.qq.com') >= 0 || av.indexOf('127.0.0.1:26205') >= 0 || av.indexOf('http://tmp/') >= 0) return true
+      return false
+    },
+    async goToEditOnboarding () {
+      uni.navigateTo({ url: '/pages/profile/edit?onboarding=1' })
+    },
+    handleAfterLogin (user) {
+      if (this.isProfileIncomplete(user)) {
+        uni.showToast({ title: '请完善个人资料', icon: 'none' })
+        setTimeout(() => this.goToEditOnboarding(), 800)
+      } else {
+        uni.showToast({ title: '登录成功', icon: 'success' })
+        setTimeout(() => uni.navigateBack({ delta: 1 }), 600)
+      }
+    },
     async onWxPhoneLogin (e) {
       this.showAgreeErr = false
       // agreed 已由按钮 v-if 保证，此处不再检查
@@ -109,8 +131,7 @@ export default {
         if (r.ok) {
           auth.setToken(r.data.token); auth.setUser(r.data.user)
           if (r.data.wx_mini_openid) uni.setStorageSync('wx_mini_openid', r.data.wx_mini_openid)
-          uni.showToast({ title: '登录成功', icon: 'success' })
-          setTimeout(() => uni.navigateBack({ delta: 1 }), 600)
+          this.handleAfterLogin(r.data.user)
         } else {
           const sc = r.statusCode
           if (sc === 404) this.errMsg = '后端登录接口未更新，请重启服务'
@@ -130,8 +151,7 @@ export default {
         const r = await api.request({ url: '/api/auth/login', method: 'POST', data: { phone: this.phone.trim(), password: this.password }, auth: false })
         if (r.ok) {
           auth.setToken(r.data.token); if (r.data.user) auth.setUser(r.data.user)
-          uni.showToast({ title: '登录成功', icon: 'success' })
-          setTimeout(() => uni.navigateBack({ delta: 1 }), 600)
+          this.handleAfterLogin(r.data.user)
         } else {
           if (r.statusCode === 401) this.errMsg = '手机号或密码错误'
           else this.errMsg = r.data?.detail || '登录失败'
@@ -149,8 +169,7 @@ export default {
         const r = await api.request({ url: '/api/auth/register', method: 'POST', data: { phone: this.regPhone.trim(), password: this.regPassword }, auth: false })
         if (r.ok) {
           auth.setToken(r.data.token); if (r.data.user) auth.setUser(r.data.user)
-          uni.showToast({ title: '注册成功', icon: 'success' })
-          setTimeout(() => uni.navigateBack({ delta: 1 }), 600)
+          this.handleAfterLogin(r.data.user)
         } else {
           if (r.statusCode === 409) this.errMsg = '该手机号已注册'
           else this.errMsg = r.data?.detail || '注册失败'

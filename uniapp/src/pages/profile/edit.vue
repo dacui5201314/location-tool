@@ -31,7 +31,7 @@
     <text class="err" v-if="errMsg">{{ errMsg }}</text>
 
     <!-- 保存 -->
-    <button class="save-btn" @tap="onSave">保存</button>
+    <button class="save-btn" @tap="onSave">{{ isOnboarding ? '完成并进入' : '保存' }}</button>
   </view>
 </template>
 
@@ -43,6 +43,7 @@ import config from '../../utils/config'
 export default {
   data () {
     return {
+      isOnboarding: false,
       avatarUrl: '',
       avatarChanged: false,
       nickname: '',
@@ -64,6 +65,9 @@ export default {
       if (url.startsWith('/assets/')) return config.API_BASE_URL + url
       return url
     }
+  },
+  onLoad (options) {
+    this.isOnboarding = options && options.onboarding === '1'
   },
   onShow () {
     const user = auth.getUser() || {}
@@ -135,15 +139,26 @@ export default {
           return
         }
       }
-      // 保存昵称到服务器
+      // 保存昵称到服务器；保存后刷新服务器最新 profile
       try {
         const r = await api.updateProfile({ avatar_url: avatarUrl, nickname: this.nickname })
         uni.hideLoading()
         if (r.ok) {
           if (r.data && r.data.user) auth.setUser(r.data.user)
+          // 拉取服务端最新数据确保本地同步
+          try {
+            const freshest = await api.fetchProfile()
+            if (freshest.ok && freshest.data && freshest.data.user) {
+              auth.setUser(freshest.data.user)
+            }
+          } catch (e) { /* soft fail */ }
           this.avatarChanged = false
           uni.showToast({ title: '已保存', icon: 'success' })
-          setTimeout(() => uni.navigateBack({ delta: 1 }), 800)
+          if (this.isOnboarding) {
+            setTimeout(() => uni.switchTab({ url: '/pages/profile/index' }), 800)
+          } else {
+            setTimeout(() => uni.navigateBack({ delta: 1 }), 800)
+          }
         } else {
           this.errMsg = r.data?.detail || '保存失败'
         }

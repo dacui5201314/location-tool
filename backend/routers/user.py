@@ -53,7 +53,13 @@ def get_profile(
         "yearly": "年度会员",
     }
     user_dict = db_user.to_dict()
-    user_dict["avatar_url"] = clean_avatar_url(user_dict.get("avatar_url", ""))
+    raw_av = user_dict.get("avatar_url", "")
+    cleaned_av = clean_avatar_url(raw_av)
+    # 温和清理：DB 里存的是临时 URL，置空并落库
+    if raw_av and not cleaned_av and db_user.avatar_url and db_user.avatar_url.strip():
+        db_user.avatar_url = ""
+        db.commit()
+    user_dict["avatar_url"] = cleaned_av
     return {
         "user": user_dict,
         "membership": {
