@@ -134,6 +134,7 @@ npx vite --host
 
 ## 版本历史
 
+- **v1.9.0** (2026-05-26) — uni-app 登录/充值/CDK 独立页面化：登录页内联 tab 切换（快捷登录/密码登录/注册）、兑换码独立页（真实 activateCdk + 点数刷新）、充值中心独立页（SKU 双 tab + 客服二维码 + requestPayment 完整链路）。微信支付后端（JSAPI v3 prepay + notify 验签解密 + PaymentOrder 持久化 + 平台 x509 证书 serial 校验）。User.nickname 字段 DB 迁移。Admin 前端修复：用户列表/套餐列表 401 静默吞错。python-multipart 依赖补齐。check_industry_rigor_rules.py 2168 PASS / check_report_fact_guard.py 147 PASS
 - **v1.8.0** (2026-05-23) — uni-app Home 首页视觉重做：品牌 logo lockup + Web 对齐 hero、搜索浮卡、地图产品级模块、业态/经营信息统一卡片、Feature tiles 信任条。Records / Profile / Favorites 二级页面 Web 视觉系统对齐（渐变背景、卡片圆角、导航栏色系统一 #12358f、tabBar 选中色 #315bff）。真实收藏 API 集成（checkFavorite/addFavorite/deleteFavorite）。免费额度倒计时 + 全局公告 + 新用户欢迎弹层。check_industry_rigor_rules.py 2168 PASS / check_report_fact_guard.py 147 PASS
 - **v1.7.0** (2026-05-23) — uni-app 多端客户端接近完成：地址自动联想对标 Web（@input 显式绑定 + 400ms debounce + 竞态守卫）、地图点选/定位反向地理编码共用、Timeout 三级降级覆盖（getLocation/locationRegeocode/locationSuggest）、分析接口 /api/analyze SSE 流已集成（401/402/5xx/成功→report-detail）。Phase 23N-1 自动联想 98%，Phase 23N-2 分析接口 40%。Web 母版对齐原则正式写入项目文档。check_industry_rigor_rules.py 2168 PASS / check_report_fact_guard.py 147 PASS
 - **v1.6.0** (2026-05-21) — 多端客户端基线与资金安全加固：新增uniapp多端客户端（Vue3+Vite+uni-app），6页面+4TabBar+API基座+微信登录联调+地图选点壳，覆盖微信/抖音/App三端路线；资金安全修复（DB保存失败→退款、PDF并发解锁回滚）；微信小程序登录端点（/api/auth/wechat/mini + jscode2session + JWT）；小流量上线执行清单。check_industry_rigor_rules.py 2168 PASS / check_report_fact_guard.py 147 PASS
