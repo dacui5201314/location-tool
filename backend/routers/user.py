@@ -91,9 +91,11 @@ async def upload_avatar(
     db: Session = Depends(get_db),
 ):
     """上传用户头像（需 JWT）。只允许 PNG/JPEG/WebP/GIF，限制 2MB。
-    上传后自动更新用户 avatar_url 为持久化的 /assets/user_avatars/... 路径。"""
-    if file.content_type and file.content_type not in AVATAR_ALLOWED:
-        raise HTTPException(status_code=400, detail="仅支持 PNG、JPEG、WebP、GIF 格式")
+    以文件头魔数为准，content_type 仅作辅助参考（真机可能回传 application/octet-stream）。"""
+    _ct = (file.content_type or "").lower()
+    if _ct and _ct not in AVATAR_ALLOWED and _ct not in ("", "application/octet-stream"):
+        # 明确不是 image/* 但也不是常见 fallback，继续让魔数校验裁决
+        pass
     content = await file.read()
     if len(content) > AVATAR_MAX_BYTES:
         raise HTTPException(status_code=400, detail="头像文件不能超过 2MB")

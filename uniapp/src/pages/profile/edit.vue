@@ -43,6 +43,7 @@ export default {
   data () {
     return {
       avatarUrl: '',
+      avatarChanged: false,
       nickname: '',
       phoneText: '',
       rawPhone: '',
@@ -53,6 +54,7 @@ export default {
   onShow () {
     const user = auth.getUser() || {}
     this.avatarUrl = user.avatar_url || user.avatarUrl || ''
+    this.avatarChanged = false
     this.nickname = user.nickname || user.name || ''
     const phone = user.phone_number || user.phone || ''
     this.rawPhone = phone
@@ -61,7 +63,7 @@ export default {
   methods: {
     onChooseAvatar (e) {
       const url = e.detail && e.detail.avatarUrl
-      if (url) { this.avatarUrl = url; this.errMsg = '' }
+      if (url) { this.avatarUrl = url; this.avatarChanged = true; this.errMsg = '' }
     },
     onNicknameBlur (e) {
       const val = e.detail && e.detail.value
@@ -89,10 +91,23 @@ export default {
       this.errMsg = ''
       uni.showLoading({ title: '保存中...' })
       let avatarUrl = this.avatarUrl || ''
-      // 如果是本地临时路径（非 /assets/ 非 http），先上传到服务器
-      if (avatarUrl && !avatarUrl.startsWith('/assets/') && !avatarUrl.startsWith('http')) {
+      // 仅当用户选择了新头像时才上传
+      if (this.avatarChanged && avatarUrl && !avatarUrl.startsWith('/assets/')) {
         try {
-          const uploadR = await api.uploadAvatar(avatarUrl)
+          let filePath = avatarUrl
+          // http/https 临时 URL：先下载到本地再上传
+          if (avatarUrl.startsWith('http://') || avatarUrl.startsWith('https://')) {
+            const dl = await new Promise((resolve, reject) => {
+              uni.downloadFile({ url: avatarUrl, success: resolve, fail: reject })
+            })
+            if (dl.statusCode < 200 || dl.statusCode >= 300 || !dl.tempFilePath) {
+              uni.hideLoading()
+              this.errMsg = '头像上传失败，请稍后重试'
+              return
+            }
+            filePath = dl.tempFilePath
+          }
+          const uploadR = await api.uploadAvatar(filePath)
           if (uploadR.ok && uploadR.data && uploadR.data.avatar_url) {
             avatarUrl = uploadR.data.avatar_url
           } else {
@@ -102,7 +117,7 @@ export default {
           }
         } catch (e) {
           uni.hideLoading()
-          this.errMsg = '头像上传失败，请检查网络'
+          this.errMsg = '头像上传失败，请稍后重试'
           return
         }
       }
@@ -112,6 +127,7 @@ export default {
         uni.hideLoading()
         if (r.ok) {
           if (r.data && r.data.user) auth.setUser(r.data.user)
+          this.avatarChanged = false
           uni.showToast({ title: '已保存', icon: 'success' })
           setTimeout(() => uni.navigateBack({ delta: 1 }), 800)
         } else {
