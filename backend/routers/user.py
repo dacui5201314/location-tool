@@ -15,6 +15,18 @@ os.makedirs(AVATAR_ROOT, exist_ok=True)
 AVATAR_MAX_BYTES = 2 * 1024 * 1024
 AVATAR_ALLOWED = {"image/png", "image/jpeg", "image/webp", "image/gif"}
 
+_TEMP_AVATAR_MARKERS = ["__tmp__", "tmp.weixin.qq.com", "127.0.0.1:26205", "http://tmp/"]
+
+def clean_avatar_url(url: str) -> str:
+    """过滤微信临时头像 URL，返回空字符串；/assets/ 或合法 http(s) 永久地址原样返回。"""
+    if not url or not url.strip():
+        return ""
+    u = url.strip()
+    for marker in _TEMP_AVATAR_MARKERS:
+        if marker in u:
+            return ""
+    return u
+
 
 @router.get("/profile")
 def get_profile(
@@ -40,8 +52,10 @@ def get_profile(
         "quarterly": "季度会员",
         "yearly": "年度会员",
     }
+    user_dict = db_user.to_dict()
+    user_dict["avatar_url"] = clean_avatar_url(user_dict.get("avatar_url", ""))
     return {
-        "user": db_user.to_dict(),
+        "user": user_dict,
         "membership": {
             "tier": db_user.membership_tier,
             "tier_label": tier_labels.get(db_user.membership_tier, "非会员"),

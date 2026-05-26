@@ -665,7 +665,7 @@ export default {
 </script>
 
 <style scoped>
-.home-page { min-height:100vh; background:radial-gradient(circle at 50% -8%,rgba(49,91,255,0.12),transparent 34%),linear-gradient(180deg,#f8fbff 0%,#f2f6ff 48%,#eef3fb 100%); padding-bottom:108rpx; }
+.home-page { min-height:100vh; background:radial-gradient(circle at 50% -8%,rgba(49,91,255,0.12),transparent 34%),linear-gradient(180deg,#f8fbff 0%,#f2f6ff 48%,#eef3fb 100%); padding-bottom:108rpx; overflow-x:hidden; }
 
 /* ── Hero ── */
 .hero { background:radial-gradient(circle at 76% 38%,rgba(83,137,255,0.48),transparent 24%),radial-gradient(circle at 66% 60%,rgba(139,92,246,0.24),transparent 26%),radial-gradient(circle at 58% 58%,rgba(248,200,97,0.10),transparent 22%),linear-gradient(180deg,#0b3fbd 0%,#0d35ad 28%,#151f8f 68%,#241b83 100%); padding:46rpx 28rpx 122rpx; position:relative; overflow:hidden; }
@@ -684,7 +684,7 @@ export default {
 .hero-tags { display:flex; gap:10rpx; position:relative; z-index:2; }
 .htag { font-size:20rpx; color:rgba(255,255,255,0.88); background:rgba(255,255,255,0.10); border:1px solid rgba(255,255,255,0.22); border-radius:999rpx; padding:9rpx 16rpx; box-shadow:inset 0 1rpx 0 rgba(255,255,255,0.18); }
 .htag:nth-child(3) { color:#ffe8b0; background:rgba(248,200,97,0.12); border-color:rgba(248,200,97,0.38); }
-.hero-city { position:absolute; right:-8rpx; bottom:124rpx; width:330rpx; height:238rpx; z-index:1; opacity:0.54; pointer-events:none; }
+.hero-city { position:absolute; right:0; bottom:124rpx; width:330rpx; height:238rpx; z-index:1; opacity:0.54; pointer-events:none; }
 .hc-building { position:absolute; bottom:0; width:40rpx; border-radius:9rpx 9rpx 0 0; background:linear-gradient(180deg,rgba(219,234,254,0.78),rgba(37,99,235,0.10)); box-shadow:inset 0 0 0 1px rgba(255,255,255,0.12),0 0 28rpx rgba(147,197,253,0.10); }
 .hc-building::after { content:''; position:absolute; inset:15rpx 10rpx; background:repeating-linear-gradient(180deg,rgba(255,255,255,0.36) 0 6rpx,transparent 6rpx 18rpx); }
 .hc-a { right:204rpx; height:86rpx; }

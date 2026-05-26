@@ -25,6 +25,7 @@ from services.runtime_config import (
     clear_user_skus,
     set_config_values,
 )
+from routers.user import clean_avatar_url
 
 
 router = APIRouter(prefix="/api/admin", tags=["管理后台"])
@@ -190,7 +191,7 @@ def list_users(
             "phone": u.phone or u.phone_number or "",
             "phone_number": u.phone_number or "",
             "nickname": (u.nickname or "").strip(),
-            "avatar_url": (u.avatar_url or "").strip(),
+            "avatar_url": clean_avatar_url(u.avatar_url or ""),
             "balance_credits": u.balance_credits,
             "points": u.points,
             "membership_tier": u.membership_tier,
