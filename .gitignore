@@ -17,5 +17,9 @@ Desktop.ini
 # Claude Code 工作区
 .claude/
 
+# 环境变量（含密钥）
+.env
+backend/.env
+
 # 备份目录
 zhidexuan/
