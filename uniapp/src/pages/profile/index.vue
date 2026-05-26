@@ -17,7 +17,7 @@
         <text class="avatar-fb"></text>
         <text class="uname">未登录</text>
         <view style="position:relative;z-index:10;display:flex;justify-content:center;">
-          <button class="top-login" @tap.stop="showLoginSheet = true">登录 / 注册</button>
+          <button class="top-login" @tap.stop="goLogin">登录 / 注册</button>
         </view>
       </template>
       <text class="login-err" v-if="loginErr">{{ loginErr }}</text>
@@ -178,19 +178,6 @@
       </view>
     </view>
 
-    <!-- 登录底部弹层 -->
-    <view class="sheet-mask" v-if="showLoginSheet">
-      <view class="sheet">
-        <view class="sheet-handle" />
-        <text class="sheet-title">登录址得选</text>
-        <text class="sheet-desc">使用手机号快速登录，体验完整功能</text>
-        <button class="sheet-btn primary" open-type="getPhoneNumber" @getphonenumber="onPhoneLogin">📱 手机号一键登录</button>
-        <button class="sheet-btn secondary" @tap="onWxLogin">💬 微信登录</button>
-        <text class="sheet-phone-link" @tap="showLoginSheet = false; goLogin()">手机号密码登录</text>
-        <text class="sheet-skip" @tap="showLoginSheet = false">暂时跳过，先看看</text>
-        <text class="sheet-privacy">登录即表示同意《用户协议》和《隐私政策》</text>
-      </view>
-    </view>
   </view>
 </template>
 
@@ -203,7 +190,6 @@ export default {
   data () {
     return {
       loggedIn: false, loginLoading: false, loginErr: '',
-      showLoginSheet: false,
       avatarUrl: '', phoneText: '', userName: '', uidText: '',
       points: 0, freePointActive: true, freePointExpiry: '',
       memberDays: 0, memberExpiry: '', reportCount: 0, favCount: 0,
@@ -347,50 +333,6 @@ export default {
         }
       } catch (e) { this.payErr = '网络异常' }
       finally { this.cdkLoading = false }
-    },
-    // ── 手机号一键登录 ──
-    onPhoneLogin (e) {
-      this.loginErr = ''
-      const detail = e.detail || {}
-      if (detail.errMsg && detail.errMsg.indexOf('deny') >= 0) { this.loginErr = '手机号授权已取消'; return }
-      const phoneCode = detail.code
-      if (!phoneCode) { this.loginErr = '获取手机号失败'; return }
-      this.loginLoading = true; this.showLoginSheet = false
-      uni.login({
-        provider: 'weixin',
-        success: (loginRes) => {
-          if (!loginRes.code) { this.loginLoading = false; this.loginErr = '微信登录失败'; return }
-          api.phoneLogin(loginRes.code, phoneCode).then(r => {
-            this.loginLoading = false
-            if (r.ok) {
-              auth.setToken(r.data.token); auth.setUser(r.data.user)
-              if (r.data.wx_mini_openid) uni.setStorageSync('wx_mini_openid', r.data.wx_mini_openid)
-              this.refreshState()
-            } else {
-              const sc = r.statusCode
-              if (sc === 503) this.loginErr = '登录服务暂不可用'
-              else if (sc === 400) this.loginErr = '登录参数无效，请重试'
-              else if (sc === 409) this.loginErr = '该手机号已绑定其他账号'
-              else this.loginErr = r.error || '登录失败'
-            }
-          }).catch(() => { this.loginLoading = false; this.loginErr = '网络异常' })
-        },
-        fail: () => { this.loginLoading = false; this.loginErr = '微信登录失败' }
-      })
-    },
-    onWxLogin () {
-      this.loginLoading = true; this.loginErr = ''; this.showLoginSheet = false
-      auth.wechatLogin().then(r => {
-        this.loginLoading = false
-        if (r.ok) { this.refreshState() } else {
-          const sc = r.statusCode
-          if (sc === 503) this.loginErr = '登录服务暂不可用'
-          else if (sc === 400) this.loginErr = '微信登录参数无效，请重试'
-          else if (sc === 409) this.loginErr = '微信身份已绑定其他账号'
-          else if (sc) this.loginErr = '登录失败 (HTTP ' + sc + ')，请重试'
-          else this.loginErr = '登录失败，请稍后重试'
-        }
-      }).catch(() => { this.loginLoading = false; this.loginErr = '网络异常，请稍后重试' })
     },
     onLogout () { auth.clearToken(); this.loggedIn = false; this.points = 0; this.reportCount = 0; this.favCount = 0 }
   }
