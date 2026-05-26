@@ -665,6 +665,8 @@ export default {
 </script>
 
 <style scoped>
+/* 首帧防白：page 默认白底在热重载瞬间会闪白，用页面底色兜底 */
+page { background-color:#f2f6ff; }
 .home-page { min-height:100vh; background:radial-gradient(circle at 50% -8%,rgba(49,91,255,0.12),transparent 34%),linear-gradient(180deg,#f8fbff 0%,#f2f6ff 48%,#eef3fb 100%); padding-bottom:108rpx; overflow-x:hidden; }
 
 /* ── Hero ── */
