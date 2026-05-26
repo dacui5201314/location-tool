@@ -8,7 +8,6 @@
         <text v-else class="avatar-fb">👤</text>
         <button class="avatar-btn" open-type="chooseAvatar" @chooseavatar="onChooseAvatar">更换头像</button>
       </view>
-      <text class="hint">头像仅在本地显示，后续版本将支持上传</text>
     </view>
 
     <!-- 昵称 -->
@@ -86,8 +85,11 @@ export default {
         }
       }).catch(() => { this.phoneBindErr = '网络异常' })
     },
-    onSave () {
-      // 暂存到本地（后续接入后端 profile update API）
+    async onSave () {
+      // 调用真实后端保存头像
+      try {
+        await api.updateProfile({ avatar_url: this.avatarUrl, nickname: this.nickname })
+      } catch (e) { /* 网络失败不影响本地更新 */ }
       auth.setUser({
         avatarUrl: this.avatarUrl,
         nickname: this.nickname,

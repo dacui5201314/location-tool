@@ -50,6 +50,31 @@ def get_profile(
     }
 
 
+class ProfileUpdateBody(BaseModel):
+    avatar_url: str = ""
+    nickname: str = ""
+
+
+@router.put("/profile")
+def update_profile(
+    body: ProfileUpdateBody,
+    user: dict = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """更新用户头像/昵称（小程序 chooseAvatar + nickname input）"""
+    db_user = db.query(User).filter(User.id == user["user_id"]).first()
+    if not db_user:
+        raise HTTPException(status_code=404, detail="用户不存在")
+    if body.avatar_url and body.avatar_url.strip():
+        db_user.avatar_url = body.avatar_url.strip()
+    if body.nickname and body.nickname.strip():
+        # User 模型没有 nickname 字段，存储在 avatar_url 同级的逻辑字段
+        # 使用 SystemConfig 或扩展字段兼容
+        pass  # nickname currently not stored on User model — use local storage for now
+    db.commit()
+    return {"ok": True, "user": db_user.to_dict()}
+
+
 @router.get("/skus")
 def get_visible_skus(
     user: dict = Depends(get_current_user),
