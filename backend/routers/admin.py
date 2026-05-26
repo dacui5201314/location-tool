@@ -189,6 +189,8 @@ def list_users(
             "id": u.id,
             "phone": u.phone or u.phone_number or "",
             "phone_number": u.phone_number or "",
+            "nickname": (u.nickname or "").strip(),
+            "avatar_url": (u.avatar_url or "").strip(),
             "balance_credits": u.balance_credits,
             "points": u.points,
             "membership_tier": u.membership_tier,

@@ -6,6 +6,7 @@ import IndustryRuleDrawer from '../components/IndustryRuleDrawer'
 
 const QR_ACCEPT = 'image/png,image/jpeg,image/gif,image/webp'
 const assetName = (url = '') => (url.startsWith('/assets/') ? url.split('/').pop() || '' : '')
+const isTempAvatar = (url = '') => !url || url.indexOf('__tmp__') >= 0 || url.indexOf('tmp.weixin.qq.com') >= 0 || url.indexOf('127.0.0.1:26205') >= 0
 const isForeignAssetUrl = (url, tag) => {
   const name = assetName(url)
   if (!name) return false
@@ -886,8 +887,7 @@ export default function AdminPage() {
                 <table className="w-full text-sm">
                   <thead className="sticky top-0 z-10">
                     <tr className="bg-slate-50">
-                      <th className="text-left px-4 py-4 text-[15px] font-semibold text-slate-600">ID</th>
-                      <th className="text-left px-4 py-4 text-[15px] font-semibold text-slate-600">手机号</th>
+                      <th className="text-left px-4 py-4 text-[15px] font-semibold text-slate-600">用户</th>
                       <th className="text-left px-4 py-4 text-[15px] font-semibold text-slate-600">点数</th>
                       <th className="text-left px-4 py-4 text-[15px] font-semibold text-slate-600">会员</th>
                       <th className="text-left px-4 py-4 text-[15px] font-semibold text-slate-600">到期</th>
@@ -900,9 +900,21 @@ export default function AdminPage() {
                   <tbody className="divide-y divide-slate-100">
                     {users.map(u => (
                       <tr key={u.id} className="hover:bg-slate-50">
-                        <td className="px-4 py-4 font-mono text-slate-400">#{u.id}</td>
                         <td className="px-4 py-4">
-                          <span className="font-semibold text-slate-700">{u.phone || u.phone_number || '—'}</span>
+                          <div className="flex items-center gap-3">
+                            {(() => {
+                              const av = u.avatar_url || ''
+                              const avSrc = isTempAvatar(av) ? '' : getAssetUrl(av)
+                              return avSrc
+                                ? <img src={avSrc} className="w-8 h-8 rounded-full object-cover border border-slate-200 flex-shrink-0" alt="" />
+                                : <div className="w-8 h-8 rounded-full bg-slate-100 border border-slate-200 flex items-center justify-center flex-shrink-0"><span className="text-xs text-slate-400">👤</span></div>
+                            })()}
+                            <div className="min-w-0">
+                              <div className="text-xs font-semibold text-slate-700 truncate">{u.nickname || '未设置昵称'}</div>
+                              <div className="text-xs text-slate-400">{u.phone || u.phone_number || '未绑定手机号'}</div>
+                              <div className="text-[10px] text-slate-300 font-mono">#{u.id}</div>
+                            </div>
+                          </div>
                         </td>
                         <td className="px-4 py-4">
                           <span className={`font-bold text-[15px] ${u.balance_credits > 0 ? 'text-blue-600' : 'text-red-500'}`}>{u.balance_credits}</span>
