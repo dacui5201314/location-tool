@@ -815,3 +815,7 @@ export default {
 .free-banner { background:#fef3c7; padding:16rpx 24rpx; text-align:center; font-size:24rpx; color:#92400e; }
 .ann-banner { background:#dbeafe; padding:16rpx 24rpx; text-align:center; font-size:24rpx; color:#1e40af; }
 </style>
+
+<style>
+page { background-color:#eef3f9; }
+</style>
