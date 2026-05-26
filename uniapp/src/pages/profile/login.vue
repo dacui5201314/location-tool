@@ -19,7 +19,8 @@
       </view>
       <text class="agree-err" v-if="showAgreeErr">请先阅读并同意协议</text>
 
-      <!-- 次入口 -->
+      <!-- 次入口 + 提示 -->
+      <text class="quick-hint">若快捷登录不可用，请使用下方密码登录</text>
       <view class="alt-login">
         <text class="alt-link" @tap="goPhoneLogin">手机号密码登录</text>
       </view>
@@ -108,10 +109,15 @@ export default {
         uni.hideLoading()
         if (r.ok) {
           auth.setToken(r.data.token); auth.setUser(r.data.user)
+          if (r.data.wx_mini_openid) uni.setStorageSync('wx_mini_openid', r.data.wx_mini_openid)
           uni.showToast({ title: '登录成功', icon: 'success' })
           setTimeout(() => uni.navigateBack({ delta: 1 }), 600)
         } else {
-          uni.showToast({ title: r.data?.detail || '登录失败', icon: 'none' })
+          const sc = r.statusCode
+          if (sc === 404) uni.showToast({ title: '后端登录接口未更新，请重启服务', icon: 'none' })
+          else if (sc === 503) uni.showToast({ title: '微信登录配置未完成', icon: 'none' })
+          else if (sc === 400) uni.showToast({ title: '微信登录参数无效，请稍后重试', icon: 'none' })
+          else uni.showToast({ title: r.data?.detail || '登录失败', icon: 'none' })
         }
       } catch (e) { uni.hideLoading(); uni.showToast({ title: '网络异常', icon: 'none' }) }
     },
@@ -169,7 +175,8 @@ export default {
 .agree-check { font-size:24rpx; color:#8b99b6; margin-right:10rpx; }
 .agree-text { font-size:24rpx; color:#8b99b6; }
 .agree-err { font-size:22rpx; color:#dc2626; padding-left:40rpx; display:block; }
-.alt-login { text-align:center; margin-top:24rpx; }
+.quick-hint { display:block; text-align:center; font-size:22rpx; color:#cbd5e1; margin-top:12rpx; }
+.alt-login { text-align:center; margin-top:20rpx; }
 .alt-link { font-size:26rpx; color:#315bff; }
 .bottom-section { text-align:center; padding:32rpx 0 48rpx; }
 .skip { font-size:26rpx; color:#cbd5e1; }
