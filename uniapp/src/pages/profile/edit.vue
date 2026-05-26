@@ -86,18 +86,24 @@ export default {
       }).catch(() => { this.phoneBindErr = '网络异常' })
     },
     async onSave () {
-      // 调用真实后端保存头像
+      let ok = false
       try {
-        await api.updateProfile({ avatar_url: this.avatarUrl, nickname: this.nickname })
-      } catch (e) { /* 网络失败不影响本地更新 */ }
-      auth.setUser({
-        avatarUrl: this.avatarUrl,
-        nickname: this.nickname,
-        phone: this.rawPhone,
-        phone_number: this.rawPhone
-      })
-      uni.showToast({ title: '已保存', icon: 'success' })
-      setTimeout(() => uni.navigateBack({ delta: 1 }), 800)
+        const r = await api.updateProfile({ avatar_url: this.avatarUrl, nickname: this.nickname })
+        if (r.ok) {
+          if (r.data && r.data.user) auth.setUser(r.data.user)
+          ok = true
+        } else {
+          this.errMsg = r.data?.detail || '保存失败'
+        }
+      } catch (e) {
+        this.errMsg = '网络异常，请重试'
+      }
+      if (ok) {
+        // 本地也更新以保证 refreshState 能读取到最新值
+        auth.setUser({ avatarUrl: this.avatarUrl, nickname: this.nickname, phone: this.rawPhone, phone_number: this.rawPhone })
+        uni.showToast({ title: '已保存', icon: 'success' })
+        setTimeout(() => uni.navigateBack({ delta: 1 }), 800)
+      }
     }
   }
 }

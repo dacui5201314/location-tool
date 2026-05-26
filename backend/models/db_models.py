@@ -34,6 +34,8 @@ class User(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     phone_number = Column(String(20), unique=True, index=True, nullable=True, comment="手机号")
     avatar_url = Column(String(500), default="", comment="头像URL")
+    avatar_url = Column(String(500), default="", comment="头像URL")
+    nickname = Column(String(80), default="", comment="用户昵称")
     balance_credits = Column(Integer, default=1, comment="剩余分析点数（即 points），新用户默认赠送 1 点")
     membership_tier = Column(String(20), default="free", comment="会员等级 free/monthly/quarterly/yearly")
     membership_expiry = Column(DateTime, nullable=True, comment="会员过期时间")
@@ -88,6 +90,7 @@ class User(Base):
             "id": self.id,
             "phone_number": self.phone_number or "",
             "avatar_url": self.avatar_url or "",
+            "nickname": self.nickname or "",
             "balance_credits": self.balance_credits,
             "points": self.balance_credits,
             "membership_tier": self.membership_tier,

@@ -1,6 +1,7 @@
 """用户中心 API — JWT 鉴权 + 双轨计费"""
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
+from pydantic import BaseModel
 from database import get_db
 from models.db_models import User, AnalysisRecord, SavedLocation
 from services.runtime_config import get_user_skus
@@ -68,9 +69,7 @@ def update_profile(
     if body.avatar_url and body.avatar_url.strip():
         db_user.avatar_url = body.avatar_url.strip()
     if body.nickname and body.nickname.strip():
-        # User 模型没有 nickname 字段，存储在 avatar_url 同级的逻辑字段
-        # 使用 SystemConfig 或扩展字段兼容
-        pass  # nickname currently not stored on User model — use local storage for now
+        db_user.nickname = body.nickname.strip()
     db.commit()
     return {"ok": True, "user": db_user.to_dict()}
 
