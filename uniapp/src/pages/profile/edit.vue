@@ -56,9 +56,11 @@ export default {
     displayAvatarUrl () {
       const url = this.avatarUrl || ''
       if (!url) return ''
-      // 过滤临时头像：__tmp__、微信临时 CDN、本地 DevTools
+      // 用户刚选择新头像时，允许本地临时路径预览（含 wxfile:// 等）
+      if (this.avatarChanged) return url
+      // 非预览模式：过滤已知临时/失效头像
       if (url.indexOf('__tmp__') >= 0 || url.indexOf('tmp.weixin.qq.com') >= 0 || url.indexOf('127.0.0.1:26205') >= 0) return ''
-      // /assets/ 永久资源补全域名；chooseAvatar 本地临时路径直接用于预览
+      // /assets/ 永久资源补全域名
       if (url.startsWith('/assets/')) return config.API_BASE_URL + url
       return url
     }

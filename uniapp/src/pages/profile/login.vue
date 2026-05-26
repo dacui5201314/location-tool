@@ -8,9 +8,9 @@
 
     <!-- 模式切换 -->
     <view class="mode-tabs">
-      <text class="mtab" :class="{ active: mode === 'quick' }" @tap="mode = 'quick'">快捷登录</text>
-      <text class="mtab" :class="{ active: mode === 'pwd' }" @tap="mode = 'pwd'">密码登录</text>
-      <text class="mtab" :class="{ active: mode === 'reg' }" @tap="mode = 'reg'">注册</text>
+      <text class="mtab" :class="{ active: mode === 'quick' }" @tap="switchMode('quick')">快捷登录</text>
+      <text class="mtab" :class="{ active: mode === 'pwd' }" @tap="switchMode('pwd')">密码登录</text>
+      <text class="mtab" :class="{ active: mode === 'reg' }" @tap="switchMode('reg')">注册</text>
     </view>
 
     <view class="main-section">
@@ -60,7 +60,7 @@
         <text class="agree-check">{{ agreed ? '●' : '○' }}</text>
         <text class="agree-text">已阅读并同意《用户协议》《隐私政策》</text>
       </view>
-      <text class="agree-err" v-if="showAgreeErr && mode !== 'pwd' && mode !== 'reg'">请先阅读并同意协议</text>
+      <text class="agree-err" v-if="showAgreeErr">请先阅读并同意用户协议和隐私政策</text>
 
       <text class="err-msg" v-if="errMsg">{{ errMsg }}</text>
     </view>
@@ -84,11 +84,12 @@ export default {
     }
   },
   methods: {
-    toggleAgree () { this.agreed = !this.agreed; this.showAgreeErr = false },
+    toggleAgree () { this.agreed = !this.agreed; this.showAgreeErr = false; this.errMsg = '' },
+    switchMode (m) { this.mode = m; this.showAgreeErr = false; this.errMsg = '' },
     goBack () { uni.navigateBack({ delta: 1 }).catch(() => uni.switchTab({ url: '/pages/home/index' })) },
     requireAgreement () {
       this.showAgreeErr = true
-      this.errMsg = '请先阅读并同意用户协议和隐私政策'
+      this.errMsg = ''
     },
     async onWxPhoneLogin (e) {
       this.showAgreeErr = false
