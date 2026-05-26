@@ -1,4 +1,169 @@
-# Current Handoff - 2026-05-25
+# Current Handoff - 2026-05-26
+
+## READ THIS FIRST - Phase 23P Current Authoritative State
+
+This top section supersedes all older Phase 23B-23O notes below. Older sections are history and may contain outdated boundaries, stale progress numbers, or now-wrong statements such as "requestPayment is forbidden".
+
+### Current Reviewed Position
+
+- Current phase: **Phase 23P handoff**; next work should focus on commercial/login/admin consistency and remaining uni-app Web-parity gaps.
+- Latest accepted code commit: `60e0356` - `fix: add fetchProfile refresh after CDK redeem and payment success`.
+- Important recent accepted commits:
+  - `8ceaaee` - standalone `/pages/profile/redeem` and `/pages/profile/recharge`; inline/tab login.
+  - `6d5911e` - `python-multipart`, backend restart/import fix, login error messages.
+  - `ca7f8f8` - Profile login button now opens `/pages/profile/login`.
+  - `c3e22bb` - SQLite nickname migration; profile edit no longer overwrites server user.
+  - `9a74927` / `729ffca` - product-grade login page, real avatar/nickname save, `PUT /api/user/profile`.
+  - `4e0080a` / `f75ea61` / `99002d2` / `b7dad2a` - WeChat Pay framework hardening.
+- uni-app is the formal launch target, not a demo shell.
+- Web React `frontend/` remains the product master/reference. Do **not** modify `frontend/` unless the user explicitly asks; read it as reference. Admin UI fixes may require `frontend/`, but get explicit permission before changing it.
+- Native `miniprogram/` is frozen for new feature work.
+- Do not push.
+
+### Critical Product Correction
+
+- The product direction is **not** to remove fake buttons and shrink scope. The direction is to turn Web/admin-backed capabilities into real uni-app features.
+- Do not delete commercial entries such as CDK, points recharge, VIP renewal/opening, customer service, SKU packages, or login methods merely because they were incomplete earlier.
+- If a capability exists in Web/backend/admin and does not violate a hard boundary, connect it for real.
+- If a capability depends on external business setup, keep the real entry and show a truthful state/fallback. Example: WeChat Pay can exist as a real code path, but full payment testing needs merchant credentials, official Mini Program AppID, platform certificate, and public HTTPS notify URL.
+- Backend DB/admin is the source of truth. uni-app storage is only cache. After login, CDK, payment, profile edit, or admin point changes, the app should refresh from backend.
+
+### What Is Finished Since Phase 23O
+
+- Profile empty-shell actions were converted toward real Web/admin-backed flows:
+  - stats click navigation to Records/Favorites
+  - Records star score and map placeholder
+  - Favorites sorting and batch management
+  - customer service QR / UI config integration
+  - CDK activation through real backend endpoint
+  - SKU listing for points and membership packages
+- Commercial entries were restored and retained:
+  - VIP card and renewal/opening entry
+  - points card with "redeem code" and "get points"
+  - SKU points packages and member packages
+  - customer service QR / WeChat / phone where configured
+  - `uni.requestPayment` real flow for WeChat Pay
+- WeChat Pay framework now exists:
+  - backend `backend/routers/pay.py` registered in `backend/main.py`
+  - JSAPI prepay, notify, order query, PaymentOrder persistence
+  - merchant config from admin DB/env fallback
+  - APIv3 key length check, secure nonce, platform x509 serial hard reject
+  - notify decrypt/validate checks
+  - frontend `requestPayment -> queryOrder -> fetchProfile` chain
+- Login/profile flow advanced:
+  - `/pages/profile/login` is now the direct Profile login destination
+  - getPhoneNumber quick login exists but depends on real AppID/capability/privacy config
+  - phone/password login/register exists as testable fallback
+  - nickname and avatar profile editing persist to backend
+  - SQLite `users.nickname` migration is idempotent
+- Standalone commercial pages exist:
+  - `/pages/profile/redeem` activates CDK, refreshes profile, then returns
+  - `/pages/profile/recharge` handles SKU purchase, payment polling, profile refresh
+- Admin user visibility was audited:
+  - DB has 48 users.
+  - user id `46` exists, `phone=18392701193`, `channel=mini_program`, `wx_mini_openid` bound.
+  - authenticated `GET /api/admin/users` returns `total: 48` and includes user 46.
+  - If admin UI shows `0`, current root cause is admin frontend login state/token/filter/stale page, not mini login failing to write DB.
+  - Do not write admin passwords or tokens into reports, handoff, commits, screenshots, or logs.
+
+### Current Progress Estimate
+
+- uni-app overall: about **96-97% code-side**, but still needs real-device/business-environment verification.
+- Home UI Web alignment: about **75%**.
+- Report Detail Web alignment: about **60%**.
+- Records / Favorites / Profile Web alignment: about **75-80%** after recent gap closure.
+- Login: phone/password path is testable; getPhoneNumber path needs real Mini Program capability.
+- Payment: code path is real, but end-to-end payment cannot be verified until merchant/AppID/cert/HTTPS notify setup is complete.
+
+### Current External / Business Blockers
+
+- Official Mini Program registration/certification is still needed for production AppID and full WeChat open capabilities.
+- WeChat Pay full E2E needs:
+  - merchant id
+  - Mini Program AppID bound to payment
+  - APIv3 key
+  - merchant cert serial
+  - merchant private key PEM path
+  - WeChat Pay platform certificate PEM path
+  - public HTTPS notify URL
+- `getPhoneNumber` / real phone quick login needs real AppID, phone capability, privacy agreement, and preferably real-device test.
+- Analyze success still needs valid backend LLM and AMap keys.
+- PDF unlock/download remain deferred unless the user explicitly opens that phase.
+
+### Current Hard Boundaries
+
+- Do not push.
+- Do not commit AppID/AppSecret/API keys, merchant secrets, certs, private keys, tokens, passwords, or admin credentials.
+- Do not process or include `tmp_*`.
+- Do not modify `frontend/` unless explicitly requested. Read Web/admin code as reference first.
+- Do not continue native `miniprogram/` feature work.
+- Do not modify report accuracy logic, POI, rules, prompt, `report_fact_guard`, classification, or analysis DB schema.
+- `/api/analyze` is allowed and intentionally connected in uni-app.
+- WeChat Pay/requestPayment is now an intended real commercial path, not forbidden. Do not mock it.
+- Still forbidden unless user explicitly opens the phase:
+  - `/unlock-pdf`
+  - `/download`
+- Do not add fake PDF/download buttons.
+
+### Known Worktree Caveat
+
+Expected untracked files can include:
+
+- `tmp_latest_report_text.txt`
+- `tmp_report_images/`
+- `tmp_report_pages/`
+- `miniprogram/pages/profile/profile.json`
+- `uniapp/project.config.json`
+- `uniapp/project.private.config.json`
+
+Do not include `tmp_*`. Be careful before committing project config files because they may be local DevTools artifacts.
+
+### Immediate Next Priorities
+
+1. Admin user page follow-through:
+   - In the browser Network panel, verify the actual `GET /api/admin/users` URL/status/body.
+   - If it is 401/expired token, re-login admin; do not report or store the password.
+   - If direct API returns users but UI still shows zero, identify stale frontend/proxy/token/filter handling.
+   - If a code fix requires `frontend/`, ask the user before modifying it.
+2. Clean remaining dead Profile sheet/template code if still present:
+   - `rechargeOpen`, `cdkOpen`, `cdkCode`, old inline modal handlers should not remain as inert template clutter.
+   - Keep real entries and standalone pages.
+3. Verify standalone commercial pages in DevTools:
+   - redeem success refreshes points and returns to Profile.
+   - recharge success/PAID refreshes points/member state.
+   - failed/unconfigured payment shows truthful fallback without pretending success.
+4. Keep polishing only where it supports real flows:
+   - login page should feel premium/smooth, with official WeChat patterns where capability exists.
+   - recharge/redeem should ideally be standalone pages or polished sheets, not cramped fake modals.
+5. Prepare production payment checklist, but do not commit credentials/certs.
+
+### Required Validation For Next Code Changes
+
+- If backend changed: `uv run python -m compileall backend` and import/health check.
+- If uni-app changed: `cd uniapp && npm run build:mp-weixin`.
+- JSON parse:
+  - `uniapp/package.json`
+  - `uniapp/src/manifest.json`
+  - `uniapp/src/pages.json`
+  - `uniapp/dist/build/mp-weixin/app.json`
+- `rg "unlock-pdf|/download" uniapp/src` must remain 0 unless the user opens that phase.
+- Payment chain scan should confirm real `requestPayment/createPrepay/queryOrder` only, no fake/mock payment.
+- developer-copy scan for user-visible debug text.
+- secret scan including merchant/payment/admin credentials.
+- `git status --short`.
+
+Next report must include:
+
+- changed files
+- fixed issue/audit items
+- whether admin user 46 is visible via direct API and/or UI
+- build / JSON / scan results
+- commit SHA
+- explicit "not pushed"
+
+---
+
+# Historical Handoff - 2026-05-25
 
 ## READ THIS FIRST - Phase 23O Current Authoritative State
 
