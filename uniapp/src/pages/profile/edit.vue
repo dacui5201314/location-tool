@@ -4,7 +4,7 @@
     <view class="section">
       <view class="sec-title">头像</view>
       <view class="avatar-row">
-        <image v-if="avatarUrl" class="avatar-img" :src="avatarUrl" mode="aspectFill" />
+        <image v-if="displayAvatarUrl" class="avatar-img" :src="displayAvatarUrl" mode="aspectFill" />
         <text v-else class="avatar-fb">👤</text>
         <button class="avatar-btn" open-type="chooseAvatar" @chooseavatar="onChooseAvatar">更换头像</button>
       </view>
@@ -38,6 +38,7 @@
 <script>
 import api from '../../utils/api'
 import auth from '../../utils/auth'
+import config from '../../utils/config'
 
 export default {
   data () {
@@ -49,6 +50,17 @@ export default {
       rawPhone: '',
       phoneBindErr: '',
       errMsg: ''
+    }
+  },
+  computed: {
+    displayAvatarUrl () {
+      const url = this.avatarUrl || ''
+      if (!url) return ''
+      // 过滤临时头像：__tmp__、微信临时 CDN、本地 DevTools
+      if (url.indexOf('__tmp__') >= 0 || url.indexOf('tmp.weixin.qq.com') >= 0 || url.indexOf('127.0.0.1:26205') >= 0) return ''
+      // /assets/ 永久资源补全域名；chooseAvatar 本地临时路径直接用于预览
+      if (url.startsWith('/assets/')) return config.API_BASE_URL + url
+      return url
     }
   },
   onShow () {

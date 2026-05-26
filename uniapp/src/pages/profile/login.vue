@@ -16,7 +16,10 @@
     <view class="main-section">
       <!-- 快捷登录 -->
       <view v-if="mode === 'quick'">
-        <button class="btn-phone" open-type="getPhoneNumber" @getphonenumber="onWxPhoneLogin">
+        <button v-if="agreed" class="btn-phone" open-type="getPhoneNumber" @getphonenumber="onWxPhoneLogin">
+          手机号快捷登录
+        </button>
+        <button v-else class="btn-phone" @tap="requireAgreement">
           手机号快捷登录
         </button>
         <text class="quick-hint">若无法使用，请切换至密码登录</text>
@@ -83,9 +86,13 @@ export default {
   methods: {
     toggleAgree () { this.agreed = !this.agreed; this.showAgreeErr = false },
     goBack () { uni.navigateBack({ delta: 1 }).catch(() => uni.switchTab({ url: '/pages/home/index' })) },
+    requireAgreement () {
+      this.showAgreeErr = true
+      this.errMsg = '请先阅读并同意用户协议和隐私政策'
+    },
     async onWxPhoneLogin (e) {
       this.showAgreeErr = false
-      if (!this.agreed) { this.showAgreeErr = true; return }
+      // agreed 已由按钮 v-if 保证，此处不再检查
       const detail = e.detail || {}
       if (detail.errMsg && detail.errMsg.indexOf('deny') >= 0) { this.errMsg = '授权已取消'; return }
       const phoneCode = detail.code
@@ -114,6 +121,7 @@ export default {
     },
     async onPwdLogin () {
       this.errMsg = ''
+      if (!this.agreed) { this.requireAgreement(); return }
       if (!this.phone || this.phone.length < 11) { this.errMsg = '请输入有效手机号'; return }
       if (!this.password || this.password.length < 6) { this.errMsg = '密码至少 6 位'; return }
       this.loading = true
@@ -132,6 +140,7 @@ export default {
     },
     async onRegister () {
       this.errMsg = ''
+      if (!this.agreed) { this.requireAgreement(); return }
       if (!this.regPhone || this.regPhone.length < 11) { this.errMsg = '请输入有效手机号'; return }
       if (!this.regPassword || this.regPassword.length < 6) { this.errMsg = '密码至少 6 位'; return }
       this.regLoading = true

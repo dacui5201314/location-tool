@@ -4,7 +4,7 @@
     <view class="top">
       <template v-if="loggedIn">
         <view class="top-row" @tap="goEdit">
-          <image v-if="avatarUrl" class="avatar-img" :src="avatarUrl" mode="aspectFill" />
+          <image v-if="displayAvatarUrl" class="avatar-img" :src="displayAvatarUrl" mode="aspectFill" />
           <text v-else class="avatar-fb">👤</text>
           <view class="top-mid">
             <text class="uname">{{ displayName }}</text>
@@ -205,6 +205,16 @@ export default {
     }
   },
   computed: {
+    displayAvatarUrl () {
+      const url = this.avatarUrl || ''
+      if (!url) return ''
+      // 过滤临时头像：__tmp__、微信临时 CDN、本地 DevTools
+      if (url.indexOf('__tmp__') >= 0 || url.indexOf('tmp.weixin.qq.com') >= 0 || url.indexOf('127.0.0.1:26205') >= 0) return ''
+      // /assets/ 永久资源补全域名
+      if (url.startsWith('/assets/')) return config.API_BASE_URL + url
+      // 其他 http/https 保留（兼容旧数据）
+      return url
+    },
     displayName () {
       if (this.userName) return this.userName
       if (this.phoneText) return this.phoneText
@@ -242,7 +252,13 @@ export default {
             this.memberExpiry = p.membership_expiry || this.memberExpiry
             this.reportCount = p.total_reports ?? 0
             this.favCount = p.favorite_count ?? 0
-            if (p.user) auth.setUser(p.user)
+            if (p.user) {
+              auth.setUser(p.user)
+              this.avatarUrl = p.user.avatar_url || p.user.avatarUrl || ''
+              this.userName = p.user.nickname || p.user.name || this.userName
+              const phone = p.user.phone_number || p.user.phone || ''
+              this.phoneText = phone ? phone.replace(/(\d{3})\d{4}(\d{4})/, '$1****$2') : ''
+            }
           }
         }).catch(() => {})
         // CS QR + UI config + SKU
