@@ -54,6 +54,26 @@ function phoneLogin (loginCode, phoneCode) {
 // ── User / Records / Favorites ──
 function fetchProfile () { return request({ url: '/api/user/profile' }) }
 function updateProfile (data) { return request({ url: '/api/user/profile', method: 'PUT', data }) }
+function uploadAvatar (filePath) {
+  return new Promise((resolve, reject) => {
+    const token = uni.getStorageSync('token')
+    uni.uploadFile({
+      url: config.API_BASE_URL + '/api/user/avatar',
+      filePath,
+      name: 'file',
+      header: token ? { 'Authorization': 'Bearer ' + token } : {},
+      success (res) {
+        try {
+          const data = JSON.parse(res.data)
+          resolve({ ok: res.statusCode >= 200 && res.statusCode < 300, statusCode: res.statusCode, data })
+        } catch (e) {
+          resolve({ ok: false, statusCode: res.statusCode, data: res.data })
+        }
+      },
+      fail (err) { reject(err) }
+    })
+  })
+}
 function fetchRecords (page = 1, pageSize = 20) { return request({ url: `/api/records?page=${page}&page_size=${pageSize}` }) }
 function fetchRecordDetail (uuid) { return request({ url: `/api/records/${uuid}` }) }
 function deleteRecord (uuid) { return request({ url: `/api/records/${uuid}`, method: 'DELETE' }) }
@@ -150,6 +170,6 @@ function getHealth () { return request({ url: '/api/health', auth: false }) }
 
 export default {
   request, normalizeError, ensureAnonToken, wechatMiniLogin, bindPhone, phoneLogin,
-  fetchProfile, updateProfile, fetchRecords, fetchRecordDetail, deleteRecord,
+  fetchProfile, updateProfile, uploadAvatar, fetchRecords, fetchRecordDetail, deleteRecord,
   fetchFavorites, deleteFavorite, checkFavorite, addFavorite, fetchIndustries, locationSuggest, locationRegeocode, analyzeLocation, fetchUiConfig, fetchCsQr, fetchSkus, activateCdk, createPrepay, queryOrder, getHealth
 }

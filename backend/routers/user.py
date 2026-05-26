@@ -1,5 +1,6 @@
 """用户中心 API — JWT 鉴权 + 双轨计费"""
-from fastapi import APIRouter, Depends, HTTPException
+import os, secrets, time
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from database import get_db
@@ -8,6 +9,11 @@ from services.runtime_config import get_user_skus
 from auth import get_current_user
 
 router = APIRouter(prefix="/api/user", tags=["用户中心"])
+
+AVATAR_ROOT = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "storage", "assets", "user_avatars")
+os.makedirs(AVATAR_ROOT, exist_ok=True)
+AVATAR_MAX_BYTES = 2 * 1024 * 1024
+AVATAR_ALLOWED = {"image/png", "image/jpeg", "image/webp", "image/gif"}
 
 
 @router.get("/profile")
@@ -62,16 +68,73 @@ def update_profile(
     user: dict = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    """更新用户头像/昵称（小程序 chooseAvatar + nickname input）"""
+    """更新用户昵称（小程序 nickname input）。头像应通过 POST /api/user/avatar 上传。"""
     db_user = db.query(User).filter(User.id == user["user_id"]).first()
     if not db_user:
         raise HTTPException(status_code=404, detail="用户不存在")
+    # 头像：仅接受 /assets/ 开头的永久 URL，拒绝临时路径
     if body.avatar_url and body.avatar_url.strip():
-        db_user.avatar_url = body.avatar_url.strip()
+        url = body.avatar_url.strip()
+        if url.startswith("/assets/"):
+            db_user.avatar_url = url
+        # http(s) URL 不再作为小程序主路径，仅做兼容保留
     if body.nickname and body.nickname.strip():
         db_user.nickname = body.nickname.strip()
     db.commit()
     return {"ok": True, "user": db_user.to_dict()}
+
+
+@router.post("/avatar")
+async def upload_avatar(
+    file: UploadFile = File(...),
+    user: dict = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """上传用户头像（需 JWT）。只允许 PNG/JPEG/WebP/GIF，限制 2MB。
+    上传后自动更新用户 avatar_url 为持久化的 /assets/user_avatars/... 路径。"""
+    if file.content_type and file.content_type not in AVATAR_ALLOWED:
+        raise HTTPException(status_code=400, detail="仅支持 PNG、JPEG、WebP、GIF 格式")
+    content = await file.read()
+    if len(content) > AVATAR_MAX_BYTES:
+        raise HTTPException(status_code=400, detail="头像文件不能超过 2MB")
+    # 二次校验：通过文件头魔数确认真实类型
+    if len(content) < 4:
+        raise HTTPException(status_code=400, detail="文件内容无效")
+    header = content[:4]
+    magic_map = {
+        b"\x89PNG": "png",
+        b"\xff\xd8\xff": "jpeg",
+        b"RIFF": "webp",   # RIFF....WEBP
+        b"GIF8": "gif",
+    }
+    ext = None
+    for magic, e in magic_map.items():
+        if header.startswith(magic):
+            ext = e
+            break
+    # 额外检查 WebP: RIFF header 后需有 WEBP 标记
+    if ext == "webp" and (len(content) < 12 or content[8:12] != b"WEBP"):
+        ext = None
+    if ext is None:
+        raise HTTPException(status_code=400, detail="无法识别的图片格式")
+    # 生成安全文件名
+    uid = int(user["user_id"])
+    ts = int(time.time() * 1000)
+    token = secrets.token_hex(4)
+    filename = f"avatar_{uid}_{ts}_{token}.{ext}"
+    filepath = os.path.join(AVATAR_ROOT, filename)
+    # 防路径穿越
+    if os.path.abspath(filepath) != filepath or not filepath.startswith(os.path.abspath(AVATAR_ROOT)):
+        raise HTTPException(status_code=400, detail="文件名无效")
+    with open(filepath, "wb") as f:
+        f.write(content)
+    avatar_url = f"/assets/user_avatars/{filename}"
+    # 更新数据库
+    db_user = db.query(User).filter(User.id == uid).first()
+    if db_user:
+        db_user.avatar_url = avatar_url
+        db.commit()
+    return {"ok": True, "avatar_url": avatar_url, "user": db_user.to_dict() if db_user else None}
 
 
 @router.get("/skus")

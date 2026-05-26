@@ -86,21 +86,40 @@ export default {
       }).catch(() => { this.phoneBindErr = '网络异常' })
     },
     async onSave () {
-      let ok = false
+      this.errMsg = ''
+      uni.showLoading({ title: '保存中...' })
+      let avatarUrl = this.avatarUrl || ''
+      // 如果是本地临时路径（非 /assets/ 非 http），先上传到服务器
+      if (avatarUrl && !avatarUrl.startsWith('/assets/') && !avatarUrl.startsWith('http')) {
+        try {
+          const uploadR = await api.uploadAvatar(avatarUrl)
+          if (uploadR.ok && uploadR.data && uploadR.data.avatar_url) {
+            avatarUrl = uploadR.data.avatar_url
+          } else {
+            uni.hideLoading()
+            this.errMsg = uploadR.data?.detail || '头像上传失败，请稍后重试'
+            return
+          }
+        } catch (e) {
+          uni.hideLoading()
+          this.errMsg = '头像上传失败，请检查网络'
+          return
+        }
+      }
+      // 保存昵称到服务器
       try {
-        const r = await api.updateProfile({ avatar_url: this.avatarUrl, nickname: this.nickname })
+        const r = await api.updateProfile({ avatar_url: avatarUrl, nickname: this.nickname })
+        uni.hideLoading()
         if (r.ok) {
           if (r.data && r.data.user) auth.setUser(r.data.user)
-          ok = true
+          uni.showToast({ title: '已保存', icon: 'success' })
+          setTimeout(() => uni.navigateBack({ delta: 1 }), 800)
         } else {
           this.errMsg = r.data?.detail || '保存失败'
         }
       } catch (e) {
+        uni.hideLoading()
         this.errMsg = '网络异常，请重试'
-      }
-      if (ok) {
-        uni.showToast({ title: '已保存', icon: 'success' })
-        setTimeout(() => uni.navigateBack({ delta: 1 }), 800)
       }
     }
   }
