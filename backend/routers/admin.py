@@ -252,18 +252,53 @@ class ConfigBody(BaseModel):
     wx_api_key: str = ""
     wx_cert_sn: str = ""
     wx_notify_url: str = ""
+    wx_private_key_pem: str = ""
+    wx_platform_cert_pem: str = ""
+    clear_wx_private_key_pem: bool = False
+    clear_wx_platform_cert_pem: bool = False
+
+
+def _mask_core_config(raw: dict) -> dict:
+    """统一脱敏 helper：GET /config 和 PUT /config 均使用此函数。
+    敏感字段（ai_key、wx_api_key、wx_private_key_pem、wx_platform_cert_pem）
+    不回传原文，仅返回 masked 指示器或空字符串。"""
+    masked = dict(raw)
+    # AI key 脱敏
+    ai_key = (raw.get("ai_key") or "").strip()
+    if ai_key:
+        masked["ai_key_masked"] = ai_key[:4] + "****" + ai_key[-4:] if len(ai_key) > 8 else "****"
+    masked["ai_key"] = ""
+    # APIv3 key 脱敏
+    wx_api_key = (raw.get("wx_api_key") or "").strip()
+    if wx_api_key:
+        masked["wx_api_key_masked"] = "****"
+    masked["wx_api_key"] = ""
+    # 商户私钥 PEM — 只返回 has 指示器
+    if (raw.get("wx_private_key_pem") or "").strip():
+        masked["has_wx_private_key_pem"] = True
+    else:
+        masked["has_wx_private_key_pem"] = False
+    masked["wx_private_key_pem"] = ""
+    # 平台证书 PEM
+    if (raw.get("wx_platform_cert_pem") or "").strip():
+        masked["has_wx_platform_cert_pem"] = True
+    else:
+        masked["has_wx_platform_cert_pem"] = False
+    masked["wx_platform_cert_pem"] = ""
+    return masked
 
 
 @router.get("/config")
 def get_config(admin: dict = Depends(get_current_admin), db: Session = Depends(get_db)):
-    """获取核心系统配置（需管理员权限）。"""
-    return load_core_config(db)
+    """获取核心系统配置（需管理员权限）。敏感字段通过 _mask_core_config 脱敏。"""
+    return _mask_core_config(load_core_config(db))
 
 
 @router.put("/config")
 def save_config(body: ConfigBody, admin: dict = Depends(get_current_admin), db: Session = Depends(get_db)):
     """保存核心系统配置到数据库（需管理员权限，运行时读取生效）。
-    防空值保护：空字符串或 None 的字段自动略过，绝不允许空值覆写真实密钥。"""
+    防空值保护：空字符串或 None 的字段自动略过，绝不允许空值覆写真实密钥。
+    证书 PEM 字段通过 clear_wx_*_pem 标志支持显式清空。"""
     config_map = {
         "amap_key": body.amap_key,
         "ai_provider": body.ai_provider,
@@ -283,22 +318,57 @@ def save_config(body: ConfigBody, admin: dict = Depends(get_current_admin), db: 
             filtered_map[key] = str(value).strip()
         else:
             skipped.append(key)
+    # ★ PEM 证书字段单独处理：trim 后非空写入；空值保留现有；clear 标志显式清空
+    # ★ 使用 cryptography 做真实解析校验，不依赖字符串包含检查
+    pem_actions = []
+    # 商户私钥
+    pk_pem = (body.wx_private_key_pem or "").strip()
+    if body.clear_wx_private_key_pem:
+        filtered_map["wx_private_key_pem"] = ""
+        pem_actions.append("清除商户私钥")
+    elif pk_pem:
+        try:
+            from cryptography.hazmat.primitives import serialization as _ser
+            _ser.load_pem_private_key(pk_pem.encode(), password=None)
+        except Exception:
+            raise HTTPException(status_code=400, detail="商户私钥格式无效")
+        filtered_map["wx_private_key_pem"] = pk_pem
+        pem_actions.append("更新商户私钥")
+    # 平台证书
+    plat_pem = (body.wx_platform_cert_pem or "").strip()
+    if body.clear_wx_platform_cert_pem:
+        filtered_map["wx_platform_cert_pem"] = ""
+        pem_actions.append("清除平台证书")
+    elif plat_pem:
+        try:
+            from cryptography import x509 as _x509
+            _x509.load_pem_x509_certificate(plat_pem.encode())
+        except Exception:
+            raise HTTPException(status_code=400, detail="平台证书格式无效")
+        filtered_map["wx_platform_cert_pem"] = plat_pem
+        pem_actions.append("更新平台证书")
+    # 持久化
     if filtered_map:
         set_config_values(filtered_map, {key: f"系统设置-{key}" for key in CORE_CONFIG_DEFAULTS}, db)
-    # ★ 操作审计日志
+    # ★ 操作审计日志 — 只记录字段名，不记录值
     admin_id = admin.get("user_id", 0)
+    logged_keys = list(filtered_map.keys()) if filtered_map else []
+    if pem_actions:
+        logged_keys = logged_keys + [f"PEM:{a}" for a in pem_actions]
+    skipped_desc = ", ".join(skipped) if skipped else "无"
     db.add(OperationLog(
         admin_id=admin_id, user_id=0, type="SYSTEM_CONFIG",
-        change_amount=", ".join(filtered_map.keys()) if filtered_map else "无变更",
-        reason=f"系统配置变更 (跳过: {', '.join(skipped) if skipped else '无'})",
+        change_amount=", ".join(logged_keys) if logged_keys else "无变更",
+        reason=f"系统配置变更 (跳过: {skipped_desc})",
     ))
     db.commit()
     return {
         "ok": True,
-        "message": "配置已保存",
+        "message": "配置已保存" + (f" ({'; '.join(pem_actions)})" if pem_actions else ""),
         "saved_fields": list(filtered_map.keys()) if filtered_map else [],
         "skipped_fields": skipped,
-        "config": load_core_config(db),
+        "pem_actions": pem_actions,
+        "config": _mask_core_config(load_core_config(db)),
     }
 
 

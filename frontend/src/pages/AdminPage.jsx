@@ -298,6 +298,10 @@ export default function AdminPage() {
     wx_api_key: '',
     wx_cert_sn: '',
     wx_notify_url: '',
+    wx_private_key_pem: '',
+    wx_platform_cert_pem: '',
+    has_wx_private_key_pem: false,
+    has_wx_platform_cert_pem: false,
   })
   const [skus, setSkus] = useState([])
   const [uiConfig, setUiConfig] = useState({ announcement: '', cs_wechat: '', cs_phone: '', customer_service_name: '', customer_service_qr_url: '' })  // customer_service_qr_url 仅用于 DB 持久化，预览不用此字段
@@ -306,6 +310,9 @@ export default function AdminPage() {
   const [cdkGen, setCdkGen] = useState({ prefix: 'AI', count: 10, credits: 1, days_valid: 90 })
   const [trends, setTrends] = useState(null)
   const [showAiKey, setShowAiKey] = useState(false)
+  const [showWxApiKey, setShowWxApiKey] = useState(false)
+  const [confirmClearPk, setConfirmClearPk] = useState(false)
+  const [confirmClearPlat, setConfirmClearPlat] = useState(false)
   // ★ CorePromptEditor 状态已移至独立组件，消除全局重渲染
   const [dashTrends, setDashTrends] = useState({ dates: [], counts: [] })
   const [opLogs, setOpLogs] = useState([])
@@ -407,8 +414,16 @@ export default function AdminPage() {
   const loadSettingsData = () => {
     adminFetch('/skus').then(r => r.json()).then(d => { setSkus(d.skus || []); setSkusDirty(false) }).catch(() => showToast('套餐列表加载失败'))
     // ★ 防止 /config 的 system_prompt:"" 空值覆盖 /core-prompt 已加载的默认Prompt
+    // ★ has_xxx 字段由后端脱敏返回，用于 UI 显示证书配置状态
     adminFetch('/config').then(r => r.json()).then(d => {
-      setSettings(s => ({ ...s, ...d, system_prompt: s.system_prompt || d.system_prompt || '' }))
+      setSettings(s => ({
+        ...s, ...d,
+        system_prompt: s.system_prompt || d.system_prompt || '',
+        wx_private_key_pem: '',   // 永不回显已保存的 PEM 内容
+        wx_platform_cert_pem: '', // 永不回显已保存的 PEM 内容
+        has_wx_private_key_pem: d.has_wx_private_key_pem || false,
+        has_wx_platform_cert_pem: d.has_wx_platform_cert_pem || false,
+      }))
       setSettingsDirty(false)
     }).catch(() => { showToast('核心配置加载失败') })
     // 拉取核心 Prompt（含默认值回退）— 成功后标记 settingsLoaded
@@ -1196,7 +1211,7 @@ export default function AdminPage() {
             {/* 微信支付配置 */}
             <div className="rounded-xl bg-white p-5 shadow-sm border border-slate-100 contain-paint">
               <div className="text-sm font-bold text-slate-800 mb-1">微信支付配置</div>
-              <div className="text-[11px] text-slate-400 mb-4">微信商户号、API 密钥及回调地址</div>
+              <div className="text-[11px] text-slate-400 mb-4">微信商户号、API 密钥、证书及回调地址。保存后即时生效。</div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="text-xs font-semibold text-slate-500">商户号 (MCH ID)</label>
@@ -1209,12 +1224,18 @@ export default function AdminPage() {
                     className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-blue-400" />
                 </div>
                 <div>
-                  <label className="text-xs font-semibold text-slate-500">APIv3 密钥</label>
-                  <input type="password" value={settings.wx_api_key} onChange={e => updateSettings({ wx_api_key: e.target.value })}
-                    className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-blue-400" />
+                  <label className="text-xs font-semibold text-slate-500">APIv3 密钥（32 位）</label>
+                  <div className="relative mt-1">
+                    <input type={showWxApiKey ? 'text' : 'password'} value={settings.wx_api_key} onChange={e => updateSettings({ wx_api_key: e.target.value })}
+                      className="w-full rounded-lg border border-slate-200 px-3 py-2 pr-10 text-sm focus:outline-none focus:border-blue-400" />
+                    <button type="button" onClick={() => setShowWxApiKey(!showWxApiKey)}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-sm">
+                      {showWxApiKey ? '🙈' : '👁'}
+                    </button>
+                  </div>
                 </div>
                 <div>
-                  <label className="text-xs font-semibold text-slate-500">商户证书序列号</label>
+                  <label className="text-xs font-semibold text-slate-500">商户 API 证书序列号</label>
                   <input value={settings.wx_cert_sn} onChange={e => updateSettings({ wx_cert_sn: e.target.value })}
                     className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-blue-400" />
                 </div>
@@ -1224,6 +1245,65 @@ export default function AdminPage() {
                     placeholder={`${window.location.origin}/api/payment/notify`}
                     className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-blue-400" />
                 </div>
+              </div>
+              {/* 商户私钥 PEM */}
+              <div className="mt-4 pt-4 border-t border-slate-100">
+                <div className="flex items-center justify-between mb-1">
+                  <label className="text-xs font-semibold text-slate-500">商户私钥 (apiclient_key.pem)</label>
+                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${settings.has_wx_private_key_pem ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-100 text-slate-400'}`}>
+                    {settings.has_wx_private_key_pem ? '已配置' : '未配置'}
+                  </span>
+                </div>
+                <textarea value={settings.wx_private_key_pem}
+                  onChange={e => updateSettings({ wx_private_key_pem: e.target.value })}
+                  placeholder={`粘贴商户 API 私钥 PEM 内容，需包含 BEGIN/END PRIVATE KEY 标记；空着保存表示保留现有证书`}
+                  rows={4}
+                  className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-xs font-mono focus:outline-none focus:border-blue-400 resize-y"
+                  style={{ minHeight: '80px' }}
+                />
+                {settings.has_wx_private_key_pem && !confirmClearPk && (
+                  <button type="button" onClick={() => setConfirmClearPk(true)}
+                    className="mt-2 text-[11px] font-semibold text-red-500 hover:text-red-600">清除已保存的商户私钥</button>
+                )}
+                {confirmClearPk && (
+                  <div className="mt-2 flex items-center gap-2">
+                    <span className="text-[11px] font-semibold text-red-600">确认清除？此操作不可撤销</span>
+                    <button type="button" onClick={() => setConfirmClearPk(false)}
+                      className="text-[10px] text-slate-400 hover:text-slate-600">取消</button>
+                    <span className="text-[10px] text-red-400">（下次保存时生效）</span>
+                  </div>
+                )}
+              </div>
+              {/* 平台证书 PEM */}
+              <div className="mt-4">
+                <div className="flex items-center justify-between mb-1">
+                  <label className="text-xs font-semibold text-slate-500">微信支付平台证书 (platform_cert.pem)</label>
+                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${settings.has_wx_platform_cert_pem ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-100 text-slate-400'}`}>
+                    {settings.has_wx_platform_cert_pem ? '已配置' : '未配置'}
+                  </span>
+                </div>
+                <textarea value={settings.wx_platform_cert_pem}
+                  onChange={e => updateSettings({ wx_platform_cert_pem: e.target.value })}
+                  placeholder={`粘贴微信支付平台证书 PEM 内容，需包含 BEGIN/END CERTIFICATE 标记；空着保存表示保留现有证书`}
+                  rows={4}
+                  className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-xs font-mono focus:outline-none focus:border-blue-400 resize-y"
+                  style={{ minHeight: '80px' }}
+                />
+                {settings.has_wx_platform_cert_pem && !confirmClearPlat && (
+                  <button type="button" onClick={() => setConfirmClearPlat(true)}
+                    className="mt-2 text-[11px] font-semibold text-red-500 hover:text-red-600">清除已保存的平台证书</button>
+                )}
+                {confirmClearPlat && (
+                  <div className="mt-2 flex items-center gap-2">
+                    <span className="text-[11px] font-semibold text-red-600">确认清除？此操作不可撤销</span>
+                    <button type="button" onClick={() => setConfirmClearPlat(false)}
+                      className="text-[10px] text-slate-400 hover:text-slate-600">取消</button>
+                    <span className="text-[10px] text-red-400">（下次保存时生效）</span>
+                  </div>
+                )}
+              </div>
+              <div className="mt-3 text-[10px] text-slate-400">
+                证书以 PEM 格式存储于数据库。空字段保存时将保留现有配置，不会被清空。
               </div>
             </div>
 
@@ -1410,12 +1490,19 @@ export default function AdminPage() {
             </div>
 
             {/* 保存按钮 → 二次确认 */}
-            <button onClick={() => setConfirmSave(true)}
-              disabled={!settingsDirty || settingsSaving || !settingsLoaded}
-              className="w-full rounded-xl bg-blue-600 py-3 text-sm font-bold text-white hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
-              {!settingsLoaded ? '配置加载中...' : settingsDirty ? '保存核心系统配置' : '核心系统配置已保存'}
-            </button>
-            {settingsDirty && <p className="-mt-2 text-center text-[10px] font-semibold text-amber-600">核心系统配置有未保存更改</p>}
+            {(() => {
+              const hasPending = settingsDirty || confirmClearPk || confirmClearPlat
+              return (
+                <>
+                  <button onClick={() => setConfirmSave(true)}
+                    disabled={!hasPending || settingsSaving || !settingsLoaded}
+                    className="w-full rounded-xl bg-blue-600 py-3 text-sm font-bold text-white hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                    {!settingsLoaded ? '配置加载中...' : hasPending ? '保存核心系统配置' : '核心系统配置已保存'}
+                  </button>
+                  {hasPending && <p className="-mt-2 text-center text-[10px] font-semibold text-amber-600">核心系统配置有未保存更改</p>}
+                </>
+              )
+            })()}
 
             {/* 二次确认弹窗 */}
             {confirmSave && (
@@ -1431,13 +1518,32 @@ export default function AdminPage() {
                       setConfirmSave(false)
                       setSettingsSaving(true)
                       try {
-                        await adminFetch('/config', {
+                        const payload = { ...settings }
+                        // 如果请求清除证书，设置对应 flag
+                        if (confirmClearPk) { payload.clear_wx_private_key_pem = true; payload.wx_private_key_pem = '' }
+                        if (confirmClearPlat) { payload.clear_wx_platform_cert_pem = true; payload.wx_platform_cert_pem = '' }
+                        const resp = await adminFetch('/config', {
                           method: 'PUT',
-                          body: JSON.stringify(settings),
+                          body: JSON.stringify(payload),
                         })
+                        const data = await resp.json().catch(() => ({}))
+                        if (!resp.ok) throw new Error(data.detail || '保存失败')
+                        // 刷新 settings：只 merge 脱敏后的 config，强制清空 PEM textarea
+                        if (data.config) {
+                          setSettings(s => ({
+                            ...s,
+                            ...data.config,
+                            wx_private_key_pem: '',
+                            wx_platform_cert_pem: '',
+                            has_wx_private_key_pem: data.config.has_wx_private_key_pem || false,
+                            has_wx_platform_cert_pem: data.config.has_wx_platform_cert_pem || false,
+                          }))
+                        }
+                        setConfirmClearPk(false)
+                        setConfirmClearPlat(false)
                         setSettingsDirty(false)
-                        showToast('配置已保存，运行时立即读取新值')
-                      } catch { showToast('保存失败') }
+                        showToast(data.message || '配置已保存，运行时立即读取新值')
+                      } catch (err) { showToast(err?.message || '保存失败') }
                       finally { setSettingsSaving(false) }
                     }}
                       className="flex-1 rounded-lg bg-blue-600 py-2.5 text-sm font-semibold text-white hover:bg-blue-700">确定保存</button>

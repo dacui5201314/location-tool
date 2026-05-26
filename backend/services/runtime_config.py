@@ -18,6 +18,8 @@ CORE_CONFIG_DEFAULTS = {
     "wx_api_key": "",
     "wx_cert_sn": "",
     "wx_notify_url": "",
+    "wx_private_key_pem": "",
+    "wx_platform_cert_pem": "",
 }
 
 PDF_CONFIG_DEFAULTS = {

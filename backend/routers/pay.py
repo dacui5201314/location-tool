@@ -1,6 +1,6 @@
 """微信支付 — JSAPI v3 prepay + notify + order query
 DB 优先（管理后台 SystemConfig），环境变量 fallback。
-私钥/平台证书路径仅从环境变量读取。
+私钥/平台证书：DB PEM 优先，env 文件路径 fallback。
 API_V3_KEY 必须是 32 字节（AES-256-GCM 要求）。
 """
 import os, json, time, base64, secrets
@@ -33,6 +33,10 @@ def _rand_nonce():
 
 # ── 支付配置：DB 优先，env fallback ──
 def _pay_config(db=None):
+    """返回完整支付配置元组：
+    (mchid, appid, api_v3_key, cert_sn, db_private_key_pem, env_private_key_path,
+     notify_url, db_platform_cert_pem, env_platform_cert_path)
+    """
     cfg = get_core_config(db) if db else {}
     env = os.getenv
     return (
@@ -40,44 +44,106 @@ def _pay_config(db=None):
         cfg.get("wx_app_id") or env("WX_PAY_APPID", ""),
         cfg.get("wx_api_key") or env("WX_PAY_API_V3_KEY", ""),
         cfg.get("wx_cert_sn") or env("WX_PAY_CERT_SERIAL_NO", ""),
-        env("WX_PAY_PRIVATE_KEY_PATH", ""),
+        (cfg.get("wx_private_key_pem") or "").strip(),       # [4] DB PEM string
+        env("WX_PAY_PRIVATE_KEY_PATH", ""),                    # [5] env path fallback
         cfg.get("wx_notify_url") or env("WX_PAY_NOTIFY_URL", ""),
-        env("WX_PAY_PLATFORM_CERT_PATH", ""),
+        (cfg.get("wx_platform_cert_pem") or "").strip(),      # [7] DB PEM string
+        env("WX_PAY_PLATFORM_CERT_PATH", ""),                  # [8] env path fallback
     )
 
 
+def _load_private_key(db=None):
+    """加载商户私钥对象：DB PEM 优先，env 文件路径 fallback。"""
+    if not _CRYPTO_OK:
+        raise HTTPException(status_code=500, detail="cryptography 依赖未安装")
+    cfg = get_core_config(db) if db else {}
+    pk_pem = (cfg.get("wx_private_key_pem") or "").strip()
+    if pk_pem:
+        try:
+            return serialization.load_pem_private_key(pk_pem.encode(), password=None)
+        except Exception:
+            raise HTTPException(status_code=500, detail="商户私钥格式无效")
+    pk_path = os.getenv("WX_PAY_PRIVATE_KEY_PATH", "")
+    if pk_path:
+        try:
+            with open(pk_path, "rb") as f:
+                return serialization.load_pem_private_key(f.read(), password=None)
+        except FileNotFoundError:
+            raise HTTPException(status_code=500, detail="商户私钥文件未找到")
+        except Exception:
+            raise HTTPException(status_code=500, detail="商户私钥格式无效")
+    raise HTTPException(status_code=503, detail="商户私钥未配置")
+
+
+def _load_platform_cert(db=None):
+    """加载平台证书对象：DB PEM 优先，env 文件路径 fallback。
+    返回 (public_key, serial_hex)，未配置时抛出 HTTPException。"""
+    if not _CRYPTO_OK:
+        raise HTTPException(status_code=500, detail="cryptography 依赖未安装")
+    cfg = get_core_config(db) if db else {}
+    plat_pem = (cfg.get("wx_platform_cert_pem") or "").strip()
+    if plat_pem:
+        try:
+            return _parse_cert(plat_pem.encode())
+        except Exception:
+            raise HTTPException(status_code=500, detail="平台证书格式无效")
+    plat_path = os.getenv("WX_PAY_PLATFORM_CERT_PATH", "")
+    if plat_path:
+        try:
+            with open(plat_path, "rb") as f:
+                return _parse_cert(f.read())
+        except FileNotFoundError:
+            raise HTTPException(status_code=500, detail="平台证书文件未找到")
+        except Exception:
+            raise HTTPException(status_code=500, detail="平台证书格式无效")
+    raise HTTPException(status_code=503, detail="平台证书未配置")
+
+
+def _parse_cert(cert_raw: bytes):
+    """解析 x509 证书，返回 (public_key, serial_hex)"""
+    from cryptography import x509 as x509_mod
+    cert = x509_mod.load_pem_x509_certificate(cert_raw)
+    return cert.public_key(), format(cert.serial_number, 'X')
+
+
 def _prepay_configured(db=None):
-    """prepay 只需要商户配置 + 私钥，不需要平台证书"""
-    mchid, appid, key, cert, pk, notify, _ = _pay_config(db)
-    return all([mchid, appid, key, cert, pk, notify]) and len(key) == 32
+    """prepay 需要：商户号/AppID/APIv3密钥32位/证书序列号/私钥（DB PEM 或 env 路径）/notify URL"""
+    cfg = get_core_config(db) if db else {}
+    mchid, appid, key, cert_sn, db_pk, env_pk_path, notify, _, _ = _pay_config(db)
+    has_key = mchid and appid and key and cert_sn and notify
+    has_pk = bool(db_pk or env_pk_path)
+    return bool(has_key and has_pk) and len(key) == 32
 
 
 def _notify_configured(db=None):
-    """notify 额外需要平台证书"""
-    vals = _pay_config(db)
-    return all(vals) and len(vals[2]) == 32
+    """notify 额外需要平台证书（DB PEM 或 env 路径）"""
+    if not _prepay_configured(db):
+        return False
+    cfg = get_core_config(db) if db else {}
+    has_plat = bool((cfg.get("wx_platform_cert_pem") or "").strip() or os.getenv("WX_PAY_PLATFORM_CERT_PATH", ""))
+    return has_plat
 
 
 # ── APIv3 SHA256-RSA2048 签名 ──
-def _sign(method, url_path, body_str, mchid, cert_serial, pk_path):
+def _sign(method, url_path, body_str, mchid, cert_serial, private_key):
+    """private_key 为已加载的 cryptography 私钥对象"""
     if not _CRYPTO_OK:
         raise HTTPException(status_code=500, detail="cryptography 依赖未安装")
     ts = str(int(time.time()))
     nonce = _rand_nonce()
     sign_raw = f"{method}\n{url_path}\n{ts}\n{nonce}\n{body_str}\n"
-    with open(pk_path, "rb") as f:
-        priv = serialization.load_pem_private_key(f.read(), password=None)
-    sig = priv.sign(sign_raw.encode(), padding.PKCS1v15(), hashes.SHA256())
+    sig = private_key.sign(sign_raw.encode(), padding.PKCS1v15(), hashes.SHA256())
     sig_b64 = base64.b64encode(sig).decode()
     token = f'WECHATPAY2-SHA256-RSA2048 mchid="{mchid}",nonce_str="{nonce}",timestamp="{ts}",serial_no="{cert_serial}",signature="{sig_b64}"'
     return token
 
 
 # ── APIv3 HTTP ──
-def _wx_post(url_path, body, mchid, appid, key, cert_serial, pk_path):
+def _wx_post(url_path, body, mchid, appid, key, cert_serial, private_key):
+    """private_key 为已加载的 cryptography 私钥对象"""
     import urllib.request, ssl
     body_str = json.dumps(body, ensure_ascii=False)
-    token = _sign("POST", url_path, body_str, mchid, cert_serial, pk_path)
+    token = _sign("POST", url_path, body_str, mchid, cert_serial, private_key)
     url = f"https://api.mch.weixin.qq.com{url_path}"
     req = urllib.request.Request(url, data=body_str.encode(), headers={
         "Content-Type": "application/json",
@@ -102,8 +168,8 @@ def wechat_prepay(
 ):
     """真实微信 JSAPI v3 预支付下单"""
     if not _prepay_configured(db):
-        raise HTTPException(status_code=503, detail="支付服务暂不可用，请在管理后台完善微信支付商户配置（商户号/AppID/APIv3密钥32位/证书序列号/私钥路径/回调地址）")
-    mchid, appid, api_v3_key, cert_serial, pk_path, notify_url, _ = _pay_config(db)
+        raise HTTPException(status_code=503, detail="支付服务暂不可用，请在管理后台完善微信支付商户配置")
+    mchid, appid, api_v3_key, cert_serial, db_pk, _, notify_url, _, _ = _pay_config(db)
 
     user_id = int(user["user_id"])
     db_user = db.query(User).filter(User.id == user_id).first()
@@ -152,6 +218,9 @@ def wechat_prepay(
     db.commit()
     db.refresh(order)
 
+    # 加载商户私钥（DB PEM 优先，env 路径 fallback）
+    private_key = _load_private_key(db)
+
     # 调用微信 JSAPI 下单
     wx_body = {
         "appid": appid,
@@ -163,26 +232,24 @@ def wechat_prepay(
         "payer": {"openid": openid},
     }
     try:
-        wx_resp = _wx_post("/v3/pay/transactions/jsapi", wx_body, mchid, appid, api_v3_key, cert_serial, pk_path)
+        wx_resp = _wx_post("/v3/pay/transactions/jsapi", wx_body, mchid, appid, api_v3_key, cert_serial, private_key)
     except Exception as e:
         order.status = "FAILED"
         db.commit()
-        raise HTTPException(status_code=502, detail=f"微信支付接口异常: {str(e)[:120]}")
+        raise HTTPException(status_code=502, detail="微信支付接口异常")
 
     prepay_id = wx_resp.get("prepay_id", "")
     if not prepay_id:
         order.status = "FAILED"
         db.commit()
-        raise HTTPException(status_code=502, detail=f"微信支付下单失败: {json.dumps(wx_resp, ensure_ascii=False)[:200]}")
+        raise HTTPException(status_code=502, detail="微信支付下单失败")
 
-    # 生成小程序调起支付参数（安全随机 nonce）
+    # 生成小程序调起支付参数
     ts = str(int(time.time()))
     nonce = _rand_nonce()
     package = f"prepay_id={prepay_id}"
     sign_raw = f"{appid}\n{ts}\n{nonce}\n{package}\n"
-    with open(pk_path, "rb") as f:
-        priv = serialization.load_pem_private_key(f.read(), password=None)
-    sig = priv.sign(sign_raw.encode(), padding.PKCS1v15(), hashes.SHA256())
+    sig = private_key.sign(sign_raw.encode(), padding.PKCS1v15(), hashes.SHA256())
     pay_sign = base64.b64encode(sig).decode()
 
     return {
@@ -201,14 +268,14 @@ async def wechat_notify(request: Request, db: Session = Depends(get_db)):
     if not _notify_configured(db):
         return JSONResponse(status_code=500, content={"code": "FAIL", "message": "notify not fully configured"})
 
-    mchid, appid, api_v3_key, cert_serial, pk_path, notify_url, plat_cert_path = _pay_config(db)
+    mchid, appid, api_v3_key, cert_serial, _, _, notify_url, _, _ = _pay_config(db)
 
     # 0. Wechatpay-Serial 校验（是平台证书序列号，不是商户证书序列号）
     wx_serial = request.headers.get("Wechatpay-Serial", "")
     if not wx_serial:
         return JSONResponse(status_code=400, content={"code": "FAIL", "message": "missing Wechatpay-Serial header"})
 
-    # 1. 加载平台证书 + 验签 + 序列号比对
+    # 1. 加载平台证书（DB PEM 优先，env 路径 fallback）+ 验签 + 序列号比对
     ts = request.headers.get("Wechatpay-Timestamp", "")
     nonce = request.headers.get("Wechatpay-Nonce", "")
     sig_header = request.headers.get("Wechatpay-Signature", "")
@@ -217,19 +284,12 @@ async def wechat_notify(request: Request, db: Session = Depends(get_db)):
     sign_raw = f"{ts}\n{nonce}\n{body_str}\n"
 
     try:
-        if not plat_cert_path:
-            raise FileNotFoundError("WX_PAY_PLATFORM_CERT_PATH not configured")
-        with open(plat_cert_path, "rb") as f:
-            cert_raw = f.read()
-        # 微信平台证书是 x509 PEM；从证书提取序列号
-        from cryptography import x509 as x509_mod
-        cert = x509_mod.load_pem_x509_certificate(cert_raw)
-        plat_key = cert.public_key()
-        # serial_number 是 int，微信 header 是 hex 大写字符串
-        plat_serial = format(cert.serial_number, 'X')
+        plat_key, plat_serial = _load_platform_cert(db)
         # 验签
         sig_bytes = base64.b64decode(sig_header)
         plat_key.verify(sig_bytes, sign_raw.encode(), padding.PKCS1v15(), hashes.SHA256())
+    except HTTPException:
+        raise  # 配置错误直接抛出
     except Exception:
         return JSONResponse(status_code=400, content={"code": "FAIL", "message": "signature verification failed"})
 
