@@ -405,7 +405,7 @@ export default function AdminPage() {
   const loadIndustries = useCallback(() => { adminFetch('/industries').then(r => r.json()).then(d => setIndustries(d.industries || [])).catch(() => showToast('业态列表加载失败')) }, [adminFetch, showToast])
 
   const loadSettingsData = () => {
-    fetch('/api/admin/skus').then(r => r.json()).then(d => { setSkus(d.skus || []); setSkusDirty(false) }).catch(() => showToast('套餐列表加载失败'))
+    adminFetch('/skus').then(r => r.json()).then(d => { setSkus(d.skus || []); setSkusDirty(false) }).catch(() => showToast('套餐列表加载失败'))
     // ★ 防止 /config 的 system_prompt:"" 空值覆盖 /core-prompt 已加载的默认Prompt
     adminFetch('/config').then(r => r.json()).then(d => {
       setSettings(s => ({ ...s, ...d, system_prompt: s.system_prompt || d.system_prompt || '' }))
