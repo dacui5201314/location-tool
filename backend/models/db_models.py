@@ -34,7 +34,6 @@ class User(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     phone_number = Column(String(20), unique=True, index=True, nullable=True, comment="手机号")
     avatar_url = Column(String(500), default="", comment="头像URL")
-    avatar_url = Column(String(500), default="", comment="头像URL")
     nickname = Column(String(80), default="", comment="用户昵称")
     balance_credits = Column(Integer, default=1, comment="剩余分析点数（即 points），新用户默认赠送 1 点")
     membership_tier = Column(String(20), default="free", comment="会员等级 free/monthly/quarterly/yearly")

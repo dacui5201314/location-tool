@@ -99,8 +99,6 @@ export default {
         this.errMsg = '网络异常，请重试'
       }
       if (ok) {
-        // 本地也更新以保证 refreshState 能读取到最新值
-        auth.setUser({ avatarUrl: this.avatarUrl, nickname: this.nickname, phone: this.rawPhone, phone_number: this.rawPhone })
         uni.showToast({ title: '已保存', icon: 'success' })
         setTimeout(() => uni.navigateBack({ delta: 1 }), 800)
       }
