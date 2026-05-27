@@ -174,6 +174,22 @@ def _is_generic_candidate(candidate: str) -> bool:
     if candidate.startswith("客群"):
         return True
 
+    # Rule 6: 纯泛称类别词 — 候选名本身或去描述前缀后命中泛称词表
+    _standalone = candidate
+    for _desc in ("大型", "小型", "中型", "高档", "低档", "新建", "老旧", "繁华", "成熟",
+                  "连锁", "家庭式", "消费类", "品牌", "同品类", "夜间", "时段", "重点",
+                  "主要", "核心", "区域性", "社区型"):
+        if _standalone.startswith(_desc):
+            _standalone = _standalone[len(_desc):]
+            break
+    if _standalone and _standalone != candidate:
+        if _standalone in _GENERIC_REFERENTS:
+            return True
+    # 泛称前缀 + 类别后缀组合（如"同品类竞品"→"品类竞品"不是泛称但"竞品"不是POI后缀所以不会到这里）
+    # 安全：只放行候选名本身就是纯类别词的情况
+    if candidate in _GENERIC_REFERENTS:
+        return True
+
     return False
 
 

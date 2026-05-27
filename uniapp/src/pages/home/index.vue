@@ -109,13 +109,19 @@
       <text class="field-err" v-if="errors.address">{{ errors.address }}</text>
 
       <view class="map-wrap">
-        <map id="homeMap" class="map-view" :latitude="mapLat" :longitude="mapLng" :markers="mapMarkers" scale="15" :show-location="showUserLocation" :enable-scroll="!analyzing" :enable-zoom="!analyzing" :enable-rotate="false" @tap="onMapTap" @regionchange="onMapRegionChange" />
-        <!-- 中心准星：cover-view flex 居中，兼容不支持 transform 的限制 -->
-        <cover-view class="crosshair" v-if="!analyzing">
+        <!-- 静态占位层：首次加载/welcome弹窗/分析中隐藏 map 原生组件 -->
+        <view class="map-placeholder" v-if="!mapReady || welcomeOpen || analyzing">
+          <view class="mph-building mph-a" /><view class="mph-building mph-b" />
+          <view class="mph-building mph-c" /><view class="mph-building mph-d" />
+        </view>
+        <!-- 地图：延迟渲染避免闪白 -->
+        <map v-if="mapReady && !welcomeOpen" id="homeMap" class="map-view" :latitude="mapLat" :longitude="mapLng" :markers="mapMarkers" scale="15" :show-location="showUserLocation" :enable-scroll="!analyzing" :enable-zoom="!analyzing" :enable-rotate="false" @tap="onMapTap" @regionchange="onMapRegionChange" />
+        <!-- 中心准星 -->
+        <cover-view class="crosshair" v-if="mapReady && !welcomeOpen && !analyzing">
           <cover-view class="ch-dot" />
         </cover-view>
         <!-- 分析中遮罩 -->
-        <cover-view class="map-overlay" v-if="analyzing">
+        <cover-view class="map-overlay" v-if="analyzing && mapReady">
           <cover-view class="mo-text">分析中，请稍后...</cover-view>
         </cover-view>
       </view>
@@ -198,7 +204,8 @@ export default {
       addressText: '',
       mapLat: 39.9087,
       mapLng: 116.3975,
-      _regionTimer: null,  // 拖动结束防抖
+      mapReady: false,  // 延迟渲染 map 避免首次白块
+      _regionTimer: null,
       industry: '',
       brandName: '',
       storeSize: '',
@@ -295,6 +302,8 @@ export default {
       if (r.ok && Array.isArray(r.data?.industries)) this.industryList = r.data.industries
     }).catch(() => { this.industryLoadErr = '业态加载失败，请稍后重试' })
     this.initHomeData()
+    // ★ 延迟渲染 map 避免首次白块闪烁
+    setTimeout(() => { this.mapReady = true }, 350)
   },
   methods: {
     async initHomeData () {
@@ -800,6 +809,12 @@ export default {
 .ab-edit::after { border:none; }
 .map-wrap { position:relative; border-radius:24rpx; overflow:hidden; box-shadow:0 18rpx 38rpx rgba(79,119,186,0.12); border:2rpx solid rgba(219,230,255,0.5); background:#dce4f2; }
 .map-view { width:100%; height:360rpx; }
+
+/* Map placeholder — 防止白块闪烁 */
+.map-placeholder { width:100%; height:360rpx; background:linear-gradient(180deg,#e8edf5,#dce4f2); display:flex; align-items:flex-end; justify-content:center; position:relative; overflow:hidden; }
+.mph-building { position:absolute; bottom:0; width:48rpx; border-radius:8rpx 8rpx 0 0; background:linear-gradient(180deg,rgba(148,163,184,0.35),rgba(148,163,184,0.08)); }
+.mph-a { right:68rpx; height:98rpx; } .mph-b { right:124rpx; height:156rpx; }
+.mph-c { right:180rpx; height:124rpx; } .mph-d { right:236rpx; height:84rpx; }
 
 /* Center crosshair — flex centering, cover-view compatible */
 .crosshair { position:absolute; left:0; right:0; top:0; bottom:0; display:flex; align-items:center; justify-content:center; z-index:10; pointer-events:none; }
