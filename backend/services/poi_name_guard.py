@@ -41,7 +41,7 @@ _CONTEXT_KEYWORDS = [
 
 # 候选名必须不以此开头 — 动词/形容词/数词/量词前缀，排除描述性短语
 _NON_NAME_STARTS = re.compile(
-    r'^[0-9零一二三四五六七八九十百千万亿几数多少量]'
+    r'^[0-9零一二三四五六七八九十百千万亿几数多少量某]'
     r'|^(?:提供|构成|存在|形成|拥有|配套|临近|靠近'
     r'|面向|服务|覆盖|辐射|缺乏|缺少|不足|严重'
     r'|稳定|密集|优质|成熟|新建|老旧|高档|繁华'
@@ -74,7 +74,7 @@ _GENERIC_BLACKLIST = {
     "周边小区","附近医院",
     # 字符串切分 artifact — 非自然 POI 名称
     "大学校","中学校","小学校",
-    "大酒店","大医院","大型商场","大型社区",
+    "大酒店","大医院","大型商场","大型社区","大型超市","大型酒店","大型购物商场",
     # 数据描述 artifact
     "米内写字楼","内写字楼","内酒店","内商场",
     "米内便利店","米内超市","米内商场","米内酒店","米内学校",
@@ -96,6 +96,8 @@ _GENERIC_REFERENTS = {
     "家园","大厦","广场","餐饮","商业","住宿","购物",
     "酒店住宿","写字楼办公","商业配套","医疗配套","教育配套",
     "便利店和超市","酒店和民宿",
+    "住宅小区","商业街","餐饮街","美食街","购物商场","停车场",
+    "餐厅","商铺","餐馆","药店","菜市场",
 }
 
 
@@ -131,11 +133,30 @@ def _is_generic_candidate(candidate: str) -> bool:
         # "周边/附近 + ...客群..." → 客群描述短语，非 POI 名
         if "客群" in referent:
             return True
-        if referent in _GENERIC_REFERENTS:
+        # ★ 迭代去除连接词和描述性前缀：周边某老旧小区 → 小区
+        _stripped = referent
+        _conns = ("有", "的", "几", "无", "一些", "几个", "多家", "大量", "若干", "某", "缺乏", "缺少")
+        _descs = ("大型", "小型", "中型", "高档", "低档", "新建", "老旧", "繁华", "成熟", "大型的")
+        while True:
+            _changed = False
+            for _conn in _conns:
+                if _stripped.startswith(_conn):
+                    _stripped = _stripped[len(_conn):]
+                    _changed = True
+                    break
+            if not _changed:
+                for _desc in _descs:
+                    if _stripped.startswith(_desc):
+                        _stripped = _stripped[len(_desc):]
+                        _changed = True
+                        break
+            if not _changed:
+                break
+        if _stripped in _GENERIC_REFERENTS:
             return True
         for gr in sorted(_GENERIC_REFERENTS, key=len, reverse=True):
-            if referent.startswith(gr):
-                rest = referent[len(gr):]
+            if _stripped.startswith(gr):
+                rest = _stripped[len(gr):]
                 if not rest or len(rest) <= 3:
                     return True
                 break

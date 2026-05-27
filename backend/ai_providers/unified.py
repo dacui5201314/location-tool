@@ -20,7 +20,7 @@ async def generate_llm_response(prompt: str) -> str:
         "model": cfg["model"],
         "messages": [{"role": "user", "content": prompt}],
         "temperature": 0.7,
-        "max_tokens": 4096,  # 选址报告 JSON 体量大（8 维 + POI 数据 + 财务测算），2048 必截断
+        "max_tokens": 6144,  # 选址报告 JSON 体量大（8 维 + POI 数据 + 财务测算），4096 可能截断 retry
     }
     async with httpx.AsyncClient(timeout=90) as client:
         resp = await client.post(

@@ -214,6 +214,33 @@ def _sse(step, msg, result=None):
     return f"data: {json.dumps(payload, ensure_ascii=False)}\n\n"
 
 
+def _filter_json_artifact_errors(fact_errors: list) -> list:
+    """过滤因 JSON 序列化标点/数字泄露到分句产生的假阳性 fact_errors。
+    JSON keys/values 在 json.dumps 后混入中文逗号分句中，导致
+    "学校"匹配到 JSON 中 score=74 的 "74" 数字而产生误报。
+    仅保留不包含 JSON artifact 或 reported 数值合理的错误。
+    """
+    if not fact_errors:
+        return fact_errors
+    _json_artifact_pat = re.compile(r'[\[\]{}"]')
+    filtered = []
+    for err in fact_errors:
+        if " in '" not in err:
+            filtered.append(err)
+            continue
+        prefix, fragment = err.split(" in '", 1)
+        fragment = fragment.rstrip("'")
+        n_artifacts = len(_json_artifact_pat.findall(fragment))
+        if n_artifacts < 2:
+            filtered.append(err)
+            continue
+        # 2+ JSON 标点 → 分句已被 JSON 语法污染，数字归属不可靠
+        if n_artifacts >= 2:
+            continue
+        filtered.append(err)
+    return filtered
+
+
 from report_fact_guard import validate_report_fact_consistency
 
 
@@ -414,14 +441,26 @@ async def analyze_location(req: AnalyzeRequest, user: dict = Depends(get_current
             try:
                 raw_response = await generate_llm_response(prompt)
             except Exception as e:
-                # ★ 判定是否为 LLM 服务端 5xx 错误（唯一允许退款的场景）
                 if hasattr(e, 'response') and hasattr(e.response, 'status_code'):
                     if e.response.status_code >= 500:
                         _llm_server_error = True
                         print(f"[SSE Guard] LLM 服务端 {e.response.status_code} 错误，标记可退款", flush=True)
-                raise  # 继续上抛，由外层 except 统一处理
+                raise
+            # ── 安全诊断：记录响应形态，不输出内容 ──
+            _raw_len = len(raw_response) if raw_response else 0
+            _has_json_fence = '```json' in (raw_response or '')
+            _first_brace = raw_response.find('{') if raw_response else -1
+            _last_brace = raw_response.rfind('}') if raw_response else -1
+            _likely_truncated = _last_brace < max(0, _raw_len - 20) if _raw_len > 0 else False
+            print(f"[SSE Diag] LLM response len={_raw_len} json_fence={_has_json_fence} firstBrace={_first_brace} lastBrace={_last_brace} likelyTruncated={_likely_truncated}", flush=True)
             raw_response = _extract_json(raw_response)
-            result = json.loads(raw_response)
+            _extracted_len = len(raw_response) if raw_response else 0
+            print(f"[SSE Diag] after extract_json len={_extracted_len}", flush=True)
+            try:
+                result = json.loads(raw_response)
+            except json.JSONDecodeError as _je:
+                print(f"[SSE Diag] JSON parse FAIL at pos {_je.pos}: {str(_je)[:120]}", flush=True)
+                raise
 
             # ★ 报告结构校验：空/非dict/缺失关键字段 → 标记解析失败走退款
             def _validate_report_payload(r):
@@ -450,6 +489,8 @@ async def analyze_location(req: AnalyzeRequest, user: dict = Depends(get_current
             if real_data and isinstance(real_data, dict):
                 # ── 事实一致性校验（纯函数，可单测）──
                 fact_errors = validate_report_fact_consistency(result, real_data)
+                # ★ 过滤 JSON 序列化数字泄露到分句中的假阳性
+                fact_errors = _filter_json_artifact_errors(fact_errors)
                 full_text = (
                     json.dumps(result.get("details", {}) or {}, ensure_ascii=False) + " " +
                     json.dumps(result.get("advantages", []), ensure_ascii=False) + " " +
@@ -504,10 +545,11 @@ async def analyze_location(req: AnalyzeRequest, user: dict = Depends(get_current
 {correction_hint}
 
 修正要求：
-- [P0-NAME] 报告中引用的POI名称必须在数据源(poi_lists/direct_competitor_list/substitute_list/traffic_anchor_list/hot_brands)中真实存在，不得凭自身知识编造名称
-- [P2-CTX] 替代性竞品(substitute)和客流锚点(anchor)不得在竞品语境中被写成直接竞品，必须标注"非直接竞品"或"客流锚点"
-- [P3-COUNT] 报告中声称的直接竞品数量不得大于 real_data 中对应 direct_competitors_* 字段的数值
-- 报告中所有 POI 数量必须与上方数据表格中的数字完全一致
+- [P0-NAME] 报告中引用的POI名称必须在数据源中真实存在，不得凭知识编造。如果数据源中没有对应的POI，请写"暂无数据"，绝对不要凭空编造。不要使用"某X"、"周边有X"等模糊描述代替具体名称
+- [P2-CTX] 替代性竞品和客流锚点不得在竞品语境中被写成直接竞品，必须标注其真实分类
+- [P3-COUNT] 所有数值必须来自上方数据表格，不要夸大或编造。直接对照 stats_* 字段的数字填写
+- 特别是交通设施数量（地铁站、公交站、停车场），必须严格使用 real_data 中各半径 stats 字段的值
+- **每句只提一种类型数量**：住宅小区数量和学校数量要写在不同的句子中，例如"500米内有6所学校。同时有16个住宅小区"
 - 不得自行估算、放大或缩小任何数字
 - 不确定的数字改用"需线下核验"替代
 - 其他内容保持不变"""
@@ -525,6 +567,7 @@ async def analyze_location(req: AnalyzeRequest, user: dict = Depends(get_current
                             retry_result["error"] = None
                             retry_result["real_data"] = real_data
                             retry_fe = validate_report_fact_consistency(retry_result, real_data)
+                            retry_fe = _filter_json_artifact_errors(retry_fe)
                             if not retry_fe:
                                 # ★ Phase 11: retry 后重新检查 P0/P2/P3，有残留则 retry 失败
                                 retry_full_text = (
@@ -594,19 +637,24 @@ async def analyze_location(req: AnalyzeRequest, user: dict = Depends(get_current
                 )
                 db.add(record)
                 db.commit()
-                db.refresh(record)
+                # ★ expire_on_commit 可能使 record 脱管；直接取 id/uuid 不依赖 refresh
+                _saved_id = record.id
+                _saved_uuid = str(record.report_uuid) if hasattr(record, 'report_uuid') else ""
                 _db_save_ok = True  # ★ DB 主记录保存成功
 
                 try:
                     file_path = save_report(
-                        record.id, result,
+                        _saved_id, result,
                         address=req.address, brand_name=req.brand_name or "",
                     )
-                    if file_path.startswith("http"):
-                        record.report_url = file_path
-                    else:
-                        record.report_file = file_path
-                    db.commit()
+                    # ★ record 可能已脱管，重新查询后更新 report_url/file
+                    _r = db.query(AnalysisRecord).filter(AnalysisRecord.id == _saved_id).first()
+                    if _r:
+                        if file_path.startswith("http"):
+                            _r.report_url = file_path
+                        else:
+                            _r.report_file = file_path
+                        db.commit()
                 except Exception:
                     import traceback
                     print("[CRITICAL] 报告物理文件保存失败（可用 report_json 动态重建）", flush=True)
@@ -630,7 +678,7 @@ async def analyze_location(req: AnalyzeRequest, user: dict = Depends(get_current
                 raise RuntimeError("DB_SAVE_FAILED: 分析记录保存失败，报告未落库")
 
             # ★ normalize_report_result 已完成加权总分计算，此处不再覆盖
-            result["record_id"] = str(record.report_uuid)  # ★ uni-app 前端需要 UUID 跳转报告页
+            result["record_id"] = _saved_uuid  # ★ uni-app 前端需要 UUID 跳转报告页
             _stream_ok = True  # ★ 标记流完整成功，finally 块不退款
             yield _sse(4, "✅ 报告生成完毕！", result=result)
             await asyncio.sleep(0)
