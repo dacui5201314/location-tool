@@ -396,9 +396,21 @@ async def analyze_location(req: AnalyzeRequest, user: dict = Depends(get_current
                     "data_quality_notes": ld.data_quality_notes,
                     "rigor_enabled": bool(get_rigor_for_config_key(config_key)),
                 }
-            except Exception:
+            except Exception as _ame:
                 import traceback
-                print("[CRITICAL] 后端AMap数据采集失败", flush=True)
+                _am_err = str(_ame)[:200]
+                # 安全打印 AMap 错误分类（不含 key/url）
+                _am_lower = _am_err.lower()
+                if 'daily_query_over_limit' in _am_lower or 'over_daily' in _am_lower:
+                    print(f"[AMAP] DAILY_QUERY_OVER_LIMIT", flush=True)
+                elif 'qps' in _am_lower or 'cuqps' in _am_lower:
+                    print(f"[AMAP] QPS_EXCEEDED", flush=True)
+                elif 'invalid_key' in _am_lower or 'userkey' in _am_lower:
+                    print(f"[AMAP] INVALID_KEY_OR_PLAT_NOMATCH", flush=True)
+                elif 'timeout' in _am_lower or 'connect' in _am_lower:
+                    print(f"[AMAP] NETWORK_ERROR: {_am_err[:80]}", flush=True)
+                else:
+                    print(f"[AMAP] ERROR: {_am_err[:120]}", flush=True)
                 traceback.print_exc()
                 # ★ 生产环境禁止使用客户端 real_data 参与评分
                 allow_fallback = os.getenv("ALLOW_CLIENT_REALDATA_FALLBACK", "").strip().lower() in ("1", "true", "yes")

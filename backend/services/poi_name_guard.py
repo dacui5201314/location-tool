@@ -97,7 +97,7 @@ _GENERIC_REFERENTS = {
     "酒店住宿","写字楼办公","商业配套","医疗配套","教育配套",
     "便利店和超市","酒店和民宿",
     "住宅小区","商业街","餐饮街","美食街","购物商场","停车场",
-    "餐厅","商铺","餐馆","药店","菜市场",
+    "餐厅","商铺","餐馆","药店","菜市场","门店",
 }
 
 
@@ -136,7 +136,7 @@ def _is_generic_candidate(candidate: str) -> bool:
         # ★ 迭代去除连接词和描述性前缀：周边某老旧小区 → 小区
         _stripped = referent
         _conns = ("有", "的", "几", "无", "一些", "几个", "多家", "大量", "若干", "某", "缺乏", "缺少")
-        _descs = ("大型", "小型", "中型", "高档", "低档", "新建", "老旧", "繁华", "成熟", "大型的")
+        _descs = ("大型", "小型", "中型", "高档", "低档", "新建", "老旧", "繁华", "成熟", "大型的", "连锁", "家庭式", "消费类", "品牌", "同品类", "夜间", "时段", "重点", "区域")
         while True:
             _changed = False
             for _conn in _conns:
@@ -174,19 +174,23 @@ def _is_generic_candidate(candidate: str) -> bool:
     if candidate.startswith("客群"):
         return True
 
-    # Rule 6: 纯泛称类别词 — 候选名本身或去描述前缀后命中泛称词表
+    # Rule 6: 纯泛称类别词 — 迭代去除描述前缀后命中泛称词表
     _standalone = candidate
-    for _desc in ("大型", "小型", "中型", "高档", "低档", "新建", "老旧", "繁华", "成熟",
+    _all_descs = ("大型", "小型", "中型", "高档", "低档", "新建", "老旧", "繁华", "成熟",
                   "连锁", "家庭式", "消费类", "品牌", "同品类", "夜间", "时段", "重点",
-                  "主要", "核心", "区域性", "社区型"):
-        if _standalone.startswith(_desc):
-            _standalone = _standalone[len(_desc):]
+                  "主要", "核心", "区域性", "社区型", "区域", "某")
+    while True:
+        _changed = False
+        for _d in _all_descs:
+            if _standalone.startswith(_d):
+                _standalone = _standalone[len(_d):]
+                _changed = True
+                break
+        if not _changed:
             break
     if _standalone and _standalone != candidate:
         if _standalone in _GENERIC_REFERENTS:
             return True
-    # 泛称前缀 + 类别后缀组合（如"同品类竞品"→"品类竞品"不是泛称但"竞品"不是POI后缀所以不会到这里）
-    # 安全：只放行候选名本身就是纯类别词的情况
     if candidate in _GENERIC_REFERENTS:
         return True
 

@@ -163,7 +163,10 @@
 
     <!-- ── CTA ── -->
     <view class="cta-zone">
-      <button class="cta-btn" :disabled="analyzing || !canAnalyze" @tap="onAnalyze">
+      <view class="cta-hint" v-if="!canAnalyze && !analyzing">
+        <text>⚠️ {{ ctaHintText }}</text>
+      </view>
+      <button class="cta-btn" :class="{ dim: !canAnalyze }" :disabled="analyzing" @tap="onAnalyze">
         <text class="cta-main">{{ analyzing ? '分析中...' : '生成选址报告' }}</text>
         <text class="cta-sub">{{ ctaSubText }}</text>
       </button>
@@ -264,6 +267,13 @@ export default {
       if (!this.addressText) return '请先搜索或定位门店地址'
       if (!this.canAnalyze) return '请完整填写门店位置、业态和经营信息'
       return '客流 · 竞品 · 消费力 · 风险点分析参考'
+    },
+    ctaHintText () {
+      if (!this.addressText) return '请选择门店位置'
+      if (!this.industry) return '请选择业态'
+      if (!this.brandName || !this.brandName.trim()) return '请填写品牌或特色'
+      if (!this.storeSize || this.storeSize.toString().trim() === '') return '请填写门店面积'
+      return ''
     },
     mapMarkers () {
       // ★ 中心准星替代 marker；不再使用可拖拽 marker
@@ -858,12 +868,14 @@ export default {
 
 /* ── CTA ── */
 .cta-zone { padding:0 20rpx; margin-top:30rpx; }
+.cta-hint { text-align:center; padding:14rpx 20rpx; margin-bottom:12rpx; background:#fff3cd; border-radius:12rpx; font-size:24rpx; color:#92400e; }
 .cta-btn { width:100%; background:linear-gradient(135deg,#0b3fbd 0%,#151f8f 58%,#5b3fd9 100%); color:#fff; border-radius:16rpx; padding:24rpx 24rpx; display:flex; flex-direction:column; align-items:center; border:none; box-shadow:0 18rpx 38rpx rgba(21,31,143,0.32),0 0 0 1px rgba(248,200,97,0.16); }
 .cta-btn::after { border:none; }
-.cta-btn[disabled] { opacity:1; background:linear-gradient(180deg,#ffffff,#f5f8ff); color:#315bff; box-shadow:0 10rpx 24rpx rgba(74,111,172,0.08); border:1px dashed rgba(49,91,255,0.34); }
+.cta-btn[disabled] { opacity:0.5; }
+.cta-btn.dim { background:linear-gradient(180deg,#ffffff,#f5f8ff); color:#315bff; box-shadow:0 10rpx 24rpx rgba(74,111,172,0.08); border:1px dashed rgba(49,91,255,0.34); }
 .cta-main { font-size:30rpx; font-weight:900; line-height:1.2; }
 .cta-sub { font-size:22rpx; color:rgba(255,255,255,0.78); margin-top:6rpx; line-height:1.35; }
-.cta-btn[disabled] .cta-sub { color:#8b99b6; }
+.cta-btn.dim .cta-sub { color:#8b99b6; }
 
 /* ── Analyze steps ── */
 .analyze-steps { background:#f8fafc; border:1px solid #e2e8f0; border-radius:12rpx; padding:20rpx; margin-top:16rpx; }
