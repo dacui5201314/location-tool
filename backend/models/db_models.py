@@ -157,6 +157,7 @@ class SavedLocation(Base):
     address = Column(String(500), default="", comment="详细地址")
     latitude = Column(Float, default=0.0)
     longitude = Column(Float, default=0.0)
+    latest_report_uuid = Column(String(32), default="", comment="最近一次分析生成的 report_uuid")
     created_at = Column(DateTime, default=func.now())
 
     def to_dict(self):

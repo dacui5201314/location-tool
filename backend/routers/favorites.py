@@ -82,6 +82,7 @@ def _empty_fav(loc: SavedLocation) -> dict:
     return {
         **loc.to_dict(),
         "is_analyzed": False,
+        "report_uuid": loc.latest_report_uuid or "",
         "report_id": None,
         "report_overall_score": None,
         "report_created_at": None,

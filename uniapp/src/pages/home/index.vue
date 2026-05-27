@@ -227,6 +227,7 @@ export default {
       mapLat: 39.9087,
       mapLng: 116.3975,
       mapReady: false,  // 延迟渲染 map 避免首次白块
+      _favoriteId: null,  // 从收藏发起时关联 favorite_id
       _regionTimer: null,
       industry: '',
       brandName: '',
@@ -317,7 +318,21 @@ export default {
       this.addressText = pending
       this.addressKeyword = pending
       this.selectedLocationSource = 'favorite'
+      // ★ 读取收藏 lat/lng/fav_id
+      const favLat = uni.getStorageSync('pending_analysis_lat')
+      const favLng = uni.getStorageSync('pending_analysis_lng')
+      const favId = uni.getStorageSync('pending_analysis_fav_id')
+      if (favLat && favLng) {
+        this._setLocation(favLat, favLng, 'favorite')
+      }
+      if (favId) {
+        this.favId = favId
+        this._favoriteId = favId  // ★ 保存供 analyze payload 使用
+      }
       uni.removeStorageSync('pending_analysis_address')
+      uni.removeStorageSync('pending_analysis_lat')
+      uni.removeStorageSync('pending_analysis_lng')
+      uni.removeStorageSync('pending_analysis_fav_id')
       uni.showToast({ title: '已加载收藏地址', icon: 'none' })
     }
   },
@@ -677,6 +692,14 @@ export default {
         store_size: Number(this.storeSize)
       }
       if (industryId !== undefined) payload.industry_id = industryId
+      if (this._favoriteId) payload.favorite_id = this._favoriteId
+
+      // ★ 坐标一致性保护：有地址但坐标为默认北京时阻止
+      if (this.addressText && this.mapLat === 39.9087 && this.mapLng === 116.3975) {
+        this.analyzeErr = '请重新确认门店位置（当前坐标为默认值）'
+        uni.showToast({ title: '请在地图上重新选择门店位置', icon: 'none' })
+        return
+      }
 
       this.analyzing = true; this.analyzeErr = ''; this.analyzeSteps = []; this.analyzeStatus = '正在连接分析服务...'
       this._analyzeStartTime = Date.now()

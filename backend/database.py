@@ -44,6 +44,12 @@ def init_db():
         # ── 21e8d08: 为 amap_keys 建表 ──
         from models.db_models import AmapKey  # noqa: F401
         Base.metadata.create_all(bind=engine, tables=[AmapKey.__table__])
+        # ── b13ab22: 为 saved_locations 添加 latest_report_uuid ──
+        cols_sl = [r[1] for r in conn.execute("PRAGMA table_info(saved_locations)").fetchall()]
+        if 'latest_report_uuid' not in cols_sl:
+            conn.execute("ALTER TABLE saved_locations ADD COLUMN latest_report_uuid VARCHAR(32) DEFAULT ''")
+            conn.commit()
+            print("[DB] 已为 saved_locations 表添加 latest_report_uuid 列", flush=True)
         conn.close()
     except Exception as e:
         print(f"[DB] 迁移检查跳过: {e}", flush=True)

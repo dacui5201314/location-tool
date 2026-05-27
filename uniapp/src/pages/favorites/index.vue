@@ -156,7 +156,12 @@ export default {
     },
     onSelect (f) {
       const addr = f.address || f.report_address || ''
-      if (addr) uni.setStorageSync('pending_analysis_address', addr)
+      if (addr) {
+        uni.setStorageSync('pending_analysis_address', addr)
+        uni.setStorageSync('pending_analysis_lat', f.latitude || 0)
+        uni.setStorageSync('pending_analysis_lng', f.longitude || 0)
+        uni.setStorageSync('pending_analysis_fav_id', f.id || '')
+      }
       uni.switchTab({ url: '/pages/home/index' })
     },
     onViewReport (f) {
@@ -168,7 +173,12 @@ export default {
     },
     onAnalyze (f) {
       const addr = f.address || f.report_address || ''
-      if (addr) uni.setStorageSync('pending_analysis_address', addr)
+      if (addr) {
+        uni.setStorageSync('pending_analysis_address', addr)
+        uni.setStorageSync('pending_analysis_lat', f.latitude || 0)
+        uni.setStorageSync('pending_analysis_lng', f.longitude || 0)
+        uni.setStorageSync('pending_analysis_fav_id', f.id || '')
+      }
       uni.switchTab({ url: '/pages/home/index' })
     },
     onRemove (f) { this.delTarget = f },

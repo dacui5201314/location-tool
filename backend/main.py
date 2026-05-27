@@ -729,6 +729,19 @@ async def analyze_location(req: AnalyzeRequest, user: dict = Depends(get_current
 
             # ★ normalize_report_result 已完成加权总分计算，此处不再覆盖
             result["record_id"] = _saved_uuid  # ★ uni-app 前端需要 UUID 跳转报告页
+            # ★ 收藏关联：分析成功后将 report_uuid 写回 FavoriteAddress
+            if req.favorite_id:
+                try:
+                    from models.db_models import SavedLocation
+                    fav = db.query(SavedLocation).filter(
+                        SavedLocation.id == req.favorite_id,
+                        SavedLocation.user_id == current_user_id,
+                    ).first()
+                    if fav:
+                        fav.latest_report_uuid = _saved_uuid
+                        db.commit()
+                except Exception:
+                    pass
             _stream_ok = True  # ★ 标记流完整成功，finally 块不退款
             yield _sse(4, "✅ 报告生成完毕！", result=result)
             await asyncio.sleep(0)

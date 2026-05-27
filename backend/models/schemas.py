@@ -18,6 +18,7 @@ class AnalyzeRequest(BaseModel):
     store_size: int = 0  # 门店预估面积（平方米）
     real_data: Optional[dict] = None  # 前端采集的高德数据
     industry_id: Optional[int] = None  # 业态专属规则ID（business_industries表）
+    favorite_id: Optional[int] = None  # 收藏ID（从收藏页发起分析时传入）
 
 
 class AnalyzeResponse(BaseModel):
