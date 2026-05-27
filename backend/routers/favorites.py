@@ -81,7 +81,7 @@ def _enriched_fav(loc: SavedLocation, report: AnalysisRecord) -> dict:
 def _empty_fav(loc: SavedLocation) -> dict:
     return {
         **loc.to_dict(),
-        "is_analyzed": False,
+        "is_analyzed": bool(loc.latest_report_uuid),
         "report_uuid": loc.latest_report_uuid or "",
         "report_id": None,
         "report_overall_score": None,

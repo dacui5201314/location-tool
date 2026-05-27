@@ -967,5 +967,5 @@ export default {
 </style>
 
 <style>
-page { background-color:#eef3f9; }
+page { background-color:#dce4f2; }
 </style>
