@@ -1,6 +1,8 @@
 """认证路由 — JWT 签发、设备指纹、微信授权、手机号注册/登录、新用户奖励（多端兼容）"""
 import hashlib
 import os
+import time as _time
+import threading
 from datetime import datetime, timedelta
 from fastapi import APIRouter, Depends, Query, HTTPException, Request
 from sqlalchemy.orm import Session
@@ -17,6 +19,26 @@ from config import (
     WECHAT_MP_APPID,
     WECHAT_MP_SECRET,
 )
+
+# ── 用户登录/注册速率限制 ──
+_login_rate_map: dict[str, list[float]] = {}
+_login_rate_lock = threading.Lock()
+_LOGIN_RATE_MAX = 5      # 每窗口最多尝试
+_LOGIN_RATE_WINDOW = 60.0  # 秒
+
+
+def _check_user_login_rate(identifier: str) -> bool:
+    """滑动窗口限流：返回 True=允许，False=拒绝"""
+    now = _time.time()
+    with _login_rate_lock:
+        attempts = _login_rate_map.get(identifier, [])
+        attempts = [t for t in attempts if now - t < _LOGIN_RATE_WINDOW]
+        if len(attempts) >= _LOGIN_RATE_MAX:
+            _login_rate_map[identifier] = attempts
+            return False
+        attempts.append(now)
+        _login_rate_map[identifier] = attempts
+        return True
 
 router = APIRouter(prefix="/api/auth", tags=["认证"])
 
@@ -263,6 +285,11 @@ def phone_register(
     db: Session = Depends(get_db),
 ):
     """手机号 + 密码注册。phone 必填且唯一，密码哈希入库，返回 JWT。"""
+    client_ip = request.client.host if request and request.client else "127.0.0.1"
+    reg_key = f"reg:{client_ip}"
+    if not _check_user_login_rate(reg_key):
+        raise HTTPException(status_code=429, detail="注册尝试次数过多，请稍后再试")
+
     phone = body.phone.strip()
     password = body.password.strip()
 
@@ -351,9 +378,18 @@ def phone_register(
 @router.post("/login")
 def phone_login(
     body: PhoneLoginBody,
+    request: Request = None,
     db: Session = Depends(get_db),
 ):
     """手机号 + 密码登录，校验成功返回 JWT。"""
+    # 速率限制：基于 IP + phone 组合
+    client_ip = request.client.host if request and request.client else "127.0.0.1"
+    rate_key = f"{client_ip}:{body.phone.strip()}"
+    if not _check_user_login_rate(rate_key):
+        raise HTTPException(status_code=429, detail="尝试次数过多，请稍后再试")
+    if not _check_user_login_rate(client_ip):
+        raise HTTPException(status_code=429, detail="尝试次数过多，请稍后再试")
+
     phone = body.phone.strip()
     password = body.password.strip()
 
