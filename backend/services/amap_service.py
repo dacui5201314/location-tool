@@ -679,18 +679,97 @@ class LocationData:
 class AmapService:
     def __init__(self, api_key: str = ""):
         self.key = api_key or get_config_value("amap_key", "") or AMAP_WEB_KEY
-        if not self.key:
-            raise ValueError("高德 Web API Key 未配置，请在后台核心配置或 .env 中设置")
+
+    @staticmethod
+    def _get_keys_from_pool():
+        """从 DB Key 池取所有启用的 Key，按优先级排序"""
+        try:
+            from database import SessionLocal
+            from routers.admin import _get_amap_key_selector as _selector
+            db = SessionLocal()
+            try:
+                from models.db_models import AmapKey as _AK
+                rows = db.query(_AK).filter(_AK.enabled == 1).order_by(_AK.priority, _AK.id).all()
+                if rows:
+                    return [(r.api_key, r.security_secret or "") for r in rows]
+            finally:
+                db.close()
+        except Exception:
+            pass
+        return []
+
+    @staticmethod
+    def _report_key_failure(key_str: str, status: str, info: str = ""):
+        """标记 Key 失败"""
+        if not key_str:
+            return
+        try:
+            from database import SessionLocal
+            from models.db_models import AmapKey as _AK
+            from datetime import datetime as _dt
+            db = SessionLocal()
+            try:
+                row = db.query(_AK).filter(_AK.api_key == key_str, _AK.enabled == 1).first()
+                if row:
+                    row.last_status = status
+                    row.last_info = (info or "")[:200]
+                    row.last_checked_at = _dt.utcnow()
+                    row.fail_count = (row.fail_count or 0) + 1
+                    db.commit()
+            finally:
+                db.close()
+        except Exception:
+            pass
 
     async def _request(self, path: str, params: dict) -> dict:
-        params["key"] = self.key
-        async with httpx.AsyncClient(timeout=15) as client:
-            resp = await client.get(f"{AMAP_BASE}{path}", params=params)
-            resp.raise_for_status()
-            data = resp.json()
-            if data.get("status") != "1":
-                raise Exception(f"高德API错误: {data.get('info', 'unknown')}")
-            return data
+        # ★ Key 池重试：DB 池 → env fallback
+        pool_keys = self._get_keys_from_pool()
+        all_keys = [(k, s) for k, s in pool_keys] if pool_keys else []
+        # env fallback
+        env_key = AMAP_WEB_KEY
+        if env_key and not any(k == env_key for k, _ in all_keys):
+            all_keys.append((env_key, ""))
+        if self.key and not any(k == self.key for k, _ in all_keys):
+            all_keys.append((self.key, ""))
+
+        if not all_keys:
+            raise Exception("AMAP_KEY_UNAVAILABLE: 无可用高德 Key")
+
+        last_err = "unknown"
+        for key, sec in all_keys:
+            try:
+                p = {**params, "key": key}
+                async with httpx.AsyncClient(timeout=15) as client:
+                    resp = await client.get(f"{AMAP_BASE}{path}", params=p)
+                    resp.raise_for_status()
+                    data = resp.json()
+                    if data.get("status") == "1":
+                        return data
+                    info = str(data.get("info", "") or "")
+                    ic = str(data.get("infocode", "") or "")
+                    # 分类：可重试 vs 不可重试
+                    is_retryable = (
+                        "OVER_DAILY" in info.upper() or ic in ("10003",) or
+                        "CUQPS" in info.upper() or ic in ("10007",) or
+                        "OVER" in info.upper()
+                    )
+                    err_type = info[:80]
+                    self._report_key_failure(key, err_type, info)
+                    if is_retryable:
+                        print(f"[AMAP] Key {key[:6]}*** {err_type} → 切换下一个 Key", flush=True)
+                        last_err = f"高德API错误(已重试): {info[:120]}"
+                        continue
+                    else:
+                        last_err = f"高德API错误: {info[:120]}"
+                        break  # 不可重试（如 INVALID_KEY），停止尝试
+            except Exception as e:
+                err_str = str(e)[:120]
+                self._report_key_failure(key, "NETWORK_ERROR", err_str)
+                print(f"[AMAP] Key {key[:6]}*** NETWORK_ERROR → 切换下一个 Key", flush=True)
+                last_err = f"高德API网络错误(已重试): {err_str}"
+                continue
+
+        raise Exception(last_err)
 
     async def reverse_geocode(self, lng: float, lat: float) -> dict:
         data = await self._request("/geocode/regeo", {

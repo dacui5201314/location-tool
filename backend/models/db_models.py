@@ -305,3 +305,43 @@ class PaymentOrder(Base):
             "paid_at": self.paid_at.isoformat() if self.paid_at else None,
             "created_at": self.created_at.isoformat() if self.created_at else None,
         }
+
+
+class AmapKey(Base):
+    """高德 Web 服务 API Key 池"""
+    __tablename__ = "amap_keys"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    name = Column(String(120), default="", comment="备注名")
+    api_key = Column(String(128), nullable=False, default="", comment="高德 Web 服务 API Key")
+    security_secret = Column(String(128), default="", comment="高德安全密钥（可选）")
+    enabled = Column(Integer, default=1, comment="是否启用 1=启用 0=停用")
+    priority = Column(Integer, default=0, comment="优先级，越小越优先")
+    last_status = Column(String(60), default="", comment="最近状态码")
+    last_info = Column(String(200), default="", comment="最近状态信息")
+    last_infocode = Column(String(20), default="", comment="最近 infocode")
+    last_checked_at = Column(DateTime, nullable=True, comment="最近检测时间")
+    fail_count = Column(Integer, default=0, comment="连续失败次数")
+    created_at = Column(DateTime, default=func.now())
+    updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
+
+    def to_dict_admin(self):
+        """管理后台返回：脱敏 key"""
+        mk = ""
+        if self.api_key:
+            mk = self.api_key[:4] + "****" + self.api_key[-4:] if len(self.api_key) > 8 else "****"
+        return {
+            "id": self.id,
+            "name": self.name,
+            "masked_key": mk,
+            "has_security_secret": bool(self.security_secret and self.security_secret.strip()),
+            "enabled": bool(self.enabled),
+            "priority": self.priority,
+            "last_status": self.last_status or "",
+            "last_info": self.last_info or "",
+            "last_infocode": self.last_infocode or "",
+            "last_checked_at": self.last_checked_at.isoformat() if self.last_checked_at else None,
+            "fail_count": self.fail_count,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+            "updated_at": self.updated_at.isoformat() if self.updated_at else None,
+        }

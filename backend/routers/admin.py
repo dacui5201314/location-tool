@@ -1397,3 +1397,157 @@ def save_system_settings(body: SystemSettingsBody, admin: dict = Depends(get_cur
             db.add(SystemConfig(key=key, value=value, description=_SYSTEM_CONFIG_DEFAULTS[key][1]))
     db.commit()
     return {"ok": True, "configs": _load_all_system_config(db)}
+
+
+# ═══════════════════════════════════════════
+# 高德 Web 服务 Key 池管理
+# ═══════════════════════════════════════════
+from models.db_models import AmapKey as _AmapKey
+from pydantic import BaseModel as _BaseModel
+
+
+class _AmapKeyBody(_BaseModel):
+    name: str = ""
+    api_key: str = ""
+    security_secret: str = ""
+    enabled: bool = True
+    priority: int = 0
+    clear_security_secret: bool = False
+
+
+@router.get("/amap-keys")
+def list_amap_keys(admin: dict = Depends(get_current_admin), db: Session = Depends(get_db)):
+    """Key 池列表 — 不返回明文"""
+    rows = db.query(_AmapKey).order_by(_AmapKey.priority, _AmapKey.id).all()
+    return {"keys": [r.to_dict_admin() for r in rows], "total": len(rows)}
+
+
+@router.post("/amap-keys")
+def create_amap_key(body: _AmapKeyBody, admin: dict = Depends(get_current_admin), db: Session = Depends(get_db)):
+    """新增 Key"""
+    if not body.api_key.strip():
+        raise HTTPException(status_code=400, detail="API Key 不能为空")
+    row = _AmapKey(
+        name=body.name.strip(),
+        api_key=body.api_key.strip(),
+        security_secret=body.security_secret.strip(),
+        enabled=1 if body.enabled else 0,
+        priority=body.priority,
+    )
+    db.add(row)
+    db.commit()
+    db.refresh(row)
+    return {"ok": True, "key": row.to_dict_admin()}
+
+
+@router.put("/amap-keys/{key_id}")
+def update_amap_key(key_id: int, body: _AmapKeyBody, admin: dict = Depends(get_current_admin), db: Session = Depends(get_db)):
+    """编辑 Key — 空 api_key 字段表示保留原值"""
+    row = db.query(_AmapKey).filter(_AmapKey.id == key_id).first()
+    if not row:
+        raise HTTPException(status_code=404, detail="Key 不存在")
+    if body.name.strip():
+        row.name = body.name.strip()
+    if body.api_key.strip():
+        row.api_key = body.api_key.strip()
+    if body.security_secret.strip():
+        row.security_secret = body.security_secret.strip()
+    if body.clear_security_secret:
+        row.security_secret = ""
+    row.enabled = 1 if body.enabled else 0
+    row.priority = body.priority
+    db.commit()
+    return {"ok": True, "key": row.to_dict_admin()}
+
+
+@router.delete("/amap-keys/{key_id}")
+def delete_amap_key(key_id: int, admin: dict = Depends(get_current_admin), db: Session = Depends(get_db)):
+    """删除 Key"""
+    row = db.query(_AmapKey).filter(_AmapKey.id == key_id).first()
+    if not row:
+        raise HTTPException(status_code=404, detail="Key 不存在")
+    db.delete(row)
+    db.commit()
+    return {"ok": True}
+
+
+@router.post("/amap-keys/{key_id}/test")
+def test_amap_key(key_id: int, admin: dict = Depends(get_current_admin), db: Session = Depends(get_db)):
+    """连通性测试 — 调高德逆地理编码轻量接口"""
+    row = db.query(_AmapKey).filter(_AmapKey.id == key_id).first()
+    if not row:
+        raise HTTPException(status_code=404, detail="Key 不存在")
+    import httpx as _httpx
+    from datetime import datetime as _dt
+
+    key = row.api_key
+    if not key:
+        return {"ok": False, "status": "0", "info": "Key 未配置", "infocode": "KEY_EMPTY", "normalized_status": "INVALID_USER_KEY"}
+
+    params = {"key": key, "location": "116.3975,39.9087"}
+    try:
+        resp = _httpx.get("https://restapi.amap.com/v3/geocode/regeo", params=params, timeout=10)
+        data = resp.json()
+        st = str(data.get("status", ""))
+        info = str(data.get("info", "") or "")[:200]
+        ic = str(data.get("infocode", "") or "")
+    except Exception as e:
+        st = "0"
+        info = str(e)[:200]
+        ic = "NETWORK_ERROR"
+
+    normalized = "OK" if st == "1" else (
+        "DAILY_QUERY_OVER_LIMIT" if "OVER_DAILY" in info.upper() or ic == "10003" else
+        "QPS_EXCEEDED" if "CUQPS" in info.upper() or ic == "10007" else
+        "INVALID_USER_KEY" if ic in ("10001", "20001", "20002", "20003") else
+        "NETWORK_ERROR" if ic == "NETWORK_ERROR" else
+        "UNKNOWN_ERROR"
+    )
+
+    row.last_status = normalized
+    row.last_info = info
+    row.last_infocode = ic
+    row.last_checked_at = _dt.utcnow()
+    if normalized != "OK":
+        row.fail_count = (row.fail_count or 0) + 1
+    else:
+        row.fail_count = 0
+    db.commit()
+
+    return {
+        "ok": st == "1",
+        "status": st,
+        "info": info,
+        "infocode": ic,
+        "normalized_status": normalized,
+    }
+
+
+# ═══════════════════════════════════════════
+# 高德 Key 选择器 — 统一入口
+# ═══════════════════════════════════════════
+def _get_amap_key_selector(db: Session):
+    """返回 (api_key, security_secret) 优先从 DB 池选"""
+    from datetime import datetime as _dt
+    rows = db.query(_AmapKey).filter(_AmapKey.enabled == 1).order_by(_AmapKey.priority, _AmapKey.id).all()
+    if rows:
+        r = rows[0]
+        return r.api_key, (r.security_secret or "")
+    # fallback to env
+    import os as _os
+    return _os.getenv("AMAP_WEB_KEY", _os.getenv("AMAP_KEY", "")), ""
+
+
+def _report_amap_key_failure(db: Session, key_str: str, status: str, info: str = "", infocode: str = ""):
+    """标记 Key 失败状态"""
+    from datetime import datetime as _dt
+    if not key_str:
+        return
+    row = db.query(_AmapKey).filter(_AmapKey.api_key == key_str, _AmapKey.enabled == 1).first()
+    if row:
+        row.last_status = status
+        row.last_info = info[:200] if info else ""
+        row.last_infocode = infocode[:20] if infocode else ""
+        row.last_checked_at = _dt.utcnow()
+        row.fail_count = (row.fail_count or 0) + 1
+        db.commit()

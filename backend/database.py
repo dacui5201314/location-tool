@@ -41,6 +41,9 @@ def init_db():
             conn.execute("ALTER TABLE analysis_records ADD COLUMN share_token VARCHAR(64) DEFAULT NULL")
             conn.commit()
             print("[DB] 已为 analysis_records 表添加 share_token 列", flush=True)
+        # ── 21e8d08: 为 amap_keys 建表 ──
+        from models.db_models import AmapKey  # noqa: F401
+        Base.metadata.create_all(bind=engine, tables=[AmapKey.__table__])
         conn.close()
     except Exception as e:
         print(f"[DB] 迁移检查跳过: {e}", flush=True)

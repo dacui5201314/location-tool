@@ -109,6 +109,154 @@ function UiCustomerConfigCard({ uiConfig, setUiConfig, adminFetch, showToast }) 
   )
 }
 
+function AmapKeyPoolCard({ adminFetch, showToast }) {
+  const [keys, setKeys] = useState([])
+  const [loaded, setLoaded] = useState(false)
+  const [form, setForm] = useState({ name: '', api_key: '', security_secret: '', enabled: true, priority: 0 })
+  const [editingId, setEditingId] = useState(null)
+  const [saving, setSaving] = useState(false)
+  const [testingId, setTestingId] = useState(null)
+  const [testResult, setTestResult] = useState(null)
+
+  const load = async () => {
+    try {
+      const r = await adminFetch('/amap-keys')
+      const d = await r.json()
+      setKeys(d.keys || [])
+    } catch (e) { /* silent */ }
+    setLoaded(true)
+  }
+
+  useEffect(() => { load() }, [])
+
+  const saveKey = async () => {
+    if (!form.api_key.trim() && !editingId) { showToast('API Key 不能为空'); return }
+    setSaving(true)
+    try {
+      const body = { ...form, clear_security_secret: false }
+      const url = editingId ? `/amap-keys/${editingId}` : '/amap-keys'
+      const r = await adminFetch(url, { method: editingId ? 'PUT' : 'POST', body: JSON.stringify(body) })
+      const d = await r.json()
+      if (!r.ok) throw new Error(d.detail || '保存失败')
+      setForm({ name: '', api_key: '', security_secret: '', enabled: true, priority: 0 })
+      setEditingId(null)
+      showToast(editingId ? '已更新' : '已添加')
+      load()
+    } catch (e) { showToast(e.message) }
+    finally { setSaving(false) }
+  }
+
+  const toggleEnabled = async (k) => {
+    try {
+      const r = await adminFetch(`/amap-keys/${k.id}`, { method: 'PUT', body: JSON.stringify({
+        name: k.name, api_key: '', security_secret: '', enabled: !k.enabled, priority: k.priority, clear_security_secret: false
+      })})
+      if (!r.ok) { const d = await r.json().catch(()=>({})); throw new Error(d.detail || '操作失败') }
+      showToast(k.enabled ? '已停用' : '已启用')
+      load()
+    } catch (e) { showToast(e.message) }
+  }
+
+  const deleteKey = async (k) => {
+    if (!confirm(`确定删除 Key「${k.name}」？此操作不可恢复。`)) return
+    try {
+      const r = await adminFetch(`/amap-keys/${k.id}`, { method: 'DELETE' })
+      if (!r.ok) { const d = await r.json().catch(()=>({})); throw new Error(d.detail || '删除失败') }
+      showToast('已删除')
+      load()
+    } catch (e) { showToast(e.message) }
+  }
+
+  const testKey = async (k) => {
+    setTestingId(k.id)
+    setTestResult(null)
+    try {
+      const r = await adminFetch(`/amap-keys/${k.id}/test`, { method: 'POST' })
+      const d = await r.json()
+      setTestResult(d)
+    } catch (e) { setTestResult({ ok: false, normalized_status: 'NETWORK_ERROR', info: e.message }) }
+    setTestingId(null)
+  }
+
+  const editKey = (k) => {
+    setEditingId(k.id)
+    setForm({ name: k.name, api_key: '', security_secret: '', enabled: k.enabled, priority: k.priority, clear_security_secret: false })
+  }
+
+  const statusColor = (s) => {
+    if (s === 'OK') return 'bg-emerald-50 text-emerald-600'
+    if (!s) return 'bg-slate-50 text-slate-400'
+    return 'bg-amber-50 text-amber-600'
+  }
+
+  if (!loaded) return null
+  return (
+    <div className="rounded-xl bg-white p-5 shadow-sm border border-slate-100 contain-paint">
+      <div className="flex items-start justify-between gap-3 mb-4">
+        <div>
+          <div className="text-sm font-bold text-slate-800 mb-1">高德 Web 服务 Key 池</div>
+          <div className="text-[11px] text-slate-400">地址搜索、逆地理编码、周边 POI 采集；可添加多个 Key，额度/QPS 异常时自动切换</div>
+        </div>
+        <span className="text-[10px] font-semibold rounded-full px-2 py-0.5 bg-slate-50 text-slate-500">{keys.length} 个 Key</span>
+      </div>
+
+      {/* Key list */}
+      {keys.length > 0 && (
+        <div className="space-y-2 mb-4">
+          {keys.map(k => (
+            <div key={k.id} className="flex items-center gap-2 p-3 bg-slate-50 rounded-lg text-xs">
+              <span className="font-semibold text-slate-700 w-16 truncate">{k.name}</span>
+              <code className="text-[10px] text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">{k.masked_key}</code>
+              <span className={`text-[10px] font-semibold rounded-full px-2 py-0.5 ${statusColor(k.last_status)}`}>{k.last_status || '未检测'}</span>
+              <span className="text-[10px] text-slate-400">P{k.priority}</span>
+              <span className={`w-2 h-2 rounded-full ${k.enabled ? 'bg-emerald-400' : 'bg-slate-300'}`} />
+              {testingId === k.id ? <span className="text-[10px] text-slate-400">测试中...</span> : null}
+              {testResult && testingId === null && k.id === keys.find(x => x.last_status === testResult.normalized_status)?.id ? null : null}
+              <div className="flex gap-1 ml-auto">
+                <button onClick={() => testKey(k)} disabled={testingId === k.id} className="text-[10px] px-2 py-1 rounded bg-blue-50 text-blue-600 hover:bg-blue-100 disabled:opacity-50">测试</button>
+                <button onClick={() => editKey(k)} className="text-[10px] px-2 py-1 rounded bg-slate-100 text-slate-600 hover:bg-slate-200">编辑</button>
+                <button onClick={() => toggleEnabled(k)} className="text-[10px] px-2 py-1 rounded bg-slate-100 text-slate-600 hover:bg-slate-200">{k.enabled ? '停用' : '启用'}</button>
+                <button onClick={() => deleteKey(k)} className="text-[10px] px-2 py-1 rounded bg-red-50 text-red-500 hover:bg-red-100">删除</button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Test result */}
+      {testResult && (
+        <div className={`mb-4 p-3 rounded-lg text-xs ${testResult.ok ? 'bg-emerald-50' : 'bg-amber-50'}`}>
+          <span className="font-semibold">{testResult.ok ? '✓ 可用' : '✗ 异常'}</span>
+          <span className="ml-2 text-slate-500">{testResult.normalized_status}</span>
+          {testResult.info && <span className="ml-2 text-slate-400">— {testResult.info}</span>}
+        </div>
+      )}
+
+      {/* Add/Edit form */}
+      <div className="border-t border-slate-100 pt-3 space-y-2">
+        <div className="text-xs font-semibold text-slate-500">{editingId ? '编辑 Key（留空保留原值）' : '新增 Key'}</div>
+        <div className="grid grid-cols-2 gap-2">
+          <input value={form.name} onChange={e => setForm(f => ({...f, name: e.target.value}))} placeholder="备注名" className="rounded-lg border border-slate-200 px-3 py-2 text-xs" />
+          <input value={form.priority} onChange={e => setForm(f => ({...f, priority: parseInt(e.target.value)||0}))} type="number" placeholder="优先级" className="rounded-lg border border-slate-200 px-3 py-2 text-xs" />
+        </div>
+        <input value={form.api_key} onChange={e => setForm(f => ({...f, api_key: e.target.value}))} placeholder={editingId ? 'API Key（留空保留原 Key）' : '高德 Web 服务 API Key'} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-xs" />
+        <input value={form.security_secret} onChange={e => setForm(f => ({...f, security_secret: e.target.value}))} placeholder="安全密钥（可选，留空保留原值）" className="w-full rounded-lg border border-slate-200 px-3 py-2 text-xs" />
+        <div className="flex items-center gap-4">
+          <label className="flex items-center gap-1 text-xs">
+            <input type="checkbox" checked={form.enabled} onChange={e => setForm(f => ({...f, enabled: e.target.checked}))} /> 启用
+          </label>
+          {editingId && (
+            <button onClick={() => { setEditingId(null); setForm({ name:'',api_key:'',security_secret:'',enabled:true,priority:0 }) }} className="text-[10px] text-slate-400">取消编辑</button>
+          )}
+        </div>
+        <button onClick={saveKey} disabled={saving} className="rounded-lg bg-slate-100 text-slate-600 text-xs font-semibold px-3 py-1.5 disabled:opacity-50">
+          {saving ? '保存中...' : editingId ? '更新 Key' : '添加 Key'}
+        </button>
+      </div>
+    </div>
+  )
+}
+
 function ShareConfigCard({ adminFetch, showToast }) {
   const [cfg, setCfg] = useState({ share_title: '', share_image_url: '', report_share_title_template: '', share_cta_text: '' })
   const [dirty, setDirty] = useState(false)
@@ -1472,6 +1620,7 @@ export default function AdminPage() {
             />
 
             <ShareConfigCard adminFetch={adminFetch} showToast={showToast} />
+            <AmapKeyPoolCard adminFetch={adminFetch} showToast={showToast} />
 
             <QrcodeSlotCard
               slot="cs"
