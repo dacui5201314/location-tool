@@ -423,12 +423,12 @@ def wechat_official_login(
             41002: "appid 配置错误",
             -1: "微信接口限频，请稍后重试",
         }
-        detail = err_map.get(wx_data["errcode"], f"微信授权失败（{wx_data.get('errmsg', '')}）")
+        detail = err_map.get(wx_data["errcode"], "invalid_code")
         raise HTTPException(status_code=400, detail=detail)
 
     openid = wx_data.get("openid", "")
     if not openid:
-        raise HTTPException(status_code=400, detail="未获取到微信 OpenID，请检查授权配置")
+        raise HTTPException(status_code=400, detail="invalid_code")
 
     # 2. 查找或创建用户
     client_ip = _get_client_ip(request) if request else ""
