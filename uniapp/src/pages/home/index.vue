@@ -109,7 +109,7 @@
       <text class="field-err" v-if="errors.address">{{ errors.address }}</text>
 
       <view class="map-wrap">
-        <map class="map-view" :latitude="mapLat" :longitude="mapLng" :markers="mapMarkers" scale="15" :show-location="showUserLocation" :enable-scroll="!analyzing" :enable-zoom="!analyzing" :enable-rotate="false" @tap="onMapTap" @regionchange="onMapRegionChange" @updated="onMapUpdated" />
+        <map class="map-view" :key="mapKey" :latitude="mapLat" :longitude="mapLng" :markers="mapMarkers" scale="15" :show-location="showUserLocation" :enable-scroll="!analyzing" :enable-zoom="!analyzing" :enable-rotate="false" @tap="onMapTap" @markertap="onMarkerTap" @regionchange="onMapRegionChange" @updated="onMapUpdated" />
         <view class="map-overlay" v-if="analyzing">
           <text class="mo-text">分析中，请稍后...</text>
         </view>
@@ -193,6 +193,7 @@ export default {
       addressText: '',
       mapLat: 39.9087,
       mapLng: 116.3975,
+      mapKey: 0,  // 递增以强制 map 重渲染 marker
       industry: '',
       brandName: '',
       storeSize: '',
@@ -205,6 +206,7 @@ export default {
       selectedLocationSource: '',
       showUserLocation: false,
       mapNotice: '',
+      regeocoding: false,
       welcomeOpen: false,
       freePointBanner: '',
       countdownTimer: null,
@@ -398,6 +400,8 @@ export default {
     onMapUpdated () { /* noop — map component内部事件 */ },
     async resolveAddressByLngLat (lng, lat, source) {
       this.selectedLocationSource = source
+      this.regeocoding = true
+      this.mapNotice = '正在识别地址...'
       try {
         const r = await api.locationRegeocode(lng, lat)
         if (r.ok && r.data?.ok && r.data?.data?.address) {
@@ -415,6 +419,8 @@ export default {
         const coord = `经度 ${lng.toFixed(4)} · 纬度 ${lat.toFixed(4)}`
         this.addressText = coord; this.addressKeyword = coord
         this.mapNotice = msg.includes('timeout') ? '地址服务暂时不可用，可手动输入地址' : '地址服务暂不可用，可手动输入地址'
+      } finally {
+        this.regeocoding = false
       }
     },
     onIndustryChange (name) {
@@ -460,10 +466,8 @@ export default {
         uni.getLocation({
           type: 'gcj02',
           success: (res) => {
-            this.mapLat = res.latitude; this.mapLng = res.longitude
             this.showUserLocation = true
-            this.errors.address = ''
-            this.resolveAddressByLngLat(res.longitude, res.latitude, 'locate')
+            this._moveMarkerTo(res.latitude, res.longitude, 'locate')
           },
           fail: (err) => {
             const msg = err.errMsg || ''
@@ -550,7 +554,7 @@ export default {
       this.suggestLoading = false
       this.addressText = s.name + (s.address ? ' · ' + s.address : '')
       this.addressKeyword = this.addressText
-      if (s.location) { this.mapLng = s.location.lng; this.mapLat = s.location.lat }
+      if (s.location) { this._moveMarkerTo(s.location.lat, s.location.lng, 'search') }
       this.selectedLocationSource = 'search'
       this.checkFavStatus()
       this.errors.address = ''
@@ -558,13 +562,36 @@ export default {
       this.suggestErr = ''
     },
     onMapRegionChange (e) {
-      // regionchange handled internally by map component
+      // ★ 地图拖动/缩放后更新中心点，供后续 location 参考
+      if (e.detail && e.detail.centerLocation) {
+        this.mapLat = e.detail.centerLocation.latitude
+        this.mapLng = e.detail.centerLocation.longitude
+      } else if (e.type === 'end' && e.detail && e.detail.latitude) {
+        // regionchange end 可能带回最终中心点
+      }
+    },
+    onMarkerTap (e) {
+      // ★ 点击已有 marker → 等同于点击地图该位置
+      const mid = e.detail && e.detail.markerId
+      if (mid !== undefined && this.mapMarkers.length) {
+        const m = this.mapMarkers[0]
+        // 允许用户确认重新定位
+        uni.showToast({ title: '点击地图空白处可将标记移动到新位置', icon: 'none', duration: 2000 })
+      }
+    },
+    _moveMarkerTo (lat, lng, source) {
+      this.mapLat = lat
+      this.mapLng = lng
+      this.mapKey++  // 强制 map 重渲染 marker
+      this.errors.address = ''
+      this.resolveAddressByLngLat(lng, lat, source)
     },
     async onMapTap (e) {
-      if (e.detail && e.detail.latitude) {
-        this.mapLat = e.detail.latitude; this.mapLng = e.detail.longitude
-        this.errors.address = ''
-        this.resolveAddressByLngLat(this.mapLng, this.mapLat, 'map')
+      // ★ 点击地图某处 → 移动 marker 到点击位置 + 反查地址
+      const lat = e.detail && e.detail.latitude
+      const lng = e.detail && e.detail.longitude
+      if (lat !== undefined && lng !== undefined) {
+        this._moveMarkerTo(lat, lng, 'map')
       } else {
         uni.showToast({ title: '点击地图选择门店位置', icon: 'none' })
       }
