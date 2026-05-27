@@ -228,19 +228,20 @@ function AmapKeyPoolCard({ adminFetch, showToast }) {
         <div className={`mb-4 p-3 rounded-lg text-xs ${testResult.ok ? 'bg-emerald-50' : 'bg-amber-50'}`}>
           <span className="font-semibold">{testResult.ok ? '✓ 可用' : '✗ 异常'}</span>
           <span className="ml-2 text-slate-500">{testResult.normalized_status}</span>
-          {testResult.info && <span className="ml-2 text-slate-400">— {testResult.info}</span>}
+          {testResult.info && <span className="ml-2 text-slate-400">— {testResult.human_message || testResult.info}</span>}
         </div>
       )}
 
       {/* Add/Edit form */}
       <div className="border-t border-slate-100 pt-3 space-y-2">
+        <div className="text-[10px] text-amber-600 mb-2">⚠ 必须使用高德<strong>Web服务 API Key</strong>（非微信小程序 Key / JS API Key）</div>
         <div className="text-xs font-semibold text-slate-500">{editingId ? '编辑 Key（留空保留原值）' : '新增 Key'}</div>
         <div className="grid grid-cols-2 gap-2">
           <input value={form.name} onChange={e => setForm(f => ({...f, name: e.target.value}))} placeholder="备注名" className="rounded-lg border border-slate-200 px-3 py-2 text-xs" />
           <input value={form.priority} onChange={e => setForm(f => ({...f, priority: parseInt(e.target.value)||0}))} type="number" placeholder="优先级" className="rounded-lg border border-slate-200 px-3 py-2 text-xs" />
         </div>
         <input value={form.api_key} onChange={e => setForm(f => ({...f, api_key: e.target.value}))} placeholder={editingId ? 'API Key（留空保留原 Key）' : '高德 Web 服务 API Key'} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-xs" />
-        <input value={form.security_secret} onChange={e => setForm(f => ({...f, security_secret: e.target.value}))} placeholder="安全密钥（可选，留空保留原值）" className="w-full rounded-lg border border-slate-200 px-3 py-2 text-xs" />
+        <input value={form.security_secret} onChange={e => setForm(f => ({...f, security_secret: e.target.value}))} placeholder="安全密钥（可选，当前不参与请求，留空保留原值）" className="w-full rounded-lg border border-slate-200 px-3 py-2 text-xs" />
         <div className="flex items-center gap-4">
           <label className="flex items-center gap-1 text-xs">
             <input type="checkbox" checked={form.enabled} onChange={e => setForm(f => ({...f, enabled: e.target.checked}))} /> 启用

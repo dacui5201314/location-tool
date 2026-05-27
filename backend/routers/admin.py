@@ -1496,13 +1496,28 @@ def test_amap_key(key_id: int, admin: dict = Depends(get_current_admin), db: Ses
         info = str(e)[:200]
         ic = "NETWORK_ERROR"
 
+    _info_upper = info.upper()
     normalized = "OK" if st == "1" else (
-        "DAILY_QUERY_OVER_LIMIT" if "OVER_DAILY" in info.upper() or ic == "10003" else
-        "QPS_EXCEEDED" if "CUQPS" in info.upper() or ic == "10007" else
+        "DAILY_QUERY_OVER_LIMIT" if "OVER_DAILY" in _info_upper or ic in ("10003", "10004") else
+        "QPS_EXCEEDED" if "CUQPS" in _info_upper or ic == "10007" else
+        "USERKEY_PLAT_NOMATCH" if "PLAT_NOMATCH" in _info_upper or ic == "10005" else
         "INVALID_USER_KEY" if ic in ("10001", "20001", "20002", "20003") else
+        "SIGNATURE_REQUIRED" if "SIGN" in _info_upper or ic in ("10006",) else
         "NETWORK_ERROR" if ic == "NETWORK_ERROR" else
         "UNKNOWN_ERROR"
     )
+
+    # Human-readable messages
+    _human = {
+        "OK": "高德 Web服务 Key 可用",
+        "DAILY_QUERY_OVER_LIMIT": "该 Key 今日额度已用完，请添加新的 Web服务 Key 或等待额度恢复",
+        "QPS_EXCEEDED": "QPS 超限，系统将自动切换其他 Key",
+        "USERKEY_PLAT_NOMATCH": "Key 平台/服务类型不匹配，请使用高德 Web服务 API Key（非微信小程序 Key 或 JS API Key）",
+        "INVALID_USER_KEY": "Key 无效，请检查是否复制完整或已过期",
+        "SIGNATURE_REQUIRED": "需要安全密钥签名，当前未启用 sig 签名",
+        "NETWORK_ERROR": "网络连接失败，请检查服务器网络",
+        "UNKNOWN_ERROR": f"未知错误: {info[:60]}",
+    }
 
     row.last_status = normalized
     row.last_info = info
@@ -1520,6 +1535,8 @@ def test_amap_key(key_id: int, admin: dict = Depends(get_current_admin), db: Ses
         "info": info,
         "infocode": ic,
         "normalized_status": normalized,
+        "human_message": _human.get(normalized, _human["UNKNOWN_ERROR"]),
+        "source": "direct_test",
     }
 
 

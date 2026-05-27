@@ -747,11 +747,11 @@ class AmapService:
                         return data
                     info = str(data.get("info", "") or "")
                     ic = str(data.get("infocode", "") or "")
-                    # 分类：可重试 vs 不可重试
+                    _iu = info.upper()
+                    # 分类：可重试（额度/QPS用完）vs 不可重试（Key类型/签名错误）
                     is_retryable = (
-                        "OVER_DAILY" in info.upper() or ic in ("10003",) or
-                        "CUQPS" in info.upper() or ic in ("10007",) or
-                        "OVER" in info.upper()
+                        "OVER_DAILY" in _iu or ic in ("10003", "10004") or
+                        "CUQPS" in _iu or ic == "10007"
                     )
                     err_type = info[:80]
                     self._report_key_failure(key, err_type, info)
