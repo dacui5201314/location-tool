@@ -651,9 +651,10 @@ async def analyze_location(req: AnalyzeRequest, user: dict = Depends(get_current
                     except Exception:
                         print(f"[SSE Guard] 重试异常，回退至原始错误", flush=True)
 
-                    if fact_errors:  # 重试未通过或异常 → 原路径
-                        _llm_parse_error = True
-                        raise ValueError(f"报告事实校验失败(含重试): {'; '.join(fact_errors[:3])}")
+                    if fact_errors:  # 重试仍未通过 → 保留原始报告 + 标注质量告警
+                        print(f"[SSE Guard] 重试后仍存在 {len(fact_errors)} 条事实告警，保留原始报告并标注", flush=True)
+                        result["_has_quality_warnings"] = True
+                        result["_quality_warnings"] = fact_errors[:10]
 
             # 保存到数据库
             _db_save_ok = False

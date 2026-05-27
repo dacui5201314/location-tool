@@ -124,7 +124,7 @@ function analyzeLocation (payload) {
               const evt = JSON.parse(line.slice(6))
               if (evt.step === 'error') {
                 sseError = evt.msg || '分析服务异常'
-              } else if (evt.step && evt.msg) {
+              } else if (typeof evt.step === 'number' && evt.msg) {
                 steps.push({ step: evt.step, msg: evt.msg })
               }
               if (evt.result && typeof evt.result === 'object') {
