@@ -188,6 +188,10 @@ def _is_generic_candidate(candidate: str) -> bool:
                 break
         if not _changed:
             break
+    # ★ "非周边某医院" → 去掉"某"之前所有内容
+    _mou_idx = _standalone.find("某")
+    if _mou_idx >= 0:
+        _standalone = _standalone[_mou_idx + 1:]
     if _standalone and _standalone != candidate:
         if _standalone in _GENERIC_REFERENTS:
             return True
