@@ -110,7 +110,7 @@
 
       <view class="map-wrap">
         <map id="homeMap" class="map-view" :latitude="mapLat" :longitude="mapLng" :markers="mapMarkers" scale="15" :show-location="showUserLocation" :enable-scroll="!analyzing" :enable-zoom="!analyzing" :enable-rotate="false" @tap="onMapTap" @regionchange="onMapRegionChange" />
-        <!-- 中心准星：纯色圆点，兼容 cover-view 限制（不支持 transform/box-shadow） -->
+        <!-- 中心准星：cover-view flex 居中，兼容不支持 transform 的限制 -->
         <cover-view class="crosshair" v-if="!analyzing">
           <cover-view class="ch-dot" />
         </cover-view>
@@ -801,9 +801,9 @@ export default {
 .map-wrap { position:relative; border-radius:24rpx; overflow:hidden; box-shadow:0 18rpx 38rpx rgba(79,119,186,0.12); border:2rpx solid rgba(219,230,255,0.5); background:#dce4f2; }
 .map-view { width:100%; height:360rpx; }
 
-/* Center crosshair — cover-view compatible: no transform/box-shadow */
-.crosshair { position:absolute; left:50%; top:50%; width:0; height:0; z-index:10; }
-.ch-dot { position:absolute; left:-18rpx; top:-18rpx; width:36rpx; height:36rpx; border-radius:50%; background:rgba(239,68,68,0.88); border:3rpx solid #fff; }
+/* Center crosshair — flex centering, cover-view compatible */
+.crosshair { position:absolute; left:0; right:0; top:0; bottom:0; display:flex; align-items:center; justify-content:center; z-index:10; pointer-events:none; }
+.ch-dot { width:32rpx; height:32rpx; border-radius:50%; background:rgba(239,68,68,0.88); border:3rpx solid #fff; flex-shrink:0; }
 
 .map-overlay { position:absolute; inset:0; background:rgba(0,0,0,0.3); display:flex; align-items:center; justify-content:center; }
 .mo-text { color:#fff; font-size:28rpx; font-weight:600; }
