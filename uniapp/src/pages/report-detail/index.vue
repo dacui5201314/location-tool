@@ -182,6 +182,12 @@
       <view class="bottom-bar">
         <button class="bb-back" @tap="goBack">返回</button>
       </view>
+
+      <!-- Share CTA -->
+      <view class="share-cta" v-if="isShared">
+        <text class="share-cta-title">这份报告由「址得选」生成</text>
+        <button class="share-cta-btn" @tap="goToHome">我也要生成选址报告</button>
+      </view>
     </view>
   </view>
 </template>
@@ -193,7 +199,7 @@ import { scoreColor, formatTime } from '../../utils/format'
 export default {
   data () {
     return {
-      loading: true, errorMsg: '', record: {},
+      loading: true, errorMsg: '', record: {}, isShared: false,
       poiExpanded: false,
       rptScore: 0, rptDisclaimer: '', rptWarning: '', rptSummary: '',
       rptAdv: [], rptDis: [], rptDims: [], rptAction: [],
@@ -248,23 +254,35 @@ export default {
   },
   onLoad (options) {
     const id = options.id
+    const shared = options.shared === '1'
+    this.isShared = shared
     if (!id) { this.loading = false; this.errorMsg = '缺少记录 ID'; return }
-    api.fetchRecordDetail(id).then(r => {
+
+    const fetcher = shared ? api.fetchSharedReport(id) : api.fetchRecordDetail(id)
+    fetcher.then(r => {
       this.loading = false
       if (r.ok && r.data && !r.data.error) {
         this.record = r.data
         this.parseReport(r.data.report_json)
       } else {
         const detail = r.data?.detail || r.data?.error || ''
-        if (r.statusCode === 404 || detail.includes('not found') || detail.includes('不存在')) this.errorMsg = '记录不存在'
+        if (r.statusCode === 404 || detail.includes('not found') || detail.includes('不存在') || detail.includes('已失效')) this.errorMsg = '报告不存在或已失效'
         else if (r.statusCode === 401) this.errorMsg = '请先登录后查看'
         else this.errorMsg = detail || '记录加载失败'
       }
     }).catch(() => { this.loading = false; this.errorMsg = '网络异常，请重试' })
   },
+  onShareAppMessage () {
+    const addr = this.record.address || this.record.brand_desc || '门店'
+    return {
+      title: `${addr}选址分析报告`,
+      path: `/pages/report-detail/index?id=${this.record.report_uuid || ''}&shared=1`
+    }
+  },
   methods: {
     sc: scoreColor, fmtTime: formatTime,
     goBack () { uni.navigateBack({ delta: 1 }).catch(() => uni.switchTab({ url: '/pages/records/index' })) },
+    goToHome () { uni.switchTab({ url: '/pages/home/index' }) },
     parseReport (raw) {
       ['rptScore','rptDisclaimer','rptWarning','rptSummary','rptAdv','rptDis','rptDims','rptAction',
        'rptDir200','rptDir500','rptDir1000','rptSub200','rptSub500','rptSub1000',
@@ -569,4 +587,10 @@ export default {
 /* ── bottom bar ── */
 .bottom-bar { margin-top:24rpx; padding:20rpx 24rpx; display:flex; }
 .bb-back { flex:1; background:#f1f5f9; color:#475569; border-radius:14rpx; font-size:28rpx; padding:20rpx 0; }
+
+/* ── Share CTA ── */
+.share-cta { margin:32rpx 24rpx 40rpx; background:linear-gradient(135deg,#0b3fbd,#151f8f); border-radius:18rpx; padding:32rpx 24rpx; text-align:center; box-shadow:0 18rpx 38rpx rgba(21,31,143,0.28); }
+.share-cta-title { display:block; color:rgba(255,255,255,0.86); font-size:26rpx; margin-bottom:20rpx; }
+.share-cta-btn { width:100%; background:#fff; color:#0b3fbd; border-radius:14rpx; font-size:30rpx; font-weight:700; padding:20rpx 0; }
+.share-cta-btn::after { border:none; }
 </style>

@@ -3,7 +3,7 @@
     <view class="hero-area">
       <image class="logo" src="/static/brand-logo.png" mode="aspectFit" />
       <text class="brand">址得选</text>
-      <text class="slogan">商业选址初筛参考</text>
+      <text class="slogan">商业选址分析参考</text>
     </view>
 
     <!-- 模式切换 -->

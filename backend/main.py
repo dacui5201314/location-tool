@@ -5,6 +5,8 @@ import asyncio
 from dotenv import load_dotenv
 load_dotenv()
 
+from sqlalchemy.orm import Session
+
 from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -15,7 +17,7 @@ from prompts.location_analysis import build_system_prompt, build_analysis_prompt
 from prompts.industry_config import get_config, get_config_by_key, BUSINESS_TYPE_TO_MASTER, get_rigor_for_config_key
 from services.amap_service import collect_location_data
 from ai_providers.unified import generate_llm_response
-from database import init_db, SessionLocal
+from database import init_db, SessionLocal, get_db
 from models.db_models import AnalysisRecord, User, BusinessIndustry
 from services.storage_service import save_report
 from services.billing_service import check_billing_access, refund_credits
@@ -42,6 +44,42 @@ app.include_router(industries_router)
 app.include_router(industries_public_router)
 app.include_router(pay_router)
 app.include_router(location_router)
+
+
+# ═══════════════════════════════════════════
+# 公开只读分享接口 — 替代 PDF 分享
+# ═══════════════════════════════════════════
+@app.get("/api/reports/share/{report_uuid}")
+def get_shared_report(
+    report_uuid: str,
+    db: Session = Depends(get_db),
+):
+    """公开只读分享接口。
+    通过 report_uuid 作为分享令牌，仅返回报告展示所需字段。
+    不返回手机号、token、openid、billing、admin 等隐私数据。
+    """
+    from models.db_models import AnalysisRecord
+
+    if not report_uuid or len(report_uuid) != 32:
+        raise HTTPException(status_code=404, detail="报告不存在或已失效")
+
+    record = db.query(AnalysisRecord).filter(
+        AnalysisRecord.report_uuid == report_uuid
+    ).first()
+
+    if not record:
+        raise HTTPException(status_code=404, detail="报告不存在或已失效")
+
+    return {
+        "report_uuid": record.report_uuid,
+        "address": record.address or "",
+        "business_type": record.business_type or "",
+        "brand_desc": record.brand_desc or "",
+        "overall_score": record.overall_score,
+        "created_at": str(record.created_at) if record.created_at else "",
+        "report_json": record.report_json or "{}",
+    }
+
 
 # 挂载静态资源目录（上传的二维码等）— 按 /assets 对外暴露
 import os as _os2

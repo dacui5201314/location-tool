@@ -248,7 +248,7 @@ export default function ProfileView() {
           )}
         </section>
 
-        <div className="profile-copyright">© 2026 AI 选址初筛参考工具</div>
+        <div className="profile-copyright">© 2026 AI 选址分析工具</div>
       </main>
 
       {rechargeOpen && (

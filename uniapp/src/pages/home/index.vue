@@ -5,14 +5,14 @@
       <view class="welcome-modal">
         <view class="wm-icon">🎁</view>
         <view class="wm-title">欢迎使用址得选</view>
-        <view class="wm-body">系统已赠送免费初筛额度，请尽快使用</view>
+        <view class="wm-body">系统已赠送免费分析额度，请尽快使用</view>
         <button class="wm-btn" @tap="dismissWelcome">开始体验</button>
       </view>
     </view>
 
     <!-- 免费额度倒计时 -->
     <view class="free-banner" v-if="freePointBanner">
-      <text>免费初筛额度剩余 {{ freePointBanner }} · 请尽快使用</text>
+      <text>免费分析额度剩余 {{ freePointBanner }} · 请尽快使用</text>
     </view>
 
     <!-- 全局公告 -->
@@ -32,8 +32,8 @@
         </view>
       </view>
       <view class="hero-copy">
-        <text class="hero-title">商铺选址<text class="hero-hl">先做一轮初筛</text></text>
-        <text class="hero-desc">结合周边 POI、业态与经营信息，生成商业选址初筛参考</text>
+        <text class="hero-title">商铺选址<text class="hero-hl">先看数据分析</text></text>
+        <text class="hero-desc">结合周边 POI、业态与经营信息，生成商业选址分析参考</text>
       </view>
       <view class="hero-tags">
         <text class="htag">全国城市适用</text>
@@ -135,7 +135,7 @@
       <view class="biz-fields">
         <view class="field-head">
           <text class="field-head-title">经营画像</text>
-          <text class="field-head-sub">品牌与面积越清晰，初筛越稳定</text>
+          <text class="field-head-sub">品牌与面积越清晰，分析越稳定</text>
         </view>
         <view class="bf-item">
           <view class="label">品牌/特色 <text class="req">*</text></view>
@@ -153,7 +153,7 @@
     <!-- ── CTA ── -->
     <view class="cta-zone">
       <button class="cta-btn" :disabled="analyzing || !canAnalyze" @tap="onAnalyze">
-        <text class="cta-main">{{ analyzing ? '分析中...' : '生成初筛报告' }}</text>
+        <text class="cta-main">{{ analyzing ? '分析中...' : '生成选址报告' }}</text>
         <text class="cta-sub">{{ ctaSubText }}</text>
       </button>
       <view class="analyze-steps" v-if="analyzing">
@@ -219,7 +219,7 @@ export default {
       industryList: [],
       trusts: [
         { title: 'POI 数据', desc: '周边实时采集' },
-        { title: '多维初筛', desc: '竞品客流消费力' },
+        { title: '多维分析', desc: '竞品客流消费力' },
         { title: '实地验证', desc: '仅供参考不构成建议' }
       ]
     }
@@ -248,7 +248,7 @@ export default {
       if (this.analyzing) return this.analyzeStatus || '正在处理...'
       if (!this.addressText) return '请先搜索或定位门店地址'
       if (!this.canAnalyze) return '请完整填写门店位置、业态和经营信息'
-      return '客流 · 竞品 · 消费力 · 风险点初筛参考'
+      return '客流 · 竞品 · 消费力 · 风险点分析参考'
     },
     mapMarkers () {
       return [{
@@ -592,6 +592,7 @@ export default {
       this.errors = e; return ok
     },
     async onAnalyze () {
+      if (this.analyzing) return  // 防重复点击
       if (!this.validate()) {
         const firstErr = Object.values(this.errors).find(e => e)
         if (firstErr) uni.showToast({ title: firstErr, icon: 'none' })

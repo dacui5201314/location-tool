@@ -118,7 +118,7 @@ function buildFullReportHTML(data, meta, qrcodeUrl = '', pdfConfig = {}) {
 
   const reportDate = date?.slice(0, 10) || new Date().toISOString().slice(0, 10)
   const nowStr = new Date().toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })
-  const footerText = pdfConfig.footer_text || 'AI 选址分析 · 商业选址初筛参考'
+  const footerText = pdfConfig.footer_text || 'AI 选址分析 · 商业选址分析参考'
 
   const detailLabels = {
     population_density: '人口密集度', traffic_accessibility: '交通与可达性', traffic_flow: '客流特征',
@@ -187,7 +187,7 @@ function buildFullReportHTML(data, meta, qrcodeUrl = '', pdfConfig = {}) {
   reportHtml += '<body style="margin:0 auto;background:#f8fafc;color:#1e293b;font-family:\'Microsoft YaHei\',sans-serif;width:800px;">'
 
   reportHtml += '<div style="width:100%;box-sizing:border-box;">' + pageOpen
-  reportHtml += '<div style="text-align:center;padding:22px 0 16px;background:#f8fafc;border-bottom:1px solid #e2e8f0"><h1 style="font-size:22px;font-weight:900;color:#1e40af;margin:0;letter-spacing:2px">址得选 · AI选址分析报告</h1><p style="font-size:10px;color:#94a3b8;margin:6px 0 0">商业选址初筛参考工具 | 基于实时 POI 数据 + AI 多维度分析 | ' + nowStr + '</p></div>'
+  reportHtml += '<div style="text-align:center;padding:22px 0 16px;background:#f8fafc;border-bottom:1px solid #e2e8f0"><h1 style="font-size:22px;font-weight:900;color:#1e40af;margin:0;letter-spacing:2px">址得选 · AI选址分析报告</h1><p style="font-size:10px;color:#94a3b8;margin:6px 0 0">商业选址分析工具 | 基于实时 POI 数据 + AI 多维度分析 | ' + nowStr + '</p></div>'
   reportHtml += '<div style="padding:16px 0 20px"><div style="background:#eff6ff;border-radius:10px;padding:12px 20px;margin-bottom:24px;font-size:12px;line-height:2.2;color:#334155">'
   reportHtml += '<div><span style="font-weight:700;color:#1e40af;display:inline-block;min-width:80px">📍 分析地址</span>' + escapeHtml(address || '-') + '</div>'
   if (brandName) reportHtml += '<div><span style="font-weight:700;color:#1e40af;display:inline-block;min-width:80px">🏷️ 分析品牌</span>' + escapeHtml(brandName) + '</div>'

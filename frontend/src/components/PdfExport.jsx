@@ -596,7 +596,7 @@ export default function PdfExport({ selectedLocation, result, businessType, bran
           lineHeight: 2,
         }}>
           <p style={{ margin: 0, fontWeight: 600, color: '#334155' }}>
-            {pdfConfig.footer_text || 'AI 选址分析 · 商业选址初筛参考'}
+            {pdfConfig.footer_text || 'AI 选址分析 · 商业选址分析参考'}
           </p>
           <p style={{ margin: '4px 0 0', fontSize: 10, color: '#94a3b8' }}>
             📄 本报告由 AI 选址分析工具基于实时 POI 数据自动生成 | 仅供参考

@@ -14,7 +14,7 @@
     <text class="legal-p">2.5 设备信息：我们会收集您使用的设备类型、操作系统版本等基本信息，用于优化服务体验和排查问题。</text>
 
     <text class="legal-h2">三、信息使用目的</text>
-    <text class="legal-p">3.1 为您提供选址分析服务：使用您选择的位置信息生成初筛参考报告。</text>
+    <text class="legal-p">3.1 为您提供选址分析服务：使用您选择的位置信息生成选址分析参考报告。</text>
     <text class="legal-p">3.2 账号管理：使用手机号进行注册、登录和身份验证。</text>
     <text class="legal-p">3.3 个性化展示：使用昵称和头像在个人页面及管理后台展示用户信息。</text>
     <text class="legal-p">3.4 支付与订单：处理会员开通、点数购买和订单查询。</text>

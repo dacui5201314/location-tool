@@ -76,6 +76,7 @@ function uploadAvatar (filePath) {
 }
 function fetchRecords (page = 1, pageSize = 20) { return request({ url: `/api/records?page=${page}&page_size=${pageSize}` }) }
 function fetchRecordDetail (uuid) { return request({ url: `/api/records/${uuid}` }) }
+function fetchSharedReport (uuid) { return request({ url: `/api/reports/share/${uuid}`, auth: false }) }
 function deleteRecord (uuid) { return request({ url: `/api/records/${uuid}`, method: 'DELETE' }) }
 function fetchFavorites () { return request({ url: '/api/favorites' }) }
 function deleteFavorite (id) { return request({ url: `/api/favorites/${id}`, method: 'DELETE' }) }
@@ -106,6 +107,7 @@ function analyzeLocation (payload) {
       data: payload,
       header,
       responseType: 'text',
+      timeout: 120000,
       success (res) {
         const body = res.data
         // 解析 SSE text/event-stream → 提取 steps 和 final result
@@ -170,6 +172,6 @@ function getHealth () { return request({ url: '/api/health', auth: false }) }
 
 export default {
   request, normalizeError, ensureAnonToken, wechatMiniLogin, bindPhone, phoneLogin,
-  fetchProfile, updateProfile, uploadAvatar, fetchRecords, fetchRecordDetail, deleteRecord,
+  fetchProfile, updateProfile, uploadAvatar, fetchRecords, fetchRecordDetail, fetchSharedReport, deleteRecord,
   fetchFavorites, deleteFavorite, checkFavorite, addFavorite, fetchIndustries, locationSuggest, locationRegeocode, analyzeLocation, fetchUiConfig, fetchCsQr, fetchSkus, activateCdk, createPrepay, queryOrder, getHealth
 }
