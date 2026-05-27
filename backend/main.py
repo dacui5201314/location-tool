@@ -662,8 +662,31 @@ async def analyze_location(req: AnalyzeRequest, user: dict = Depends(get_current
             yield _sse("error", f"报告生成异常，请稍后重试")
             await asyncio.sleep(0)
         except Exception as e:
-            print(f"[SSE Error] 分析异常: {type(e).__name__}: {e}", flush=True)
-            yield _sse("error", "分析服务异常，请稍后重试")
+            ename = type(e).__name__
+            emsg = str(e)[:200]
+            # 安全错误分类：不泄露 key/请求内容
+            if ename == "HTTPStatusError" and hasattr(e, 'response'):
+                sc = e.response.status_code if hasattr(e.response, 'status_code') else 0
+                if 400 <= sc < 500:
+                    _llm_parse_error = True
+                    print(f"[SSE Error] LLM HTTP {sc}", flush=True)
+                    yield _sse("error", "AI 服务配置异常，请联系管理员")
+                elif sc >= 500:
+                    _llm_server_error = True
+                    print(f"[SSE Error] LLM 服务端 {sc}", flush=True)
+                    yield _sse("error", "AI 服务暂不可用，请稍后重试")
+                else:
+                    print(f"[SSE Error] LLM HTTP {sc}", flush=True)
+                    yield _sse("error", "分析服务异常，请稍后重试")
+            elif "timeout" in emsg.lower() or ename == "TimeoutException":
+                print(f"[SSE Error] LLM timeout", flush=True)
+                yield _sse("error", "AI 服务响应超时，请稍后重试")
+            elif "connect" in emsg.lower() or ename == "ConnectError":
+                print(f"[SSE Error] LLM connect failed", flush=True)
+                yield _sse("error", "AI 服务连接失败，请检查网络或配置")
+            else:
+                print(f"[SSE Error] {ename}: {emsg}", flush=True)
+                yield _sse("error", "分析服务异常，请稍后重试")
             await asyncio.sleep(0)
         finally:
             # ★ 退款收口：LLM/JSON/AMap/DB 失败 → 点数模式退款 (Phase 13: +_db_save_error)
