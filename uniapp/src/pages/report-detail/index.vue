@@ -290,6 +290,7 @@ export default {
     }).catch(() => { this.loading = false; this.errorMsg = '网络异常，请重试' })
   },
   onShareAppMessage () {
+    // ★ 同步返回，不依赖 Promise。token 已在 _prefetchShareToken 中预生成
     const cfg = this.shareConfig || {}
     const addr = this.record.address || this.record.brand_desc || '门店'
     const titleTpl = cfg.report_share_title_template || '{address}选址分析报告'
@@ -299,15 +300,8 @@ export default {
     if (token) {
       return { title, path: `/pages/report-detail/index?share=${token}`, ...(imageUrl ? { imageUrl } : {}) }
     }
-    const uuid = this.record.report_uuid
-    if (!uuid) return { title, path: '/pages/home/index' }
-    return api.createShareToken(uuid).then(r => {
-      if (r.ok && r.data && r.data.share_token) {
-        this._shareToken = r.data.share_token
-        return { title, path: `/pages/report-detail/index?share=${this._shareToken}`, ...(imageUrl ? { imageUrl } : {}) }
-      }
-      return { title, path: '/pages/home/index' }
-    }).catch(() => ({ title, path: '/pages/home/index' }))
+    // token 未就绪 → 分享首页，不返回 Promise。下次从报告页分享时 token 已准备好
+    return { title, path: '/pages/home/index' }
   },
   methods: {
     sc: scoreColor, fmtTime: formatTime,

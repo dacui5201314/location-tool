@@ -109,7 +109,7 @@
       <text class="field-err" v-if="errors.address">{{ errors.address }}</text>
 
       <view class="map-wrap">
-        <map class="map-view" :key="mapKey" :latitude="mapLat" :longitude="mapLng" :markers="mapMarkers" scale="15" :show-location="showUserLocation" :enable-scroll="!analyzing" :enable-zoom="!analyzing" :enable-rotate="false" @tap="onMapTap" @markertap="onMarkerTap" @regionchange="onMapRegionChange" @updated="onMapUpdated" />
+        <map id="homeMap" class="map-view" :key="mapKey" :latitude="mapLat" :longitude="mapLng" :markers="mapMarkers" scale="15" :show-location="showUserLocation" :enable-scroll="!analyzing" :enable-zoom="!analyzing" :enable-rotate="false" @tap="onMapTap" @markertap="onMarkerTap" @regionchange="onMapRegionChange" @updated="onMapUpdated" />
         <view class="map-overlay" v-if="analyzing">
           <text class="mo-text">分析中，请稍后...</text>
         </view>
@@ -194,6 +194,7 @@ export default {
       mapLat: 39.9087,
       mapLng: 116.3975,
       mapKey: 0,  // 递增以强制 map 重渲染 marker
+      _regionTimer: null,  // 拖动结束防抖
       industry: '',
       brandName: '',
       storeSize: '',
@@ -291,10 +292,12 @@ export default {
   },
   onHide () {
     this.clearAnalyzeTimer()
+    if (this._regionTimer) { clearTimeout(this._regionTimer); this._regionTimer = null }
     if (this.countdownTimer) { clearInterval(this.countdownTimer); this.countdownTimer = null }
   },
   onUnload () {
     this.clearAnalyzeTimer()
+    if (this._regionTimer) { clearTimeout(this._regionTimer); this._regionTimer = null }
     if (this.countdownTimer) { clearInterval(this.countdownTimer); this.countdownTimer = null }
   },
   mounted () {
@@ -562,13 +565,22 @@ export default {
       this.suggestErr = ''
     },
     onMapRegionChange (e) {
-      // ★ 地图拖动/缩放后更新中心点，供后续 location 参考
-      if (e.detail && e.detail.centerLocation) {
-        this.mapLat = e.detail.centerLocation.latitude
-        this.mapLng = e.detail.centerLocation.longitude
-      } else if (e.type === 'end' && e.detail && e.detail.latitude) {
-        // regionchange end 可能带回最终中心点
-      }
+      // ★ 仅在拖动/缩放结束时触发反查
+      if (e.type !== 'end') return
+      // 防抖：300ms 内只处理最后一次
+      if (this._regionTimer) clearTimeout(this._regionTimer)
+      this._regionTimer = setTimeout(() => {
+        this._regionTimer = null
+        const ctx = uni.createMapContext('homeMap', this)
+        ctx.getCenterLocation({
+          success: (res) => {
+            if (res.latitude && res.longitude) {
+              this._moveMarkerTo(res.latitude, res.longitude, 'drag')
+            }
+          },
+          fail: () => { /* 获取中心失败不处理 */ }
+        })
+      }, 300)
     },
     onMarkerTap (e) {
       // ★ 点击已有 marker → 等同于点击地图该位置
