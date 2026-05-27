@@ -1,8 +1,8 @@
-current_phase: Phase 23O
-phase_status: audit_driven_uniapp_gap_closure_next
-latest_code_commit: 2ca94b1
-latest_code_commit_message: "style: tighten login buttons and avatar"
-latest_docs_commit: phase23O_handoff_update
+current_phase: RC Final Freeze
+phase_status: code_complete_pending_external_config
+latest_code_commit: e9472ea
+latest_code_commit_message: "fix: map drag triggers regeocode and share token sync-only return"
+latest_docs_commit: rc_final_handoff_update
 unpushed: true
 
 validation:

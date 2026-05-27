@@ -1,8 +1,60 @@
-# Current Handoff - 2026-05-26
+# Current Handoff - 2026-05-27 RC Final
 
-## READ THIS FIRST - Phase 23P Current Authoritative State
+## RC FINAL STATE (supersedes all older sections)
 
-This top section supersedes all older Phase 23B-23O notes below. Older sections are history and may contain outdated boundaries, stale progress numbers, or now-wrong statements such as "requestPayment is forbidden".
+**Current HEAD**: `e9472ea` — `fix: map drag triggers regeocode and share token sync-only return`
+**Status**: RC frozen. No tracked modified files. Not pushed.
+**Product direction**: WeChat Mini Program (uniapp) is the launch target. Web `frontend/` is product master/reference. PDF replaced by report sharing.
+
+### Completed (code-side)
+
+| # | Feature | Commit |
+|---|---------|--------|
+| 1 | Mini program blank screen fix (import.meta.env → Vite define) | c2d92df |
+| 2 | /api/analyze Step 1-4 end-to-end (LLM parse hardening, fact guard noise fix, DB save fix) | e7b8d1d |
+| 3 | Analyze timeout 120s + recent-record recovery | 3288c19, 13556e0 |
+| 4 | Report share_token security (random token, owner-only generation) | 13556e0, 757b413 |
+| 5 | Admin share config (title/image/template/CTA) | 757b413 |
+| 6 | Map click-to-place + drag regeocode | 8647d34, e9472ea |
+| 7 | Copy refresh: 初筛→选址分析 | 3288c19 |
+| 8 | Login rate limiting (5 fails → 429) | f9fc827 |
+| 9 | Legal pages (user agreement, privacy policy) | bf70431 |
+| 10 | WeChat Pay code path (prepay/notify/query) | pre-RC |
+| 11 | CDK redeem + SKU listing | pre-RC |
+| 12 | Admin user management (52 users visible) | pre-RC |
+| 13 | HTTPS/API_BASE_URL strategy (Vite define) | c2d92df |
+
+### External Blockers (require business/platform action)
+
+| Blocker | Detail |
+|---------|--------|
+| Production HTTPS API domain | Dev uses http://127.0.0.1:8000; production needs HTTPS domain in VITE_API_BASE_URL |
+| WeChat backend server domain | Must be configured in WeChat MP admin |
+| WeChat privacy protection guide | Must be configured in WeChat MP admin |
+| Phone number capability | getPhoneNumber needs real AppID + capability + privacy config |
+| WeChat Pay merchant credentials | mch_id, APIv3 key, private key PEM, cert serial, platform cert PEM, HTTPS notify_url, JSAPI permission, Mini Program binding |
+| AMap Web Key | Must be valid in production .env |
+| LLM API Key | Must be valid in production .env |
+
+### Known Non-Blocking Issues
+
+| Issue | Severity | Notes |
+|-------|----------|-------|
+| Welcome modal white flash | P2 | Visual glitch,不影响功能 |
+| DevTools HTTP avatar warning | P2 | Local HTTP; production HTTPS resolves |
+| Share token no expiry/stats | P2 | Can add expires_at/view_count later |
+| Analyze recovery v1 (recent record + time window) | P2 | Can upgrade to client_request_id idempotency |
+| PDF download | N/A | Intentional — replaced by report sharing |
+
+### Hard Boundaries (still active)
+
+- Do not push
+- Do not expose AppID/AppSecret/API keys/PEM/private keys/tokens
+- Do not modify frontend/ unless explicitly requested
+- Do not modify report accuracy logic, POI, rules, prompt, report_fact_guard, classification
+- Do not add /unlock-pdf or /download to uniapp
+- Native miniprogram/ is frozen
+- tmp_* files are not tracked
 
 ### Current Reviewed Position
 
