@@ -92,11 +92,12 @@
       <view class="section-line">
         <view>
           <text class="section-title">当前位置</text>
-          <text class="section-sub">可拖动或点击地图微调门店位置</text>
+          <text class="section-sub" v-if="!analyzing">拖动地图将准星对准门店位置 · 或点击地图选点</text>
+          <text class="section-sub" v-else>分析完成后可查看完整报告</text>
         </view>
-        <text class="section-badge">{{ analyzing ? '分析中' : (addressText ? '可微调' : '待选择') }}</text>
+        <text class="section-badge">{{ analyzing ? '分析中' : (addressText ? '已选位置' : '待选择') }}</text>
       </view>
-      <view class="addr-bar" v-if="addressText">
+      <view class="addr-bar" v-if="addressText && !analyzing">
         <view class="ab-left">
           <text class="ab-pin">📍</text>
           <view class="ab-mid">
@@ -108,25 +109,43 @@
       </view>
       <text class="field-err" v-if="errors.address">{{ errors.address }}</text>
 
+      <!-- ═══ 地图三态：互斥渲染，绝不共存 ═══ -->
       <view class="map-wrap">
-        <!-- 静态占位层：首次加载/welcome弹窗/分析中隐藏 map 原生组件 -->
-        <view class="map-placeholder" v-if="!mapReady || welcomeOpen || analyzing">
-          <view class="mph-building mph-a" /><view class="mph-building mph-b" />
-          <view class="mph-building mph-c" /><view class="mph-building mph-d" />
+
+        <!-- 状态 A：Placeholder（首帧 / welcome 弹窗） -->
+        <view class="map-placeholder" v-if="mapMode === 'placeholder'">
+          <view class="ph-label">门店位置</view>
+          <view class="ph-city">
+            <view class="phb phb-a" /><view class="phb phb-b" />
+            <view class="phb phb-c" /><view class="phb phb-d" />
+          </view>
         </view>
-        <!-- 地图：延迟渲染避免闪白 -->
-        <map v-if="mapReady && !welcomeOpen" id="homeMap" class="map-view" :latitude="mapLat" :longitude="mapLng" :markers="mapMarkers" scale="15" :show-location="showUserLocation" :enable-scroll="!analyzing" :enable-zoom="!analyzing" :enable-rotate="false" @tap="onMapTap" @regionchange="onMapRegionChange" />
-        <!-- 中心准星 -->
-        <cover-view class="crosshair" v-if="mapReady && !welcomeOpen && !analyzing">
-          <cover-view class="ch-dot" />
-        </cover-view>
-        <!-- 分析中遮罩 -->
-        <cover-view class="map-overlay" v-if="analyzing && mapReady">
-          <cover-view class="mo-text">分析中，请稍后...</cover-view>
-        </cover-view>
+
+        <!-- 状态 B：真实地图（idle 选点态） -->
+        <template v-if="mapMode === 'map'">
+          <map id="homeMap" class="map-view" :latitude="mapLat" :longitude="mapLng" :markers="mapMarkers" scale="15" :show-location="showUserLocation" :enable-scroll="true" :enable-zoom="true" :enable-rotate="false" @tap="onMapTap" @regionchange="onMapRegionChange" />
+          <cover-view class="crosshair">
+            <cover-view class="ch-dot" />
+          </cover-view>
+        </template>
+
+        <!-- 状态 C：分析中卡片 -->
+        <view class="analyzing-card" v-if="mapMode === 'analyzing'">
+          <view class="ac-pulse" />
+          <text class="ac-title">正在生成选址分析报告</text>
+          <text class="ac-sub">请稍候，正在采集周边数据并进行分析...</text>
+          <view class="ac-steps">
+            <view class="acs" v-for="s in analyzeStepItems" :key="s.step" :class="s.status">
+              <text class="acs-icon">{{ s.icon }}</text>
+              <text class="acs-label">{{ s.label }}</text>
+            </view>
+          </view>
+        </view>
+
       </view>
-      <view class="map-hint" :class="{ done: addressText, warn: !!mapNotice }">
-        <text>{{ mapNotice || (addressText ? '已选位置 · 拖动地图或点击微调' : '拖动地图将准星对准门店位置 · 或点击地图选点') }}</text>
+
+      <view class="map-hint" v-if="mapMode === 'map'" :class="{ done: addressText, warn: !!mapNotice }">
+        <text>{{ mapNotice || (addressText ? '已选位置 · 拖动地图可微调' : '拖动地图将准星对准门店位置 · 或点击地图选点') }}</text>
       </view>
     </view>
 
@@ -243,6 +262,11 @@ export default {
     }
   },
   computed: {
+    mapMode () {
+      if (this.analyzing) return 'analyzing'
+      if (this.welcomeOpen || !this.mapReady) return 'placeholder'
+      return 'map'
+    },
     canAnalyze () { return !this.analyzing && this.addressText && this.industry && this.brandName && this.storeSize },
     analyzeStepItems () {
       const steps = [
@@ -299,11 +323,13 @@ export default {
   },
   onHide () {
     this.clearAnalyzeTimer()
+    if (this._mapTimer) { clearTimeout(this._mapTimer); this._mapTimer = null }
     if (this._regionTimer) { clearTimeout(this._regionTimer); this._regionTimer = null }
     if (this.countdownTimer) { clearInterval(this.countdownTimer); this.countdownTimer = null }
   },
   onUnload () {
     this.clearAnalyzeTimer()
+    if (this._mapTimer) { clearTimeout(this._mapTimer); this._mapTimer = null }
     if (this._regionTimer) { clearTimeout(this._regionTimer); this._regionTimer = null }
     if (this.countdownTimer) { clearInterval(this.countdownTimer); this.countdownTimer = null }
   },
@@ -313,7 +339,7 @@ export default {
     }).catch(() => { this.industryLoadErr = '业态加载失败，请稍后重试' })
     this.initHomeData()
     // ★ 延迟渲染 map 避免首次白块闪烁
-    setTimeout(() => { this.mapReady = true }, 350)
+    this._mapTimer = setTimeout(() => { this.mapReady = true }, 350)
   },
   methods: {
     async initHomeData () {
@@ -817,21 +843,31 @@ export default {
 .ab-src { font-size:20rpx; color:#94a3b8; }
 .ab-edit { width:auto; min-width:84rpx; margin:0; padding:6rpx 14rpx; background:#f3f7ff; border-radius:999rpx; color:#315bff; font-size:24rpx; line-height:34rpx; flex-shrink:0; }
 .ab-edit::after { border:none; }
-.map-wrap { position:relative; border-radius:24rpx; overflow:hidden; box-shadow:0 18rpx 38rpx rgba(79,119,186,0.12); border:2rpx solid rgba(219,230,255,0.5); background:#dce4f2; }
+.map-wrap { position:relative; border-radius:24rpx; overflow:hidden; box-shadow:0 18rpx 38rpx rgba(79,119,186,0.12); border:2rpx solid rgba(219,230,255,0.5); background:#dce4f2; min-height:360rpx; }
 .map-view { width:100%; height:360rpx; }
 
-/* Map placeholder — 防止白块闪烁 */
-.map-placeholder { width:100%; height:360rpx; background:linear-gradient(180deg,#e8edf5,#dce4f2); display:flex; align-items:flex-end; justify-content:center; position:relative; overflow:hidden; }
-.mph-building { position:absolute; bottom:0; width:48rpx; border-radius:8rpx 8rpx 0 0; background:linear-gradient(180deg,rgba(148,163,184,0.35),rgba(148,163,184,0.08)); }
-.mph-a { right:68rpx; height:98rpx; } .mph-b { right:124rpx; height:156rpx; }
-.mph-c { right:180rpx; height:124rpx; } .mph-d { right:236rpx; height:84rpx; }
+/* State A: Placeholder card */
+.map-placeholder { height:360rpx; background:linear-gradient(180deg,#e8edf5,#dce4f2); display:flex; flex-direction:column; align-items:center; justify-content:center; position:relative; overflow:hidden; }
+.ph-label { font-size:26rpx; color:#94a3b8; font-weight:600; position:relative; z-index:1; }
+.ph-city { position:absolute; bottom:0; left:0; right:0; height:120rpx; display:flex; justify-content:center; gap:16rpx; align-items:flex-end; padding-bottom:20rpx; }
+.phb { width:40rpx; border-radius:8rpx 8rpx 0 0; background:rgba(148,163,184,0.25); }
+.phb-a { height:60rpx; } .phb-b { height:96rpx; } .phb-c { height:78rpx; } .phb-d { height:48rpx; }
 
-/* Center crosshair — flex centering, cover-view compatible */
+/* State B: Map crosshair */
 .crosshair { position:absolute; left:0; right:0; top:0; bottom:0; display:flex; align-items:center; justify-content:center; z-index:10; pointer-events:none; }
 .ch-dot { width:32rpx; height:32rpx; border-radius:50%; background:rgba(239,68,68,0.88); border:3rpx solid #fff; flex-shrink:0; }
 
-.map-overlay { position:absolute; inset:0; background:rgba(0,0,0,0.3); display:flex; align-items:center; justify-content:center; }
-.mo-text { color:#fff; font-size:28rpx; font-weight:600; }
+/* State C: Analyzing card */
+.analyzing-card { height:360rpx; background:linear-gradient(180deg,#eef3ff,#e0e8f6); display:flex; flex-direction:column; align-items:center; justify-content:center; padding:40rpx; }
+.ac-pulse { width:56rpx; height:56rpx; border-radius:50%; background:rgba(49,91,255,0.15); margin-bottom:20rpx; animation:pulse 1.5s ease-in-out infinite; }
+@keyframes pulse { 0%,100% { transform:scale(1); opacity:0.6; } 50% { transform:scale(1.3); opacity:1; } }
+.ac-title { font-size:28rpx; font-weight:700; color:#1e293b; margin-bottom:8rpx; }
+.ac-sub { font-size:22rpx; color:#94a3b8; margin-bottom:24rpx; text-align:center; }
+.ac-steps { width:100%; display:flex; flex-direction:column; gap:10rpx; }
+.acs { display:flex; align-items:center; gap:10rpx; font-size:24rpx; color:#94a3b8; }
+.acs.active { color:#315bff; font-weight:600; }
+.acs.done { color:#16a34a; }
+.acs-icon { font-size:24rpx; width:36rpx; text-align:center; }
 .map-hint { text-align:center; padding:12rpx 0 4rpx; font-size:24rpx; color:#94a3b8; }
 .map-hint.done { color:#16a34a; } .map-hint.warn { color:#dc2626; }
 
