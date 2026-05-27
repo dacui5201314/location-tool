@@ -162,6 +162,7 @@ function analyzeLocation (payload) {
 
 // ── Config / Pay ──
 function fetchUiConfig () { return request({ url: '/api/admin/ui-config', auth: false }) }
+function fetchShareConfig () { return request({ url: '/api/admin/share-config/public', auth: false }) }
 function fetchCsQr () { return request({ url: '/api/admin/customer-service-qrcode', auth: false }) }
 function fetchSkus () { return request({ url: '/api/user/skus' }) }
 function activateCdk (code) { return request({ url: '/api/admin/cdk/activate', method: 'POST', data: { code } }) }
@@ -174,5 +175,5 @@ function getHealth () { return request({ url: '/api/health', auth: false }) }
 export default {
   request, normalizeError, ensureAnonToken, wechatMiniLogin, bindPhone, phoneLogin,
   fetchProfile, updateProfile, uploadAvatar, fetchRecords, fetchRecordDetail, fetchSharedReport, createShareToken, deleteRecord,
-  fetchFavorites, deleteFavorite, checkFavorite, addFavorite, fetchIndustries, locationSuggest, locationRegeocode, analyzeLocation, fetchUiConfig, fetchCsQr, fetchSkus, activateCdk, createPrepay, queryOrder, getHealth
+  fetchFavorites, deleteFavorite, checkFavorite, addFavorite, fetchIndustries, locationSuggest, locationRegeocode, analyzeLocation, fetchUiConfig, fetchShareConfig, fetchCsQr, fetchSkus, activateCdk, createPrepay, queryOrder, getHealth
 }

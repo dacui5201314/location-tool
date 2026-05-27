@@ -725,6 +725,89 @@ def get_ui_config(db: Session = Depends(get_db)):
     return _load_ui_config_from_db(db)
 
 
+# ═══════════════════════════════════════════
+# 小程序分享设置
+# ═══════════════════════════════════════════
+_SHARE_CONFIG_KEYS = ["share_title", "share_image_url", "report_share_title_template", "share_cta_text"]
+_SHARE_CONFIG_DEFAULTS = {
+    "share_title": "址得选 - 商铺选址分析工具",
+    "share_image_url": "",
+    "report_share_title_template": "{address}选址分析报告",
+    "share_cta_text": "我也要生成选址报告",
+}
+
+
+def _load_share_config(db: Session) -> dict:
+    cfg = {}
+    for key in _SHARE_CONFIG_KEYS:
+        row = db.query(SystemConfig).filter(SystemConfig.key == f"share_{key}").first()
+        cfg[key] = row.value if (row and row.value) else _SHARE_CONFIG_DEFAULTS.get(key, "")
+    return cfg
+
+
+@router.get("/share-config")
+def get_share_config_admin(admin: dict = Depends(get_current_admin), db: Session = Depends(get_db)):
+    """管理后台获取分享配置"""
+    return _load_share_config(db)
+
+
+@router.put("/share-config")
+def save_share_config(body: dict, admin: dict = Depends(get_current_admin), db: Session = Depends(get_db)):
+    """管理后台保存分享配置"""
+    for key in _SHARE_CONFIG_KEYS:
+        val = str(body.get(key, "") or "").strip()
+        if key == "share_image_url" and val and not val.startswith("/assets/"):
+            raise HTTPException(status_code=400, detail="图片路径必须以 /assets/ 开头，请通过上传接口上传")
+        row = db.query(SystemConfig).filter(SystemConfig.key == f"share_{key}").first()
+        if row:
+            row.value = val
+        else:
+            db.add(SystemConfig(key=f"share_{key}", value=val, description=f"分享配置: {key}"))
+    db.commit()
+    return {"ok": True}
+
+
+@router.get("/share-config/public")
+def get_share_config_public(db: Session = Depends(get_db)):
+    """公开获取分享配置（uni-app 使用）"""
+    return _load_share_config(db)
+
+
+@router.post("/share-config/upload-image")
+def upload_share_image(
+    file: UploadFile = File(...),
+    admin: dict = Depends(get_current_admin),
+    db: Session = Depends(get_db),
+):
+    """上传分享图片到 assets 目录"""
+    import uuid as _uuid
+    from pathlib import Path as _Path
+
+    allowed_types = {"image/png": ".png", "image/jpeg": ".jpg", "image/jpg": ".jpg", "image/webp": ".webp"}
+    content_type = (file.content_type or "").lower().split(";")[0].strip()
+    if content_type not in allowed_types:
+        raise HTTPException(status_code=400, detail=f"不支持的文件类型: {content_type}，仅支持 PNG/JPG/WebP")
+
+    raw = file.file.read()
+    if len(raw) > 1024 * 1024:
+        raise HTTPException(status_code=400, detail="图片大小不能超过 1MB")
+
+    if content_type == "image/png" and raw[:4] != b'\x89PNG':
+        raise HTTPException(status_code=400, detail="无效的 PNG 文件")
+    if content_type in ("image/jpeg", "image/jpg") and raw[:3] != b'\xff\xd8\xff':
+        raise HTTPException(status_code=400, detail="无效的 JPEG 文件")
+
+    ext = allowed_types[content_type]
+    filename = f"share_{_uuid.uuid4().hex[:12]}{ext}"
+    assets_dir = _Path("storage/assets/share")
+    assets_dir.mkdir(parents=True, exist_ok=True)
+    filepath = assets_dir / filename
+    filepath.write_bytes(raw)
+
+    url = f"/assets/share/{filename}"
+    return {"url": url, "filename": filename}
+
+
 @router.get("/customer-service-qrcode")
 def get_customer_service_qrcode(db: Session = Depends(get_db)):
     """获取客服二维码 URL（公开，从 DB 加载并清洗污染值）"""

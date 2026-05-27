@@ -109,6 +109,98 @@ function UiCustomerConfigCard({ uiConfig, setUiConfig, adminFetch, showToast }) 
   )
 }
 
+function ShareConfigCard({ adminFetch, showToast }) {
+  const [cfg, setCfg] = useState({ share_title: '', share_image_url: '', report_share_title_template: '', share_cta_text: '' })
+  const [dirty, setDirty] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [uploading, setUploading] = useState(false)
+  const [loaded, setLoaded] = useState(false)
+
+  useEffect(() => {
+    adminFetch('/share-config').then(r => r.json()).then(d => {
+      setCfg(d); setLoaded(true)
+    }).catch(() => { setLoaded(true) })
+  }, [])
+
+  const update = (patch) => { setCfg(c => ({ ...c, ...patch })); setDirty(true) }
+
+  const save = async () => {
+    setSaving(true)
+    try {
+      const r = await adminFetch('/share-config', { method: 'PUT', body: JSON.stringify(cfg) })
+      if (!r.ok) { const d = await r.json().catch(() => ({})); throw new Error(d.detail || '保存失败') }
+      setDirty(false); showToast('分享配置已保存')
+    } catch (e) { showToast(e.message || '保存失败') }
+    finally { setSaving(false) }
+  }
+
+  const uploadImage = async (file) => {
+    setUploading(true)
+    const fd = new FormData(); fd.append('file', file)
+    try {
+      const r = await adminFetch('/share-config/upload-image', { method: 'POST', body: fd }, true)
+      const d = await r.json()
+      if (!r.ok) throw new Error(d.detail || '上传失败')
+      update({ share_image_url: d.url })
+      showToast('分享图已上传')
+    } catch (e) { showToast(e.message || '上传失败') }
+    finally { setUploading(false) }
+  }
+
+  if (!loaded) return null
+  return (
+    <div className="rounded-xl bg-white p-5 shadow-sm border border-slate-100 contain-paint">
+      <div className="flex items-start justify-between gap-3 mb-4">
+        <div>
+          <div className="text-sm font-bold text-slate-800 mb-1">小程序分享设置</div>
+          <div className="text-[11px] text-slate-400">控制小程序分享标题、分享图、报告分享模板和 CTA 文案</div>
+        </div>
+        <span className={`text-[10px] font-semibold rounded-full px-2 py-0.5 ${dirty ? 'bg-amber-50 text-amber-600' : 'bg-emerald-50 text-emerald-600'}`}>
+          {dirty ? '未保存' : '已同步'}
+        </span>
+      </div>
+      <div className="space-y-3">
+        <div>
+          <label className="text-xs font-semibold text-slate-500">全局默认分享标题</label>
+          <input value={cfg.share_title || ''} onChange={e => update({ share_title: e.target.value })}
+            placeholder="址得选 - 商铺选址分析工具" className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" />
+        </div>
+        <div>
+          <label className="text-xs font-semibold text-slate-500">报告分享标题模板 {'{address}'} 替换为实际地址</label>
+          <input value={cfg.report_share_title_template || ''} onChange={e => update({ report_share_title_template: e.target.value })}
+            placeholder="{address}选址分析报告" className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" />
+        </div>
+        <div>
+          <label className="text-xs font-semibold text-slate-500">报告分享 CTA 文案</label>
+          <input value={cfg.share_cta_text || ''} onChange={e => update({ share_cta_text: e.target.value })}
+            placeholder="我也要生成选址报告" className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" />
+        </div>
+        <div>
+          <label className="text-xs font-semibold text-slate-500">分享图片</label>
+          <div className="flex items-center gap-2 mt-1">
+            <input value={cfg.share_image_url || ''} onChange={e => update({ share_image_url: e.target.value })}
+              placeholder="/assets/share/xxx.png 或 HTTPS URL" className="flex-1 rounded-lg border border-slate-200 px-3 py-2 text-sm" />
+            <label className="cursor-pointer rounded-lg bg-slate-100 text-slate-600 text-xs font-semibold px-3 py-2 hover:bg-slate-200">
+              {uploading ? '上传中...' : '上传'}
+              <input type="file" accept="image/png,image/jpeg,image/webp" className="hidden"
+                onChange={e => { const f = e.target.files?.[0]; if (f) uploadImage(f) }} />
+            </label>
+          </div>
+          {cfg.share_image_url && (
+            <img src={cfg.share_image_url} alt="分享图预览" className="mt-2 w-20 h-20 object-cover rounded-lg border" />
+          )}
+        </div>
+      </div>
+      <div className="flex items-center gap-2 mt-4">
+        <button onClick={save} disabled={!dirty || saving}
+          className="rounded-lg bg-slate-100 text-slate-600 text-xs font-semibold px-3 py-1.5 disabled:opacity-50">
+          {saving ? '保存中...' : dirty ? '保存分享配置' : '分享配置已保存'}
+        </button>
+      </div>
+    </div>
+  )
+}
+
 function QrcodeSlotCard({ slot, title, description, uploadPath, adminFetch, showToast }) {
   const [qrUrl, setQrUrl] = useState('')
   const [dirty, setDirty] = useState(false)
@@ -1378,6 +1470,8 @@ export default function AdminPage() {
               adminFetch={adminFetch}
               showToast={showToast}
             />
+
+            <ShareConfigCard adminFetch={adminFetch} showToast={showToast} />
 
             <QrcodeSlotCard
               slot="cs"

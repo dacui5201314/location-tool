@@ -186,7 +186,7 @@
       <!-- Share CTA -->
       <view class="share-cta" v-if="isShared">
         <text class="share-cta-title">这份报告由「址得选」生成</text>
-        <button class="share-cta-btn" @tap="goToHome">我也要生成选址报告</button>
+        <button class="share-cta-btn" @tap="goToHome">{{ shareConfig.share_cta_text || '我也要生成选址报告' }}</button>
       </view>
     </view>
   </view>
@@ -199,7 +199,7 @@ import { scoreColor, formatTime } from '../../utils/format'
 export default {
   data () {
     return {
-      loading: true, errorMsg: '', record: {}, isShared: false,
+      loading: true, errorMsg: '', record: {}, isShared: false, shareConfig: {},
       poiExpanded: false,
       rptScore: 0, rptDisclaimer: '', rptWarning: '', rptSummary: '',
       rptAdv: [], rptDis: [], rptDims: [], rptAction: [],
@@ -253,6 +253,8 @@ export default {
     }
   },
   onLoad (options) {
+    // 加载分享配置
+    api.fetchShareConfig().then(c => { if (c.ok && c.data) this.shareConfig = c.data }).catch(() => {})
     const shareToken = options.share
     const recordId = options.id
     this.isShared = !!shareToken
@@ -277,6 +279,8 @@ export default {
       if (r.ok && r.data && !r.data.error) {
         this.record = r.data
         this.parseReport(r.data.report_json)
+        // ★ 预生成 share_token，确保分享时可用
+        this._prefetchShareToken(r.data.report_uuid)
       } else {
         const detail = r.data?.detail || r.data?.error || ''
         if (r.statusCode === 404 || detail.includes('not found') || detail.includes('不存在')) this.errorMsg = '记录不存在'
@@ -286,37 +290,37 @@ export default {
     }).catch(() => { this.loading = false; this.errorMsg = '网络异常，请重试' })
   },
   onShareAppMessage () {
+    const cfg = this.shareConfig || {}
     const addr = this.record.address || this.record.brand_desc || '门店'
-    // 优先使用已有 share_token，否则需要先异步获取
+    const titleTpl = cfg.report_share_title_template || '{address}选址分析报告'
+    const title = titleTpl.replace('{address}', addr)
+    const imageUrl = cfg.share_image_url || ''
     const token = this._shareToken || ''
     if (token) {
-      return {
-        title: `${addr}选址分析报告`,
-        path: `/pages/report-detail/index?share=${token}`
-      }
+      return { title, path: `/pages/report-detail/index?share=${token}`, ...(imageUrl ? { imageUrl } : {}) }
     }
-    // 异步获取 token — onShareAppMessage 支持返回 Promise
     const uuid = this.record.report_uuid
-    if (!uuid) {
-      return { title: `${addr}选址分析报告`, path: '/pages/home/index' }
-    }
+    if (!uuid) return { title, path: '/pages/home/index' }
     return api.createShareToken(uuid).then(r => {
       if (r.ok && r.data && r.data.share_token) {
         this._shareToken = r.data.share_token
-        return {
-          title: `${addr}选址分析报告`,
-          path: `/pages/report-detail/index?share=${this._shareToken}`
-        }
+        return { title, path: `/pages/report-detail/index?share=${this._shareToken}`, ...(imageUrl ? { imageUrl } : {}) }
       }
-      return { title: `${addr}选址分析报告`, path: '/pages/home/index' }
-    }).catch(() => {
-      return { title: `${addr}选址分析报告`, path: '/pages/home/index' }
-    })
+      return { title, path: '/pages/home/index' }
+    }).catch(() => ({ title, path: '/pages/home/index' }))
   },
   methods: {
     sc: scoreColor, fmtTime: formatTime,
     goBack () { uni.navigateBack({ delta: 1 }).catch(() => uni.switchTab({ url: '/pages/records/index' })) },
     goToHome () { uni.switchTab({ url: '/pages/home/index' }) },
+    _prefetchShareToken (uuid) {
+      if (!uuid || this._shareToken) return
+      api.createShareToken(uuid).then(r => {
+        if (r.ok && r.data && r.data.share_token) {
+          this._shareToken = r.data.share_token
+        }
+      }).catch(() => {})
+    },
     parseReport (raw) {
       ['rptScore','rptDisclaimer','rptWarning','rptSummary','rptAdv','rptDis','rptDims','rptAction',
        'rptDir200','rptDir500','rptDir1000','rptSub200','rptSub500','rptSub1000',

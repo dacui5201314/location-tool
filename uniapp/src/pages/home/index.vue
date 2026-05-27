@@ -209,6 +209,7 @@ export default {
       freePointBanner: '',
       countdownTimer: null,
       announcement: '',
+      shareConfig: {},
       favId: null,
       favLoading: false,
       suggestTimer: null,
@@ -302,6 +303,8 @@ export default {
   },
   methods: {
     async initHomeData () {
+      // 分享配置
+      api.fetchShareConfig().then(c => { if (c.ok && c.data) this.shareConfig = c.data }).catch(() => {})
       // 公告独立拉取，不依赖 token
       api.fetchUiConfig().then(a => {
         if (a.ok && a.data && a.data.announcement) this.announcement = a.data.announcement
@@ -663,6 +666,14 @@ export default {
           this.analyzeErr = typeof e === 'string' ? e : (e.message || e.errMsg || '分析服务暂不可用，请稍后重试')
         }
         this.analyzing = false
+      }
+    },
+    onShareAppMessage () {
+      const cfg = this.shareConfig || {}
+      return {
+        title: cfg.share_title || '址得选 - 商铺选址分析工具',
+        path: '/pages/home/index',
+        imageUrl: cfg.share_image_url || ''
       }
     },
     async _recoverRecentReport () {
