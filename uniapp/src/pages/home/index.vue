@@ -110,9 +110,8 @@
 
       <view class="map-wrap">
         <map id="homeMap" class="map-view" :latitude="mapLat" :longitude="mapLng" :markers="mapMarkers" scale="15" :show-location="showUserLocation" :enable-scroll="!analyzing" :enable-zoom="!analyzing" :enable-rotate="false" @tap="onMapTap" @regionchange="onMapRegionChange" />
-        <!-- 中心准星：固定在地图容器中心，指示选点位置 -->
-        <cover-view class="crosshair">
-          <cover-view class="ch-ring" />
+        <!-- 中心准星：纯色圆点，兼容 cover-view 限制（不支持 transform/box-shadow） -->
+        <cover-view class="crosshair" v-if="!analyzing">
           <cover-view class="ch-dot" />
         </cover-view>
         <!-- 分析中遮罩 -->
@@ -579,14 +578,11 @@ export default {
       this.resolveAddressByLngLat(lng, lat, source)
     },
     async onMapTap (e) {
-      // ★ 点击地图某处 → 移动地图中心到点击位置
+      // ★ 点击地图某处 → 更新位置并反查地址（mapLat/mapLng state 变化自动移动地图中心）
       const lat = e.detail && e.detail.latitude
       const lng = e.detail && e.detail.longitude
       if (lat !== undefined && lng !== undefined) {
         this._setLocation(lat, lng, 'map')
-        // 同时移动地图中心
-        const ctx = uni.createMapContext('homeMap', this)
-        ctx.moveToLocation({ latitude: lat, longitude: lng })
       }
     },
     clearAddress () {
@@ -802,13 +798,12 @@ export default {
 .ab-src { font-size:20rpx; color:#94a3b8; }
 .ab-edit { width:auto; min-width:84rpx; margin:0; padding:6rpx 14rpx; background:#f3f7ff; border-radius:999rpx; color:#315bff; font-size:24rpx; line-height:34rpx; flex-shrink:0; }
 .ab-edit::after { border:none; }
-.map-wrap { position:relative; border-radius:24rpx; overflow:hidden; box-shadow:0 18rpx 38rpx rgba(79,119,186,0.12); border:8rpx solid rgba(255,255,255,0.96); background:#fff; }
+.map-wrap { position:relative; border-radius:24rpx; overflow:hidden; box-shadow:0 18rpx 38rpx rgba(79,119,186,0.12); border:2rpx solid rgba(219,230,255,0.5); background:#dce4f2; }
 .map-view { width:100%; height:360rpx; }
 
-/* Center crosshair */
-.crosshair { position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); width:0; height:0; pointer-events:none; z-index:10; }
-.ch-ring { position:absolute; left:-26rpx; top:-26rpx; width:52rpx; height:52rpx; border:5rpx solid rgba(239,68,68,0.92); border-radius:50%; box-shadow:0 0 0 4rpx rgba(255,255,255,0.55),0 4rpx 16rpx rgba(239,68,68,0.28); }
-.ch-dot { position:absolute; left:-6rpx; top:-6rpx; width:12rpx; height:12rpx; border-radius:50%; background:#ef4444; box-shadow:0 0 0 4rpx rgba(255,255,255,0.85); }
+/* Center crosshair — cover-view compatible: no transform/box-shadow */
+.crosshair { position:absolute; left:50%; top:50%; width:0; height:0; z-index:10; }
+.ch-dot { position:absolute; left:-18rpx; top:-18rpx; width:36rpx; height:36rpx; border-radius:50%; background:rgba(239,68,68,0.88); border:3rpx solid #fff; }
 
 .map-overlay { position:absolute; inset:0; background:rgba(0,0,0,0.3); display:flex; align-items:center; justify-content:center; }
 .mo-text { color:#fff; font-size:28rpx; font-weight:600; }

@@ -1,8 +1,9 @@
 <template>
   <view class="records-page">
     <view class="header">
+      <text class="brand">址得选</text>
       <text class="title">分析记录</text>
-      <text class="sub">历史分析，辅助参考</text>
+      <text class="sub">历史分析报告 · 辅助参考</text>
     </view>
 
     <!-- 未登录引导 -->
@@ -30,7 +31,7 @@
 
     <!-- Record cards -->
     <view class="list" v-if="!loading && displayList.length">
-      <view class="card" v-for="r in displayList" :key="r.uuid || r.id" @tap="onDetail(r)">
+      <view class="card" v-for="r in displayList" :key="r.report_uuid || r.id" @tap="onDetail(r)">
         <view class="card-top">
           <text class="card-title">{{ cardTitle(r) }}</text>
           <view class="score-block" v-if="r.overall_score > 0">
@@ -130,7 +131,7 @@ export default {
       finally { this.loading = false }
     },
     onDetail (r) {
-      const id = r.uuid || r.id
+      const id = r.report_uuid || r.id
       uni.navigateTo({ url: '/pages/report-detail/index?id=' + id })
     },
     onDelete (r) { this.delTarget = r },
@@ -138,9 +139,9 @@ export default {
       const r = this.delTarget; if (!r) return
       this.delLoading = true
       try {
-        const res = await api.deleteRecord(r.uuid || r.id)
+        const res = await api.deleteRecord(r.report_uuid || r.id)
         if (res.ok) {
-          this.records = this.records.filter(x => (x.uuid || x.id) !== (r.uuid || r.id))
+          this.records = this.records.filter(x => (x.report_uuid || x.id) !== (r.report_uuid || r.id))
           uni.showToast({ title: '已删除', icon: 'none' })
         } else {
           uni.showToast({ title: api.normalizeError(res), icon: 'none' })
@@ -157,7 +158,8 @@ export default {
 .header { margin:0 -24rpx 22rpx; padding:62rpx 48rpx 82rpx; background:radial-gradient(circle at 78% 32%,rgba(83,137,255,0.42),transparent 24%),radial-gradient(circle at 66% 60%,rgba(139,92,246,0.22),transparent 26%),radial-gradient(circle at 58% 58%,rgba(248,200,97,0.10),transparent 22%),linear-gradient(180deg,#0b3fbd 0%,#0d35ad 28%,#151f8f 68%,#241b83 100%); position:relative; overflow:hidden; }
 .header::before { content:''; position:absolute; left:-120rpx; top:-150rpx; width:660rpx; height:320rpx; border-radius:0 0 56% 56%; background:linear-gradient(180deg,rgba(255,255,255,0.16),rgba(255,255,255,0.02)); transform:rotate(8deg); }
 .header::after { content:''; position:absolute; right:56rpx; bottom:0; width:38rpx; height:154rpx; border-radius:9rpx 9rpx 0 0; background:linear-gradient(180deg,rgba(219,234,254,0.56),rgba(37,99,235,0.08)); box-shadow:-54rpx 30rpx 0 rgba(191,219,254,0.34),-108rpx 66rpx 0 rgba(191,219,254,0.24),54rpx 20rpx 0 rgba(191,219,254,0.28),106rpx 54rpx 0 rgba(191,219,254,0.18); opacity:0.58; }
-.title { font-size:42rpx; font-weight:900; color:#fff; display:block; position:relative; z-index:1; } .sub { font-size:24rpx; color:rgba(232,240,255,0.76); margin-top:8rpx; position:relative; z-index:1; }
+.brand { font-size:22rpx; color:rgba(255,255,255,0.68); letter-spacing:6rpx; text-transform:uppercase; position:relative; z-index:1; display:block; }
+.title { font-size:42rpx; font-weight:900; color:#fff; display:block; position:relative; z-index:1; margin-top:2rpx; } .sub { font-size:24rpx; color:rgba(232,240,255,0.76); margin-top:8rpx; position:relative; z-index:1; }
 .login-guide { text-align:center; padding:64rpx 28rpx; background:rgba(255,255,255,0.92); border:1px solid rgba(219,230,255,0.9); border-radius:22rpx; box-shadow:0 18rpx 38rpx rgba(79,119,186,0.10); }
 .lg-text { display:block; font-size:28rpx; color:#64748b; margin-bottom:22rpx; }
 .lg-btn { width:236rpx; height:64rpx; line-height:64rpx; margin:0 auto; padding:0; background:linear-gradient(135deg,#fff3c4,#f8c861 58%,#dba640); color:#17244e; border:1px solid rgba(255,255,255,0.48); border-radius:999rpx; font-size:26rpx; font-weight:900; box-shadow:0 14rpx 28rpx rgba(248,200,97,0.16),inset 0 1rpx 0 rgba(255,255,255,0.45); }
@@ -173,7 +175,8 @@ export default {
 .card-title { font-size:30rpx; font-weight:900; color:#17244e; flex:1; }
 .score-block { text-align:right; } .stars { font-size:24rpx; color:#d6a84f; letter-spacing:2rpx; display:block; } .score-num { font-size:44rpx; font-weight:900; } .score-unit { font-size:22rpx; color:#94a3b8; }
 .card-body-row { display:flex; align-items:flex-start; gap:14rpx; margin-bottom:12rpx; }
-.map-thumb { width:80rpx; height:80rpx; background:#e8edf5; border-radius:10rpx; flex-shrink:0; }
+.map-thumb { width:80rpx; height:80rpx; background:linear-gradient(135deg,#eef3ff,#dce4f2); border-radius:10rpx; flex-shrink:0; display:flex; align-items:center; justify-content:center; position:relative; overflow:hidden; }
+.map-thumb::after { content:'📍'; font-size:36rpx; opacity:0.45; }
 .card-addr { font-size:24rpx; color:#64748b; line-height:1.45; flex:1; }
 .card-tags { margin-bottom:14rpx; } .tag { display:inline-block; font-size:20rpx; font-weight:700; padding:6rpx 14rpx; border-radius:999rpx; background:#f3f7ff; color:#315bff; margin-right:8rpx; border:1px solid rgba(219,230,255,0.95); }
 .card-footer { display:flex; justify-content:space-between; align-items:center; font-size:22rpx; color:#8b99b6; border-top:1rpx solid rgba(219,230,255,0.78); padding-top:16rpx; }
