@@ -70,7 +70,8 @@
           <view class="card-time">{{ f.is_analyzed ? '分析时间' : '收藏时间' }}：{{ fmtTime(f.created_at) }}</view>
         </view>
         <view class="card-actions">
-          <button v-if="f.is_analyzed && (f.report_uuid || f.record_id)" class="act" @tap="onViewReport(f)">▤ 查看报告</button>
+          <button v-if="f.is_analyzed && f.report_uuid" class="act" @tap="onViewReport(f)">▤ 查看报告</button>
+          <button v-else-if="f.is_analyzed && !f.report_uuid" class="act" disabled>报告编号缺失</button>
           <button v-else class="act primary" @tap="onAnalyze(f)">✎ 评估赚钱潜力</button>
           <button class="act danger" @tap="onRemove(f)">删除地址</button>
         </view>
@@ -159,8 +160,11 @@ export default {
       uni.switchTab({ url: '/pages/home/index' })
     },
     onViewReport (f) {
-      const id = f.report_uuid || f.record_id
-      if (id) uni.navigateTo({ url: '/pages/report-detail/index?id=' + id })
+      if (f.report_uuid) {
+        uni.navigateTo({ url: '/pages/report-detail/index?id=' + f.report_uuid })
+      } else {
+        uni.showToast({ title: '该记录缺少报告编号，无法查看', icon: 'none' })
+      }
     },
     onAnalyze (f) {
       const addr = f.address || f.report_address || ''

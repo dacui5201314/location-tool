@@ -31,7 +31,7 @@
 
     <!-- Record cards -->
     <view class="list" v-if="!loading && displayList.length">
-      <view class="card" v-for="r in displayList" :key="r.report_uuid || r.id" @tap="onDetail(r)">
+      <view class="card" v-for="r in displayList" :key="r.report_uuid || r.id || ''" @tap="onDetail(r)">
         <view class="card-top">
           <text class="card-title">{{ cardTitle(r) }}</text>
           <view class="score-block" v-if="r.overall_score > 0">
@@ -41,8 +41,13 @@
           </view>
         </view>
         <view class="card-body-row">
-          <view class="map-thumb" />
-          <view class="card-addr">📍 {{ r.address || '-' }}</view>
+          <view class="map-thumb">
+            <text class="mt-icon">📍</text>
+          </view>
+          <view class="card-mid">
+            <text class="card-addr">{{ r.address || '-' }}</text>
+            <text class="card-time" v-if="r.created_at">{{ fmtTime(r.created_at) }}</text>
+          </view>
         </view>
         <view class="card-tags">
           <text class="tag" v-if="r.business_type">{{ r.business_type }}</text>
@@ -50,11 +55,9 @@
           <text class="tag" v-if="r.store_size > 0">{{ r.store_size }}㎡</text>
         </view>
         <view class="card-footer">
-          <text class="time" v-if="r.created_at">分析时间：{{ fmtTime(r.created_at) }}</text>
-          <text class="time" v-else>-</text>
           <view class="actions">
-            <text class="act" @tap.stop="onDelete(r)">删除</text>
-            <text class="act" @tap.stop="onDetail(r)">查看报告</text>
+            <text class="act danger" @tap.stop="onDelete(r)">删除</text>
+            <text class="act primary" @tap.stop="onDetail(r)">查看报告</text>
           </view>
         </view>
       </view>
@@ -131,17 +134,22 @@ export default {
       finally { this.loading = false }
     },
     onDetail (r) {
-      const id = r.report_uuid || r.id
-      uni.navigateTo({ url: '/pages/report-detail/index?id=' + id })
+      if (r.report_uuid) {
+        uni.navigateTo({ url: '/pages/report-detail/index?id=' + r.report_uuid })
+      } else if (r.id) {
+        uni.showToast({ title: '历史记录缺少报告编号，请在 Web 端查看', icon: 'none' })
+      } else {
+        uni.showToast({ title: '记录数据异常', icon: 'none' })
+      }
     },
     onDelete (r) { this.delTarget = r },
     async confirmDelete () {
       const r = this.delTarget; if (!r) return
       this.delLoading = true
       try {
-        const res = await api.deleteRecord(r.report_uuid || r.id)
+        const res = await api.deleteRecord(r.report_uuid || String(r.id))
         if (res.ok) {
-          this.records = this.records.filter(x => (x.report_uuid || x.id) !== (r.report_uuid || r.id))
+          this.records = this.records.filter(x => (x.report_uuid || String(x.id)) !== (r.report_uuid || String(r.id)))
           uni.showToast({ title: '已删除', icon: 'none' })
         } else {
           uni.showToast({ title: api.normalizeError(res), icon: 'none' })
@@ -175,8 +183,16 @@ export default {
 .card-title { font-size:30rpx; font-weight:900; color:#17244e; flex:1; }
 .score-block { text-align:right; } .stars { font-size:24rpx; color:#d6a84f; letter-spacing:2rpx; display:block; } .score-num { font-size:44rpx; font-weight:900; } .score-unit { font-size:22rpx; color:#94a3b8; }
 .card-body-row { display:flex; align-items:flex-start; gap:14rpx; margin-bottom:12rpx; }
-.map-thumb { width:80rpx; height:80rpx; background:linear-gradient(135deg,#eef3ff,#dce4f2); border-radius:10rpx; flex-shrink:0; display:flex; align-items:center; justify-content:center; position:relative; overflow:hidden; }
-.map-thumb::after { content:'📍'; font-size:36rpx; opacity:0.45; }
+.map-thumb { width:80rpx; height:80rpx; background:linear-gradient(135deg,#eef3ff,#dce4f2); border-radius:12rpx; flex-shrink:0; display:flex; align-items:center; justify-content:center; margin-right:16rpx; }
+.mt-icon { font-size:36rpx; opacity:0.7; }
+.card-mid { flex:1; min-width:0; }
+.card-time { font-size:20rpx; color:#94a3b8; display:block; margin-top:4rpx; }
+.card-footer { border-top:1rpx solid #f1f5f9; padding-top:14rpx; margin-top:14rpx; }
+.actions { display:flex; gap:12rpx; justify-content:flex-end; }
+.act { font-size:24rpx; font-weight:600; padding:10rpx 24rpx; border-radius:12rpx; }
+.act.primary { background:#f3f7ff; color:#315bff; }
+.act.danger { background:#fff5f5; color:#dc2626; }
+.time { display:none; }
 .card-addr { font-size:24rpx; color:#64748b; line-height:1.45; flex:1; }
 .card-tags { margin-bottom:14rpx; } .tag { display:inline-block; font-size:20rpx; font-weight:700; padding:6rpx 14rpx; border-radius:999rpx; background:#f3f7ff; color:#315bff; margin-right:8rpx; border:1px solid rgba(219,230,255,0.95); }
 .card-footer { display:flex; justify-content:space-between; align-items:center; font-size:22rpx; color:#8b99b6; border-top:1rpx solid rgba(219,230,255,0.78); padding-top:16rpx; }
