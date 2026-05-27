@@ -35,9 +35,9 @@
         <view class="card-top">
           <text class="card-title">{{ cardTitle(r) }}</text>
           <view class="score-block" v-if="r.overall_score > 0">
-            <text class="stars">{{ stars(r.overall_score) }}</text>
             <text class="score-num" :style="{ color: sc(r.overall_score) }">{{ r.overall_score }}</text>
             <text class="score-unit">分</text>
+            <text class="stars">{{ stars(r.overall_score) }}</text>
           </view>
         </view>
         <view class="card-body-row">

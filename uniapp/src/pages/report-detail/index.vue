@@ -12,28 +12,34 @@
 
     <!-- Content -->
     <view v-if="!loading && !errorMsg">
-      <!-- Top bar -->
-      <view class="top-bar">
+      <!-- Header -->
+      <view class="header">
         <text class="back" @tap="goBack">←</text>
-        <text class="top-title">{{ recordTitle }}</text>
+        <view class="hd-text">
+          <text class="hd-brand">址得选</text>
+          <text class="hd-title">分析报告</text>
+        </view>
       </view>
 
-      <!-- ── 核心结果卡（Web parity: RecordDetail meta + score ring）── -->
-      <view class="result-card">
-        <view class="rc-meta">
-          <view class="rc-row"><text class="rc-label">地址</text><text class="rc-val">{{ record.address || '-' }}</text></view>
-          <view class="rc-row"><text class="rc-label">业态</text><text class="rc-val">{{ record.brand_desc || record.business_type || '-' }}</text></view>
-          <view class="rc-row"><text class="rc-label">面积</text><text class="rc-val">{{ record.store_size ? record.store_size + '㎡' : '-' }}</text></view>
-          <view class="rc-row"><text class="rc-label">时间</text><text class="rc-val">{{ fmtTime(record.created_at) || '-' }}</text></view>
-        </view>
-        <view class="rc-score" v-if="rptScore > 0">
+      <!-- ── 评分卡 ── -->
+      <view class="score-card" v-if="rptScore > 0">
+        <view class="sc-left">
           <view class="score-ring" :style="ringStyle">
             <view class="sr-inner">
               <text class="sr-num" :style="{ color: sc(scorePct) }">{{ scorePct }}</text>
-              <text class="sr-level" :style="{ color: sc(scorePct) }">{{ scoreLevel }}</text>
+              <text class="sr-unit">分</text>
             </view>
           </view>
-          <text class="ms-label">综合评分</text>
+        </view>
+        <view class="sc-right">
+          <text class="sc-verdict" :style="{ color: sc(scorePct) }">{{ scoreLevel }}</text>
+          <text class="sc-addr">📍 {{ record.address || '-' }}</text>
+          <view class="sc-tags">
+            <text class="sct" v-if="record.business_type">{{ record.business_type }}</text>
+            <text class="sct" v-if="record.brand_desc && record.brand_desc !== record.business_type">{{ record.brand_desc }}</text>
+            <text class="sct" v-if="record.store_size > 0">{{ record.store_size }}㎡</text>
+          </view>
+          <text class="sc-time">{{ fmtTime(record.created_at) || '' }}</text>
         </view>
       </view>
 
@@ -53,15 +59,17 @@
         <text class="sec-text">{{ rptSummary }}</text>
       </view>
 
-      <!-- ── 关键优势 + 主要风险 ── -->
-      <view class="dual-section" v-if="rptAdv.length || rptDis.length">
-        <view class="ds-half" v-if="rptAdv.length">
-          <view class="ds-title green">优势</view>
-          <view class="item" v-for="(a,i) in rptAdv" :key="'a'+i">{{ i+1 }}. {{ a }}</view>
+      <!-- ── 优势 + 风险 ── -->
+      <view class="section" v-if="rptAdv.length">
+        <view class="sec-title sec-green">✓ 关键优势</view>
+        <view class="adv-item" v-for="(a,i) in rptAdv" :key="'a'+i">
+          <text class="adv-num">{{ i+1 }}</text><text class="adv-text">{{ a }}</text>
         </view>
-        <view class="ds-half" v-if="rptDis.length">
-          <view class="ds-title red">风险</view>
-          <view class="item" v-for="(d,i) in rptDis" :key="'d'+i">{{ i+1 }}. {{ d }}</view>
+      </view>
+      <view class="section" v-if="rptDis.length">
+        <view class="sec-title sec-red">⚠ 主要风险</view>
+        <view class="adv-item" v-for="(d,i) in rptDis" :key="'d'+i">
+          <text class="adv-num risk">{{ i+1 }}</text><text class="adv-text">{{ d }}</text>
         </view>
       </view>
 
@@ -538,7 +546,33 @@ export default {
 .detail-page { min-height:100vh; background:#eef3f9; padding-bottom:140rpx; }
 .loading { text-align:center; padding:120rpx 0; } .ld-dots { font-size:60rpx; letter-spacing:12rpx; color:#94a3b8; } .ld-text { display:block; font-size:26rpx; color:#94a3b8; margin-top:16rpx; }
 .error { text-align:center; padding:120rpx 32rpx; } .err-icon { font-size:80rpx; display:block; } .err-text { font-size:28rpx; color:#64748b; display:block; margin:16rpx 0; } .err-btn { margin-top:20rpx; background:#f1f5f9; color:#475569; border-radius:14rpx; padding:16rpx 40rpx; font-size:28rpx; }
+/* ── Header ── */
+.header { padding:40rpx 28rpx 22rpx; background:linear-gradient(180deg,#0b3fbd,#151f8f); position:relative; overflow:hidden; }
+.header::before { content:''; position:absolute; right:-40rpx; top:-60rpx; width:200rpx; height:200rpx; border-radius:50%; background:rgba(255,255,255,0.06); }
+.hd-brand { display:block; font-size:22rpx; color:rgba(255,255,255,0.68); letter-spacing:6rpx; }
+.hd-title { display:block; font-size:38rpx; font-weight:900; color:#fff; margin-top:4rpx; }
+.back { font-size:28rpx; color:rgba(255,255,255,0.85); margin-bottom:12rpx; display:inline-block; }
+.hd-text { position:relative; z-index:1; }
+
+/* ── Score card ── */
+.score-card { background:#fff; margin:-36rpx 24rpx 0; border-radius:20rpx; padding:32rpx; box-shadow:0 8rpx 30rpx rgba(0,0,0,0.08); display:flex; align-items:center; position:relative; z-index:2; }
+.sc-left { flex-shrink:0; margin-right:28rpx; }
+.sc-right { flex:1; }
+.sc-verdict { font-size:28rpx; font-weight:800; display:block; margin-bottom:6rpx; }
+.sc-addr { font-size:24rpx; color:#475569; display:block; margin-bottom:8rpx; }
+.sc-tags { display:flex; flex-wrap:wrap; gap:8rpx; margin-bottom:6rpx; }
+.sct { font-size:20rpx; background:#f1f5f9; color:#475569; border-radius:8rpx; padding:4rpx 12rpx; }
+.sc-time { font-size:20rpx; color:#94a3b8; }
+.score-ring { width:120rpx; height:120rpx; border-radius:50%; display:flex; align-items:center; justify-content:center; }
+.sr-inner { width:94rpx; height:94rpx; border-radius:50%; background:#fff; display:flex; flex-direction:column; align-items:center; justify-content:center; }
+.sr-num { font-size:36rpx; font-weight:900; line-height:1.1; }
+.sr-unit { font-size:18rpx; font-weight:500; color:#94a3b8; }
+
+/* ── Old top-bar (removed) ── */
 .top-bar { display:flex; align-items:center; padding:20rpx 24rpx; background:#fff; border-bottom:1rpx solid #e2e8f0; }
+.result-card { display:none; } .rc-meta { display:none; } .rc-row { display:none; } .rc-label { display:none; } .rc-val { display:none; }
+.ms-label { display:none; }
+.dual-section { display:none; } .ds-half { display:none; } .ds-title { display:none; }
 .back { font-size:36rpx; color:#475569; padding-right:16rpx; } .top-title { flex:1; font-size:30rpx; font-weight:700; color:#1e293b; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 
 /* ── 核心结果卡 ── */
@@ -554,10 +588,18 @@ export default {
 /* ── 通用 section ── */
 .section { background:#fff; margin:16rpx 24rpx 0; border-radius:16rpx; padding:24rpx; box-shadow:0 1rpx 12rpx rgba(0,0,0,0.03); }
 .sec-title { font-size:26rpx; font-weight:700; color:#1e293b; margin-bottom:16rpx; }
+.sec-green { color:#047857; } .sec-red { color:#b91c1c; }
 .sec-text { font-size:26rpx; color:#475569; line-height:1.7; }
 .item { font-size:26rpx; color:#475569; line-height:1.8; padding-left:4rpx; }
 .item-sm { font-size:24rpx; color:#475569; padding:4rpx 0; }
 .more-hint { font-size:22rpx; color:#94a3b8; display:block; margin-top:4rpx; }
+
+/* ── Advantage/Risk list items ── */
+.adv-item { display:flex; padding:12rpx 0; border-bottom:1rpx solid #f1f5f9; }
+.adv-item:last-child { border-bottom:0; }
+.adv-num { width:44rpx; height:44rpx; border-radius:10rpx; background:#dcfce7; color:#047857; font-size:22rpx; font-weight:800; display:flex; align-items:center; justify-content:center; flex-shrink:0; margin-right:14rpx; }
+.adv-num.risk { background:#fef2f2; color:#b91c1c; }
+.adv-text { font-size:25rpx; color:#334155; line-height:1.65; flex:1; }
 
 /* ── disc / warn ── */
 .disc { background:#fefce8; border:1rpx solid #fde68a; border-radius:14rpx; padding:18rpx; margin:16rpx 24rpx 0; font-size:24rpx; color:#92400e; }
