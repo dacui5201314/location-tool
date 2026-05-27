@@ -76,7 +76,8 @@ function uploadAvatar (filePath) {
 }
 function fetchRecords (page = 1, pageSize = 20) { return request({ url: `/api/records?page=${page}&page_size=${pageSize}` }) }
 function fetchRecordDetail (uuid) { return request({ url: `/api/records/${uuid}` }) }
-function fetchSharedReport (uuid) { return request({ url: `/api/reports/share/${uuid}`, auth: false }) }
+function fetchSharedReport (token) { return request({ url: `/api/reports/share/${token}`, auth: false }) }
+function createShareToken (uuid) { return request({ url: `/api/records/${uuid}/share-token`, method: 'POST' }) }
 function deleteRecord (uuid) { return request({ url: `/api/records/${uuid}`, method: 'DELETE' }) }
 function fetchFavorites () { return request({ url: '/api/favorites' }) }
 function deleteFavorite (id) { return request({ url: `/api/favorites/${id}`, method: 'DELETE' }) }
@@ -172,6 +173,6 @@ function getHealth () { return request({ url: '/api/health', auth: false }) }
 
 export default {
   request, normalizeError, ensureAnonToken, wechatMiniLogin, bindPhone, phoneLogin,
-  fetchProfile, updateProfile, uploadAvatar, fetchRecords, fetchRecordDetail, fetchSharedReport, deleteRecord,
+  fetchProfile, updateProfile, uploadAvatar, fetchRecords, fetchRecordDetail, fetchSharedReport, createShareToken, deleteRecord,
   fetchFavorites, deleteFavorite, checkFavorite, addFavorite, fetchIndustries, locationSuggest, locationRegeocode, analyzeLocation, fetchUiConfig, fetchCsQr, fetchSkus, activateCdk, createPrepay, queryOrder, getHealth
 }

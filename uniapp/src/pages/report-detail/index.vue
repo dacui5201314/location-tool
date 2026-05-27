@@ -253,20 +253,33 @@ export default {
     }
   },
   onLoad (options) {
-    const id = options.id
-    const shared = options.shared === '1'
-    this.isShared = shared
-    if (!id) { this.loading = false; this.errorMsg = '缺少记录 ID'; return }
+    const shareToken = options.share
+    const recordId = options.id
+    this.isShared = !!shareToken
 
-    const fetcher = shared ? api.fetchSharedReport(id) : api.fetchRecordDetail(id)
-    fetcher.then(r => {
+    if (shareToken) {
+      // 分享入口：通过 share_token 读取
+      api.fetchSharedReport(shareToken).then(r => {
+        this.loading = false
+        if (r.ok && r.data && !r.data.error) {
+          this.record = r.data
+          this.parseReport(r.data.report_json)
+        } else {
+          this.errorMsg = '报告不存在或已失效'
+        }
+      }).catch(() => { this.loading = false; this.errorMsg = '网络异常，请重试' })
+      return
+    }
+
+    if (!recordId) { this.loading = false; this.errorMsg = '缺少记录 ID'; return }
+    api.fetchRecordDetail(recordId).then(r => {
       this.loading = false
       if (r.ok && r.data && !r.data.error) {
         this.record = r.data
         this.parseReport(r.data.report_json)
       } else {
         const detail = r.data?.detail || r.data?.error || ''
-        if (r.statusCode === 404 || detail.includes('not found') || detail.includes('不存在') || detail.includes('已失效')) this.errorMsg = '报告不存在或已失效'
+        if (r.statusCode === 404 || detail.includes('not found') || detail.includes('不存在')) this.errorMsg = '记录不存在'
         else if (r.statusCode === 401) this.errorMsg = '请先登录后查看'
         else this.errorMsg = detail || '记录加载失败'
       }
@@ -274,10 +287,31 @@ export default {
   },
   onShareAppMessage () {
     const addr = this.record.address || this.record.brand_desc || '门店'
-    return {
-      title: `${addr}选址分析报告`,
-      path: `/pages/report-detail/index?id=${this.record.report_uuid || ''}&shared=1`
+    // 优先使用已有 share_token，否则需要先异步获取
+    const token = this._shareToken || ''
+    if (token) {
+      return {
+        title: `${addr}选址分析报告`,
+        path: `/pages/report-detail/index?share=${token}`
+      }
     }
+    // 异步获取 token — onShareAppMessage 支持返回 Promise
+    const uuid = this.record.report_uuid
+    if (!uuid) {
+      return { title: `${addr}选址分析报告`, path: '/pages/home/index' }
+    }
+    return api.createShareToken(uuid).then(r => {
+      if (r.ok && r.data && r.data.share_token) {
+        this._shareToken = r.data.share_token
+        return {
+          title: `${addr}选址分析报告`,
+          path: `/pages/report-detail/index?share=${this._shareToken}`
+        }
+      }
+      return { title: `${addr}选址分析报告`, path: '/pages/home/index' }
+    }).catch(() => {
+      return { title: `${addr}选址分析报告`, path: '/pages/home/index' }
+    })
   },
   methods: {
     sc: scoreColor, fmtTime: formatTime,

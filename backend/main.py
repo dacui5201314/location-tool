@@ -49,22 +49,22 @@ app.include_router(location_router)
 # ═══════════════════════════════════════════
 # 公开只读分享接口 — 替代 PDF 分享
 # ═══════════════════════════════════════════
-@app.get("/api/reports/share/{report_uuid}")
+@app.get("/api/reports/share/{share_token}")
 def get_shared_report(
-    report_uuid: str,
+    share_token: str,
     db: Session = Depends(get_db),
 ):
     """公开只读分享接口。
-    通过 report_uuid 作为分享令牌，仅返回报告展示所需字段。
+    通过 share_token 查找报告，仅返回展示所需字段。
     不返回手机号、token、openid、billing、admin 等隐私数据。
     """
     from models.db_models import AnalysisRecord
 
-    if not report_uuid or len(report_uuid) != 32:
+    if not share_token or len(share_token) < 10:
         raise HTTPException(status_code=404, detail="报告不存在或已失效")
 
     record = db.query(AnalysisRecord).filter(
-        AnalysisRecord.report_uuid == report_uuid
+        AnalysisRecord.share_token == share_token
     ).first()
 
     if not record:

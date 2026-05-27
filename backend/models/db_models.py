@@ -127,6 +127,7 @@ class AnalysisRecord(Base):
     report_file = Column(String(500), default="", comment="本地报告文件路径")
     report_url = Column(String(500), default="", comment="云端报告URL")
     is_pdf_unlocked = Column(Integer, default=0, comment="PDF导出已解锁 0=未解锁 1=已解锁")
+    share_token = Column(String(64), unique=True, nullable=True, default=None, comment="分享令牌（随机生成，owner 可创建）")
     created_at = Column(DateTime, default=func.now())
 
     def to_dict(self):

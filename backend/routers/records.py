@@ -64,6 +64,39 @@ def get_record(
     return data
 
 
+@router.post("/{report_uuid}/share-token")
+def create_share_token(
+    report_uuid: str,
+    user: dict = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """为报告生成或获取分享令牌。仅 owner 可操作。"""
+    import secrets
+
+    user_id = user["user_id"]
+    record = _get_record_by_uuid(report_uuid, user_id, db)
+    if not record:
+        raise HTTPException(status_code=404, detail="记录不存在")
+
+    if record.share_token:
+        return {"share_token": record.share_token, "is_new": False}
+
+    # 生成唯一随机 token
+    for _ in range(5):
+        token = secrets.token_urlsafe(24)  # 32 chars
+        exists = db.query(AnalysisRecord).filter(
+            AnalysisRecord.share_token == token
+        ).first()
+        if not exists:
+            break
+    else:
+        raise HTTPException(status_code=500, detail="生成分享令牌失败，请重试")
+
+    record.share_token = token
+    db.commit()
+    return {"share_token": token, "is_new": True}
+
+
 @router.delete("/{report_uuid}")
 def delete_record(
     report_uuid: str,

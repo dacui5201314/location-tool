@@ -615,6 +615,7 @@ export default {
       if (industryId !== undefined) payload.industry_id = industryId
 
       this.analyzing = true; this.analyzeErr = ''; this.analyzeSteps = []; this.analyzeStatus = '正在连接分析服务...'
+      this._analyzeStartTime = Date.now()
       // ★ 乐观步骤推进：step 1 立刻显示 active
       this.currentStep = 1
       if (this.stepTimer) clearTimeout(this.stepTimer)
@@ -650,13 +651,43 @@ export default {
           } else {
             this.analyzeErr = r.error || '分析服务异常，请稍后重试'
           }
+          // ★ 超时/失败兜底：检查是否有刚生成的报告
+          await this._recoverRecentReport()
           this.analyzing = false
         }
       } catch (e) {
         this.clearAnalyzeTimer()
-        this.analyzeErr = typeof e === 'string' ? e : (e.message || e.errMsg || '分析服务暂不可用，请稍后重试')
+        // ★ 超时兜底：后端可能已落库，查询最近记录
+        const recovered = await this._recoverRecentReport()
+        if (!recovered) {
+          this.analyzeErr = typeof e === 'string' ? e : (e.message || e.errMsg || '分析服务暂不可用，请稍后重试')
+        }
         this.analyzing = false
       }
+    },
+    async _recoverRecentReport () {
+      // 超时/失败兜底：查询最近一条记录，若在本次分析提交后生成则跳转
+      try {
+        const recordsRes = await api.fetchRecords(1, 1)
+        if (!recordsRes.ok || !recordsRes.data) return false
+        const records = recordsRes.data.records || []
+        if (!records.length) return false
+        const latest = records[0]
+        const createdAt = latest.created_at ? new Date(latest.created_at).getTime() : 0
+        const startTime = this._analyzeStartTime || 0
+        if (createdAt > startTime - 5000 && latest.report_uuid) {
+          // 报告在本次提交后生成（允许 5s 时钟偏差）
+          this.analyzeStatus = '报告已生成！'
+          this.analyzeSteps.push({ step: 4, msg: '报告已在后台生成完毕' })
+          this.currentStep = 4
+          this.stepTimer = setTimeout(() => {
+            this.analyzing = false
+            uni.navigateTo({ url: `/pages/report-detail/index?id=${latest.report_uuid}` })
+          }, 400)
+          return true
+        }
+      } catch (_) { /* 兜底失败不覆盖原始错误 */ }
+      return false
     },
     clearAnalyzeTimer () {
       if (this.stepTimer) { clearTimeout(this.stepTimer); this.stepTimer = null }

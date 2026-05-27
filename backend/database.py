@@ -35,6 +35,12 @@ def init_db():
             conn.execute("ALTER TABLE users ADD COLUMN nickname VARCHAR(80) DEFAULT ''")
             conn.commit()
             print("[DB] 已为 users 表添加 nickname 列", flush=True)
+        # ── 3288c19: 为 analysis_records 添加 share_token 列 ──
+        cols = [r[1] for r in conn.execute("PRAGMA table_info(analysis_records)").fetchall()]
+        if 'share_token' not in cols:
+            conn.execute("ALTER TABLE analysis_records ADD COLUMN share_token VARCHAR(64) DEFAULT NULL")
+            conn.commit()
+            print("[DB] 已为 analysis_records 表添加 share_token 列", flush=True)
         conn.close()
     except Exception as e:
         print(f"[DB] 迁移检查跳过: {e}", flush=True)
