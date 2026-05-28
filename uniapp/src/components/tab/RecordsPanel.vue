@@ -1,35 +1,30 @@
 <template>
-  <view class="records-page">
+  <view class="rp-panel">
     <view class="header">
       <text class="brand">址得选</text>
       <text class="title">分析记录</text>
       <text class="sub">历史分析报告 · 辅助参考</text>
     </view>
 
-    <!-- 未登录引导 -->
     <view class="login-guide" v-if="!isLoggedIn && !loading">
       <text class="lg-text">登录后可查看分析记录</text>
-      <button class="lg-btn" @tap="goLogin">去登录</button>
+      <button class="lg-btn" @tap="$emit('go-tab','profile')">去登录</button>
     </view>
 
-    <!-- Filter tabs -->
     <view class="tabs" v-if="isLoggedIn">
       <view v-for="tab in tabs" :key="tab.key" class="tab" :class="{ active: activeTab === tab.key }" @tap="activeTab = tab.key">
         <text>{{ tab.label }} {{ counts[tab.key] || '' }}</text>
       </view>
     </view>
 
-    <!-- Loading -->
     <view class="loading" v-if="loading"><text class="ld-dots">...</text><text class="ld-text">加载中...</text></view>
 
-    <!-- Empty state -->
     <view v-if="!loading && isLoggedIn && displayList.length === 0" class="empty">
       <text class="emp-icon">📋</text>
       <text class="emp-title">暂无分析记录</text>
       <text class="emp-desc">完成一次选址分析后自动保存</text>
     </view>
 
-    <!-- Record cards -->
     <view class="list" v-if="!loading && displayList.length">
       <view class="card" v-for="r in displayList" :key="r.report_uuid || r.id || ''" @tap="onDetail(r)">
         <view class="card-top">
@@ -41,9 +36,7 @@
           </view>
         </view>
         <view class="card-body-row">
-          <view class="map-thumb">
-            <text class="mt-icon">📍</text>
-          </view>
+          <view class="map-thumb"><text class="mt-icon">📍</text></view>
           <view class="card-mid">
             <text class="card-addr">{{ r.address || '-' }}</text>
             <text class="card-time" v-if="r.created_at">{{ fmtTime(r.created_at) }}</text>
@@ -63,7 +56,6 @@
       </view>
     </view>
 
-    <!-- Delete confirm -->
     <view class="modal-mask" v-if="delTarget">
       <view class="modal-box">
         <text class="modal-title">确定要删除该条分析记录吗？</text>
@@ -83,34 +75,29 @@ import auth from '../../utils/auth'
 import { scoreColor, formatTime } from '../../utils/format'
 
 export default {
+  name: 'RecordsPanel',
+  emits: ['go-tab'],
   data () {
     return {
-      loading: false,
-      isLoggedIn: false,
+      loading: false, isLoggedIn: false,
       activeTab: 'all',
       tabs: [{ key:'all',label:'全部' },{ key:'done',label:'已完成' }],
-      records: [],
-      delTarget: null,
-      delLoading: false
+      records: [], delTarget: null, delLoading: false
     }
   },
   computed: {
-    displayList () {
-      let r = this.records
-      return r
-    },
+    displayList () { return this.records },
     counts () {
       const r = this.records
       return { all: r.length, done: r.length }
     }
   },
-  onShow () {
+  mounted () {
     this.isLoggedIn = auth.isLoggedIn()
     if (this.isLoggedIn) this.loadRecords()
   },
   methods: {
-    sc: scoreColor,
-    fmtTime: formatTime,
+    sc: scoreColor, fmtTime: formatTime,
     stars (score) {
       const v = Math.max(0, Math.min(5, Math.round(Number(score || 0) / 20)))
       return '★'.repeat(v) + '☆'.repeat(5 - v)
@@ -119,7 +106,10 @@ export default {
       const parts = [r.brand_desc, r.business_type, r.address?.slice(0, 20)].filter(Boolean)
       return parts[0] || '未命名'
     },
-    goLogin () { uni.reLaunch({ url: '/pages/home/index?tab=profile' }) },
+    refresh () {
+      this.isLoggedIn = auth.isLoggedIn()
+      if (this.isLoggedIn) this.loadRecords()
+    },
     async loadRecords () {
       this.loading = true
       try {
@@ -151,9 +141,7 @@ export default {
         if (res.ok) {
           this.records = this.records.filter(x => (x.report_uuid || String(x.id)) !== (r.report_uuid || String(r.id)))
           uni.showToast({ title: '已删除', icon: 'none' })
-        } else {
-          uni.showToast({ title: api.normalizeError(res), icon: 'none' })
-        }
+        } else { uni.showToast({ title: api.normalizeError(res), icon: 'none' }) }
       } catch (e) { uni.showToast({ title: '网络异常，请重试', icon: 'none' }) }
       this.delLoading = false; this.delTarget = null
     }
@@ -162,41 +150,48 @@ export default {
 </script>
 
 <style scoped>
-.records-page { min-height:100vh; padding:0 24rpx 118rpx; background:linear-gradient(180deg,#dce4f2 0%,#e0e8f6 42%,#dce4f2 100%); }
+.rp-panel { min-height:100vh; background:linear-gradient(180deg,#dce4f2,#e0e8f6 42%,#dce4f2); padding:0 24rpx 60rpx; }
 .header { margin:0 -24rpx 22rpx; padding:62rpx 48rpx 82rpx; background:radial-gradient(circle at 78% 32%,rgba(83,137,255,0.42),transparent 24%),radial-gradient(circle at 66% 60%,rgba(139,92,246,0.22),transparent 26%),radial-gradient(circle at 58% 58%,rgba(248,200,97,0.10),transparent 22%),linear-gradient(180deg,#0b3fbd 0%,#0d35ad 28%,#151f8f 68%,#241b83 100%); position:relative; overflow:hidden; }
 .header::before { content:''; position:absolute; left:-120rpx; top:-150rpx; width:660rpx; height:320rpx; border-radius:0 0 56% 56%; background:linear-gradient(180deg,rgba(255,255,255,0.16),rgba(255,255,255,0.02)); transform:rotate(8deg); }
 .header::after { content:''; position:absolute; right:56rpx; bottom:0; width:38rpx; height:154rpx; border-radius:9rpx 9rpx 0 0; background:linear-gradient(180deg,rgba(219,234,254,0.56),rgba(37,99,235,0.08)); box-shadow:-54rpx 30rpx 0 rgba(191,219,254,0.34),-108rpx 66rpx 0 rgba(191,219,254,0.24),54rpx 20rpx 0 rgba(191,219,254,0.28),106rpx 54rpx 0 rgba(191,219,254,0.18); opacity:0.58; }
 .brand { font-size:22rpx; color:rgba(255,255,255,0.68); letter-spacing:6rpx; text-transform:uppercase; position:relative; z-index:1; display:block; }
-.title { font-size:42rpx; font-weight:900; color:#fff; display:block; position:relative; z-index:1; margin-top:2rpx; } .sub { font-size:24rpx; color:rgba(232,240,255,0.76); margin-top:8rpx; position:relative; z-index:1; }
+.title { font-size:42rpx; font-weight:900; color:#fff; display:block; position:relative; z-index:1; margin-top:2rpx; }
+.sub { font-size:24rpx; color:rgba(232,240,255,0.76); margin-top:8rpx; position:relative; z-index:1; }
 .login-guide { text-align:center; padding:64rpx 28rpx; background:rgba(255,255,255,0.92); border:1px solid rgba(219,230,255,0.9); border-radius:22rpx; box-shadow:0 18rpx 38rpx rgba(79,119,186,0.10); }
 .lg-text { display:block; font-size:28rpx; color:#64748b; margin-bottom:22rpx; }
 .lg-btn { width:236rpx; height:64rpx; line-height:64rpx; margin:0 auto; padding:0; background:linear-gradient(135deg,#fff3c4,#f8c861 58%,#dba640); color:#17244e; border:1px solid rgba(255,255,255,0.48); border-radius:999rpx; font-size:26rpx; font-weight:900; box-shadow:0 14rpx 28rpx rgba(248,200,97,0.16),inset 0 1rpx 0 rgba(255,255,255,0.45); }
 .lg-btn::after { border:none; }
-.tabs { display:flex; gap:12rpx; padding-bottom:20rpx; }
+.tabs { display:flex; gap:12rpx; margin-bottom:18rpx; }
 .tab { padding:14rpx 26rpx; border-radius:999rpx; background:rgba(255,255,255,0.86); border:1px solid rgba(219,230,255,0.95); font-size:25rpx; font-weight:800; color:#5c677d; box-shadow:0 8rpx 18rpx rgba(74,111,172,0.05); }
 .tab.active { background:#f3f7ff; color:#315bff; border-color:rgba(88,105,255,0.44); }
-.loading { text-align:center; padding:60rpx 0; } .ld-dots { font-size:60rpx; letter-spacing:12rpx; color:#94a3b8; display:block; } .ld-text { font-size:26rpx; color:#94a3b8; display:block; margin-top:8rpx; }
-.empty { text-align:center; padding:86rpx 28rpx; background:rgba(255,255,255,0.92); border:1px solid rgba(219,230,255,0.9); border-radius:22rpx; } .emp-icon { font-size:72rpx; display:block; } .emp-title { font-size:30rpx; font-weight:800; color:#17244e; display:block; margin:16rpx 0 8rpx; } .emp-desc { font-size:26rpx; color:#8b99b6; }
+.loading { text-align:center; padding:60rpx 0; }
+.ld-dots { font-size:60rpx; letter-spacing:12rpx; color:#94a3b8; display:block; }
+.ld-text { font-size:26rpx; color:#94a3b8; display:block; margin-top:8rpx; }
+.empty { text-align:center; padding:86rpx 28rpx; background:rgba(255,255,255,0.92); border:1px solid rgba(219,230,255,0.9); border-radius:22rpx; }
+.emp-icon { font-size:72rpx; display:block; }
+.emp-title { font-size:30rpx; font-weight:800; color:#17244e; display:block; margin:16rpx 0 8rpx; }
+.emp-desc { font-size:26rpx; color:#8b99b6; }
 .list { padding-top:8rpx; }
 .card { background:rgba(255,255,255,0.94); border-radius:22rpx; padding:28rpx; margin-bottom:18rpx; box-shadow:0 18rpx 38rpx rgba(79,119,186,0.10); border:1px solid rgba(219,230,255,0.92); }
-.card-top { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:8rpx; }
-.card-title { font-size:30rpx; font-weight:900; color:#17244e; flex:1; }
-.score-block { text-align:right; } .stars { font-size:24rpx; color:#d6a84f; letter-spacing:2rpx; display:block; } .score-num { font-size:44rpx; font-weight:900; } .score-unit { font-size:22rpx; color:#94a3b8; }
-.card-body-row { display:flex; align-items:flex-start; gap:14rpx; margin-bottom:12rpx; }
+.card-top { display:flex; justify-content:space-between; align-items:center; margin-bottom:12rpx; }
+.card-title { font-size:28rpx; font-weight:800; color:#17244e; flex:1; }
+.score-block { display:flex; align-items:baseline; gap:4rpx; }
+.score-num { font-size:34rpx; font-weight:900; }
+.score-unit { font-size:20rpx; color:#94a3b8; }
+.stars { font-size:22rpx; color:#f8c861; letter-spacing:2rpx; }
+.card-body-row { display:flex; align-items:center; margin-bottom:10rpx; }
 .map-thumb { width:80rpx; height:80rpx; background:linear-gradient(135deg,#eef3ff,#dce4f2); border-radius:12rpx; flex-shrink:0; display:flex; align-items:center; justify-content:center; margin-right:16rpx; }
 .mt-icon { font-size:36rpx; opacity:0.7; }
 .card-mid { flex:1; min-width:0; }
+.card-addr { font-size:24rpx; color:#475569; display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .card-time { font-size:20rpx; color:#94a3b8; display:block; margin-top:4rpx; }
-.card-footer { border-top:1rpx solid #f1f5f9; padding-top:14rpx; margin-top:14rpx; }
+.card-tags { display:flex; flex-wrap:wrap; gap:8rpx; margin-bottom:8rpx; }
+.tag { font-size:20rpx; background:#f1f5f9; color:#475569; border-radius:8rpx; padding:4rpx 12rpx; }
+.card-footer { border-top:1rpx solid #f1f5f9; padding-top:14rpx; }
 .actions { display:flex; gap:12rpx; justify-content:flex-end; }
 .act { font-size:24rpx; font-weight:600; padding:10rpx 24rpx; border-radius:12rpx; }
 .act.primary { background:#f3f7ff; color:#315bff; }
 .act.danger { background:#fff5f5; color:#dc2626; }
-.time { display:none; }
-.card-addr { font-size:24rpx; color:#64748b; line-height:1.45; flex:1; }
-.card-tags { margin-bottom:14rpx; } .tag { display:inline-block; font-size:20rpx; font-weight:700; padding:6rpx 14rpx; border-radius:999rpx; background:#f3f7ff; color:#315bff; margin-right:8rpx; border:1px solid rgba(219,230,255,0.95); }
-.card-footer { display:flex; justify-content:space-between; align-items:center; font-size:22rpx; color:#8b99b6; border-top:1rpx solid rgba(219,230,255,0.78); padding-top:16rpx; }
-.actions { display:flex; gap:14rpx; } .act { color:#315bff; font-size:24rpx; font-weight:800; } .act.lock { color:#d6a84f; }
 .modal-mask { position:fixed; inset:0; background:rgba(0,0,0,0.5); display:flex; align-items:center; justify-content:center; z-index:999; }
 .modal-box { background:#fff; border-radius:22rpx; padding:40rpx; width:560rpx; box-shadow:0 24rpx 70rpx rgba(15,23,42,0.18); }
 .modal-title { font-size:30rpx; font-weight:900; color:#17244e; display:block; margin-bottom:12rpx; }

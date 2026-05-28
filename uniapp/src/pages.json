@@ -89,19 +89,7 @@
       }
     }
   ],
-  "tabBar": {
-    "color": "#94a3b8",
-    "selectedColor": "#315bff",
-    "backgroundColor": "#ffffff",
-    "borderStyle": "white",
-    "list": [
-      { "pagePath": "pages/home/index", "text": "选址", "iconPath": "static/tabbar/home.png", "selectedIconPath": "static/tabbar/home-active.png" },
-      { "pagePath": "pages/records/index", "text": "记录", "iconPath": "static/tabbar/records.png", "selectedIconPath": "static/tabbar/records-active.png" },
-      { "pagePath": "pages/favorites/index", "text": "收藏", "iconPath": "static/tabbar/favorites.png", "selectedIconPath": "static/tabbar/favorites-active.png" },
-      { "pagePath": "pages/profile/index", "text": "我的", "iconPath": "static/tabbar/profile.png", "selectedIconPath": "static/tabbar/profile-active.png" }
-    ]
-  },
   "globalStyle": {
-    "backgroundColor": "#eef3f9"
+    "backgroundColor": "#dce4f2"
   }
 }

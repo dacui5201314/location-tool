@@ -1,5 +1,7 @@
 <template>
   <view class="home-page">
+    <!-- ═══ Home Panel: 选址 ═══ -->
+    <view class="tab-panel" v-show="activeTab === 'home'">
     <!-- 欢迎弹层 -->
     <view class="welcome-mask" v-if="welcomeOpen">
       <view class="welcome-modal">
@@ -124,9 +126,7 @@
         <!-- 状态 B：真实地图（idle 选点态） -->
         <template v-if="mapMode === 'map'">
           <map id="homeMap" class="map-view" :latitude="mapLat" :longitude="mapLng" :markers="mapMarkers" scale="15" :show-location="showUserLocation" :enable-scroll="true" :enable-zoom="true" :enable-rotate="false" @tap="onMapTap" @regionchange="onMapRegionChange" />
-          <cover-view class="crosshair">
-            <cover-view class="ch-dot" />
-          </cover-view>
+          <cover-image src="/static/map-pin.png" class="crosshair-pin" />
         </template>
 
         <!-- 状态 C：分析中卡片 -->
@@ -211,15 +211,43 @@
     </view>
 
     <view class="footer">以上分析仅供参考，不构成投资建议。实际决策请结合实地考察与多方因素综合判断。</view>
+    </view><!-- /tab-panel home -->
+
+    <!-- ═══ Records Panel ═══ -->
+    <view class="tab-panel" v-show="activeTab === 'records'">
+      <RecordsPanel ref="recordsPanel" @go-tab="onGoTab" />
+    </view>
+
+    <!-- ═══ Favorites Panel ═══ -->
+    <view class="tab-panel" v-show="activeTab === 'favorites'">
+      <FavoritesPanel ref="favoritesPanel" @go-tab="onGoTab" />
+    </view>
+
+    <!-- ═══ Profile Panel ═══ -->
+    <view class="tab-panel" v-show="activeTab === 'profile'">
+      <ProfilePanel ref="profilePanel" @go-tab="onGoTab" />
+    </view>
+
+    <!-- ═══ 自绘底部导航 ═══ -->
+    <view class="custom-tabbar">
+      <view class="ctb-item" v-for="t in tabDefs" :key="t.key"
+            :class="{ active: activeTab === t.key }" @tap="onSwitchTab(t.key)">
+        <text class="ctb-icon">{{ activeTab === t.key ? t.iconActive : t.icon }}</text>
+        <text class="ctb-label">{{ t.label }}</text>
+      </view>
+    </view>
   </view>
 </template>
 
 <script>
 import IndustryPicker from '../../components/industry-picker/index.vue'
+import RecordsPanel from '../../components/tab/RecordsPanel.vue'
+import FavoritesPanel from '../../components/tab/FavoritesPanel.vue'
+import ProfilePanel from '../../components/tab/ProfilePanel.vue'
 import api from '../../utils/api'
 
 export default {
-  components: { IndustryPicker },
+  components: { IndustryPicker, RecordsPanel, FavoritesPanel, ProfilePanel },
   data () {
     return {
       addressKeyword: '',
@@ -229,6 +257,13 @@ export default {
       mapReady: false,  // 延迟渲染 map 避免首次白块
       _favoriteId: null,  // 从收藏发起时关联 favorite_id
       _regionTimer: null,
+      activeTab: 'home',
+      tabDefs: [
+        { key:'home', label:'选址', icon:'◎', iconActive:'◉' },
+        { key:'records', label:'记录', icon:'□', iconActive:'■' },
+        { key:'favorites', label:'收藏', icon:'☆', iconActive:'★' },
+        { key:'profile', label:'我的', icon:'○', iconActive:'●' }
+      ],
       industry: '',
       brandName: '',
       storeSize: '',
@@ -265,7 +300,7 @@ export default {
   computed: {
     mapMode () {
       if (this.analyzing) return 'analyzing'
-      if (this.welcomeOpen || !this.mapReady) return 'placeholder'
+      if (!this.mapReady) return 'placeholder'
       return 'map'
     },
     canAnalyze () { return !this.analyzing && this.addressText && this.industry && this.brandName && this.storeSize },
@@ -312,29 +347,21 @@ export default {
       return ''
     }
   },
-  onShow () {
-    const pending = uni.getStorageSync('pending_analysis_address')
-    if (pending) {
-      this.addressText = pending
-      this.addressKeyword = pending
-      this.selectedLocationSource = 'favorite'
-      // ★ 读取收藏 lat/lng/fav_id
-      const favLat = uni.getStorageSync('pending_analysis_lat')
-      const favLng = uni.getStorageSync('pending_analysis_lng')
-      const favId = uni.getStorageSync('pending_analysis_fav_id')
-      if (favLat && favLng) {
-        this._setLocation(favLat, favLng, 'favorite')
-      }
-      if (favId) {
-        this.favId = favId
-        this._favoriteId = favId  // ★ 保存供 analyze payload 使用
-      }
-      uni.removeStorageSync('pending_analysis_address')
-      uni.removeStorageSync('pending_analysis_lat')
-      uni.removeStorageSync('pending_analysis_lng')
-      uni.removeStorageSync('pending_analysis_fav_id')
-      uni.showToast({ title: '已加载收藏地址', icon: 'none' })
+  onLoad (options) {
+    // ★ 支持 ?tab=records|favorites|profile 从外部 reLaunch 进入指定 tab
+    if (options.tab && ['home','records','favorites','profile'].includes(options.tab)) {
+      this.activeTab = options.tab
     }
+  },
+  onShow () {
+    // ★ 确保 map 在 tab 返回时可用：mounted 的 350ms 定时器可能在 onHide 被取消
+    if (!this.mapReady && !this.analyzing && !this.welcomeOpen) {
+      this.mapReady = true
+    }
+    // ★ 切换 tab 时刷新对应面板
+    this._refreshActivePanel()
+    // ★ 外部 reLaunch 回到首页时，消费收藏pending
+    this._consumePendingAnalysis()
   },
   onHide () {
     this.clearAnalyzeTimer()
@@ -357,6 +384,50 @@ export default {
     this._mapTimer = setTimeout(() => { this.mapReady = true }, 350)
   },
   methods: {
+    onSwitchTab (key) {
+      if (this.activeTab === key) return
+      this.activeTab = key
+      this.$nextTick(() => {
+        this._refreshActivePanel()
+        if (key === 'home') this._consumePendingAnalysis()
+      })
+    },
+    onGoTab (key) {
+      this.onSwitchTab(key)
+    },
+    _consumePendingAnalysis () {
+      const pending = uni.getStorageSync('pending_analysis_address')
+      if (!pending) return
+      this.addressText = pending
+      this.addressKeyword = pending
+      this.selectedLocationSource = 'favorite'
+      const favLat = uni.getStorageSync('pending_analysis_lat')
+      const favLng = uni.getStorageSync('pending_analysis_lng')
+      const favId = uni.getStorageSync('pending_analysis_fav_id')
+      if (favLat && favLng) {
+        this._setLocation(Number(favLat), Number(favLng), 'favorite')
+      }
+      // 严格清洗：只接受有效正整数
+      const favIdNum = Number(favId)
+      if (Number.isSafeInteger(favIdNum) && favIdNum > 0) {
+        this.favId = favIdNum
+        this._favoriteId = favIdNum
+      } else {
+        this._favoriteId = null
+      }
+      uni.removeStorageSync('pending_analysis_address')
+      uni.removeStorageSync('pending_analysis_lat')
+      uni.removeStorageSync('pending_analysis_lng')
+      uni.removeStorageSync('pending_analysis_fav_id')
+      uni.showToast({ title: '已加载收藏地址', icon: 'none' })
+    },
+    _refreshActivePanel () {
+      const refMap = { records:'recordsPanel', favorites:'favoritesPanel', profile:'profilePanel' }
+      const refName = refMap[this.activeTab]
+      if (refName && this.$refs[refName] && this.$refs[refName].refresh) {
+        this.$refs[refName].refresh()
+      }
+    },
     async initHomeData () {
       // 分享配置
       api.fetchShareConfig().then(c => { if (c.ok && c.data) this.shareConfig = c.data }).catch(() => {})
@@ -689,10 +760,42 @@ export default {
         provider: 'deepseek',
         business_type: this.industry,
         brand_name: this.brandName,
-        store_size: Number(this.storeSize)
+        store_size: Math.max(0, Number(this.storeSize) || 0)
       }
-      if (industryId !== undefined) payload.industry_id = industryId
-      if (this._favoriteId) payload.favorite_id = this._favoriteId
+      if (industryId !== undefined && Number.isFinite(industryId)) payload.industry_id = Number(industryId)
+      // ★ favorite_id 只在有效正整数时传入
+      if (typeof this._favoriteId === 'number' && Number.isSafeInteger(this._favoriteId) && this._favoriteId > 0) {
+        payload.favorite_id = this._favoriteId
+      }
+
+      // ═══ 最终兜底：delete 任何非法 optional 字段 ═══
+      for (const opt of ['favorite_id', 'industry_id']) {
+        const v = payload[opt]
+        if (v === undefined) continue
+        const n = Number(v)
+        if (!Number.isSafeInteger(n) || n <= 0) {
+          delete payload[opt]
+        } else {
+          payload[opt] = n
+        }
+      }
+      // ★ 脱敏诊断：仅类型摘要，不输出 token/key
+      if (typeof console !== 'undefined') {
+        const diag = {
+          addrType: typeof payload.address,
+          latType: typeof payload.location?.lat, lat: payload.location?.lat,
+          lngType: typeof payload.location?.lng, lng: payload.location?.lng,
+          bizType: typeof payload.business_type,
+          szType: typeof payload.store_size, sz: payload.store_size,
+          hasFav: 'favorite_id' in payload,
+          favType: typeof payload.favorite_id,
+          favVal: payload.favorite_id,
+          hasInd: 'industry_id' in payload,
+          indType: typeof payload.industry_id,
+          indVal: payload.industry_id
+        }
+        console.log('[Analyze Payload]', JSON.stringify(diag))
+      }
 
       // ★ 坐标一致性保护：有地址但坐标为默认北京时阻止
       if (this.addressText && this.mapLat === 39.9087 && this.mapLng === 116.3975) {
@@ -876,12 +979,11 @@ export default {
 .phb { width:40rpx; border-radius:8rpx 8rpx 0 0; background:rgba(148,163,184,0.25); }
 .phb-a { height:60rpx; } .phb-b { height:96rpx; } .phb-c { height:78rpx; } .phb-d { height:48rpx; }
 
-/* State B: Map crosshair */
-.crosshair { position:absolute; left:0; right:0; top:0; bottom:0; display:flex; align-items:center; justify-content:center; z-index:10; pointer-events:none; }
-.ch-dot { width:32rpx; height:32rpx; border-radius:50%; background:rgba(239,68,68,0.88); border:3rpx solid #fff; flex-shrink:0; }
+/* State B: Map center pin — cover-image, pin tip at map center */
+.crosshair-pin { position:absolute; left:50%; top:50%; width:56rpx; height:72rpx; margin-left:-28rpx; margin-top:-72rpx; z-index:10; pointer-events:none; }
 
 /* State C: Analyzing card */
-.analyzing-card { height:360rpx; background:linear-gradient(180deg,#eef3ff,#e0e8f6); display:flex; flex-direction:column; align-items:center; justify-content:center; padding:40rpx; }
+.analyzing-card { height:360rpx; background:linear-gradient(180deg,#eef3ff,#dce4f2); display:flex; flex-direction:column; align-items:center; justify-content:center; padding:40rpx; }
 .ac-pulse { width:56rpx; height:56rpx; border-radius:50%; background:rgba(49,91,255,0.15); margin-bottom:20rpx; animation:pulse 1.5s ease-in-out infinite; }
 @keyframes pulse { 0%,100% { transform:scale(1); opacity:0.6; } 50% { transform:scale(1.3); opacity:1; } }
 .ac-title { font-size:28rpx; font-weight:700; color:#1e293b; margin-bottom:8rpx; }
@@ -964,6 +1066,17 @@ export default {
 /* ── Banners ── */
 .free-banner { background:#fef3c7; padding:16rpx 24rpx; text-align:center; font-size:24rpx; color:#92400e; }
 .ann-banner { background:#dbeafe; padding:16rpx 24rpx; text-align:center; font-size:24rpx; color:#1e40af; }
+
+/* ── Tab panels ── */
+.tab-panel { min-height:100vh; }
+
+/* ── Custom tabbar ── */
+.custom-tabbar { position:fixed; bottom:0; left:0; right:0; height:100rpx; background:rgba(255,255,255,0.96); display:flex; border-top:1rpx solid #e2e8f0; padding-bottom:env(safe-area-inset-bottom); z-index:100; }
+.ctb-item { flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4rpx; }
+.ctb-icon { font-size:32rpx; color:#94a3b8; line-height:1; }
+.ctb-label { font-size:20rpx; color:#94a3b8; line-height:1; }
+.ctb-item.active .ctb-icon { color:#315bff; }
+.ctb-item.active .ctb-label { color:#315bff; font-weight:700; }
 </style>
 
 <style>

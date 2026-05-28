@@ -7,9 +7,9 @@ export default {
 </script>
 
 <style>
-/* 全局主题变量 — 对齐 Web index.css */
+/* 全局主题变量 + 首页关键容器防白闪兜底 */
 page {
-  --page-bg: #eef3f9;
+  --page-bg: #dce4f2;
   --ink: #111827;
   --muted: #667085;
   --blue: #246bff;
@@ -24,4 +24,11 @@ page {
   font-size: 28rpx;
   color: var(--ink);
 }
+
+/* 热更新防白闪：home 页关键容器纯色兜底（scoped wxss 卸载时生效） */
+.home-page { background: #dce4f2; }
+.map-wrap { background: #dce4f2; }
+.map-placeholder { background: #dce4f2; }
+.analyzing-card { background: #dce4f2; }
+.hero { background: #0d35ad; }
 </style>

@@ -12,7 +12,7 @@
 <script>
 export default {
   methods: {
-    goRecords () { uni.switchTab({ url: '/pages/records/index' }) }
+    goRecords () { uni.reLaunch({ url: '/pages/home/index?tab=records' }) }
   }
 }
 </script>

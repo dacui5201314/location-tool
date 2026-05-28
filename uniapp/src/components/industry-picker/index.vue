@@ -80,8 +80,8 @@ export default {
 <style scoped>
 .industry-picker { margin: 24rpx 0; }
 .label { font-size: 28rpx; font-weight: 600; color: #334155; margin-bottom: 16rpx; }
-.cat-scroll { white-space: nowrap; padding-bottom: 8rpx; }
-.cat-tile { display: inline-flex; flex-direction: column; align-items: center; width: 126rpx; padding: 18rpx 8rpx; margin-right: 14rpx; border-radius: 20rpx; background: linear-gradient(180deg,#ffffff,#fbfdff); border: 1px solid rgba(219,230,255,0.95); box-shadow: 0 10rpx 22rpx rgba(74,111,172,0.07); }
+.cat-scroll { width:100%; height:130rpx; white-space:nowrap; display:block; }
+.cat-tile { display: inline-flex; flex-direction: column; align-items: center; width: 126rpx; min-height: 96rpx; padding: 18rpx 8rpx; margin-right: 14rpx; border-radius: 20rpx; background: linear-gradient(180deg,#ffffff,#fbfdff); border: 1px solid rgba(219,230,255,0.95); box-shadow: 0 10rpx 22rpx rgba(74,111,172,0.07); flex-shrink:0; box-sizing:border-box; vertical-align:top; }
 .cat-tile.active { background: linear-gradient(180deg,#ffffff,#f4f7ff); border-color: rgba(13,75,220,0.60); box-shadow: 0 14rpx 30rpx rgba(13,75,220,0.16); }
 .cat-icon { position: relative; width: 58rpx; height: 58rpx; line-height: 58rpx; text-align: center; border-radius: 18rpx; background: linear-gradient(145deg,#f6f9ff,#ffffff); color: transparent; font-size: 0; box-shadow: inset 0 0 0 1px rgba(13,75,220,0.10),0 8rpx 18rpx rgba(74,111,172,0.06); overflow: hidden; }
 .cat-icon::before,.cat-icon::after { content: ''; position: absolute; box-sizing: border-box; }

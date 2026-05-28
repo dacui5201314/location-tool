@@ -1,6 +1,5 @@
 <template>
-  <view class="profile-page">
-    <!-- Top section -->
+  <view class="pp-panel">
     <view class="top">
       <template v-if="loggedIn">
         <view class="top-row">
@@ -25,76 +24,56 @@
       <text class="login-err" v-if="loginErr">{{ loginErr }}</text>
     </view>
 
-    <!-- Stats -->
     <view class="stats">
-      <view class="stat" @tap="goRecords">
-        <text class="sv">{{ reportCount }}</text>
-        <text class="sl">已生成报告</text>
+      <view class="stat" @tap="$emit('go-tab','records')">
+        <text class="sv">{{ reportCount }}</text><text class="sl">已生成报告</text>
       </view>
-      <view class="stat" @tap="goFavorites">
-        <text class="sv">{{ favCount }}</text>
-        <text class="sl">收藏地址</text>
+      <view class="stat" @tap="$emit('go-tab','favorites')">
+        <text class="sv">{{ favCount }}</text><text class="sl">收藏地址</text>
       </view>
-      <view class="stat">
-        <text class="sv">{{ points }}</text>
-        <text class="sl">剩余点数</text>
-      </view>
+      <view class="stat"><text class="sv">{{ points }}</text><text class="sl">剩余点数</text></view>
     </view>
 
-    <!-- VIP card -->
     <view class="vip-card">
       <view class="vc-top">
         <view class="vc-copy">
           <text class="vc-title">VIP会员 {{ memberDays > 0 ? memberDays+'天' : '未开通' }}</text>
           <text class="vc-desc">{{ memberDays > 0 ? '有效期至 '+memberExpiry : '开通会员，解锁全部高级功能' }}</text>
         </view>
-        <button class="vc-btn" @tap="goRecharge">{{ memberDays > 0 ? '立即续费' : '立即开通' }}</button>
+        <button class="vc-btn" @tap="openRecharge">{{ memberDays > 0 ? '立即续费' : '立即开通' }}</button>
       </view>
       <view class="vc-benefits">
         <view class="vb" v-for="b in benefits" :key="b.label">
-          <text class="vb-icon">{{ b.icon }}</text>
-          <text class="vb-label">{{ b.label }}</text>
-          <text class="vb-desc">{{ b.desc }}</text>
+          <text class="vb-icon">{{ b.icon }}</text><text class="vb-label">{{ b.label }}</text><text class="vb-desc">{{ b.desc }}</text>
         </view>
       </view>
     </view>
 
-    <!-- Points card -->
     <view class="points-card">
       <view class="pc-head">
         <text class="pc-title">● 我的点数</text>
         <view class="pc-actions">
-          <text class="pca" @tap="goRedeem">兑换码</text>
-          <text class="pca primary" @tap="goRecharge">获取点数</text>
+          <text class="pca" @tap="cdkOpen = true">兑换码</text>
+          <text class="pca primary" @tap="openRecharge">获取点数</text>
         </view>
       </view>
       <view class="pc-body">
-        <text class="pc-num">{{ points }}</text>
-        <text class="pc-unit">点</text>
+        <text class="pc-num">{{ points }}</text><text class="pc-unit">点</text>
         <text class="pc-desc">当前剩余点数 · 可用于生成选址分析报告</text>
         <text class="pc-desc warn" v-if="freePointExpiry && !freePointActive">免费赠送点已过期，实际有效 {{ Math.max(0, points - 1) }} 点</text>
       </view>
-      <view class="pc-warn" v-if="!memberDays && points <= 3">
-        <text>剩余点数较少</text>
-      </view>
+      <view class="pc-warn" v-if="!memberDays && points <= 3"><text>剩余点数较少</text></view>
     </view>
 
-    <!-- Menu -->
     <view class="menu-card">
       <view class="menu-item" @tap="goEdit">
-        <text class="mi-icon">◈</text>
-        <view class="mi-body"><text class="mi-label">完善资料</text></view>
-        <text class="mi-arrow">›</text>
+        <text class="mi-icon">◈</text><view class="mi-body"><text class="mi-label">完善资料</text></view><text class="mi-arrow">›</text>
       </view>
-      <view class="menu-item" v-if="csQrUrl || csWechat || csPhone" @tap="goRecharge">
-        <text class="mi-icon">☎</text>
-        <view class="mi-body"><text class="mi-label">联系客服</text></view>
-        <text class="mi-arrow">›</text>
+      <view class="menu-item" v-if="csQrUrl || csWechat || csPhone" @tap="csSheetOpen = true">
+        <text class="mi-icon">☎</text><view class="mi-body"><text class="mi-label">联系客服</text></view><text class="mi-arrow">›</text>
       </view>
       <view class="menu-item" v-if="loggedIn" @tap="onLogout">
-        <text class="mi-icon">🚪</text>
-        <view class="mi-body"><text class="mi-label">退出登录</text></view>
-        <text class="mi-arrow">›</text>
+        <text class="mi-icon">🚪</text><view class="mi-body"><text class="mi-label">退出登录</text></view><text class="mi-arrow">›</text>
       </view>
     </view>
 
@@ -106,50 +85,25 @@
         <view class="sheet-handle" />
         <text class="sheet-title">开通会员或购买点数</text>
         <text class="sheet-desc">请扫码添加专属客服微信，或使用兑换码激活</text>
-
         <view class="rc-tabs">
           <text class="rc-tab" :class="{ active: rechargeTab === 'points' }" @tap="rechargeTab = 'points'">点数包</text>
           <text class="rc-tab" :class="{ active: rechargeTab === 'membership' }" @tap="rechargeTab = 'membership'">会员套餐</text>
         </view>
-
-        <!-- points tab -->
         <view class="rc-list" v-if="rechargeTab === 'points'">
           <view class="rc-item" v-for="s in pointSkus" :key="s.id" @tap="onBuy(s)">
-            <view class="rci-left">
-              <text class="rci-label">{{ s.label }}</text>
-              <text class="rci-desc">{{ s.desc }}</text>
-            </view>
-            <view class="rci-right">
-              <text class="rci-price">¥{{ s.price }}</text>
-              <text class="rci-credits">+{{ s.credits }}点</text>
-            </view>
+            <view class="rci-left"><text class="rci-label">{{ s.label }}</text><text class="rci-desc">{{ s.desc }}</text></view>
+            <view class="rci-right"><text class="rci-price">¥{{ s.price }}</text><text class="rci-credits">+{{ s.credits }}点</text></view>
           </view>
-          <view class="rc-empty" v-if="!pointSkus.length">
-            <text>暂无点数套餐，请联系客服</text>
-          </view>
+          <view class="rc-empty" v-if="!pointSkus.length"><text>暂无点数套餐，请联系客服</text></view>
         </view>
-        <!-- membership tab -->
         <view class="rc-list" v-if="rechargeTab === 'membership'">
           <view class="rc-item" v-for="s in memberSkus" :key="s.id" @tap="onBuy(s)">
-            <view class="rci-left">
-              <text class="rci-label">{{ s.label }}</text>
-              <text class="rci-desc">{{ s.desc || s.duration_days+'天' }}</text>
-            </view>
-            <view class="rci-right">
-              <text class="rci-price">¥{{ s.price }}</text>
-              <text class="rci-credits" v-if="s.credits">+{{ s.credits }}点</text>
-            </view>
+            <view class="rci-left"><text class="rci-label">{{ s.label }}</text><text class="rci-desc">{{ s.desc || s.duration_days+'天' }}</text></view>
+            <view class="rci-right"><text class="rci-price">¥{{ s.price }}</text><text class="rci-credits" v-if="s.credits">+{{ s.credits }}点</text></view>
           </view>
-          <view class="rc-empty" v-if="!memberSkus.length">
-            <text>暂无会员套餐，请联系客服</text>
-          </view>
+          <view class="rc-empty" v-if="!memberSkus.length"><text>暂无会员套餐，请联系客服</text></view>
         </view>
-
-        <!-- 客服二维码 -->
-        <view class="cs-section" v-if="csQrUrl">
-          <image class="cs-qr-img" :src="csQrFullUrl" mode="aspectFit" @tap="previewCsQr" />
-          <text class="cs-hint">扫码联系专属客服充值</text>
-        </view>
+        <view class="cs-section" v-if="csQrUrl"><image class="cs-qr-img" :src="csQrFullUrl" mode="aspectFit" @tap="previewCsQr" /><text class="cs-hint">扫码联系专属客服充值</text></view>
         <text class="cs-hint" v-else-if="!csQrUrl">暂未配置客服入口</text>
         <text class="rc-note" v-if="payErr">{{ payErr }}</text>
       </view>
@@ -158,8 +112,7 @@
     <!-- CDK 兑换弹层 -->
     <view class="sheet-mask" v-if="cdkOpen" @tap="cdkOpen = false">
       <view class="sheet" @tap.stop>
-        <view class="sheet-handle" />
-        <text class="sheet-title">激活兑换码</text>
+        <view class="sheet-handle" /><text class="sheet-title">激活兑换码</text>
         <text class="sheet-desc">输入兑换码，点数即时到账</text>
         <input class="cdk-field" v-model="cdkCode" placeholder="输入兑换码" />
         <button class="cdk-act-btn" :disabled="cdkLoading || !cdkCode.trim()" @tap="onCdkRedeem">{{ cdkLoading ? '激活中...' : '立即激活' }}</button>
@@ -167,11 +120,10 @@
       </view>
     </view>
 
-    <!-- 客服联系方式弹层 -->
+    <!-- 客服弹层 -->
     <view class="sheet-mask" v-if="csSheetOpen" @tap="csSheetOpen = false">
       <view class="sheet" @tap.stop>
-        <view class="sheet-handle" />
-        <text class="sheet-title">联系客服</text>
+        <view class="sheet-handle" /><text class="sheet-title">联系客服</text>
         <image class="cs-qr-img" v-if="csQrUrl" :src="csQrFullUrl" mode="aspectFit" @tap="previewCsQr" />
         <view class="cs-lines">
           <text class="cs-line" v-if="csWechat" @tap="copyCs(csWechat)">微信：{{ csWechat }}（点击复制）</text>
@@ -179,7 +131,6 @@
         </view>
       </view>
     </view>
-
   </view>
 </template>
 
@@ -189,14 +140,18 @@ import api from '../../utils/api'
 import config from '../../utils/config'
 
 export default {
+  name: 'ProfilePanel',
+  emits: ['go-tab'],
   data () {
     return {
-      loggedIn: false, loginLoading: false, loginErr: '',
-      avatarUploading: false,
-      avatarUrl: '', phoneText: '', userName: '', uidText: '',
+      loggedIn: false, loginErr: '',
+      avatarUploading: false, avatarUrl: '', phoneText: '', userName: '', uidText: '',
       points: 0, freePointActive: true, freePointExpiry: '',
       memberDays: 0, memberExpiry: '', reportCount: 0, favCount: 0,
       csQrUrl: '', csWechat: '', csPhone: '',
+      skus: [], rechargeOpen: false, rechargeTab: 'points', payErr: '',
+      cdkOpen: false, cdkCode: '', cdkLoading: false,
+      csSheetOpen: false,
       benefits: [
         { icon:'∞',label:'无限分析',desc:'次数不限' },
         { icon:'📄',label:'高级报告',desc:'多维评估' },
@@ -211,11 +166,8 @@ export default {
     displayAvatarUrl () {
       const url = this.avatarUrl || ''
       if (!url) return ''
-      // 过滤临时头像：__tmp__、微信临时 CDN、本地 DevTools
       if (url.indexOf('__tmp__') >= 0 || url.indexOf('tmp.weixin.qq.com') >= 0 || url.indexOf('127.0.0.1:26205') >= 0) return ''
-      // /assets/ 永久资源补全域名
       if (url.startsWith('/assets/')) return config.API_BASE_URL + url
-      // 其他 http/https 保留（兼容旧数据）
       return url
     },
     displayName () {
@@ -230,8 +182,9 @@ export default {
       return this.csQrUrl.startsWith('/') ? config.API_BASE_URL + this.csQrUrl : this.csQrUrl
     }
   },
-  onShow () { this.refreshState() },
+  mounted () { this.refresh() },
   methods: {
+    refresh () { this.refreshState() },
     refreshState () {
       const token = auth.getToken()
       if (token) {
@@ -259,22 +212,14 @@ export default {
               auth.setUser(p.user)
               this.avatarUrl = p.user.avatar_url || p.user.avatarUrl || ''
               this.userName = p.user.nickname || p.user.name || this.userName
-              const phone = p.user.phone_number || p.user.phone || ''
-              this.phoneText = phone ? phone.replace(/(\d{3})\d{4}(\d{4})/, '$1****$2') : ''
+              const ph = p.user.phone_number || p.user.phone || ''
+              this.phoneText = ph ? ph.replace(/(\d{3})\d{4}(\d{4})/, '$1****$2') : ''
             }
           }
         }).catch(() => {})
-        // CS QR + UI config + SKU
         api.fetchCsQr().then(r => { if (r.ok && r.data) this.csQrUrl = r.data.url || '' }).catch(() => {})
-        api.fetchUiConfig().then(r => {
-          if (r.ok && r.data) {
-            this.csWechat = r.data.cs_wechat || ''
-            this.csPhone = r.data.cs_phone || ''
-          }
-        }).catch(() => {})
-        api.fetchSkus().then(r => {
-          if (r.ok && Array.isArray(r.data?.skus)) this.skus = r.data.skus.filter(s => s.visible)
-        }).catch(() => {})
+        api.fetchUiConfig().then(r => { if (r.ok && r.data) { this.csWechat = r.data.cs_wechat || ''; this.csPhone = r.data.cs_phone || '' } }).catch(() => {})
+        api.fetchSkus().then(r => { if (r.ok && Array.isArray(r.data?.skus)) this.skus = r.data.skus.filter(s => s.visible) }).catch(() => {})
       } else {
         this.loggedIn = false
       }
@@ -286,33 +231,18 @@ export default {
       try {
         const r = await api.createPrepay(sku.id)
         if (r.ok) {
-          const pp = r.data
-          const outTradeNo = pp.out_trade_no
+          const pp = r.data; const outTradeNo = pp.out_trade_no
           uni.requestPayment({
-            timeStamp: pp.timeStamp, nonceStr: pp.nonceStr,
-            package: pp.package, signType: pp.signType || 'RSA', paySign: pp.paySign,
+            timeStamp: pp.timeStamp, nonceStr: pp.nonceStr, package: pp.package, signType: pp.signType || 'RSA', paySign: pp.paySign,
             success: async () => {
               this.payErr = '支付处理中...'
               for (let i = 0; i < 8; i++) {
                 await new Promise(resolve => setTimeout(resolve, 2500))
-                try {
-                  const qr = await api.queryOrder(outTradeNo)
-                  if (qr.ok && qr.data && qr.data.status === 'PAID') {
-                    this.payErr = ''
-                    this.rechargeOpen = false
-                    uni.showToast({ title: '支付成功，已到账', icon: 'success' })
-                    this.refreshState()
-                    return
-                  }
-                } catch (e) { /* retry */ }
+                try { const qr = await api.queryOrder(outTradeNo); if (qr.ok && qr.data && qr.data.status === 'PAID') { this.payErr = ''; this.rechargeOpen = false; uni.showToast({ title: '支付成功，已到账', icon: 'success' }); this.refreshState(); return } } catch (e) {}
               }
-              this.payErr = '支付处理中，请稍后刷新页面查看'
-              this.refreshState()
+              this.payErr = '支付处理中，请稍后刷新页面查看'; this.refreshState()
             },
-            fail: (e) => {
-              if (e.errMsg && e.errMsg.indexOf('cancel') >= 0) this.payErr = '支付已取消'
-              else this.payErr = '支付失败，请稍后重试'
-            }
+            fail: (e) => { if (e.errMsg && e.errMsg.indexOf('cancel') >= 0) this.payErr = '支付已取消'; else this.payErr = '支付失败，请稍后重试' }
           })
         } else {
           if (r.statusCode === 503) this.payErr = '支付服务暂不可用'
@@ -322,53 +252,30 @@ export default {
       } catch (e) { this.payErr = '网络异常' }
     },
     goLogin () { uni.navigateTo({ url: '/pages/profile/login' }) },
-    goRedeem () { uni.navigateTo({ url: '/pages/profile/redeem' }) },
-    goRecharge () { uni.navigateTo({ url: '/pages/profile/recharge' }) },
-    goRecords () { uni.reLaunch({ url: '/pages/home/index?tab=records' }) },
-    goFavorites () { uni.reLaunch({ url: '/pages/home/index?tab=favorites' }) },
     goEdit () { uni.navigateTo({ url: '/pages/profile/edit' }) },
     async onProfileAvatar (e) {
       if (this.avatarUploading) return
-      const url = e.detail && e.detail.avatarUrl
-      if (!url) return
-      this.avatarUploading = true
-      uni.showLoading({ title: '上传中...' })
+      const url = e.detail && e.detail.avatarUrl; if (!url) return
+      this.avatarUploading = true; uni.showLoading({ title: '上传中...' })
       try {
-        const uploadR = await api.uploadAvatar(url)
-        uni.hideLoading()
+        const uploadR = await api.uploadAvatar(url); uni.hideLoading()
         if (uploadR.ok && uploadR.data && uploadR.data.avatar_url) {
           if (uploadR.data.user) auth.setUser(uploadR.data.user)
-          this.avatarUrl = uploadR.data.avatar_url
-          uni.showToast({ title: '头像已更新', icon: 'success' })
-        } else {
-          uni.showToast({ title: uploadR.data?.detail || '头像上传失败', icon: 'none' })
-        }
-      } catch (e) {
-        uni.hideLoading()
-        uni.showToast({ title: '头像上传失败', icon: 'none' })
-      }
+          this.avatarUrl = uploadR.data.avatar_url; uni.showToast({ title: '头像已更新', icon: 'success' })
+        } else { uni.showToast({ title: uploadR.data?.detail || '头像上传失败', icon: 'none' }) }
+      } catch (e) { uni.hideLoading(); uni.showToast({ title: '头像上传失败', icon: 'none' }) }
       this.avatarUploading = false
     },
-    openCsSheet () { this.csSheetOpen = true },
     copyCs (text) { uni.setClipboardData({ data: text, success: () => uni.showToast({ title: '已复制', icon: 'none' }) }) },
     callCs (phone) { uni.makePhoneCall({ phoneNumber: phone }) },
-    previewCsQr () {
-      if (this.csQrFullUrl) uni.previewImage({ urls: [this.csQrFullUrl] })
-    },
+    previewCsQr () { if (this.csQrFullUrl) uni.previewImage({ urls: [this.csQrFullUrl] }) },
     async onCdkRedeem () {
       if (!this.cdkCode.trim()) return
       this.cdkLoading = true; this.payErr = ''
       try {
         const r = await api.activateCdk(this.cdkCode.trim().toUpperCase())
-        if (r.ok) {
-          uni.showToast({ title: `兑换成功，+${r.data.credits_added} 点`, icon: 'success' })
-          this.cdkCode = ''; this.cdkOpen = false
-          this.refreshState()
-        } else {
-          if (r.statusCode === 404) this.payErr = '兑换码不存在'
-          else if (r.statusCode === 429) this.payErr = '尝试次数过多，请稍后重试'
-          else this.payErr = r.data?.detail || '兑换失败'
-        }
+        if (r.ok) { uni.showToast({ title: `兑换成功，+${r.data.credits_added} 点`, icon: 'success' }); this.cdkCode = ''; this.cdkOpen = false; this.refreshState() }
+        else { if (r.statusCode === 404) this.payErr = '兑换码不存在'; else if (r.statusCode === 429) this.payErr = '尝试次数过多，请稍后重试'; else this.payErr = r.data?.detail || '兑换失败' }
       } catch (e) { this.payErr = '网络异常' }
       finally { this.cdkLoading = false }
     },
@@ -378,8 +285,8 @@ export default {
 </script>
 
 <style scoped>
-.profile-page { min-height:100vh; background:linear-gradient(180deg,#dce4f2 0%,#e0e8f6 42%,#dce4f2 100%); padding-bottom:80rpx; }
-.top { background:linear-gradient(180deg,#0b3fbd 0%,#0d35ad 28%,#151f8f 100%); padding:60rpx 32rpx 48rpx; text-align:center; color:#fff; }
+.pp-panel { min-height:100vh; background:linear-gradient(180deg,#dce4f2,#e0e8f6 42%,#dce4f2); padding-bottom:80rpx; }
+.top { background:linear-gradient(180deg,#0b3fbd,#0d35ad 28%,#151f8f); padding:60rpx 32rpx 48rpx; text-align:center; color:#fff; }
 .top-row { display:flex; align-items:center; text-align:left; }
 .avatar-img { width:100rpx; height:100rpx; border-radius:50%; border:3rpx solid rgba(255,255,255,0.3); flex-shrink:0; }
 .avatar-fb { font-size:80rpx; }
@@ -390,14 +297,10 @@ export default {
 .uid { display:block; font-size:24rpx; color:rgba(255,255,255,0.6); margin-top:4rpx; }
 .arrow { font-size:40rpx; color:rgba(255,255,255,0.4); }
 .top-login { width:280rpx; height:64rpx; line-height:64rpx; padding:0; background:linear-gradient(135deg,#fff3c4,#f8c861 58%,#dba640); color:#17244e; border:1px solid rgba(255,255,255,0.48); border-radius:999rpx; font-size:26rpx; font-weight:900; margin-top:16rpx; position:relative; z-index:10; }
-.top-login[disabled] { opacity:0.6; }
-.top-login::after { border:none; }
+.top-login[disabled] { opacity:0.6; } .top-login::after { border:none; }
 .login-err { display:block; margin-top:14rpx; font-size:24rpx; color:#fca5a5; }
-
 .stats { display:flex; background:#fff; margin:-30rpx 24rpx 24rpx; border-radius:20rpx; padding:24rpx 0; box-shadow:0 4rpx 24rpx rgba(0,0,0,0.06); }
-.stat { flex:1; text-align:center; }
-.sv { display:block; font-size:36rpx; font-weight:800; color:#1e293b; } .sl { display:block; font-size:22rpx; color:#8b99b6; }
-
+.stat { flex:1; text-align:center; } .sv { display:block; font-size:36rpx; font-weight:800; color:#1e293b; } .sl { display:block; font-size:22rpx; color:#8b99b6; }
 .vip-card { background:linear-gradient(135deg,#0b3fbd,#151f8f 58%,#5b3fd9); margin:0 24rpx 20rpx; border-radius:20rpx; padding:28rpx; color:#fff; box-shadow:0 18rpx 42rpx rgba(21,31,143,0.24); }
 .vc-top { display:flex; justify-content:space-between; align-items:center; margin-bottom:24rpx; }
 .vc-title { font-size:30rpx; font-weight:700; display:block; } .vc-desc { font-size:24rpx; color:rgba(255,255,255,0.7); display:block; margin-top:4rpx; }
@@ -405,57 +308,31 @@ export default {
 .vc-btn::after { border:none; }
 .vc-benefits { display:flex; flex-wrap:wrap; gap:16rpx; }
 .vb { width:calc(33.3% - 12rpx); text-align:center; } .vb-icon { font-size:36rpx; display:block; } .vb-label { font-size:22rpx; display:block; margin-top:4rpx; } .vb-desc { font-size:20rpx; color:rgba(255,255,255,0.5); display:block; }
-
 .points-card { background:#fff; margin:0 24rpx 20rpx; border-radius:20rpx; padding:28rpx; box-shadow:0 2rpx 16rpx rgba(0,0,0,0.04); }
 .pc-head { display:flex; justify-content:space-between; align-items:center; margin-bottom:20rpx; }
-.pc-title { font-size:28rpx; font-weight:700; color:#1e293b; }
-.pc-actions { display:flex; gap:12rpx; } .pca { font-size:24rpx; font-weight:800; padding:8rpx 20rpx; border-radius:14rpx; background:#f3f7ff; color:#315bff; } .pca.primary { background:#315bff; color:#fff; }
-.pc-body { text-align:center; margin-bottom:20rpx; }
-.pc-num { font-size:80rpx; font-weight:900; color:#315bff; } .pc-unit { font-size:28rpx; color:#8b99b6; }
+.pc-title { font-size:28rpx; font-weight:700; color:#1e293b; } .pc-actions { display:flex; gap:12rpx; }
+.pca { font-size:24rpx; font-weight:800; padding:8rpx 20rpx; border-radius:14rpx; background:#f3f7ff; color:#315bff; } .pca.primary { background:#315bff; color:#fff; }
+.pc-body { text-align:center; margin-bottom:20rpx; } .pc-num { font-size:80rpx; font-weight:900; color:#315bff; } .pc-unit { font-size:28rpx; color:#8b99b6; }
 .pc-desc { display:block; font-size:24rpx; color:#94a3b8; margin-top:8rpx; } .pc-desc.warn { color:#dc2626; }
 .pc-warn { padding:16rpx; background:#fef2f2; border-radius:12rpx; } .pc-warn text { font-size:24rpx; color:#dc2626; }
-
 .menu-card { background:#fff; margin:0 24rpx 24rpx; border-radius:20rpx; }
 .menu-item { display:flex; align-items:center; padding:28rpx; border-bottom:1px solid #f1f5f9; }
 .mi-icon { font-size:36rpx; margin-right:16rpx; } .mi-body { flex:1; } .mi-label { font-size:28rpx; color:#1e293b; display:block; }
 .mi-arrow { font-size:32rpx; color:#cbd5e1; }
 .footer { text-align:center; font-size:20rpx; color:#cbd5e1; padding:24rpx; }
-
-/* Sheet */
 .sheet-mask { position:fixed; inset:0; background:rgba(0,0,0,0.45); z-index:500; display:flex; align-items:flex-end; }
 .sheet { width:100%; background:#fff; border-radius:24rpx 24rpx 0 0; padding:32rpx 28rpx 48rpx; text-align:center; max-height:85vh; overflow-y:auto; }
 .sheet-handle { width:60rpx; height:6rpx; background:#e2e8f0; border-radius:3rpx; margin:0 auto 24rpx; }
-.sheet-title { display:block; font-size:32rpx; font-weight:800; color:#1e293b; }
-.sheet-desc { display:block; font-size:24rpx; color:#94a3b8; margin-top:8rpx; margin-bottom:28rpx; }
-
-/* Recharge */
+.sheet-title { display:block; font-size:32rpx; font-weight:800; color:#1e293b; } .sheet-desc { display:block; font-size:24rpx; color:#94a3b8; margin-top:8rpx; margin-bottom:28rpx; }
 .rc-tabs { display:flex; gap:0; background:#f3f7ff; border-radius:14rpx; padding:6rpx; margin-bottom:20rpx; }
-.rc-tab { flex:1; text-align:center; font-size:26rpx; font-weight:700; color:#8b99b6; padding:14rpx 0; border-radius:10rpx; }
-.rc-tab.active { background:#315bff; color:#fff; }
-.rc-list { text-align:left; margin-bottom:16rpx; }
-.rc-item { display:flex; justify-content:space-between; align-items:center; padding:18rpx 0; border-top:1px solid #f1f5f9; }
+.rc-tab { flex:1; text-align:center; font-size:26rpx; font-weight:700; color:#8b99b6; padding:14rpx 0; border-radius:10rpx; } .rc-tab.active { background:#315bff; color:#fff; }
+.rc-list { text-align:left; margin-bottom:16rpx; } .rc-item { display:flex; justify-content:space-between; align-items:center; padding:18rpx 0; border-top:1px solid #f1f5f9; }
 .rci-label { font-size:26rpx; font-weight:700; color:#1e293b; } .rci-desc { font-size:22rpx; color:#8b99b6; }
 .rci-price { font-size:28rpx; font-weight:800; color:#315bff; } .rci-credits { font-size:22rpx; color:#16a34a; }
-.rc-empty { padding:20rpx; font-size:24rpx; color:#94a3b8; }
-.rc-note { font-size:22rpx; color:#dc2626; margin-top:10rpx; }
-
-/* CS */
-.cs-section { margin:16rpx 0; }
-.cs-qr-img { width:280rpx; height:280rpx; margin:0 auto; display:block; border:1px solid #e2e8f0; border-radius:16rpx; }
-.cs-hint { display:block; font-size:24rpx; color:#94a3b8; margin-top:8rpx; }
-.cs-lines { padding:16rpx 0; }
-.cs-line { display:block; font-size:26rpx; color:#315bff; padding:12rpx 0; }
-
-/* CDK */
+.rc-empty { padding:20rpx; font-size:24rpx; color:#94a3b8; } .rc-note { font-size:22rpx; color:#dc2626; margin-top:10rpx; }
+.cs-section { margin:16rpx 0; } .cs-qr-img { width:280rpx; height:280rpx; margin:0 auto; display:block; border:1px solid #e2e8f0; border-radius:16rpx; }
+.cs-hint { display:block; font-size:24rpx; color:#94a3b8; margin-top:8rpx; } .cs-lines { padding:16rpx 0; } .cs-line { display:block; font-size:26rpx; color:#315bff; padding:12rpx 0; }
 .cdk-field { width:100%; border:1px solid #d1d5db; border-radius:12rpx; padding:18rpx 16rpx; font-size:28rpx; margin-top:20rpx; box-sizing:border-box; }
 .cdk-act-btn { width:100%; background:#0f172a; color:#fff; border-radius:14rpx; font-size:28rpx; font-weight:700; padding:20rpx 0; margin-top:16rpx; }
 .cdk-err { display:block; font-size:24rpx; color:#dc2626; margin-top:12rpx; }
-
-/* Login sheet */
-.sheet-btn { width:100%; border-radius:16rpx; font-size:30rpx; font-weight:600; padding:24rpx 0; margin-bottom:16rpx; }
-.sheet-btn.primary { background:#07c160; color:#fff; }
-.sheet-btn.secondary { background:#f1f5f9; color:#475569; }
-.sheet-phone-link { display:block; font-size:24rpx; color:#315bff; padding:10rpx; }
-.sheet-skip { display:block; font-size:24rpx; color:#94a3b8; padding:12rpx; }
-.sheet-privacy { display:block; font-size:20rpx; color:#cbd5e1; margin-top:16rpx; }
 </style>

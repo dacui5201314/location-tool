@@ -88,7 +88,7 @@ export default {
   methods: {
     toggleAgree () { this.agreed = !this.agreed; this.showAgreeErr = false; this.errMsg = '' },
     switchMode (m) { this.mode = m; this.showAgreeErr = false; this.errMsg = '' },
-    goBack () { uni.navigateBack({ delta: 1 }).catch(() => uni.switchTab({ url: '/pages/home/index' })) },
+    goBack () { uni.navigateBack({ delta: 1 }).catch(() => uni.reLaunch({ url: '/pages/home/index' })) },
     openUserAgreement () { uni.navigateTo({ url: '/pages/legal/user-agreement' }) },
     openPrivacyPolicy () { uni.navigateTo({ url: '/pages/legal/privacy-policy' }) },
     requireAgreement () {

@@ -168,7 +168,7 @@ export default {
           this.avatarChanged = false
           uni.showToast({ title: '已保存', icon: 'success' })
           if (this.isOnboarding) {
-            setTimeout(() => uni.switchTab({ url: '/pages/profile/index' }), 800)
+            setTimeout(() => uni.reLaunch({ url: '/pages/home/index?tab=profile' }), 800)
           } else {
             setTimeout(() => uni.navigateBack({ delta: 1 }), 800)
           }

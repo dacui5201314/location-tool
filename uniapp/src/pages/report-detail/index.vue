@@ -313,8 +313,8 @@ export default {
   },
   methods: {
     sc: scoreColor, fmtTime: formatTime,
-    goBack () { uni.navigateBack({ delta: 1 }).catch(() => uni.switchTab({ url: '/pages/records/index' })) },
-    goToHome () { uni.switchTab({ url: '/pages/home/index' }) },
+    goBack () { uni.navigateBack({ delta: 1 }).catch(() => uni.reLaunch({ url: '/pages/home/index?tab=records' })) },
+    goToHome () { uni.reLaunch({ url: '/pages/home/index' }) },
     _prefetchShareToken (uuid) {
       if (!uuid || this._shareToken) return
       api.createShareToken(uuid).then(r => {
