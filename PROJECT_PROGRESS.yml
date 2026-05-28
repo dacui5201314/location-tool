@@ -1,15 +1,90 @@
-current_phase: RC Final Freeze
-phase_status: code_complete_pending_external_config
-latest_code_commit: e9472ea
-latest_code_commit_message: "fix: map drag triggers regeocode and share token sync-only return"
-latest_docs_commit: rc_final_handoff_update
+current_phase: Launch Stabilization 2026-05-28
+phase_status: analyze_chain_working_ui_payment_admin_remaining
+latest_code_commit: 523eeda
+latest_code_commit_message: "fix: page white flash and favorites analyzed status"
+latest_docs_commit: current_handoff_rc_active_update
 unpushed: true
+
+launch_stabilization_2026_05_28:
+  authoritative_doc: "CURRENT_HANDOFF.md top READ THIS FIRST - 2026-05-28 Afternoon Authoritative State"
+  head_note: "HEAD remains 523eeda, but working tree contains major uncommitted launch-stabilization changes"
+  user_verified:
+    - "Real-device native tab white transition fixed after switching to single-page shell/custom bottom nav"
+    - "Map no longer overlays other tabs and no longer disappears after fast tab switching"
+    - "Favorite -> Analyze returns to home with favorite address and coordinates"
+    - "Report generation is now working and opens report-detail"
+  successful_report:
+    report_uuid: "6413ae9793384520ae0fb90dbe24930f"
+    analysis_record_id: 96
+    user_id: 46
+    favorite_id: 6
+    favorite_latest_report_uuid_written: true
+    location: "Shaanxi Baoji"
+    industry: "小吃快餐"
+    brand_name: "陕二丫擀面皮"
+    store_size: 50
+    member_tier: "yearly"
+    billing: "member analyze did not deduct points; no refund created for successful run"
+  major_uncommitted_changes:
+    - "uniapp single-page shell: removed native tabBar, custom bottom nav, activeTab panels"
+    - "records/favorites/profile moved into uniapp/src/components/tab panels"
+    - "analyze SSE parser handles string/ArrayBuffer/object response body"
+    - "favorite_id/address/lat/lng closed loop works after backend restart"
+    - "industry picker main categories restored via fixed-height horizontal scroll-view"
+    - "profile panel restored with avatar/stats/VIP/points/CDK/customer-service/recharge UI paths"
+    - "map pin static asset added at uniapp/src/static/map-pin.png"
+    - "backend P0 artifact blacklist narrowly added: three exact generic phrase filters for same-category-store, stationery-store-count, and within-distance-parking artifacts"
+    - "backend retry exception diagnostic logging added to main.py"
+  current_dirty_artifacts:
+    - "backend/logs/ is debug output; do not commit"
+    - "backend/main.py retry traceback logging should be kept sanitized or cleaned before release"
+    - "uniapp home Analyze Payload console diagnostic should be removed/gated before release if still present"
+  next_priority:
+    - "Confirm favorites page shows favorite id=6 as analyzed and opens report_uuid"
+    - "Fix report-detail UI/header overlap and professional visual quality without touching report data or accuracy logic"
+    - "Mini-program UI polish: favorite button clarity, profile page QA, custom tabbar, color tone/components"
+    - "WeChat Pay direct purchase after cert/key upload; do not leak credentials"
+    - "Admin IA/UI cleanup and industry prompt participation audit; ask before modifying frontend/"
+    - "5-run analyze stability acceptance when user is ready"
+  hard_boundaries:
+    - "Do not weaken P0/P2/P3 guard"
+    - "Do not turn real P0 into warning-save"
+    - "Do not modify scoring, POI classification, prompt semantics, report accuracy logic, or report_fact_guard without explicit authorization"
+    - "Do not add /unlock-pdf or /download"
+    - "Do not process tmp_*"
+    - "Do not push"
 
 validation:
   compileall: PASS
   industry: "2168 PASS, 0 FAIL"
-  fact_guard: "101 PASS, 0 FAIL"
-  known_rule_gaps: none
+  fact_guard: "147 PASS, 0 FAIL"
+  known_rule_gaps: "single successful /api/analyze confirmed; 5-run stability acceptance still pending"
+
+rc_active_state:
+  product_target: "uniapp WeChat Mini Program"
+  web_reference: "frontend/ is product master/reference; do not modify unless explicitly requested"
+  current_head: "523eeda fix: page white flash and favorites analyzed status"
+  not_pushed: true
+  pdf_policy: "PDF/download intentionally deferred; report sharing is the current replacement"
+  amap_config:
+    key_pool_primary: true
+    fallback_order:
+      - "enabled AMap Web service key pool"
+      - "legacy DB amap_key"
+      - "env AMAP_WEB_KEY / AMAP_KEY"
+    security_secret_used_for_sig: false
+    note: "security_secret is currently reserved and not sent; backend only sends key"
+  live_p0_issues:
+    - "Home reload still flashes white before recovering; latest color-only fix may be insufficient"
+    - "Map pointer currently appears as a plain red dot, not a professional location pin"
+    - "Favorite -> analyze previously produced Baoji header with Beijing body; 87dcf61 attempted lat/lng/favorite_id fix but needs real verification"
+    - "Favorite analyzed status was wrong due _empty_fav hard-coded false; 523eeda attempted fix and needs verification"
+    - "Analyze stability after valid AMap key and backend restart is not yet proven"
+  next_strategy:
+    - "First audit home first-frame layout and map state leftovers before more edits"
+    - "Replace red-dot crosshair with professional fixed center location pin, preferably cover-image static asset"
+    - "Verify favorite_id + address + lat/lng + report_uuid closed loop with a Baoji favorite"
+    - "Only run analyze 5x after backend restart and valid AMap Web service key"
 
 phase12_changes:
   - "火锅_烧烤 sub_first fixed: removed 大排档/排档 from substitute, added 酒楼"
