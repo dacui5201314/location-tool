@@ -660,8 +660,20 @@ async def analyze_location(req: AnalyzeRequest, user: dict = Depends(get_current
                                 result["_fact_retry_failed"] = True
                                 result["_fact_errors_after_retry"] = retry_fe
                                 fact_errors = retry_fe  # ★ 最终 raise 使用 retry 后的错误
-                    except Exception:
-                        print(f"[SSE Guard] 重试异常，回退至原始错误", flush=True)
+                    except Exception as _retry_exc:
+                        import traceback as _tb
+                        _exc_name = type(_retry_exc).__name__
+                        _exc_msg = str(_retry_exc)[:200]
+                        # 安全打印：不输出 token/key/prompt 原文
+                        print(f"[SSE Guard] 重试异常: {_exc_name}: {_exc_msg}", flush=True)
+                        # 打印脱敏诊断
+                        try:
+                            _rr_len = len(retry_raw) if 'retry_raw' in dir() else -1
+                            _has_brace = ('{' in str(retry_raw)[:50]) if 'retry_raw' in dir() else 'N/A'
+                            print(f"[SSE Guard] 重试诊断: retry_raw_len={_rr_len} has_brace={_has_brace}", flush=True)
+                        except Exception:
+                            pass
+                        _tb.print_exc()
 
                     if fact_errors:  # 重试未通过 → 硬阻断 + 退款
                         _llm_parse_error = True
