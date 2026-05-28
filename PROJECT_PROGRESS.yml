@@ -1,184 +1,81 @@
-current_phase: Launch Stabilization 2026-05-28
-phase_status: analyze_chain_working_ui_payment_admin_remaining
-latest_code_commit: 523eeda
-latest_code_commit_message: "fix: page white flash and favorites analyzed status"
-latest_docs_commit: current_handoff_rc_active_update
-unpushed: true
+current_phase: "Launch Stabilization 2026-05-28"
+phase_status: "main_analyze_chain_working_ui_payment_admin_remaining"
 
-launch_stabilization_2026_05_28:
-  authoritative_doc: "CURRENT_HANDOFF.md top READ THIS FIRST - 2026-05-28 Afternoon Authoritative State"
-  head_note: "HEAD remains 523eeda, but working tree contains major uncommitted launch-stabilization changes"
-  user_verified:
-    - "Real-device native tab white transition fixed after switching to single-page shell/custom bottom nav"
-    - "Map no longer overlays other tabs and no longer disappears after fast tab switching"
-    - "Favorite -> Analyze returns to home with favorite address and coordinates"
-    - "Report generation is now working and opens report-detail"
-  successful_report:
-    report_uuid: "6413ae9793384520ae0fb90dbe24930f"
-    analysis_record_id: 96
-    user_id: 46
-    favorite_id: 6
-    favorite_latest_report_uuid_written: true
-    location: "Shaanxi Baoji"
-    industry: "小吃快餐"
-    brand_name: "陕二丫擀面皮"
-    store_size: 50
-    member_tier: "yearly"
-    billing: "member analyze did not deduct points; no refund created for successful run"
-  major_uncommitted_changes:
-    - "uniapp single-page shell: removed native tabBar, custom bottom nav, activeTab panels"
-    - "records/favorites/profile moved into uniapp/src/components/tab panels"
-    - "analyze SSE parser handles string/ArrayBuffer/object response body"
-    - "favorite_id/address/lat/lng closed loop works after backend restart"
-    - "industry picker main categories restored via fixed-height horizontal scroll-view"
-    - "profile panel restored with avatar/stats/VIP/points/CDK/customer-service/recharge UI paths"
-    - "map pin static asset added at uniapp/src/static/map-pin.png"
-    - "backend P0 artifact blacklist narrowly added: three exact generic phrase filters for same-category-store, stationery-store-count, and within-distance-parking artifacts"
-    - "backend retry exception diagnostic logging added to main.py"
-  current_dirty_artifacts:
-    - "backend/logs/ is debug output; do not commit"
-    - "backend/main.py retry traceback logging should be kept sanitized or cleaned before release"
-    - "uniapp home Analyze Payload console diagnostic should be removed/gated before release if still present"
-  next_priority:
-    - "Confirm favorites page shows favorite id=6 as analyzed and opens report_uuid"
-    - "Fix report-detail UI/header overlap and professional visual quality without touching report data or accuracy logic"
-    - "Mini-program UI polish: favorite button clarity, profile page QA, custom tabbar, color tone/components"
-    - "WeChat Pay direct purchase after cert/key upload; do not leak credentials"
-    - "Admin IA/UI cleanup and industry prompt participation audit; ask before modifying frontend/"
-    - "5-run analyze stability acceptance when user is ready"
-  hard_boundaries:
-    - "Do not weaken P0/P2/P3 guard"
-    - "Do not turn real P0 into warning-save"
-    - "Do not modify scoring, POI classification, prompt semantics, report accuracy logic, or report_fact_guard without explicit authorization"
-    - "Do not add /unlock-pdf or /download"
-    - "Do not process tmp_*"
-    - "Do not push"
+repo:
+  project: "C:\\Users\\admin\\location-tool"
+  committed_head_before_handoff_slimming: "082c43d"
+  latest_code_commit: "6a55fce"
+  latest_backend_fix_commit: "668ccf7"
+  launch_target: "uniapp WeChat Mini Program"
+  frontend_policy: "frontend/ is product master/reference; do not modify unless explicitly approved"
+
+verified_working:
+  - "Native switchTab white flash fixed by single-page shell/custom bottom nav"
+  - "Map no longer overlays other tabs or disappears after fast tab switching"
+  - "Favorites -> Analyze -> Report chain works with favorite_id/address/lat/lng/write-back"
+  - "User manually verified favorite id=6 can read/open report_uuid 6413ae9793384520ae0fb90dbe24930f"
+  - "/api/analyze succeeded end-to-end with P0/P2/P3 hard guard preserved"
+  - "Report detail opens after successful analyze"
+  - "Report-detail mini-program display UI polished without changing report data/scoring/POI/prompt/fact guard/accuracy logic"
+  - "Mini-program global UI first polish pass completed: clearer favorite button, traditional bottom tabbar, profile/cards/button states, records/favorites/profile visual polish"
+  - "Home compactAddress is display-only for top store-location label; full address remains in current-location area and original addressText/analyze payload must remain unchanged"
+  - "share_token report sharing exists"
+
+successful_report:
+  report_uuid: "6413ae9793384520ae0fb90dbe24930f"
+  analysis_record_id: 96
+  user_id: 46
+  favorite_id: 6
+  favorite_latest_report_uuid_written: true
+  location: "Shaanxi Baoji"
+  industry: "xiaochi kuaican"
+  brand_name: "shan er ya gan mian pi"
+  store_size: 50
+  member_tier: "yearly"
+  billing: "member analyze did not deduct points; no refund created for successful run"
+
+open_issues:
+  p0: []
+  p1:
+    - "WeChat Pay production credential setup and direct purchase flow"
+    - "Analyze 5-run same-input stability acceptance"
+  p2:
+    - "Final mini-program visual QA: bottom tabbar safe area, long text, empty/loading states, compact address display, and report-detail overlap checks"
+    - "Admin UI/IA cleanup and industry prompt participation audit"
+    - "P0-NAME artifact maintenance for future narrow false-positive filters"
+    - "HarmonyOS compatibility QA"
+    - "Draggable map pointer request, limited by WeChat map capabilities"
+
+hard_boundaries:
+  - "Do not push unless explicitly asked"
+  - "Do not leak AppID/AppSecret/tokens/API keys/AMap keys/security secrets/merchant keys/certs/PEM/private keys"
+  - "Do not process tmp_*"
+  - "Do not add /unlock-pdf or /download"
+  - "Do not implement PDF now"
+  - "Do not weaken P0/P2/P3 fact guard"
+  - "Do not turn real P0 into warning-save"
+  - "Do not modify scoring, POI classification, prompt semantics, report accuracy logic, or report_fact_guard unless explicitly authorized"
+  - "Do not modify frontend/ unless explicitly approved"
+
+next_priority:
+  - "Inspect git status first"
+  - "Final QA mini-program UI polish already done in uniapp/: report-detail, home, favorites, records, profile, traditional bottom tabbar"
+  - "Verify bottom tabbar safe-area spacing, long text, empty/loading states, and home compactAddress display on real device/DevTools"
+  - "Keep compactAddress display-only; do not change addressText/addressKeyword/analyze payload/favorites/map/regeocode"
+  - "Payment direct purchase after credentials are provided"
+  - "Admin IA/UI after explicit frontend approval"
 
 validation:
-  compileall: PASS
-  industry: "2168 PASS, 0 FAIL"
-  fact_guard: "147 PASS, 0 FAIL"
-  known_rule_gaps: "single successful /api/analyze confirmed; 5-run stability acceptance still pending"
-
-rc_active_state:
-  product_target: "uniapp WeChat Mini Program"
-  web_reference: "frontend/ is product master/reference; do not modify unless explicitly requested"
-  current_head: "523eeda fix: page white flash and favorites analyzed status"
-  not_pushed: true
-  pdf_policy: "PDF/download intentionally deferred; report sharing is the current replacement"
-  amap_config:
-    key_pool_primary: true
-    fallback_order:
-      - "enabled AMap Web service key pool"
-      - "legacy DB amap_key"
-      - "env AMAP_WEB_KEY / AMAP_KEY"
-    security_secret_used_for_sig: false
-    note: "security_secret is currently reserved and not sent; backend only sends key"
-  live_p0_issues:
-    - "Home reload still flashes white before recovering; latest color-only fix may be insufficient"
-    - "Map pointer currently appears as a plain red dot, not a professional location pin"
-    - "Favorite -> analyze previously produced Baoji header with Beijing body; 87dcf61 attempted lat/lng/favorite_id fix but needs real verification"
-    - "Favorite analyzed status was wrong due _empty_fav hard-coded false; 523eeda attempted fix and needs verification"
-    - "Analyze stability after valid AMap key and backend restart is not yet proven"
-  next_strategy:
-    - "First audit home first-frame layout and map state leftovers before more edits"
-    - "Replace red-dot crosshair with professional fixed center location pin, preferably cover-image static asset"
-    - "Verify favorite_id + address + lat/lng + report_uuid closed loop with a Baoji favorite"
-    - "Only run analyze 5x after backend restart and valid AMap Web service key"
-
-phase12_changes:
-  - "火锅_烧烤 sub_first fixed: removed 大排档/排档 from substitute, added 酒楼"
-  - "AB invariant: all masters/subtypes with amap_codes must explicitly req_kw=True"
-  - "categories_excluded added to 5 masters (烘焙/民宿/低频零售/专业生活/社区基础); 中餐 intentionally N/A"
-  - "_check_sentence tolerance narrowed: 3x -> max(e+3, e*2)"
-  - "Prohibited decision language detection added (7 patterns -> fact_errors)"
-  - "Single-point financial number detection added (-> fact_errors)"
-  - "Display chain verified: DB/HTML/frontend/API proxy consistent"
-
-intentionally_partial:
-  - "10 sample bank groups lack sufficient substitute samples (stable national definitions unavailable)"
-  - "radius fallback (1000m default) noted as future optimization"
-  - "Few masters still lack master-level sub_first (non-blocking)"
-
-real_report_validation:
-  db_analysis_records_total: 74
-  phase9_10_saved_reports: 37
-  direct_smoke_verification: 3
-  invalid_empty_poi_samples: 3
-  fact_errors_triggered: 12
-  retry_salvaged: 9
-  retry_failed: 1
-  actual_refunds: 2
-
-sample_bank:
-  complete_candidate: 12
-  partial: 10
-  latest_industry_test_total: "2168 PASS, 0 FAIL"
-
-next_step: "Phase 23O: read the problem audit and close uni-app Web-parity gaps/empty shells without touching report accuracy, payment, PDF, download, or frontend."
-
-boundaries:
-  no_push: true
-  no_frontend_ui_pdf: true
-  no_database_schema_changes: true
-  do_not_process_tmp_artifacts: true
-  no_more_forced_sample_completion: true
-  no_backend_changes_without_explicit_user_approval: true
-  no_report_accuracy_logic_changes: true
-  no_poi_rules_prompt_fact_guard_classification_changes: true
-
-phase23_uniapp:
-  product_direction: "uniapp is future main client; WeChat Mini Program first, later Douyin Mini Program and App"
-  web_master: "frontend/ remains product master/reference; do not modify unless explicitly requested"
-  global_principle: "ALL uni-app pages/logic/UI/copy/states must align with Web frontend/ as target. Different implementation allowed for mini-program constraints, but UX must converge. Before adding uni-app feature, FIRST inspect Web page/logic, THEN replicate."
-  alignment_priority:
-    - "1. Fix auto-suggest to match Web behavior"
-    - "2. Analyze flow parity with Web /api/analyze SSE"
-    - "3. Home UI parity with Web first screen"
-    - "4. Report-detail UI parity with Web report page"
-    - "5. Records / Favorites / Profile page-by-page"
-  native_miniprogram: "frozen for new feature work; keep only as WeChat login reference"
-  accepted_baseline: "a3cc115 chore: fix uni-app build dependencies with pinned alpha versions"
-  latest_uniapp_commit: "2ca94b1 style: tighten login buttons and avatar"
-  completed:
-    - "Web parity refinement across home/records/favorites/profile/result/report-detail"
-    - "uni.request API wrapper, token injection, normalizeError"
-    - "WeChat mini login shell via /api/auth/wechat/mini"
-    - "Profile, records, favorites, report-detail read-only API wiring"
-    - "Report-detail read-only report_json display"
-    - "Home pre-integration form validation and dynamic industry loading"
-    - "Phase 23F: home 生成中 copy removed; records/favorites 401 loading reset with finally"
-    - "Phase 23G: result page mock cleared to placeholder; all 6 pages state audited; routing/components verified"
-  verified_no_calls:
-    - "requestPayment"
-    - "/unlock-pdf"
-    - "/download"
-  validation:
-    build_mp_weixin: "PASS"
-    json_parse: "PASS for uniapp/package.json, uniapp/src/manifest.json, uniapp/src/pages.json"
-    secret_scan: "PASS in uniapp/src and config files"
-    copy_scan: "PASS: no misleading 生成中/扣点/支付/下载 PDF 报告/消耗 1 点 in uniapp/src"
-  current_status:
-    overall_progress: "about 95%"
-    phase23n1_address_autosuggest: "~98% - user-verified; diagnostic UI/state removed; auto-suggest fires without pressing search"
-    phase23n2_analyze_flow: "~45% - 401/402/SSE error/network unreachable verified or code-covered; SSE step 1-4 structure correct; success path env-blocked by LLM/AMap config; report_uuid fix applied (1be5a5d)"
-    phone_login: "external blocked - requires real mini-program AppID + phone verification capability + privacy config; bypass available via /api/auth/register curl + DevTools Storage manual token injection"
-    report_detail_web_alignment: "~60% - dimension text, POI lists, location metadata, metric badges, radar bars, duplicate module convergence, PDF/dead UI cleanup complete"
-    home_ui_web_alignment: "~75% - deep blue/purple Web-inspired visual system, gold accents, native nav color, logo, map, industry, CTA, trust row, and login entry polish complete"
-    records_favorites_profile_alignment: "~55-60% - first visual alignment complete; next close audit-driven functional gaps and empty-shell actions"
-    ui_web_alignment: "Next focus is no longer random polish. Read problem audit, inspect Web reference, then close uni-app parity gaps/empty shells while keeping visual system coherent."
-    deferred_by_boundary: "PDF export, /download, /unlock-pdf, requestPayment - blocked by current no-payment/PDF boundary"
-    external_blockers:
-      - "Phone login: real WeChat Mini Program AppID required"
-      - "Analyze success: LLM API Key + AMap Web Key must be configured in backend .env"
-    current_no_call_boundary: "No requestPayment, no /unlock-pdf, no /download."
-    latest_user_direction: "Formal launch target: all uni-app UI/logic/copy/states must align with Web frontend master."
-  audit_next_targets:
-    - "Remove or replace uni-app toast-only empty-shell actions; wire real features only when backend/Web support exists and boundary allows it."
-    - "Profile: stats click navigation, customer service QR, CDK path if real and payment-free; keep payment/recharge blocked."
-    - "Records: Web-style star score and map thumbnail/placeholder; do not add PDF/export/download."
-    - "Favorites: sorting and possibly batch manage if simple and real."
-    - "Phone/password login only after checking Web/backend flow and mini-program UX fit."
-  current_worktree_caveat:
-    - "Expected untracked: tmp_latest_report_text.txt, tmp_report_images/, tmp_report_pages/, miniprogram/pages/profile/profile.json, uniapp/project.config.json, uniapp/project.private.config.json."
-  next_step: "Phase 23O: read C:\\Users\\admin\\Desktop\\问题审计.txt, then close uni-app Web-parity gaps/empty shells without touching frontend, report accuracy, payment, PDF, or download."
+  backend_changed: "uv run python -m compileall backend"
+  uniapp_changed: "cd uniapp && npm run build:mp-weixin"
+  frontend_changed_with_permission: "cd frontend && npm run build"
+  required_scans:
+    - "JSON parse package/manifest/pages/dist app.json/project.config.json"
+    - "rg \"unlock-pdf|/download\" uniapp/src == 0"
+    - "rg \"moveToLocation|moveToMapLocation\" uniapp/src uniapp/dist/build/mp-weixin == 0"
+    - "rg \"switchTab\" uniapp/src uniapp/dist/build/mp-weixin == 0"
+    - "payment chain remains requestPayment/createPrepay/queryOrder"
+    - "share chain keeps share_token/onShareAppMessage"
+    - "developer/debug copy scan"
+    - "secret scan"
+    - "git status"

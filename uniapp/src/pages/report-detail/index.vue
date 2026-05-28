@@ -11,19 +11,25 @@
     </view>
 
     <!-- Content -->
-    <view v-if="!loading && !errorMsg">
+    <view class="report-shell" v-if="!loading && !errorMsg">
       <!-- Header -->
       <view class="header">
-        <text class="back" @tap="goBack">←</text>
+        <view class="header-nav">
+          <text class="back" @tap="goBack">←</text>
+          <text class="hd-pill">初筛参考</text>
+        </view>
         <view class="hd-text">
           <text class="hd-brand">址得选</text>
-          <text class="hd-title">分析报告</text>
+          <text class="hd-title">商业选址初筛报告</text>
+          <text class="hd-name">{{ recordTitle }}</text>
+          <text class="hd-sub" v-if="record.address">{{ record.address }}</text>
         </view>
       </view>
 
       <!-- ── 评分卡 ── -->
       <view class="score-card" v-if="rptScore > 0">
         <view class="sc-left">
+          <text class="score-title">综合评分</text>
           <view class="score-ring" :style="ringStyle">
             <view class="sr-inner">
               <text class="sr-num" :style="{ color: sc(scorePct) }">{{ scorePct }}</text>
@@ -33,13 +39,40 @@
         </view>
         <view class="sc-right">
           <text class="sc-verdict" :style="{ color: sc(scorePct) }">{{ scoreLevel }}</text>
-          <text class="sc-addr">📍 {{ record.address || '-' }}</text>
+          <text class="sc-caption">商业选址初筛参考</text>
+          <text class="sc-addr">{{ record.address || '-' }}</text>
           <view class="sc-tags">
             <text class="sct" v-if="record.business_type">{{ record.business_type }}</text>
             <text class="sct" v-if="record.brand_desc && record.brand_desc !== record.business_type">{{ record.brand_desc }}</text>
             <text class="sct" v-if="record.store_size > 0">{{ record.store_size }}㎡</text>
           </view>
           <text class="sc-time">{{ fmtTime(record.created_at) || '' }}</text>
+        </view>
+      </view>
+
+      <!-- ── 维度雷达 ── -->
+      <view class="section radar-card" v-if="rptDims.length">
+        <view class="radar-head">
+          <view class="radar-title-row">
+            <text class="radar-mark">📈</text>
+            <text class="radar-main">维度雷达</text>
+          </view>
+          <text class="radar-sub">从客流、竞争、消费力等维度做初筛参考</text>
+        </view>
+        <view class="radar-bars">
+          <view class="rb-row" v-for="d in radarDims" :key="d.key">
+            <text class="rb-label">{{ d.label }}</text>
+            <view class="rb-track">
+              <view class="rb-fill" :style="{ width: d.value + '%', background: sc(d.value) }" />
+            </view>
+            <text class="rb-val" :style="{ color: sc(d.value) }">{{ d.value }}</text>
+          </view>
+        </view>
+        <view class="dim-compact" v-if="extraDims.length">
+          <view class="dc-chip" v-for="d in extraDims" :key="d.key" :style="{ borderColor: sc(d.value) }">
+            <text class="dc-chip-label">{{ d.label || d.key }}</text>
+            <text class="dc-chip-val" :style="{ color: sc(d.value) }">{{ d.value }}</text>
+          </view>
         </view>
       </view>
 
@@ -55,7 +88,7 @@
 
       <!-- ── 分析摘要 ── -->
       <view class="section" v-if="rptSummary">
-        <view class="sec-title">分析摘要</view>
+        <view class="sec-title">🧭 分析摘要</view>
         <text class="sec-text">{{ rptSummary }}</text>
       </view>
 
@@ -73,30 +106,9 @@
         </view>
       </view>
 
-      <!-- ── 指标雷达评分 + 维度概览（合并模块，消除重复）── -->
-      <view class="section" v-if="rptDims.length">
-        <view class="sec-title">指标雷达评分</view>
-        <view class="radar-bars">
-          <view class="rb-row" v-for="d in radarDims" :key="d.key">
-            <text class="rb-label">{{ d.label }}</text>
-            <view class="rb-track">
-              <view class="rb-fill" :style="{ width: d.value + '%', background: sc(d.value) }" />
-            </view>
-            <text class="rb-val" :style="{ color: sc(d.value) }">{{ d.value }}</text>
-          </view>
-        </view>
-        <!-- 额外维度 (compact chips for non-radar dims) -->
-        <view class="dim-compact" v-if="extraDims.length">
-          <view class="dc-chip" v-for="d in extraDims" :key="d.key" :style="{ borderColor: sc(d.value) }">
-            <text class="dc-chip-label">{{ d.label || d.key }}</text>
-            <text class="dc-chip-val" :style="{ color: sc(d.value) }">{{ d.value }}</text>
-          </view>
-        </view>
-      </view>
-
       <!-- ── 竞争环境 ── -->
       <view class="section" v-if="hasCompetition || rptDirList.length">
-        <view class="sec-title">竞争环境</view>
+        <view class="sec-title">🏪 竞争环境</view>
         <view class="comp-cols" v-if="hasCompetition">
           <view class="cc-item"><text class="cc-num" style="color:#dc2626">{{ rptDir200 }}</text><text class="cc-label">200m</text></view>
           <view class="cc-item"><text class="cc-num" style="color:#dc2626">{{ rptDir500 }}</text><text class="cc-label">500m</text></view>
@@ -118,9 +130,10 @@
 
       <!-- ── 周边数据 ── -->
       <view class="section" v-if="hasStats">
-        <view class="sec-title">周边数据（200m / 500m / 1km）</view>
+        <view class="sec-title">📊 周边数据（200m / 500m / 1km）</view>
         <view class="stats-grid">
           <view class="sg" v-for="m in rptStats" :key="m.key" :class="m.highlight || ''">
+            <text class="sg-icon">{{ statIcon(m.key) }}</text>
             <text class="sg-label">{{ m.label }}</text>
             <text class="sg-val" v-if="m.total !== undefined">{{ m.total }}</text>
             <text class="sg-val" v-else>{{ m.s200 === '' ? '-' : m.s200 }} / {{ m.s500 === '' ? '-' : m.s500 }} / {{ m.s1000 === '' ? '-' : m.s1000 }}</text>
@@ -130,7 +143,7 @@
 
       <!-- ── 位置范围 ── -->
       <view class="section" v-if="rptCity || rptDistrict || rptTownship">
-        <view class="sec-title">位置范围</view>
+        <view class="sec-title">📍 位置范围</view>
         <view class="loc-row"><text>{{ [rptCity, rptDistrict, rptTownship].filter(Boolean).join(' · ') || '-' }}</text></view>
         <view class="loc-sub" v-if="rptBizAreas">商圈：{{ rptBizAreas }}</view>
         <view class="loc-sub" v-if="rptRoads">周边道路：{{ rptRoads }}</view>
@@ -138,7 +151,7 @@
 
       <!-- ── 周边业态明细（核心 10 类默认展示，其余折叠）── -->
       <view class="section" v-if="rptPoiCats.length">
-        <view class="sec-title">周边业态明细</view>
+        <view class="sec-title">🧾 周边业态明细</view>
         <view class="poi-cat" v-for="cat in visiblePoiCats" :key="cat.key">
           <view class="poi-cat-head">
             <text class="poi-cat-label">{{ cat.label }}</text>
@@ -154,7 +167,7 @@
 
       <!-- ── 各维度详细分析 ── -->
       <view class="section" v-if="rptDetailTexts.length">
-        <view class="sec-title">各维度详细分析</view>
+        <view class="sec-title">🔎 各维度详细分析</view>
         <view class="dt-item" v-for="d in rptDetailTexts" :key="d.key">
           <view class="dt-head">
             <text class="dt-label">{{ d.label }}</text>
@@ -166,7 +179,7 @@
 
       <!-- ── 连锁品牌 ── -->
       <view class="section" v-if="rptBrands.length">
-        <view class="sec-title">周边连锁品牌</view>
+        <view class="sec-title">🏷️ 周边连锁品牌</view>
         <view class="brands">
           <text class="brand" v-for="b in rptBrands" :key="b.name">{{ b.name }} <text class="brand-count">×{{ b.count }}</text></text>
         </view>
@@ -174,7 +187,7 @@
 
       <!-- ── 严谨度 / 数据质量 ── -->
       <view class="section" v-if="rptIrr > 0 || rptQual.length">
-        <view class="sec-title">数据质量</view>
+        <view class="sec-title">🛡️ 数据质量</view>
         <text class="ql" v-if="rptIrr > 0">严谨度规则剔除 {{ rptIrr }} 个无关 POI</text>
         <text class="ql" v-for="(q,i) in rptQual" :key="'q'+i">{{ q }}</text>
         <view class="item-sm" v-for="(n,i) in rptIrrList" :key="'irr'+i">{{ n }}</view>
@@ -313,6 +326,23 @@ export default {
   },
   methods: {
     sc: scoreColor, fmtTime: formatTime,
+    statIcon (key) {
+      const map = {
+        residential: '🏘️',
+        office: '🏢',
+        restaurants: '🍜',
+        cafe_tea: '☕',
+        shopping: '🛍️',
+        schools: '🎓',
+        hospitals: '🏥',
+        subway: '🚇',
+        bus: '🚌',
+        hotels: '🏨',
+        banks: '🏦',
+        parking: '🅿️'
+      }
+      return map[key] || '•'
+    },
     goBack () { uni.navigateBack({ delta: 1 }).catch(() => uni.reLaunch({ url: '/pages/home/index?tab=records' })) },
     goToHome () { uni.reLaunch({ url: '/pages/home/index' }) },
     _prefetchShareToken (uuid) {
@@ -543,128 +573,127 @@ export default {
 </script>
 
 <style scoped>
-.detail-page { min-height:100vh; background:#eef3f9; padding-bottom:140rpx; }
-.loading { text-align:center; padding:120rpx 0; } .ld-dots { font-size:60rpx; letter-spacing:12rpx; color:#94a3b8; } .ld-text { display:block; font-size:26rpx; color:#94a3b8; margin-top:16rpx; }
-.error { text-align:center; padding:120rpx 32rpx; } .err-icon { font-size:80rpx; display:block; } .err-text { font-size:28rpx; color:#64748b; display:block; margin:16rpx 0; } .err-btn { margin-top:20rpx; background:#f1f5f9; color:#475569; border-radius:14rpx; padding:16rpx 40rpx; font-size:28rpx; }
-/* ── Header ── */
-.header { padding:40rpx 28rpx 22rpx; background:linear-gradient(180deg,#0b3fbd,#151f8f); position:relative; overflow:hidden; }
-.header::before { content:''; position:absolute; right:-40rpx; top:-60rpx; width:200rpx; height:200rpx; border-radius:50%; background:rgba(255,255,255,0.06); }
-.hd-brand { display:block; font-size:22rpx; color:rgba(255,255,255,0.68); letter-spacing:6rpx; }
-.hd-title { display:block; font-size:38rpx; font-weight:900; color:#fff; margin-top:4rpx; }
-.back { font-size:28rpx; color:rgba(255,255,255,0.85); margin-bottom:12rpx; display:inline-block; }
+.detail-page { min-height:100vh; background:#e9edf5; padding-bottom:128rpx; }
+.report-shell { padding-bottom:24rpx; }
+.loading { text-align:center; padding:120rpx 0; }
+.ld-dots { font-size:60rpx; letter-spacing:12rpx; color:#94a3b8; }
+.ld-text { display:block; font-size:26rpx; color:#94a3b8; margin-top:16rpx; }
+.error { text-align:center; padding:120rpx 32rpx; }
+.err-icon { font-size:80rpx; display:block; }
+.err-text { font-size:28rpx; color:#64748b; display:block; margin:16rpx 0; }
+.err-btn { margin-top:20rpx; background:#f1f5f9; color:#475569; border-radius:16rpx; padding:16rpx 40rpx; font-size:28rpx; }
+.err-btn::after, .bb-back::after, .share-cta-btn::after { border:none; }
+
+.header { margin:0 0 20rpx; padding:34rpx 28rpx 38rpx; background:linear-gradient(180deg,#0b3fbd 0%,#1236a3 58%,#172554 100%); position:relative; overflow:hidden; }
+.header::before { content:''; position:absolute; left:26rpx; right:26rpx; bottom:-72rpx; height:120rpx; border-radius:24rpx; background:rgba(255,255,255,0.08); transform:skewY(-4deg); }
+.header-nav { position:relative; z-index:1; display:flex; align-items:center; justify-content:space-between; margin-bottom:34rpx; }
+.back { width:64rpx; height:64rpx; border-radius:16rpx; background:rgba(255,255,255,0.14); color:#fff; font-size:40rpx; font-weight:800; line-height:60rpx; text-align:center; display:block; }
+.hd-pill { height:48rpx; line-height:48rpx; padding:0 20rpx; border-radius:999rpx; background:rgba(255,255,255,0.14); border:1rpx solid rgba(255,255,255,0.26); color:#eaf0ff; font-size:22rpx; font-weight:700; }
 .hd-text { position:relative; z-index:1; }
+.hd-brand { display:block; font-size:22rpx; color:rgba(255,255,255,0.68); letter-spacing:6rpx; }
+.hd-title { display:block; font-size:42rpx; font-weight:900; color:#fff; margin-top:8rpx; line-height:1.18; }
+.hd-name { display:block; font-size:28rpx; font-weight:800; color:#f7d77b; margin-top:16rpx; line-height:1.35; word-break:break-all; }
+.hd-sub { display:block; font-size:24rpx; color:rgba(232,240,255,0.82); margin-top:8rpx; line-height:1.55; word-break:break-all; }
 
-/* ── Score card ── */
-.score-card { background:#fff; margin:-36rpx 24rpx 0; border-radius:20rpx; padding:32rpx; box-shadow:0 8rpx 30rpx rgba(0,0,0,0.08); display:flex; align-items:center; position:relative; z-index:2; }
-.sc-left { flex-shrink:0; margin-right:28rpx; }
-.sc-right { flex:1; }
-.sc-verdict { font-size:28rpx; font-weight:800; display:block; margin-bottom:6rpx; }
-.sc-addr { font-size:24rpx; color:#475569; display:block; margin-bottom:8rpx; }
-.sc-tags { display:flex; flex-wrap:wrap; gap:8rpx; margin-bottom:6rpx; }
-.sct { font-size:20rpx; background:#f1f5f9; color:#475569; border-radius:8rpx; padding:4rpx 12rpx; }
-.sc-time { font-size:20rpx; color:#94a3b8; }
-.score-ring { width:120rpx; height:120rpx; border-radius:50%; display:flex; align-items:center; justify-content:center; }
-.sr-inner { width:94rpx; height:94rpx; border-radius:50%; background:#fff; display:flex; flex-direction:column; align-items:center; justify-content:center; }
-.sr-num { font-size:36rpx; font-weight:900; line-height:1.1; }
-.sr-unit { font-size:18rpx; font-weight:500; color:#94a3b8; }
+.score-card { background:#fff; margin:0 24rpx 20rpx; border-radius:16rpx; padding:30rpx; box-shadow:0 18rpx 42rpx rgba(36,70,128,0.10); border:1rpx solid rgba(213,224,246,0.95); display:flex; align-items:center; }
+.sc-left { flex-shrink:0; width:154rpx; margin-right:30rpx; display:flex; flex-direction:column; align-items:center; }
+.sc-right { flex:1; min-width:0; }
+.score-title { display:block; width:150rpx; height:34rpx; line-height:34rpx; margin:0 0 12rpx; color:#17244e; font-size:24rpx; font-weight:900; text-align:center; }
+.score-ring { width:150rpx; height:150rpx; border-radius:50%; display:flex; align-items:center; justify-content:center; }
+.sr-inner { width:112rpx; height:112rpx; border-radius:50%; background:#fff; display:flex; flex-direction:column; align-items:center; justify-content:center; box-shadow:inset 0 0 0 1rpx #edf2f7; }
+.sr-num { font-size:42rpx; font-weight:900; line-height:1.02; }
+.sr-unit { font-size:18rpx; font-weight:700; color:#8b99b6; line-height:1; margin-top:3rpx; }
+.sc-verdict { font-size:30rpx; font-weight:900; display:block; line-height:1.2; }
+.sc-caption { font-size:22rpx; color:#8b99b6; display:block; margin:2rpx 0 12rpx; }
+.sc-addr { font-size:24rpx; color:#4b5872; display:block; margin-bottom:14rpx; line-height:1.55; word-break:break-all; }
+.sc-tags { display:flex; flex-wrap:wrap; gap:8rpx; margin-bottom:10rpx; }
+.sct { font-size:21rpx; font-weight:700; background:#f3f7ff; color:#315bff; border:1rpx solid rgba(49,91,255,0.14); border-radius:999rpx; padding:6rpx 14rpx; }
+.sc-time { font-size:21rpx; color:#9aa6bd; }
 
-/* ── Old top-bar (removed) ── */
-.top-bar { display:flex; align-items:center; padding:20rpx 24rpx; background:#fff; border-bottom:1rpx solid #e2e8f0; }
-.result-card { display:none; } .rc-meta { display:none; } .rc-row { display:none; } .rc-label { display:none; } .rc-val { display:none; }
-.ms-label { display:none; }
-.dual-section { display:none; } .ds-half { display:none; } .ds-title { display:none; }
-.back { font-size:36rpx; color:#475569; padding-right:16rpx; } .top-title { flex:1; font-size:30rpx; font-weight:700; color:#1e293b; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.section, .content-box { background:rgba(255,255,255,0.96); margin:18rpx 24rpx 0; border-radius:16rpx; padding:28rpx; box-shadow:0 12rpx 30rpx rgba(61,88,135,0.07); border:1rpx solid rgba(213,224,246,0.86); }
+.sec-title { font-size:28rpx; font-weight:900; color:#17244e; margin-bottom:18rpx; line-height:1.25; }
+.sec-title::before { content:''; display:inline-block; width:8rpx; height:24rpx; border-radius:6rpx; background:#315bff; margin-right:12rpx; vertical-align:-3rpx; }
+.sec-green { color:#047857; }
+.sec-green::before { background:#16a34a; }
+.sec-red { color:#b91c1c; }
+.sec-red::before { background:#ef4444; }
+.sec-text, .item, .dt-text, .ql, .cb-text { font-size:26rpx; color:#4b5872; line-height:1.75; word-break:break-all; }
+.item { padding:8rpx 0; }
+.item-sm { font-size:24rpx; color:#64748b; padding:6rpx 0; line-height:1.55; word-break:break-all; }
+.more-hint { font-size:22rpx; color:#8b99b6; display:block; margin-top:8rpx; line-height:1.5; }
 
-/* ── 核心结果卡 ── */
-.result-card { background:#fff; margin:20rpx 24rpx; border-radius:20rpx; padding:28rpx; box-shadow:0 2rpx 16rpx rgba(0,0,0,0.04); display:flex; }
-.rc-meta { flex:1; } .rc-row { padding:8rpx 0; display:flex; } .rc-label { width:80rpx; font-size:24rpx; color:#94a3b8; flex-shrink:0; } .rc-val { font-size:26rpx; color:#1e293b; font-weight:500; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-.rc-score { text-align:center; flex-shrink:0; margin-left:16rpx; }
-.score-ring { width:140rpx; height:140rpx; border-radius:50%; display:flex; align-items:center; justify-content:center; margin:0 auto 8rpx; }
-.sr-inner { width:110rpx; height:110rpx; border-radius:50%; background:#fff; display:flex; flex-direction:column; align-items:center; justify-content:center; }
-.sr-num { font-size:40rpx; font-weight:900; line-height:1.1; }
-.sr-level { font-size:20rpx; font-weight:600; margin-top:2rpx; }
-.ms-label { display:block; font-size:22rpx; color:#94a3b8; }
+.disc { background:#fff9e6; border:1rpx solid #f3d38a; border-radius:16rpx; padding:22rpx 24rpx; margin:18rpx 24rpx 0; font-size:24rpx; line-height:1.65; color:#8a5a12; box-shadow:0 10rpx 24rpx rgba(141,96,18,0.05); }
+.warn { background:#fff1f2; border:1rpx solid #fecdd3; border-radius:16rpx; padding:22rpx 24rpx; margin:18rpx 24rpx 0; font-size:24rpx; line-height:1.65; color:#be123c; }
+.warn-bold { font-weight:900; }
+.cb-title { font-size:30rpx; font-weight:900; color:#17244e; display:block; margin-bottom:10rpx; }
 
-/* ── 通用 section ── */
-.section { background:#fff; margin:16rpx 24rpx 0; border-radius:16rpx; padding:24rpx; box-shadow:0 1rpx 12rpx rgba(0,0,0,0.03); }
-.sec-title { font-size:26rpx; font-weight:700; color:#1e293b; margin-bottom:16rpx; }
-.sec-green { color:#047857; } .sec-red { color:#b91c1c; }
-.sec-text { font-size:26rpx; color:#475569; line-height:1.7; }
-.item { font-size:26rpx; color:#475569; line-height:1.8; padding-left:4rpx; }
-.item-sm { font-size:24rpx; color:#475569; padding:4rpx 0; }
-.more-hint { font-size:22rpx; color:#94a3b8; display:block; margin-top:4rpx; }
+.adv-item { display:flex; padding:18rpx 0; border-bottom:1rpx solid #edf2f7; }
+.adv-item:last-child { border-bottom:0; padding-bottom:2rpx; }
+.adv-num { width:44rpx; height:44rpx; border-radius:14rpx; background:#dcfce7; color:#047857; font-size:22rpx; font-weight:900; line-height:44rpx; text-align:center; flex-shrink:0; margin-right:16rpx; }
+.adv-num.risk { background:#fff1f2; color:#be123c; }
+.adv-text { font-size:25rpx; color:#344256; line-height:1.7; flex:1; word-break:break-all; }
 
-/* ── Advantage/Risk list items ── */
-.adv-item { display:flex; padding:12rpx 0; border-bottom:1rpx solid #f1f5f9; }
-.adv-item:last-child { border-bottom:0; }
-.adv-num { width:44rpx; height:44rpx; border-radius:10rpx; background:#dcfce7; color:#047857; font-size:22rpx; font-weight:800; display:flex; align-items:center; justify-content:center; flex-shrink:0; margin-right:14rpx; }
-.adv-num.risk { background:#fef2f2; color:#b91c1c; }
-.adv-text { font-size:25rpx; color:#334155; line-height:1.65; flex:1; }
+.radar-card { background:linear-gradient(180deg,#ffffff,#f8fbff); }
+.radar-head { margin-bottom:12rpx; }
+.radar-title-row { display:flex; align-items:center; margin-bottom:8rpx; }
+.radar-mark { width:42rpx; height:42rpx; line-height:42rpx; border-radius:12rpx; background:#eef4ff; text-align:center; font-size:24rpx; margin-right:12rpx; }
+.radar-main { color:#17244e; font-size:30rpx; font-weight:900; line-height:1.25; }
+.radar-sub { display:block; padding-left:54rpx; font-size:23rpx; color:#8b99b6; line-height:1.5; }
+.radar-bars { padding:8rpx 0 2rpx; }
+.rb-row { display:flex; align-items:center; padding:14rpx 0; }
+.rb-label { width:158rpx; font-size:24rpx; color:#4b5872; flex-shrink:0; line-height:1.3; }
+.rb-track { flex:1; height:16rpx; background:#e5ebf4; border-radius:10rpx; overflow:hidden; margin:0 16rpx; box-shadow:inset 0 1rpx 2rpx rgba(23,36,78,0.05); }
+.rb-fill { height:100%; border-radius:10rpx; min-width:4rpx; transition:width 0.3s; }
+.rb-val { width:52rpx; font-size:24rpx; font-weight:900; text-align:right; flex-shrink:0; }
+.dim-compact { display:flex; flex-wrap:wrap; gap:10rpx; margin-top:20rpx; padding-top:18rpx; border-top:1rpx solid #edf2f7; }
+.dc-chip { display:flex; align-items:center; padding:9rpx 14rpx; border-radius:14rpx; border:2rpx solid #e2e8f0; background:#f8fafc; }
+.dc-chip-label { font-size:22rpx; color:#4b5872; margin-right:8rpx; }
+.dc-chip-val { font-size:24rpx; font-weight:900; }
 
-/* ── disc / warn ── */
-.disc { background:#fefce8; border:1rpx solid #fde68a; border-radius:14rpx; padding:18rpx; margin:16rpx 24rpx 0; font-size:24rpx; color:#92400e; }
-.warn { background:#fef2f2; border:1rpx solid #fecaca; border-radius:14rpx; padding:18rpx; margin:16rpx 24rpx 0; font-size:24rpx; color:#dc2626; } .warn-bold { font-weight:700; }
-.content-box { background:#fff; margin:20rpx 24rpx 0; border-radius:16rpx; padding:28rpx; } .cb-title { font-size:28rpx; font-weight:700; color:#1e293b; display:block; margin-bottom:8rpx; } .cb-text { font-size:26rpx; color:#64748b; line-height:1.6; }
+.comp-cols { display:flex; gap:14rpx; margin-bottom:18rpx; }
+.cc-item { flex:1; text-align:center; padding:18rpx 8rpx; background:#f8fafc; border-radius:16rpx; border:1rpx solid #edf2f7; }
+.cc-num { display:block; font-size:38rpx; font-weight:900; line-height:1.05; }
+.cc-label { font-size:22rpx; color:#8b99b6; margin-top:6rpx; display:block; }
+.comp-list { display:flex; flex-wrap:wrap; gap:10rpx; margin-top:12rpx; }
+.cl-item { font-size:23rpx; color:#4b5872; background:#f3f7ff; padding:8rpx 14rpx; border-radius:999rpx; border:1rpx solid rgba(49,91,255,0.12); max-width:100%; word-break:break-all; }
+.comp-sub { margin-top:16rpx; padding-top:16rpx; border-top:1rpx solid #edf2f7; font-size:24rpx; color:#64748b; line-height:1.6; }
+.cs-label { font-weight:900; color:#344256; }
 
-/* ── 优势/风险 双栏 ── */
-.dual-section { display:flex; gap:12rpx; margin:16rpx 24rpx 0; }
-.ds-half { flex:1; background:#fff; border-radius:16rpx; padding:24rpx; box-shadow:0 1rpx 12rpx rgba(0,0,0,0.03); }
-.ds-title { font-size:26rpx; font-weight:700; margin-bottom:12rpx; } .ds-title.green { color:#047857; } .ds-title.red { color:#b91c1c; }
+.stats-grid { display:flex; flex-wrap:wrap; gap:12rpx; }
+.sg { width:calc(33.333% - 8rpx); min-height:142rpx; text-align:center; padding:16rpx 8rpx 18rpx; box-sizing:border-box; border-radius:18rpx; background:linear-gradient(180deg,#fbfdff,#f4f7fc); border:1rpx solid #dde7f3; box-shadow:0 8rpx 18rpx rgba(40,76,130,0.05); display:flex; flex-direction:column; align-items:center; justify-content:center; }
+.sg-icon { width:46rpx; height:46rpx; line-height:46rpx; border-radius:14rpx; background:#fff; box-shadow:0 6rpx 16rpx rgba(40,76,130,0.07); font-size:26rpx; display:block; margin-bottom:8rpx; }
+.sg-label { font-size:22rpx; color:#7a879e; display:block; line-height:1.35; }
+.sg-val { font-size:27rpx; font-weight:900; color:#17244e; display:block; margin-top:8rpx; line-height:1.22; word-break:break-all; }
+.sg.high .sg-val { color:#dc2626; }
+.sg.good .sg-val { color:#16a34a; }
+.sg.info .sg-val { color:#2563eb; }
+.sg.high { background:linear-gradient(180deg,#fffafa,#fff1f2); border-color:#fecdd3; }
+.sg.good { background:linear-gradient(180deg,#fbfffd,#ecfdf5); border-color:#bbf7d0; }
+.sg.info { background:linear-gradient(180deg,#fbfdff,#eff6ff); border-color:#bfdbfe; }
 
-/* ── 指标雷达评分 ── */
-.radar-bars { padding:4rpx 0; }
-.rb-row { display:flex; align-items:center; padding:10rpx 0; }
-.rb-label { width:130rpx; font-size:24rpx; color:#475569; flex-shrink:0; }
-.rb-track { flex:1; height:12rpx; background:#e2e8f0; border-radius:6rpx; overflow:hidden; margin:0 16rpx; }
-.rb-fill { height:100%; border-radius:6rpx; min-width:4rpx; transition:width 0.3s; }
-.rb-val { width:48rpx; font-size:24rpx; font-weight:700; text-align:right; flex-shrink:0; }
+.loc-row { font-size:26rpx; color:#344256; line-height:1.65; word-break:break-all; }
+.loc-sub { font-size:24rpx; color:#64748b; margin-top:10rpx; line-height:1.6; word-break:break-all; }
+.poi-cat { padding:18rpx 0; border-bottom:1rpx solid #edf2f7; }
+.poi-cat:last-child { border-bottom:0; padding-bottom:2rpx; }
+.poi-cat-head { display:flex; justify-content:space-between; align-items:center; margin-bottom:8rpx; gap:16rpx; }
+.poi-cat-label { font-size:25rpx; font-weight:900; color:#17244e; flex:1; }
+.poi-cat-count { font-size:22rpx; color:#315bff; background:#eef4ff; padding:4rpx 14rpx; border-radius:999rpx; font-weight:900; }
+.poi-cat-names { font-size:23rpx; color:#64748b; line-height:1.65; display:block; word-break:break-all; }
+.poi-toggle { text-align:center; padding:18rpx 0 2rpx; font-size:25rpx; font-weight:900; color:#315bff; }
 
-/* ── 维度紧凑芯片 ── */
-.dim-compact { display:flex; flex-wrap:wrap; gap:10rpx; margin-top:20rpx; padding-top:16rpx; border-top:1rpx solid #f1f5f9; }
-.dc-chip { display:flex; align-items:center; padding:8rpx 14rpx; border-radius:10rpx; border:2rpx solid #e2e8f0; background:#f8fafc; }
-.dc-chip-label { font-size:22rpx; color:#475569; margin-right:8rpx; }
-.dc-chip-val { font-size:24rpx; font-weight:700; }
+.dt-item { padding:20rpx 0; border-bottom:1rpx solid #edf2f7; }
+.dt-item:last-child { border-bottom:0; padding-bottom:2rpx; }
+.dt-head { display:flex; align-items:center; margin-bottom:10rpx; gap:16rpx; }
+.dt-label { font-size:26rpx; font-weight:900; color:#17244e; flex:1; line-height:1.35; }
+.dt-score { font-size:24rpx; font-weight:900; flex-shrink:0; }
+.brands { display:flex; flex-wrap:wrap; gap:10rpx; }
+.brand { font-size:24rpx; padding:9rpx 16rpx; background:#f3f7ff; border-radius:999rpx; color:#344256; border:1rpx solid rgba(49,91,255,0.12); max-width:100%; word-break:break-all; }
+.brand-count { color:#8b99b6; }
+.ql { display:block; padding:6rpx 0; }
 
-/* ── 竞争环境 ── */
-.comp-cols { display:flex; gap:20rpx; margin-bottom:12rpx; }
-.cc-item { text-align:center; } .cc-num { display:block; font-size:36rpx; font-weight:800; } .cc-label { font-size:22rpx; color:#94a3b8; }
-.comp-list { display:flex; flex-wrap:wrap; gap:8rpx; margin-top:12rpx; }
-.cl-item { font-size:24rpx; color:#475569; background:#f1f5f9; padding:6rpx 14rpx; border-radius:10rpx; }
-.comp-sub { margin-top:14rpx; padding-top:12rpx; border-top:1rpx solid #f1f5f9; font-size:24rpx; color:#64748b; } .cs-label { font-weight:600; color:#475569; }
-
-/* ── 周边数据 ── */
-.stats-grid { display:flex; flex-wrap:wrap; } .sg { width:33.3%; text-align:center; padding:12rpx 4rpx; box-sizing:border-box; } .sg-label { font-size:22rpx; color:#64748b; display:block; } .sg-val { font-size:24rpx; font-weight:700; color:#1e293b; display:block; }
-.sg.high .sg-val { color:#dc2626; } .sg.good .sg-val { color:#16a34a; } .sg.info .sg-val { color:#2563eb; }
-
-/* ── 位置 ── */
-.loc-row { font-size:26rpx; color:#475569; } .loc-sub { font-size:24rpx; color:#64748b; margin-top:6rpx; }
-
-/* ── POI 类别 ── */
-.poi-cat { padding:14rpx 0; border-bottom:1rpx solid #f1f5f9; } .poi-cat:last-child { border-bottom:0; }
-.poi-cat-head { display:flex; justify-content:space-between; align-items:center; margin-bottom:6rpx; }
-.poi-cat-label { font-size:25rpx; font-weight:600; color:#1e293b; }
-.poi-cat-count { font-size:22rpx; color:#94a3b8; background:#f1f5f9; padding:2rpx 12rpx; border-radius:10rpx; }
-.poi-cat-names { font-size:22rpx; color:#64748b; line-height:1.6; display:block; }
-.poi-toggle { text-align:center; padding:16rpx 0 4rpx; font-size:24rpx; color:#246bff; }
-
-/* ── 维度详细分析 ── */
-.dt-item { padding:18rpx 0; border-bottom:1rpx solid #f1f5f9; } .dt-item:last-child { border-bottom:0; }
-.dt-head { display:flex; align-items:center; margin-bottom:8rpx; }
-.dt-label { font-size:26rpx; font-weight:600; color:#1e293b; flex:1; }
-.dt-score { font-size:24rpx; font-weight:700; }
-.dt-text { font-size:24rpx; color:#475569; line-height:1.7; }
-
-/* ── 品牌 / 数据质量 ── */
-.brands { display:flex; flex-wrap:wrap; gap:10rpx; } .brand { font-size:24rpx; padding:8rpx 16rpx; background:#f1f5f9; border-radius:12rpx; color:#334155; } .brand-count { color:#94a3b8; }
-.ql { font-size:24rpx; color:#64748b; display:block; padding:6rpx 0; }
-
-/* ── bottom bar ── */
-.bottom-bar { margin-top:24rpx; padding:20rpx 24rpx; display:flex; }
-.bb-back { flex:1; background:#f1f5f9; color:#475569; border-radius:14rpx; font-size:28rpx; padding:20rpx 0; }
-
-/* ── Share CTA ── */
-.share-cta { margin:32rpx 24rpx 40rpx; background:linear-gradient(135deg,#0b3fbd,#151f8f); border-radius:18rpx; padding:32rpx 24rpx; text-align:center; box-shadow:0 18rpx 38rpx rgba(21,31,143,0.28); }
-.share-cta-title { display:block; color:rgba(255,255,255,0.86); font-size:26rpx; margin-bottom:20rpx; }
-.share-cta-btn { width:100%; background:#fff; color:#0b3fbd; border-radius:14rpx; font-size:30rpx; font-weight:700; padding:20rpx 0; }
-.share-cta-btn::after { border:none; }
+.bottom-bar { margin-top:26rpx; padding:18rpx 24rpx; display:flex; }
+.bb-back { flex:1; background:#172554; color:#fff; border-radius:16rpx; font-size:28rpx; font-weight:900; padding:20rpx 0; box-shadow:0 12rpx 26rpx rgba(23,37,84,0.16); }
+.share-cta { margin:28rpx 24rpx 40rpx; background:linear-gradient(135deg,#172554,#0b3fbd); border-radius:16rpx; padding:32rpx 24rpx; text-align:center; box-shadow:0 18rpx 38rpx rgba(21,31,143,0.18); }
+.share-cta-title { display:block; color:rgba(255,255,255,0.88); font-size:26rpx; margin-bottom:20rpx; }
+.share-cta-btn { width:100%; background:#fff; color:#0b3fbd; border-radius:16rpx; font-size:30rpx; font-weight:900; padding:20rpx 0; }
 </style>

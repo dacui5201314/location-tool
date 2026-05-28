@@ -60,9 +60,9 @@
           <view class="card-time">{{ f.is_analyzed ? '分析时间' : '收藏时间' }}：{{ fmtTime(f.created_at) }}</view>
         </view>
         <view class="card-actions">
-          <button v-if="f.is_analyzed && f.report_uuid" class="act" @tap="onViewReport(f)">▤ 查看报告</button>
+          <button v-if="f.is_analyzed && f.report_uuid" class="act report" @tap="onViewReport(f)">查看报告</button>
           <button v-else-if="f.is_analyzed && !f.report_uuid" class="act" disabled>报告编号缺失</button>
-          <button v-else class="act primary" @tap="onAnalyze(f)">✎ 评估赚钱潜力</button>
+          <button v-else class="act primary" @tap="onAnalyze(f)">开始分析</button>
           <button class="act danger" @tap="onRemove(f)">删除地址</button>
         </view>
       </view>
@@ -227,7 +227,7 @@ export default {
 </script>
 
 <style scoped>
-.fp-panel { min-height:100vh; background:linear-gradient(180deg,#dce4f2,#e0e8f6 42%,#dce4f2); padding:0 24rpx 60rpx; }
+.fp-panel { min-height:100vh; background:linear-gradient(180deg,#dce4f2,#e0e8f6 42%,#dce4f2); padding:0 24rpx calc(150rpx + env(safe-area-inset-bottom)); }
 .header { margin:0 -24rpx 22rpx; padding:62rpx 48rpx 82rpx; background:radial-gradient(circle at 78% 32%,rgba(83,137,255,0.42),transparent 24%),radial-gradient(circle at 66% 60%,rgba(139,92,246,0.22),transparent 26%),radial-gradient(circle at 58% 58%,rgba(248,200,97,0.10),transparent 22%),linear-gradient(180deg,#0b3fbd 0%,#0d35ad 28%,#151f8f 68%,#241b83 100%); position:relative; overflow:hidden; }
 .header::before { content:''; position:absolute; left:-120rpx; top:-150rpx; width:660rpx; height:320rpx; border-radius:0 0 56% 56%; background:linear-gradient(180deg,rgba(255,255,255,0.16),rgba(255,255,255,0.02)); transform:rotate(8deg); }
 .header::after { content:''; position:absolute; right:56rpx; bottom:0; width:38rpx; height:154rpx; border-radius:9rpx 9rpx 0 0; background:linear-gradient(180deg,rgba(219,234,254,0.56),rgba(37,99,235,0.08)); box-shadow:-54rpx 30rpx 0 rgba(191,219,254,0.34),-108rpx 66rpx 0 rgba(191,219,254,0.24),54rpx 20rpx 0 rgba(191,219,254,0.28),106rpx 54rpx 0 rgba(191,219,254,0.18); opacity:0.58; }
@@ -263,18 +263,19 @@ export default {
 .emp-title { font-size:30rpx; font-weight:800; color:#17244e; display:block; margin:16rpx 0 8rpx; }
 .emp-desc { font-size:26rpx; color:#8b99b6; }
 .list { padding-top:8rpx; }
-.card { background:rgba(255,255,255,0.94); border-radius:22rpx; padding:28rpx; margin-bottom:18rpx; box-shadow:0 18rpx 38rpx rgba(79,119,186,0.10); border:1px solid rgba(219,230,255,0.92); }
-.card-check { width:52rpx; text-align:center; font-size:28rpx; color:#94a3b8; flex-shrink:0; margin-right:8rpx; }
+.card { background:rgba(255,255,255,0.96); border-radius:20rpx; padding:28rpx; margin-bottom:18rpx; box-shadow:0 16rpx 34rpx rgba(79,119,186,0.10); border:1px solid rgba(219,230,255,0.92); }
+.card-check { position:absolute; left:22rpx; top:30rpx; width:42rpx; height:42rpx; line-height:42rpx; text-align:center; font-size:28rpx; color:#315bff; flex-shrink:0; }
 .card-body { margin-bottom:16rpx; }
 .card-top { display:flex; justify-content:space-between; align-items:center; }
 .card-title { font-size:30rpx; font-weight:900; color:#17244e; flex:1; }
-.badge { font-size:22rpx; font-weight:800; padding:6rpx 14rpx; border-radius:999rpx; }
+.badge { font-size:22rpx; font-weight:900; padding:6rpx 14rpx; border-radius:999rpx; flex-shrink:0; }
 .badge.done { background:#dcfce7; color:#166534; }
 .badge.pending { background:#fff7ed; color:#c2410c; }
-.card-addr { font-size:24rpx; color:#64748b; margin-top:10rpx; line-height:1.45; }
+.card-addr { font-size:25rpx; color:#475569; margin-top:12rpx; line-height:1.55; }
 .card-time { font-size:22rpx; color:#8b99b6; margin-top:6rpx; }
 .card-actions { display:flex; gap:12rpx; border-top:1rpx solid rgba(219,230,255,0.78); padding-top:16rpx; }
-.act { flex:1; font-size:24rpx; font-weight:800; border-radius:14rpx; padding:14rpx 0; background:#f3f7ff; color:#315bff; }
+.act { flex:1; height:70rpx; line-height:70rpx; font-size:24rpx; font-weight:900; border-radius:14rpx; padding:0; background:#f3f7ff; color:#315bff; }
+.act.report { background:linear-gradient(135deg,#315bff,#5b4be6); color:#fff; box-shadow:0 10rpx 22rpx rgba(49,91,255,0.20); }
 .act.primary { background:linear-gradient(135deg,#4a75ff,#315bff); color:#fff; }
 .act.danger { background:#fff5f5; color:#dc2626; }
 .act::after { border:none; }
@@ -285,6 +286,6 @@ export default {
 .modal-actions { display:flex; gap:16rpx; justify-content:flex-end; }
 .ma-cancel { background:#f3f7ff; color:#315bff; border-radius:14rpx; padding:16rpx 32rpx; font-size:26rpx; }
 .ma-confirm { background:#ef4444; color:#fff; border-radius:14rpx; padding:16rpx 32rpx; font-size:26rpx; }
-.card.batch { border-color:rgba(219,230,255,0.6); }
+.card.batch { position:relative; border-color:rgba(219,230,255,0.6); padding-left:76rpx; }
 .card.checked { border-color:#315bff; background:rgba(243,247,255,0.98); }
 </style>

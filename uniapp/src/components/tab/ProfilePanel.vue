@@ -285,10 +285,11 @@ export default {
 </script>
 
 <style scoped>
-.pp-panel { min-height:100vh; background:linear-gradient(180deg,#dce4f2,#e0e8f6 42%,#dce4f2); padding-bottom:80rpx; }
-.top { background:linear-gradient(180deg,#0b3fbd,#0d35ad 28%,#151f8f); padding:60rpx 32rpx 48rpx; text-align:center; color:#fff; }
+.pp-panel { min-height:100vh; background:linear-gradient(180deg,#dce4f2,#e0e8f6 42%,#dce4f2); padding-bottom:calc(150rpx + env(safe-area-inset-bottom)); }
+.top { background:radial-gradient(circle at 76% 34%,rgba(83,137,255,0.42),transparent 25%),linear-gradient(180deg,#0b3fbd,#0d35ad 28%,#151f8f); padding:60rpx 32rpx 58rpx; text-align:center; color:#fff; position:relative; overflow:hidden; }
+.top::before { content:''; position:absolute; left:-90rpx; top:-130rpx; width:520rpx; height:260rpx; border-radius:0 0 56% 56%; background:linear-gradient(180deg,rgba(255,255,255,0.15),rgba(255,255,255,0.02)); transform:rotate(8deg); }
 .top-row { display:flex; align-items:center; text-align:left; }
-.avatar-img { width:100rpx; height:100rpx; border-radius:50%; border:3rpx solid rgba(255,255,255,0.3); flex-shrink:0; }
+.avatar-img { width:104rpx; height:104rpx; border-radius:50%; border:4rpx solid rgba(255,255,255,0.42); flex-shrink:0; box-shadow:0 14rpx 28rpx rgba(5,22,88,0.22); }
 .avatar-fb { font-size:80rpx; }
 .avatar-pick-btn { background:transparent; border:0; padding:0; margin:0; line-height:1; display:flex; align-items:center; justify-content:center; flex-shrink:0; border-radius:50%; }
 .avatar-pick-btn::after { border:none; }
@@ -299,25 +300,30 @@ export default {
 .top-login { width:280rpx; height:64rpx; line-height:64rpx; padding:0; background:linear-gradient(135deg,#fff3c4,#f8c861 58%,#dba640); color:#17244e; border:1px solid rgba(255,255,255,0.48); border-radius:999rpx; font-size:26rpx; font-weight:900; margin-top:16rpx; position:relative; z-index:10; }
 .top-login[disabled] { opacity:0.6; } .top-login::after { border:none; }
 .login-err { display:block; margin-top:14rpx; font-size:24rpx; color:#fca5a5; }
-.stats { display:flex; background:#fff; margin:-30rpx 24rpx 24rpx; border-radius:20rpx; padding:24rpx 0; box-shadow:0 4rpx 24rpx rgba(0,0,0,0.06); }
-.stat { flex:1; text-align:center; } .sv { display:block; font-size:36rpx; font-weight:800; color:#1e293b; } .sl { display:block; font-size:22rpx; color:#8b99b6; }
-.vip-card { background:linear-gradient(135deg,#0b3fbd,#151f8f 58%,#5b3fd9); margin:0 24rpx 20rpx; border-radius:20rpx; padding:28rpx; color:#fff; box-shadow:0 18rpx 42rpx rgba(21,31,143,0.24); }
+.stats { display:flex; background:rgba(255,255,255,0.96); margin:-38rpx 24rpx 24rpx; border-radius:20rpx; padding:24rpx 0; box-shadow:0 18rpx 38rpx rgba(79,119,186,0.12); border:1rpx solid rgba(219,230,255,0.92); position:relative; z-index:2; }
+.stat { flex:1; text-align:center; border-right:1rpx solid rgba(219,230,255,0.78); }
+.stat:last-child { border-right:0; }
+.sv { display:block; font-size:38rpx; font-weight:900; color:#17244e; line-height:1.1; }
+.sl { display:block; font-size:22rpx; color:#8b99b6; margin-top:8rpx; }
+.vip-card { background:linear-gradient(135deg,#0b3fbd,#151f8f 58%,#5b3fd9); margin:0 24rpx 20rpx; border-radius:20rpx; padding:28rpx; color:#fff; box-shadow:0 18rpx 42rpx rgba(21,31,143,0.24),inset 0 1rpx 0 rgba(248,200,97,0.18); }
 .vc-top { display:flex; justify-content:space-between; align-items:center; margin-bottom:24rpx; }
 .vc-title { font-size:30rpx; font-weight:700; display:block; } .vc-desc { font-size:24rpx; color:rgba(255,255,255,0.7); display:block; margin-top:4rpx; }
 .vc-btn { background:linear-gradient(135deg,#fff3c4,#f8c861 58%,#dba640); color:#17244e; border-radius:12rpx; font-size:24rpx; font-weight:700; padding:8rpx 20rpx; border:1px solid rgba(255,255,255,0.48); flex-shrink:0; align-self:center; position:relative; z-index:2; }
 .vc-btn::after { border:none; }
 .vc-benefits { display:flex; flex-wrap:wrap; gap:16rpx; }
 .vb { width:calc(33.3% - 12rpx); text-align:center; } .vb-icon { font-size:36rpx; display:block; } .vb-label { font-size:22rpx; display:block; margin-top:4rpx; } .vb-desc { font-size:20rpx; color:rgba(255,255,255,0.5); display:block; }
-.points-card { background:#fff; margin:0 24rpx 20rpx; border-radius:20rpx; padding:28rpx; box-shadow:0 2rpx 16rpx rgba(0,0,0,0.04); }
+.points-card { background:rgba(255,255,255,0.96); margin:0 24rpx 20rpx; border-radius:20rpx; padding:28rpx; box-shadow:0 16rpx 34rpx rgba(79,119,186,0.10); border:1rpx solid rgba(219,230,255,0.92); }
 .pc-head { display:flex; justify-content:space-between; align-items:center; margin-bottom:20rpx; }
 .pc-title { font-size:28rpx; font-weight:700; color:#1e293b; } .pc-actions { display:flex; gap:12rpx; }
 .pca { font-size:24rpx; font-weight:800; padding:8rpx 20rpx; border-radius:14rpx; background:#f3f7ff; color:#315bff; } .pca.primary { background:#315bff; color:#fff; }
 .pc-body { text-align:center; margin-bottom:20rpx; } .pc-num { font-size:80rpx; font-weight:900; color:#315bff; } .pc-unit { font-size:28rpx; color:#8b99b6; }
 .pc-desc { display:block; font-size:24rpx; color:#94a3b8; margin-top:8rpx; } .pc-desc.warn { color:#dc2626; }
 .pc-warn { padding:16rpx; background:#fef2f2; border-radius:12rpx; } .pc-warn text { font-size:24rpx; color:#dc2626; }
-.menu-card { background:#fff; margin:0 24rpx 24rpx; border-radius:20rpx; }
+.menu-card { background:rgba(255,255,255,0.96); margin:0 24rpx 24rpx; border-radius:20rpx; overflow:hidden; box-shadow:0 14rpx 30rpx rgba(79,119,186,0.08); border:1rpx solid rgba(219,230,255,0.92); }
 .menu-item { display:flex; align-items:center; padding:28rpx; border-bottom:1px solid #f1f5f9; }
-.mi-icon { font-size:36rpx; margin-right:16rpx; } .mi-body { flex:1; } .mi-label { font-size:28rpx; color:#1e293b; display:block; }
+.mi-icon { width:52rpx; height:52rpx; line-height:52rpx; text-align:center; border-radius:16rpx; background:#f3f7ff; color:#315bff; font-size:30rpx; margin-right:16rpx; }
+.mi-body { flex:1; }
+.mi-label { font-size:28rpx; color:#1e293b; font-weight:800; display:block; }
 .mi-arrow { font-size:32rpx; color:#cbd5e1; }
 .footer { text-align:center; font-size:20rpx; color:#cbd5e1; padding:24rpx; }
 .sheet-mask { position:fixed; inset:0; background:rgba(0,0,0,0.45); z-index:500; display:flex; align-items:flex-end; }

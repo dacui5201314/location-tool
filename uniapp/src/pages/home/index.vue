@@ -70,10 +70,11 @@
         </view>
         <view class="sc-input-row">
           <text class="sc-icon">定位</text>
-          <input class="sc-field" :value="addressKeyword" placeholder="输入地址搜索门店位置" :disabled="analyzing" @input="onAddressInput" @confirm="onSearch" />
+          <input class="sc-field" :value="addressText ? compactAddress : addressKeyword" placeholder="输入地址搜索门店位置" :disabled="analyzing" @input="onAddressInput" @confirm="onSearch" />
           <button class="sc-action" :disabled="analyzing" @tap="onLocate" v-if="!addressText">定位</button>
-          <button class="sc-action fav" :disabled="favLoading || analyzing" @tap="toggleFav" v-if="addressText">
-            {{ favLoading ? '·' : (favId ? '★' : '☆') }}
+          <button class="sc-action fav" :class="{ active: favId }" :disabled="favLoading || analyzing" @tap="toggleFav" v-if="addressText">
+            <text class="fav-star">{{ favId ? '★' : '☆' }}</text>
+            <text>{{ favLoading ? '收藏中' : (favId ? '已收藏' : '收藏地址') }}</text>
           </button>
         </view>
         <view class="sc-hint">
@@ -104,7 +105,6 @@
           <text class="ab-pin">📍</text>
           <view class="ab-mid">
             <text class="ab-name">{{ addressText }}</text>
-            <text class="ab-src" v-if="selectedLocationSource">来源：{{ srcLabel }}</text>
           </view>
         </view>
         <button class="ab-edit" @tap="clearAddress">重选</button>
@@ -232,7 +232,9 @@
     <view class="custom-tabbar">
       <view class="ctb-item" v-for="t in tabDefs" :key="t.key"
             :class="{ active: activeTab === t.key }" @tap="onSwitchTab(t.key)">
-        <text class="ctb-icon">{{ activeTab === t.key ? t.iconActive : t.icon }}</text>
+        <view class="ctb-icon-wrap">
+          <image class="ctb-icon" :src="activeTab === t.key ? t.iconActive : t.icon" mode="aspectFit" />
+        </view>
         <text class="ctb-label">{{ t.label }}</text>
       </view>
     </view>
@@ -259,10 +261,10 @@ export default {
       _regionTimer: null,
       activeTab: 'home',
       tabDefs: [
-        { key:'home', label:'选址', icon:'◎', iconActive:'◉' },
-        { key:'records', label:'记录', icon:'□', iconActive:'■' },
-        { key:'favorites', label:'收藏', icon:'☆', iconActive:'★' },
-        { key:'profile', label:'我的', icon:'○', iconActive:'●' }
+        { key:'home', label:'选址', icon:'/static/tabbar/home.png', iconActive:'/static/tabbar/home-active.png' },
+        { key:'records', label:'记录', icon:'/static/tabbar/records.png', iconActive:'/static/tabbar/records-active.png' },
+        { key:'favorites', label:'收藏', icon:'/static/tabbar/favorites.png', iconActive:'/static/tabbar/favorites-active.png' },
+        { key:'profile', label:'我的', icon:'/static/tabbar/profile.png', iconActive:'/static/tabbar/profile-active.png' }
       ],
       industry: '',
       brandName: '',
@@ -339,13 +341,37 @@ export default {
       // ★ 中心准星替代 marker；不再使用可拖拽 marker
       return []
     },
-    srcLabel () {
-      if (this.selectedLocationSource === 'locate') return '当前位置'
-      if (this.selectedLocationSource === 'map') return '地图选点'
-      if (this.selectedLocationSource === 'search') return '手动输入'
-      if (this.selectedLocationSource === 'favorite') return '收藏带入'
-      return ''
-    }
+    compactAddress () {
+      const raw = (this.addressText || '').replace(/\s+/g, '')
+      if (!raw) return ''
+      // ★ 长后缀在前，避免"自治区"被"区"误匹配
+      const SUFFIXES = [
+        '特别行政区','自治区','自治州','自治县','自治旗',
+        '县级市','市辖区',
+        '省','市','区','县','旗','地区','盟','林区','特区'
+      ]
+      // 逐段剥离开头行政区，最多 3 段，保留至少 6 个字符
+      let cleaned = raw
+      for (let i = 0; i < 3; i++) {
+        let matched = false
+        for (const sfx of SUFFIXES) {
+          // 匹配：开头 1-12 个 CJK 字符 + 行政后缀
+          // .{1,8} 限制前缀长度，防止"渭滨区桥南街道宝鸡市"被"市"吞掉中间路段
+          const re = new RegExp('^(.{1,8}' + sfx + ')')
+          const m = cleaned.match(re)
+          if (m && cleaned.length - m[0].length >= 6) {
+            cleaned = cleaned.slice(m[0].length)
+            matched = true
+            break
+          }
+        }
+        if (!matched) break
+      }
+      if (cleaned.length > 20) {
+        cleaned = cleaned.slice(0, 18) + '...'
+      }
+      return cleaned || raw
+    },
   },
   onLoad (options) {
     // ★ 支持 ?tab=records|favorites|profile 从外部 reLaunch 进入指定 tab
@@ -895,7 +921,7 @@ export default {
 </script>
 
 <style scoped>
-.home-page { min-height:100vh; background:radial-gradient(circle at 50% -8%,rgba(49,91,255,0.12),transparent 34%),linear-gradient(180deg,#f8fbff 0%,#e8eef7 42%,#dce4f2 100%); padding-bottom:108rpx; }
+.home-page { min-height:100vh; background:radial-gradient(circle at 50% -8%,rgba(49,91,255,0.12),transparent 34%),linear-gradient(180deg,#f8fbff 0%,#e8eef7 42%,#dce4f2 100%); padding-bottom:calc(150rpx + env(safe-area-inset-bottom)); }
 
 /* ── Hero ── */
 .hero { background:radial-gradient(circle at 76% 38%,rgba(83,137,255,0.48),transparent 24%),radial-gradient(circle at 66% 60%,rgba(139,92,246,0.24),transparent 26%),radial-gradient(circle at 58% 58%,rgba(248,200,97,0.10),transparent 22%),linear-gradient(180deg,#0b3fbd 0%,#0d35ad 28%,#151f8f 68%,#241b83 100%); padding:46rpx 28rpx 122rpx; position:relative; overflow:hidden; }
@@ -948,7 +974,9 @@ export default {
 .sc-action { width:92rpx; height:64rpx; min-width:92rpx; padding:0; margin:0; border-radius:999rpx; background:linear-gradient(135deg,#1e6bff,#4f46e5); color:#fff; font-size:24rpx; font-weight:900; line-height:64rpx; display:flex; align-items:center; justify-content:center; flex-shrink:0; box-shadow:0 12rpx 28rpx rgba(37,99,235,0.30),0 0 0 1px rgba(248,200,97,0.18); }
 .sc-action::after { border:none; }
 .sc-action[disabled] { opacity:0.45; }
-.sc-action.fav { background:#fff7ed; color:#d6a84f; box-shadow:none; border:1px solid #fed7aa; }
+.sc-action.fav { width:168rpx; min-width:168rpx; gap:6rpx; background:linear-gradient(180deg,#fffdf5,#fff6df); color:#ad7a12; box-shadow:0 10rpx 22rpx rgba(216,162,61,0.12),inset 0 1rpx 0 rgba(255,255,255,0.8); border:1px solid #f8d98a; }
+.sc-action.fav.active { background:linear-gradient(135deg,#fff3c4,#f8c861 58%,#dba640); color:#17244e; border-color:rgba(255,255,255,0.56); box-shadow:0 12rpx 26rpx rgba(216,162,61,0.20); }
+.fav-star { font-size:28rpx; line-height:1; }
 .sc-hint { margin-top:10rpx; padding:10rpx 14rpx; background:#f8fbff; border-radius:12rpx; color:#64748b; font-size:22rpx; line-height:1.45; border:1px solid rgba(219,230,255,0.64); }
 .suggest-list { background:#fff; border-radius:0 0 14rpx 14rpx; margin:4rpx -8rpx -8rpx; box-shadow:0 8rpx 24rpx rgba(0,0,0,0.08); max-height:340rpx; overflow-y:auto; }
 .suggest-item { padding:22rpx 20rpx; border-top:1px solid #f1f5f9; }
@@ -965,7 +993,7 @@ export default {
 .ab-left { display:flex; align-items:center; flex:1; min-width:0; }
 .ab-pin { font-size:28rpx; margin-right:12rpx; flex-shrink:0; }
 .ab-mid { flex:1; min-width:0; }
-.ab-name { font-size:26rpx; color:#1e293b; font-weight:500; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; display:block; }
+.ab-name { font-size:26rpx; color:#1e293b; font-weight:500; display:block; word-break:break-all; display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; overflow:hidden; }
 .ab-src { font-size:20rpx; color:#94a3b8; }
 .ab-edit { width:auto; min-width:84rpx; margin:0; padding:6rpx 14rpx; background:#f3f7ff; border-radius:999rpx; color:#315bff; font-size:24rpx; line-height:34rpx; flex-shrink:0; }
 .ab-edit::after { border:none; }
@@ -1055,7 +1083,7 @@ export default {
 .ft:nth-child(3) .ft-mark { background:linear-gradient(135deg,#f8c861,#d8a23d); box-shadow:0 10rpx 20rpx rgba(216,162,61,0.18); }
 .ft-title { font-size:24rpx; font-weight:900; color:#17244e; display:block; white-space:nowrap; line-height:1.1; }
 .ft-desc { display:block; font-size:20rpx; color:#8b99b6; line-height:1.25; }
-.footer { text-align:center; font-size:20rpx; color:#94a3b8; padding:18rpx 44rpx 10rpx; line-height:1.65; }
+.footer { text-align:center; font-size:20rpx; color:#94a3b8; padding:18rpx 44rpx 42rpx; line-height:1.65; }
 
 /* ── Welcome modal ── */
 .welcome-mask { position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:500; display:flex; align-items:center; justify-content:center; }
@@ -1071,12 +1099,13 @@ export default {
 .tab-panel { min-height:100vh; }
 
 /* ── Custom tabbar ── */
-.custom-tabbar { position:fixed; bottom:0; left:0; right:0; height:100rpx; background:rgba(255,255,255,0.96); display:flex; border-top:1rpx solid #e2e8f0; padding-bottom:env(safe-area-inset-bottom); z-index:100; }
-.ctb-item { flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4rpx; }
-.ctb-icon { font-size:32rpx; color:#94a3b8; line-height:1; }
-.ctb-label { font-size:20rpx; color:#94a3b8; line-height:1; }
-.ctb-item.active .ctb-icon { color:#315bff; }
-.ctb-item.active .ctb-label { color:#315bff; font-weight:700; }
+.custom-tabbar { position:fixed; bottom:0; left:0; right:0; height:88rpx; background:#fff; display:flex; border-top:1rpx solid #dbe5f2; padding-bottom:env(safe-area-inset-bottom); z-index:100; box-shadow:0 -6rpx 18rpx rgba(51,83,139,0.07); }
+.ctb-item { flex:1; position:relative; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3rpx; min-width:0; }
+.ctb-item.active::before { content:''; position:absolute; top:0; left:50%; width:38rpx; height:4rpx; margin-left:-19rpx; border-radius:0 0 999rpx 999rpx; background:#315bff; }
+.ctb-icon-wrap { width:40rpx; height:38rpx; display:flex; align-items:center; justify-content:center; }
+.ctb-icon { width:36rpx; height:36rpx; display:block; }
+.ctb-label { font-size:20rpx; color:#8b99b6; line-height:1; font-weight:700; }
+.ctb-item.active .ctb-label { color:#315bff; font-weight:900; }
 </style>
 
 <style>

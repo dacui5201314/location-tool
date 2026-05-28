@@ -150,7 +150,7 @@ export default {
 </script>
 
 <style scoped>
-.rp-panel { min-height:100vh; background:linear-gradient(180deg,#dce4f2,#e0e8f6 42%,#dce4f2); padding:0 24rpx 60rpx; }
+.rp-panel { min-height:100vh; background:linear-gradient(180deg,#dce4f2,#e0e8f6 42%,#dce4f2); padding:0 24rpx calc(150rpx + env(safe-area-inset-bottom)); }
 .header { margin:0 -24rpx 22rpx; padding:62rpx 48rpx 82rpx; background:radial-gradient(circle at 78% 32%,rgba(83,137,255,0.42),transparent 24%),radial-gradient(circle at 66% 60%,rgba(139,92,246,0.22),transparent 26%),radial-gradient(circle at 58% 58%,rgba(248,200,97,0.10),transparent 22%),linear-gradient(180deg,#0b3fbd 0%,#0d35ad 28%,#151f8f 68%,#241b83 100%); position:relative; overflow:hidden; }
 .header::before { content:''; position:absolute; left:-120rpx; top:-150rpx; width:660rpx; height:320rpx; border-radius:0 0 56% 56%; background:linear-gradient(180deg,rgba(255,255,255,0.16),rgba(255,255,255,0.02)); transform:rotate(8deg); }
 .header::after { content:''; position:absolute; right:56rpx; bottom:0; width:38rpx; height:154rpx; border-radius:9rpx 9rpx 0 0; background:linear-gradient(180deg,rgba(219,234,254,0.56),rgba(37,99,235,0.08)); box-shadow:-54rpx 30rpx 0 rgba(191,219,254,0.34),-108rpx 66rpx 0 rgba(191,219,254,0.24),54rpx 20rpx 0 rgba(191,219,254,0.28),106rpx 54rpx 0 rgba(191,219,254,0.18); opacity:0.58; }
@@ -172,7 +172,7 @@ export default {
 .emp-title { font-size:30rpx; font-weight:800; color:#17244e; display:block; margin:16rpx 0 8rpx; }
 .emp-desc { font-size:26rpx; color:#8b99b6; }
 .list { padding-top:8rpx; }
-.card { background:rgba(255,255,255,0.94); border-radius:22rpx; padding:28rpx; margin-bottom:18rpx; box-shadow:0 18rpx 38rpx rgba(79,119,186,0.10); border:1px solid rgba(219,230,255,0.92); }
+.card { background:rgba(255,255,255,0.96); border-radius:20rpx; padding:28rpx; margin-bottom:18rpx; box-shadow:0 16rpx 34rpx rgba(79,119,186,0.10); border:1px solid rgba(219,230,255,0.92); }
 .card-top { display:flex; justify-content:space-between; align-items:center; margin-bottom:12rpx; }
 .card-title { font-size:28rpx; font-weight:800; color:#17244e; flex:1; }
 .score-block { display:flex; align-items:baseline; gap:4rpx; }
@@ -187,10 +187,10 @@ export default {
 .card-time { font-size:20rpx; color:#94a3b8; display:block; margin-top:4rpx; }
 .card-tags { display:flex; flex-wrap:wrap; gap:8rpx; margin-bottom:8rpx; }
 .tag { font-size:20rpx; background:#f1f5f9; color:#475569; border-radius:8rpx; padding:4rpx 12rpx; }
-.card-footer { border-top:1rpx solid #f1f5f9; padding-top:14rpx; }
+.card-footer { border-top:1rpx solid rgba(219,230,255,0.78); padding-top:16rpx; }
 .actions { display:flex; gap:12rpx; justify-content:flex-end; }
-.act { font-size:24rpx; font-weight:600; padding:10rpx 24rpx; border-radius:12rpx; }
-.act.primary { background:#f3f7ff; color:#315bff; }
+.act { min-width:146rpx; text-align:center; font-size:24rpx; font-weight:900; padding:12rpx 24rpx; border-radius:14rpx; }
+.act.primary { background:linear-gradient(135deg,#315bff,#5b4be6); color:#fff; box-shadow:0 10rpx 22rpx rgba(49,91,255,0.18); }
 .act.danger { background:#fff5f5; color:#dc2626; }
 .modal-mask { position:fixed; inset:0; background:rgba(0,0,0,0.5); display:flex; align-items:center; justify-content:center; z-index:999; }
 .modal-box { background:#fff; border-radius:22rpx; padding:40rpx; width:560rpx; box-shadow:0 24rpx 70rpx rgba(15,23,42,0.18); }
