@@ -134,6 +134,7 @@ npx vite --host
 
 ## 版本历史
 
+- **v1.11.0** (2026-05-29) — 小程序 UI 精细化收口：`compactAddress` 地址简写增强（四层行政区剥离省/市/区/街道+市名去重），四 tab 底部间距统一（page height:auto + home-page 64rpx + 面板 40rpx），guest 未登录态布局修复。Profile 页脚文案优化。首页/收藏页脚 padding 平衡。Profile 页面重构（独立 Panel 组件+登录/充值/兑换页视觉对齐）。check_industry_rigor_rules.py 2168 PASS / check_report_fact_guard.py 147 PASS
 - **v1.10.0** (2026-05-26) — 上线收口：微信支付后台 PEM 证书配置闭环（Admin UI textarea 粘贴商户私钥/平台证书 + DB 优先/env fallback + cryptography 真解析校验 + 敏感字段脱敏）。头像持久化上传（POST /api/user/avatar + 魔数校验 + 路径穿越防护 + 临时 URL 三层过滤）。登录后 onboarding 流程（昵称空或头像为临时 URL 才触发、编辑页 chooseAvatar 控件 + type=nickname）。快捷登录 invalid_code 错误引导密码登录。法律页面（用户协议/隐私政策）。Admin 用户管理展示头像昵称。首页热重载白闪 CSS 防溢出。小程序 AppID 配置闭环。check_industry_rigor_rules.py 2168 PASS / check_report_fact_guard.py 147 PASS
 - **v1.9.0** (2026-05-26) — uni-app 登录/充值/CDK 独立页面化：登录页内联 tab 切换（快捷登录/密码登录/注册）、兑换码独立页（真实 activateCdk + 点数刷新）、充值中心独立页（SKU 双 tab + 客服二维码 + requestPayment 完整链路）。微信支付后端（JSAPI v3 prepay + notify 验签解密 + PaymentOrder 持久化 + 平台 x509 证书 serial 校验）。User.nickname 字段 DB 迁移。Admin 前端修复：用户列表/套餐列表 401 静默吞错。python-multipart 依赖补齐。check_industry_rigor_rules.py 2168 PASS / check_report_fact_guard.py 147 PASS
 - **v1.8.0** (2026-05-23) — uni-app Home 首页视觉重做：品牌 logo lockup + Web 对齐 hero、搜索浮卡、地图产品级模块、业态/经营信息统一卡片、Feature tiles 信任条。Records / Profile / Favorites 二级页面 Web 视觉系统对齐（渐变背景、卡片圆角、导航栏色系统一 #12358f、tabBar 选中色 #315bff）。真实收藏 API 集成（checkFavorite/addFavorite/deleteFavorite）。免费额度倒计时 + 全局公告 + 新用户欢迎弹层。check_industry_rigor_rules.py 2168 PASS / check_report_fact_guard.py 147 PASS

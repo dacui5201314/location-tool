@@ -25,6 +25,13 @@ page {
   color: var(--ink);
 }
 
+page,
+uni-page-body {
+  height: auto;
+  min-height: 100vh;
+  background-color: var(--page-bg);
+}
+
 /* 热更新防白闪：home 页关键容器纯色兜底（scoped wxss 卸载时生效） */
 .home-page { background: #dce4f2; }
 .map-wrap { background: #dce4f2; }

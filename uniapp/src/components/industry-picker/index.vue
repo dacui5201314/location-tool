@@ -1,12 +1,17 @@
 <template>
   <view class="industry-picker">
     <view class="label" v-if="!hideLabel">选择业态</view>
-    <scroll-view scroll-x class="cat-scroll">
-      <view v-for="cat in displayCats" :key="cat.key" class="cat-tile" :class="[{ active: activeCat === cat.key }, 'cat-' + cat.key]" @tap="selectCat(cat.key)">
-        <text class="cat-icon">{{ cat.icon }}</text>
-        <text class="cat-name">{{ cat.label }}</text>
-      </view>
-    </scroll-view>
+    <view class="cat-wrap">
+      <scroll-view scroll-x class="cat-scroll">
+        <view class="cat-row">
+          <view v-for="cat in displayCats" :key="cat.key" class="cat-tile" :class="[{ active: activeCat === cat.key }, 'cat-' + cat.key]" @tap="selectCat(cat.key)">
+            <text class="cat-icon">{{ cat.icon }}</text>
+            <text class="cat-name">{{ cat.label }}</text>
+          </view>
+        </view>
+      </scroll-view>
+      <view class="scroll-cue"><view class="cue-line" /><view class="cue-thumb" /></view>
+    </view>
     <view class="sub-panel" v-if="activeCat && subTypes.length">
       <view v-for="st in subTypes" :key="st.name" class="chip" :class="{ selected: selected === st.name }" @tap="onSelect(st.name)">{{ st.name }}</view>
     </view>
@@ -80,10 +85,14 @@ export default {
 <style scoped>
 .industry-picker { margin: 24rpx 0; }
 .label { font-size: 28rpx; font-weight: 600; color: #334155; margin-bottom: 16rpx; }
-.cat-scroll { width:100%; height:130rpx; white-space:nowrap; display:block; }
-.cat-tile { display: inline-flex; flex-direction: column; align-items: center; width: 126rpx; min-height: 96rpx; padding: 18rpx 8rpx; margin-right: 14rpx; border-radius: 20rpx; background: linear-gradient(180deg,#ffffff,#fbfdff); border: 1px solid rgba(219,230,255,0.95); box-shadow: 0 10rpx 22rpx rgba(74,111,172,0.07); flex-shrink:0; box-sizing:border-box; vertical-align:top; }
-.cat-tile.active { background: linear-gradient(180deg,#ffffff,#f4f7ff); border-color: rgba(13,75,220,0.60); box-shadow: 0 14rpx 30rpx rgba(13,75,220,0.16); }
-.cat-icon { position: relative; width: 58rpx; height: 58rpx; line-height: 58rpx; text-align: center; border-radius: 18rpx; background: linear-gradient(145deg,#f6f9ff,#ffffff); color: transparent; font-size: 0; box-shadow: inset 0 0 0 1px rgba(13,75,220,0.10),0 8rpx 18rpx rgba(74,111,172,0.06); overflow: hidden; }
+.cat-wrap { position:relative; padding-bottom:0; }
+.cat-wrap::after { content:''; position:absolute; right:0; top:0; width:50rpx; height:158rpx; pointer-events:none; background:linear-gradient(90deg,rgba(255,255,255,0),#fff 76%); }
+.cat-scroll { width:100%; height:160rpx; white-space:nowrap; display:block; box-sizing:border-box; }
+.cat-row { display:inline-flex; align-items:stretch; gap:18rpx; padding:0 56rpx 0 0; box-sizing:border-box; }
+.cat-tile { position:relative; display:inline-flex; flex-direction:column; align-items:center; justify-content:center; width:166rpx; height:148rpx; padding:18rpx 12rpx; border-radius:18rpx; background:linear-gradient(180deg,#ffffff,#f9fbff); border:1px solid rgba(209,222,249,0.98); box-shadow:0 14rpx 30rpx rgba(74,111,172,0.08); flex-shrink:0; box-sizing:border-box; vertical-align:top; }
+.cat-tile.active { background: linear-gradient(180deg,#ffffff,#f4f7ff); border-color: rgba(49,91,255,0.70); box-shadow: 0 18rpx 34rpx rgba(49,91,255,0.16); }
+.cat-tile.active::after { content:'✓'; position:absolute; right:-10rpx; top:-10rpx; width:38rpx; height:38rpx; line-height:38rpx; border-radius:50%; text-align:center; background:linear-gradient(135deg,#315bff,#1f57ff); color:#fff; font-size:24rpx; font-weight:900; box-shadow:0 8rpx 18rpx rgba(49,91,255,0.24); }
+.cat-icon { position:relative; width:64rpx; height:64rpx; min-width:64rpx; min-height:64rpx; line-height:64rpx; text-align:center; border-radius:18rpx; background:linear-gradient(145deg,#f6f9ff,#ffffff); color:transparent; font-size:0; box-shadow:inset 0 0 0 1px rgba(13,75,220,0.10),0 8rpx 18rpx rgba(74,111,172,0.06); overflow:hidden; flex-shrink:0; }
 .cat-icon::before,.cat-icon::after { content: ''; position: absolute; box-sizing: border-box; }
 .cat-icon::before { left: 16rpx; top: 16rpx; width: 26rpx; height: 26rpx; border-radius: 8rpx; border: 4rpx solid #0d4bdc; }
 .cat-icon::after { left: 22rpx; top: 22rpx; width: 14rpx; height: 14rpx; border-radius: 50%; background: rgba(13,75,220,0.16); }
@@ -104,8 +113,11 @@ export default {
 .cat-tile:nth-child(6) .cat-icon::after { left: 22rpx; top: 18rpx; width: 14rpx; height: 8rpx; border-radius: 8rpx 8rpx 0 0; background: #0d4bdc; }
 .cat-tile.active:nth-child(1) .cat-icon::after,.cat-tile.active:nth-child(3) .cat-icon::after,.cat-tile.active:nth-child(4) .cat-icon::after,.cat-tile.active:nth-child(5) .cat-icon::after,.cat-tile.active:nth-child(6) .cat-icon::after { background:#fff; }
 .cat-tile.active:nth-child(2) .cat-icon::after { border-color:#fff; }
-.cat-name { font-size: 22rpx; font-weight: 900; color: #17244e; margin-top: 10rpx; }
+.cat-name { display:block; width:100%; text-align:center; font-size:24rpx; font-weight:900; color:#17244e; margin-top:16rpx; line-height:1.18; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .cat-tile.active .cat-name { color: #0d4bdc; }
+.scroll-cue { display:none; }
+.cue-line { position:absolute; left:0; right:0; top:2rpx; height:6rpx; border-radius:999rpx; background:#edf3ff; box-shadow:inset 0 0 0 1rpx rgba(219,230,255,0.88); }
+.cue-thumb { position:absolute; left:0; top:1rpx; width:112rpx; height:8rpx; border-radius:999rpx; background:linear-gradient(90deg,#315bff,#5b4be6); box-shadow:0 4rpx 10rpx rgba(49,91,255,0.22); }
 .sub-panel { margin-top: 16rpx; display: flex; flex-wrap: wrap; gap: 12rpx; padding: 16rpx; border-radius: 16rpx; background: linear-gradient(180deg,#f8fbff,#ffffff); border: 1px solid rgba(219,230,255,0.78); }
 .chip { padding: 12rpx 24rpx; border-radius: 16rpx; background: #fff; font-size: 26rpx; font-weight: 700; color: #5c677d; border: 1px solid rgba(219,230,255,0.95); box-shadow: 0 8rpx 18rpx rgba(74,111,172,0.05); }
 .chip.selected { background: #f3f7ff; color: #315bff; border-color: rgba(88,105,255,0.44); box-shadow: 0 10rpx 20rpx rgba(68,84,255,0.11); }

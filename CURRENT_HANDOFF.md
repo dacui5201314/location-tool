@@ -23,9 +23,12 @@ already in git history and was becoming context noise.
 - `/api/analyze` has succeeded end-to-end with P0/P2/P3 hard guard preserved.
 - Report-detail UI has been redesigned on the mini-program display layer only: score card alignment, professional card hierarchy, dimension radar section, risk/crowd/POI sections, and visual polish were improved without changing report data or accuracy logic.
 - Mini-program global UI has a first launch-polish pass: clearer favorite button, traditional bottom tabbar, profile/cards/button states, and records/favorites/profile panel visual polish.
-- Home address display was adjusted: top "门店位置" uses `compactAddress` as a short display-only label; "当前位置" keeps the full address and can wrap. `addressText`, `addressKeyword`, analyze payload, favorites, map selection, and regeocode must remain unchanged.
+- `compactAddress` enhanced: strips 4 admin levels (省/市/区/街道/镇/乡) and deduplicates city names from remaining text. Applied in home 门店位置 input and favorites card titles. Full address preserved in `addressText`, analyze payload, map 当前位置, and favorites detail line.
 - Report sharing uses `share_token`.
 - Payment code path exists, but production payment still needs real WeChat Pay credentials.
+- Four-tab bottom spacing normalized: `page{height:auto}` in App.vue, `.home-page` padding-bottom 64rpx + safe-area, sub-panels 40rpx. Guest (unlogged-in) panels no longer force 100vh with excessive padding.
+- ProfilePanel footer text changed to "会员权益与账户信息以实际页面为准"; home and profile footer padding balanced (44rpx/44rpx).
+- Profile page refactored: extracted tab panels (RecordsPanel, FavoritesPanel, ProfilePanel), contact page, recharge/redeem/login polish.
 
 ## Successful Analyze Evidence
 
@@ -40,8 +43,8 @@ already in git history and was becoming context noise.
 
 ## Still Open
 
-1. **Final mini-program visual QA**: report-detail and global UI have been improved, but still need final real-device/DevTools pass for overlap, bottom tabbar safe-area spacing, long text, empty/loading states, and visual consistency.
-2. **Home address display QA**: top compact address may prefer short landmark names even if it removes province/city/district/street text. This is accepted only as display behavior; full address and analyze payload must stay original.
+1. **Final mini-program visual QA**: report-detail still needs final real-device/DevTools pass for long text, empty/loading states. Four-tab bottom spacing and guest-state layout improved but may need further micro-adjustment on real devices.
+2. **Home address display**: `compactAddress` now strips 4 admin levels + deduplicates city names. Still display-only; full address and analyze payload stay original. May need per-region testing (autonomous prefectures, etc.).
 3. **WeChat Pay**: external credential/setup task. After cert/key upload, replace customer-service purchase path with direct order/payment.
 4. **Admin UI/IA**: system settings are crowded; industry management and per-industry prompt participation need audit. Ask before touching `frontend/`.
 5. **P0 artifact maintenance**: keep hard guard. If a new false positive appears, add only narrow artifact filters with regression tests.

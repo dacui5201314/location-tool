@@ -6,16 +6,21 @@
       <text class="slogan">商业选址分析参考</text>
     </view>
 
-    <!-- 模式切换 -->
-    <view class="mode-tabs">
-      <text class="mtab" :class="{ active: mode === 'quick' }" @tap="switchMode('quick')">快捷登录</text>
-      <text class="mtab" :class="{ active: mode === 'pwd' }" @tap="switchMode('pwd')">密码登录</text>
-      <text class="mtab" :class="{ active: mode === 'reg' }" @tap="switchMode('reg')">注册</text>
-    </view>
+    <view class="login-card">
+      <!-- 模式切换 -->
+      <view class="mode-tabs">
+        <text class="mtab" :class="{ active: mode === 'quick' }" @tap="switchMode('quick')">快捷登录</text>
+        <text class="mtab" :class="{ active: mode === 'pwd' }" @tap="switchMode('pwd')">密码登录</text>
+        <text class="mtab" :class="{ active: mode === 'reg' }" @tap="switchMode('reg')">注册</text>
+      </view>
 
-    <view class="main-section">
+      <view class="main-section">
       <!-- 快捷登录 -->
       <view v-if="mode === 'quick'">
+        <view class="quick-copy">
+          <text class="quick-title">使用微信手机号登录</text>
+          <text class="quick-desc">同步会员、点数、报告记录和收藏地址</text>
+        </view>
         <button v-if="agreed" class="btn-phone" open-type="getPhoneNumber" @getphonenumber="onWxPhoneLogin">
           手机号快捷登录
         </button>
@@ -27,6 +32,9 @@
 
       <!-- 密码登录 -->
       <view v-if="mode === 'pwd'">
+        <view class="form-title">
+          <text>账号密码登录</text>
+        </view>
         <view class="field-group">
           <text class="field-label">手机号</text>
           <input class="field-input" v-model="phone" type="number" maxlength="11" placeholder="请输入手机号" />
@@ -42,6 +50,9 @@
 
       <!-- 注册 -->
       <view v-if="mode === 'reg'">
+        <view class="form-title">
+          <text>注册新账号</text>
+        </view>
         <view class="field-group">
           <text class="field-label">手机号</text>
           <input class="field-input" v-model="regPhone" type="number" maxlength="11" placeholder="请输入手机号" />
@@ -65,6 +76,7 @@
       <text class="agree-err" v-if="showAgreeErr">请先阅读并同意用户协议和隐私政策</text>
 
       <text class="err-msg" v-if="errMsg">{{ errMsg }}</text>
+      </view>
     </view>
 
     <view class="bottom-section">
@@ -193,28 +205,35 @@ export default {
 </script>
 
 <style scoped>
-.login-page { min-height:100vh; background:linear-gradient(180deg,#eaf2ff 0%,#f2f6ff 42%,#f0f4ff 100%); display:flex; flex-direction:column; }
-.hero-area { text-align:center; padding:80rpx 0 40rpx; }
-.logo { width:80rpx; height:80rpx; border-radius:18rpx; margin:0 auto; display:block; }
-.brand { display:block; font-size:36rpx; font-weight:800; color:#17244e; margin-top:16rpx; }
-.slogan { display:block; font-size:24rpx; color:#8b99b6; margin-top:6rpx; }
-.mode-tabs { display:flex; gap:0; padding:0 40rpx 28rpx; }
-.mtab { flex:1; text-align:center; font-size:26rpx; font-weight:600; color:#94a3b8; padding:14rpx 0; border-bottom:2px solid transparent; }
-.mtab.active { color:#315bff; border-bottom-color:#315bff; }
-.main-section { flex:1; padding:0 40rpx; }
-.btn-phone { width:100%; background:linear-gradient(135deg,#0b3fbd,#315bff); color:#fff; border-radius:14rpx; font-size:32rpx; font-weight:700; padding:26rpx 0; margin-bottom:12rpx; }
-.quick-hint { display:block; text-align:center; font-size:22rpx; color:#cbd5e1; margin-bottom:8rpx; }
-.field-group { margin-bottom:20rpx; }
-.field-label { display:block; font-size:26rpx; font-weight:600; color:#334155; margin-bottom:10rpx; }
-.field-input { width:100%; border:1px solid #d1d5db; border-radius:12rpx; padding:18rpx 16rpx; font-size:28rpx; box-sizing:border-box; }
-.btn-submit { width:100%; background:#0f172a; color:#fff; border-radius:14rpx; font-size:30rpx; font-weight:700; padding:22rpx 0; margin-top:8rpx; }
-.btn-submit[disabled] { opacity:0.35; }
-.agree-row { display:flex; align-items:center; margin-top:28rpx; padding:0 8rpx; }
-.agree-check { font-size:24rpx; color:#8b99b6; margin-right:10rpx; }
-.agree-text { font-size:24rpx; color:#8b99b6; }
-.agree-link { font-size:24rpx; color:#315bff; font-weight:600; }
-.agree-err { font-size:22rpx; color:#dc2626; padding-left:40rpx; display:block; }
-.err-msg { display:block; text-align:center; font-size:24rpx; color:#dc2626; margin-top:14rpx; }
-.bottom-section { text-align:center; padding:32rpx 0 48rpx; }
-.skip { font-size:26rpx; color:#cbd5e1; }
+.login-page { min-height:100vh; background:linear-gradient(180deg,#dce4f2 0%,#edf3ff 44%,#dce4f2 100%); display:flex; flex-direction:column; padding:0 32rpx calc(44rpx + env(safe-area-inset-bottom)); box-sizing:border-box; }
+.hero-area { text-align:center; padding:72rpx 0 34rpx; }
+.logo { width:86rpx; height:86rpx; border-radius:22rpx; margin:0 auto; display:block; box-shadow:0 16rpx 34rpx rgba(49,91,255,0.22); }
+.brand { display:block; font-size:40rpx; font-weight:900; color:#17244e; margin-top:18rpx; line-height:1.2; }
+.slogan { display:block; font-size:26rpx; color:#8b99b6; margin-top:8rpx; }
+.login-card { background:rgba(255,255,255,0.96); border:1rpx solid rgba(219,230,255,0.92); border-radius:26rpx; padding:26rpx 26rpx 30rpx; box-shadow:0 18rpx 44rpx rgba(79,119,186,0.14); }
+.mode-tabs { display:flex; gap:10rpx; padding:0 0 24rpx; }
+.mtab { flex:1; text-align:center; font-size:27rpx; font-weight:900; color:#94a3b8; padding:18rpx 0; border-radius:16rpx; background:#f6f9ff; }
+.mtab.active { color:#315bff; background:#eef3ff; box-shadow:inset 0 -4rpx 0 #315bff; }
+.main-section { padding:0; }
+.quick-copy { text-align:center; padding:10rpx 0 24rpx; }
+.quick-title { display:block; font-size:32rpx; font-weight:900; color:#17244e; line-height:1.25; }
+.quick-desc { display:block; font-size:25rpx; color:#64748b; margin-top:10rpx; line-height:1.45; }
+.btn-phone { width:420rpx; height:78rpx; line-height:78rpx; margin:0 auto 16rpx; padding:0; background:linear-gradient(135deg,#315bff,#0b3fbd); color:#fff; border-radius:999rpx; font-size:28rpx; font-weight:900; box-shadow:0 14rpx 28rpx rgba(49,91,255,0.22); }
+.btn-phone::after { border:none; }
+.quick-hint { display:block; text-align:center; font-size:24rpx; color:#94a3b8; line-height:1.45; margin-bottom:4rpx; }
+.form-title { font-size:30rpx; font-weight:900; color:#17244e; margin:4rpx 0 22rpx; }
+.field-group { margin-bottom:22rpx; }
+.field-label { display:block; font-size:27rpx; font-weight:900; color:#334155; margin-bottom:12rpx; }
+.field-input { width:100%; height:82rpx; line-height:82rpx; border:1rpx solid #d6e0f5; border-radius:16rpx; padding:0 22rpx; font-size:28rpx; box-sizing:border-box; background:#fbfdff; color:#17244e; }
+.btn-submit { width:100%; height:84rpx; line-height:84rpx; background:linear-gradient(135deg,#315bff,#0b3fbd); color:#fff; border-radius:16rpx; font-size:29rpx; font-weight:900; padding:0; margin-top:12rpx; box-shadow:0 14rpx 28rpx rgba(49,91,255,0.18); }
+.btn-submit::after { border:none; }
+.btn-submit[disabled] { background:#eef2f7; color:#a8b2c4; box-shadow:none; opacity:1; }
+.agree-row { display:flex; align-items:center; flex-wrap:wrap; margin-top:28rpx; padding:0 4rpx; row-gap:6rpx; }
+.agree-check { font-size:26rpx; color:#8b99b6; margin-right:10rpx; }
+.agree-text { font-size:25rpx; color:#64748b; }
+.agree-link { font-size:25rpx; color:#315bff; font-weight:800; }
+.agree-err { font-size:24rpx; line-height:1.45; color:#dc2626; padding-left:40rpx; display:block; margin-top:8rpx; }
+.err-msg { display:block; text-align:center; font-size:25rpx; color:#dc2626; margin-top:14rpx; line-height:1.45; }
+.bottom-section { text-align:center; padding:36rpx 0 0; margin-top:auto; }
+.skip { font-size:27rpx; color:#94a3b8; }
 </style>
