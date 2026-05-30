@@ -306,11 +306,12 @@ function renderOpLogs(){return `<div class="card"><div class="flex-between mb"><
 async function loadOpLogs(){const r=await af('GET','/api/admin/operation-logs');const logs=r.ok?(r.data.logs||[]):[];document.getElementById('oplogTbody').innerHTML=logs.length?logs.map(l=>`<tr><td>${(l.created_at||'').slice(0,19)}</td><td>${l.admin_id||'-'}</td><td><span class="tag tag-blue">${l.type||'-'}</span></td><td>${l.user_id||'-'}</td><td class="text-sm">${l.reason||l.description||'-'}</td></tr>`).join(''):'<tr><td colspan="5" class="text-sm">暂无操作记录</td></tr>'}
 
 // ── Industries ──
-function renderIndustries(){return `<div class="card"><h3>业态类目</h3><div class="text-sm mb">前台用户可选择的业态列表，按分析模板分组。新增业态在 <code>prompts/industry_config.py</code> 里加一行即可。</div><div id="indList"></div></div>`}
-async function loadIndustries(){const r=await af('GET','/api/industries/rules');const data=r.ok?r.data:{};const groups=data.groups||[];document.getElementById('indList').innerHTML=groups.map(g=>`
+function renderIndustries(){return `<div class="card"><h3>业态类目</h3><div class="text-sm mb">与小程序前端显示一致。新增/启用/停用业态请在数据库中操作。</div><div id="indList"></div></div>`}
+async function loadIndustries(){const r=await af('GET','/api/admin/industries');const inds=r.ok?(r.data.industries||[]):[];const byMaster={};inds.forEach(i=>{const mk=i.config_key||'未分类';if(!byMaster[mk])byMaster[mk]=[];byMaster[mk].push(i)});document.getElementById('indList').innerHTML=Object.entries(byMaster).map(([mk,types])=>`
   <div class="card" style="border:1px solid var(--line);box-shadow:none;margin-bottom:12px">
-    <div class="flex-between mb"><h4>📁 ${g.label}</h4><span class="tag tag-blue">${g.types.length} 个业态</span></div>
-    <div class="flex-wrap">${g.types.map(t=>`<span class="tag ${t.active?'tag-green':'tag-gray'}" style="font-size:13px;padding:5px 12px" title="${t.name}">${t.name}</span>`).join(' ')}</div>
+    <div class="flex-between mb"><h4>📁 ${mk}</h4><span class="tag tag-blue">${types.length} 个</span></div>
+    <table><thead><tr><th>名称</th><th>状态</th><th>排序</th></tr></thead><tbody>
+    ${types.map(i=>`<tr><td><b>${i.name}</b></td><td><span class="tag ${i.is_active?'tag-green':'tag-red'}">${i.is_active?'启用':'停用'}</span></td><td>${i.sort_order||0}</td></tr>`).join('')}</tbody></table>
   </div>`).join('')}
 
 // ── Register loaders ──
