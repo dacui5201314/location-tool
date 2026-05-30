@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import StreamingResponse
+from fastapi.responses import StreamingResponse, FileResponse
 
 from models.schemas import AnalyzeRequest
 from prompts.location_analysis import build_system_prompt, build_analysis_prompt
@@ -142,6 +142,14 @@ async def _global_exception_handler(_req: _Request, exc: Exception):
         status_code=500,
         content={"detail": "Internal server error"},
     )
+
+
+@app.get("/admin")
+async def admin_dashboard():
+    """管理后台 — 独立 HTML 单文件"""
+    import os as _os
+    admin_html = _os.path.join(_os.path.dirname(__file__), "admin", "index.html")
+    return FileResponse(admin_html)
 
 
 @app.get("/api/health")
