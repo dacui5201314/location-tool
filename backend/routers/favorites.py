@@ -1,6 +1,6 @@
 """收藏地址 API — JWT 鉴权"""
 from math import radians, cos
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, HTTPException
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from database import get_db
@@ -182,7 +182,7 @@ def delete_favorite(
         SavedLocation.user_id == user_id,
     ).first()
     if not loc:
-        return {"error": "收藏不存在"}
+        raise HTTPException(status_code=404, detail="收藏不存在")
     db.delete(loc)
     db.commit()
     return {"ok": True, "deleted_id": favorite_id}

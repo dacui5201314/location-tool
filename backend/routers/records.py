@@ -56,7 +56,7 @@ def get_record(
     user_id = user["user_id"]
     record = _get_record_by_uuid(report_uuid, user_id, db)
     if not record:
-        return {"error": "记录不存在"}
+        raise HTTPException(status_code=404, detail="记录不存在")
     data = record.to_dict()
     data["report_json"] = record.report_json
     data["report_file"] = record.report_file
@@ -107,7 +107,7 @@ def delete_record(
     user_id = user["user_id"]
     record = _get_record_by_uuid(report_uuid, user_id, db)
     if not record:
-        return {"error": "记录不存在"}
+        raise HTTPException(status_code=404, detail="记录不存在")
     record_id = record.id
     db.delete(record)
     db.commit()

@@ -99,12 +99,13 @@ def check_billing_access(user: User, cost: int = 1, db_session=None) -> BillingR
 
     if result.rowcount == 0:
         # 并发冲突：余额在检查和扣款之间被其他请求消耗
+        db_session.refresh(user)  # 刷新 ORM 状态，确保调用方看到最新余额
         return BillingResult(
             allowed=False,
             reason="操作冲突，请重试",
             source="blocked",
             points_before=before,
-            points_after=before,
+            points_after=user.balance_credits,  # 使用刷新后的真实余额
         )
 
     # 刷新 ORM 对象以反映数据库最新状态
