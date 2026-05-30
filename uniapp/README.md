@@ -1,27 +1,24 @@
 # 址得选 uni-app 多端客户端
 
-AI 选址初筛参考工具 · 未来主客户端（Vue3 + Vite）
+AI 选址初筛参考工具 · 主力客户端（Vue3 + Vite）
 
 ## 目录说明
 
-- `uniapp/` — **未来主客户端**。基于 uni-app (Vue3 + Vite)，覆盖微信小程序、抖音小程序、App 三端
-- `frontend/` — **Web 母版**。React 前端，当前产品的功能参照和体验基准
-- `miniprogram/` — **登录联调参考**。原生微信小程序脚手架，仅保留登录调用参考，不继续开发新功能
+- `uniapp/` — **主力客户端**。基于 uni-app (Vue3 + Vite)，覆盖微信小程序、抖音小程序、App 三端
+- `miniprogram/` — 原生微信小程序脚手架，仅保留登录调用参考，不继续开发新功能
+- `backend/` — FastAPI 后端，所有 API 由此提供
 
 ## 当前阶段
 
-**Phase 23N：Web 母版对齐 + 分析接口联调**
-
-- **Phase 23N-1（~98%）**：地址自动联想已完成 — `@input` 显式绑定 + 400ms debounce + 竞态守卫，用户实测通过。地图点选/定位共用 `resolveAddressByLngLat()` 反向地理编码。Timeout 三级降级（getLocation/locationRegeocode/locationSuggest）。
-- **Phase 23N-2（~40%）**：分析接口 `/api/analyze` SSE 流已集成 — 未登录(401)/余额不足(402)/后端错误(5xx)/成功生成 → 跳转 `report-detail?id=<record_id>`，待 devtools 实测验证。
-- **全局原则**：所有 uni-app 页面/逻辑/UI/文案必须以 Web `frontend/` 为母版对齐。新增功能前先查看 Web 对应实现，再在 uni-app 中复刻。
-- 未接 payment/PDF/unlock/download。
+- **地址自动联想** — `@input` 显式绑定 + 400ms debounce + 竞态守卫，Timeout 三级降级
+- **SSE 分析接口** — `/api/analyze` 流式集成：401/402/5xx/成功 → 跳转 `report-detail?id=<record_id>`
+- **登录/充值/CDK** — 快捷登录、密码登录、注册、兑换码、充值中心均已独立页面化
+- **微信支付** — JSAPI v3 prepay + notify 后端已就绪，uni-app 端待接
+- 未接：PDF unlock/download
 
 ## 构建方式
 
 **推荐使用 HBuilderX**
-
-`@dcloudio/*` 系列包使用 alpha 版号，版本对齐由 HBuilderX 内置依赖管理器保证。
 
 1. 下载 [HBuilderX](https://www.dcloud.io/hbuilderx.html)（推荐 4.0+）
 2. 文件 → 导入 → 从本地目录导入 → 选择 `uniapp/` 目录
@@ -50,27 +47,19 @@ npm run build:mp-weixin
 ### 2. 导入微信开发者工具
 
 1. 打开微信开发者工具 → 点击「导入」
-2. 目录选择：`uniapp/dist/build/mp-weixin`（**注意：是构建产物目录，不是 uniapp 源码目录**）
+2. 目录选择：`uniapp/dist/build/mp-weixin`
 3. AppID 填入你的测试号或正式小程序 AppID
 4. 点击确定
 
 ### 3. 开发者工具设置
 
 - 详情 → 本地设置 → 勾选「不校验合法域名、web-view、TLS 版本以及 HTTPS 证书」
-- 此选项仅开发者工具有效，真机预览仍需配置合法域名
 
-### 4. 真实联调前提
+### 4. 真机联调前提
 
 - 后端运行在公网 HTTPS 域名下
-- 管理后台已配置小程序应用标识和服务端凭据（系统参数页面）
-- 微信公众平台 → 开发管理 → 服务器域名 → request 合法域名已添加后端域名
-- 使用正式小程序 AppID（测试号仅支持开发者工具基础联调）
-
-### 5. 当前阶段限制
-
-- 微信登录可联调
-- 分析生成、付费能力、PDF 能力均未开放
-- 相关入口按钮显示「联调未开放」占位文案
+- 管理后台已配置小程序 AppID / Secret
+- 微信公众平台 request 合法域名已添加后端域名
 
 ## 项目结构
 
@@ -80,41 +69,42 @@ uniapp/
 ├── vite.config.js                # Vite + uni-app 插件配置
 ├── package.json                  # 依赖声明
 ├── src/
-│   ├── manifest.json             # uni-app 应用配置
-│   ├── pages.json                # 路由 + TabBar
+│   ├── manifest.json             # uni-app 应用配置 (AppID: wx3e2e1bbabfa164dd)
+│   ├── pages.json                # 路由 + TabBar (13 页面)
 │   ├── App.vue                   # 根组件
 │   ├── main.js                   # Vue3 createSSRApp 入口
-│   ├── uni.scss                  # 主题变量
-│   ├── components/               # 复用组件
+│   ├── components/               # 组件
 │   │   ├── app-header/
-│   │   ├── industry-picker/
-│   │   ├── address-input/
-│   │   ├── report-card/
-│   │   ├── score-panel/
-│   │   └── empty-state/
+│   │   ├── industry-picker/      # 业态选择器（滚动+触摸手势）
+│   │   ├── address-input/        # 地址联想输入
+│   │   ├── report-card/          # 报告卡片
+│   │   ├── score-panel/          # 评分面板
+│   │   ├── empty-state/          # 空状态占位
+│   │   └── tab/                  # 底部 Tab 面板
 │   ├── pages/                    # 页面
-│   │   ├── home/                 # 首页（分析入口）
+│   │   ├── home/                 # 首页（分析入口+地图）
 │   │   ├── records/              # 分析记录
 │   │   ├── favorites/            # 收藏
 │   │   ├── report-detail/        # 报告详情
-│   │   ├── result/               # 分析结果（占位）
-│   │   └── profile/              # 我的
-│   └── utils/                    # 工具
-│       ├── api.js
-│       ├── auth.js
-│       ├── config.js
-│       └── format.js
+│   │   ├── result/               # 分析结果
+│   │   ├── profile/              # 个人中心
+│   │   │   ├── index.vue
+│   │   │   ├── login.vue         # 登录/注册
+│   │   │   ├── recharge.vue      # 充值中心
+│   │   │   ├── redeem.vue        # CDK 兑换
+│   │   │   ├── contact.vue       # 客服
+│   │   │   └── edit.vue          # 编辑资料
+│   │   └── legal/                # 法律页面
+│   │       ├── user-agreement.vue
+│   │       └── privacy-policy.vue
+│   └── utils/
+│       ├── api.js                # HTTP 客户端
+│       ├── auth.js               # Token 管理
+│       ├── config.js             # API_BASE_URL
+│       └── format.js             # 格式化工具 (compactAddress 等)
 ```
-
-## 微信测试号 AppID 配置
-
-**不提交 AppID 到 Git。**
-
-在 HBuilderX 中：`src/manifest.json` → 微信小程序配置 → 填写 AppID。
-
-在微信开发者工具中：导入 `dist/build/mp-weixin`，工具界面填写 AppID。
 
 ## 注意事项
 
-- 不提交真实应用标识或密钥到 Git
-- Web 母版 `frontend/` 保持不动
+- 不提交 AppID / Secret / 密钥到 Git
+- `src/manifest.json` 中的小程序 AppID 仅用于本地联调
