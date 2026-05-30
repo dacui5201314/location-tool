@@ -194,7 +194,7 @@ export default {
         const expiry = this.formattedMemberExpiry ? '，到期 ' + this.formattedMemberExpiry : ''
         return '剩余 ' + this.memberDays + ' 天' + expiry
       }
-      return '适合持续评估多个商铺位置，正式购买入口暂未开放'
+      return '适合持续评估多个商铺位置'
     },
     formattedMemberExpiry () {
       return this.formatDateOnly(this.memberExpiry)

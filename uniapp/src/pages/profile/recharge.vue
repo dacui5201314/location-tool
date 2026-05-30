@@ -3,8 +3,8 @@
     <view class="status-card">
       <view class="status-copy">
         <text class="eyebrow">充值中心</text>
-        <text class="status-title">微信支付暂未开放</text>
-        <text class="status-desc">套餐可先查看，正式购买入口将在支付配置完成后开放。</text>
+        <text class="status-title">充值中心</text>
+        <text class="status-desc">选择套餐，微信支付即时到账</text>
       </view>
       <view class="status-grid">
         <view class="status-cell">
@@ -32,7 +32,7 @@
         <view class="sku-right">
           <text class="sku-price">¥{{ s.price }}</text>
           <text class="sku-credits">+{{ s.credits }}点</text>
-          <text class="sku-state">暂未开放</text>
+          <view v-if="selectedSku && selectedSku.id === s.id" class="sku-check">✓</view>
         </view>
       </view>
       <view class="empty" v-if="!pointSkus.length">暂无点数套餐，请联系客服</view>
@@ -46,7 +46,7 @@
         </view>
         <view class="sku-right">
           <text class="sku-price">¥{{ s.price }}</text>
-          <text class="sku-state">暂未开放</text>
+          <view v-if="selectedSku && selectedSku.id === s.id" class="sku-check">✓</view>
         </view>
       </view>
       <view class="empty" v-if="!memberSkus.length">暂无会员套餐，请联系客服</view>
@@ -55,9 +55,9 @@
     <view class="action-card">
       <view class="action-copy">
         <text class="action-title">{{ selectedSku ? selectedSku.label : '请选择套餐' }}</text>
-        <text class="action-desc">{{ selectedSku ? selectedSkuDesc : '当前仅展示套餐信息，暂不发起微信支付。' }}</text>
+        <text class="action-desc">{{ selectedSku ? selectedSkuDesc : '请选择套餐后发起支付' }}</text>
       </view>
-      <button class="pay-btn" @tap="onUnavailable">暂未开放</button>
+      <button class="pay-btn" :class="{ ready: selectedSku }" :disabled="paying" @tap="onPay">{{ paying ? '支付中...' : (selectedSku ? '微信支付 ¥' + selectedSku.price : '请先选择套餐') }}</button>
     </view>
 
     <view class="cs-section" @tap="goContact">
@@ -89,7 +89,8 @@ export default {
       memberDays: 0,
       memberExpiry: '',
       csQrUrl: '', csWechat: '', csPhone: '',
-      payErr: ''
+      payErr: '',
+      paying: false
     }
   },
   computed: {
@@ -143,11 +144,51 @@ export default {
     callPhone (p) { uni.makePhoneCall({ phoneNumber: p }) },
     selectSku (sku) {
       this.selectedSku = sku
-      this.onUnavailable()
+      this.payErr = ''
     },
-    onUnavailable () {
-      this.payErr = '微信支付暂未开放，请先联系客服购买或使用兑换码激活'
-      uni.showToast({ title: '暂未开放', icon: 'none' })
+    async onPay () {
+      if (this.paying || !this.selectedSku) return
+      this.paying = true
+      this.payErr = ''
+      try {
+        const r = await api.createPrepay(this.selectedSku.id)
+        if (!r.ok) {
+          const msg = (r.data && (r.data.detail || r.data.error)) || '创建订单失败'
+          if (msg.includes('微信中登录')) {
+            this.payErr = '请先在微信中授权登录后再支付'
+          } else if (msg.includes('支付服务暂不可用')) {
+            this.payErr = '支付服务未配置，请联系管理员'
+          } else {
+            this.payErr = msg
+          }
+          return
+        }
+        const pp = r.data
+        // 拉起微信支付
+        const payRes = await new Promise((resolve, reject) => {
+          uni.requestPayment({
+            provider: 'wxpay',
+            timeStamp: String(pp.timeStamp || ''),
+            nonceStr: pp.nonceStr || '',
+            package: pp.package || '',
+            signType: pp.signType || 'RSA',
+            paySign: pp.paySign || '',
+            success: resolve,
+            fail: reject
+          })
+        })
+        uni.showToast({ title: '支付成功', icon: 'success' })
+        this.selectedSku = null
+        await this.loadProfile()
+      } catch (e) {
+        if (e && e.errMsg && e.errMsg.includes('cancel')) {
+          this.payErr = '支付已取消'
+        } else {
+          this.payErr = (e && (e.errMsg || e.message)) || '支付失败'
+        }
+      } finally {
+        this.paying = false
+      }
     }
   }
 }
@@ -183,6 +224,8 @@ export default {
 .action-desc { display:block; font-size:25rpx; color:#64748b; line-height:1.5; margin-top:8rpx; }
 .pay-btn { width:100%; height:86rpx; line-height:86rpx; margin-top:22rpx; border-radius:16rpx; background:#eef2f7; color:#64748b; font-size:28rpx; font-weight:900; }
 .pay-btn::after { border:none; }
+.pay-btn.ready { background:linear-gradient(135deg,#ffe8b0 0%,#f8c861 54%,#dba640 100%); color:#4a2600; box-shadow:0 14rpx 26rpx rgba(248,200,97,0.20); }
+.sku-check { font-size:24rpx; font-weight:900; color:#16a34a; margin-left:8rpx; }
 .cs-section { margin-top:28rpx; padding:26rpx; background:linear-gradient(180deg,#ffffff,#f8fbff); border-radius:20rpx; box-shadow:0 12rpx 28rpx rgba(79,119,186,0.09); border:1rpx solid rgba(219,230,255,0.92); text-align:center; }
 .cs-title { display:block; font-size:30rpx; font-weight:900; color:#1e293b; margin-bottom:10rpx; }
 .cs-qr { width:200rpx; height:200rpx; display:block; margin:0 auto 16rpx; border-radius:12rpx; }
