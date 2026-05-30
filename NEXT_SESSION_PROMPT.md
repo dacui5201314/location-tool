@@ -1,49 +1,54 @@
 # Next Session Prompt — 2026-05-30
 
 Project: `C:\Users\admin\location-tool`
-GitHub: `https://github.com/dacui5201314/location-tool` (干净仓库)
+GitHub: `https://github.com/dacui5201314/location-tool`
 
 ## 开门三件事
 
-1. 读 `PROJECT_RULES.md`（产品原则、禁止事项）
-2. 读 `CURRENT_HANDOFF.md`（最新状态）
+1. 读 `CURRENT_HANDOFF.md`（最新状态，今天全部更新过）
+2. 读 `PROJECT_RULES.md`（产品原则、禁止事项）
 3. 不读 `PROJECT_STATE.md` / `WORKING_SET.md` 旧章节（已过期）
 
 ## 当前基线
 
-- compileall: PASS
-- industry_rigor_rules: 2168 PASS, 0 FAIL
-- report_fact_guard: 147 PASS, 0 FAIL
+```
+compileall → PASS
+industry_rigor_rules → 2168 PASS, 0 FAIL
+report_fact_guard → 147 PASS, 0 FAIL
+```
 
-## 首要任务：LLM POI 名称幻觉
+## 本 session 重点变更
 
-**C-4 验证结果**：小餐饮/宝鸡，LLM 两次生成均编造不存在的 POI（好又多、学校、住宅小区）。
-P0 guard 正确拦截并退款，但 retry 后仍然编造，报告无法保存。
+### 项目结构简化
+- Web 前端 `frontend/` 已删除（17,000 行）
+- 项目只剩 backend + uniapp + miniprogram
+- 管理后台重建为 `backend/admin/index.html`（独立 HTML，访问 `/admin`）
 
-**需要 Codex 审核后给出指令**：
-- System prompt 层如何约束 LLM 只引用 real_data 中的真实 POI
-- 是否需要更强的 retry 策略
-- Python 层是否可以做更严格的后处理
+### 管理后台 `/admin`
+- 完整复刻旧 React 后台功能
+- 系统设置含子标签：核心配置、UI、分享、二维码、SKU、Key 池、存储
+- 业态规则从 industry_config.py 直接读取
+- 微信支付配置嵌入核心配置页
 
-## 次要任务：微信支付联调
+### 微信支付
+- 后端 JSAPI v3 完整链路代码已就绪
+- 小程序充值页已接真实支付（不再显示"暂未开放"）
+- 本地无法完整测试（需要公网 HTTPS notify_url）
+- 代码路径：`routers/pay.py` → prepay + notify
 
-用户下午会填入真实微信支付商户密钥。需要：
-- 测试 `/api/pay/wx-prepay` 生成预支付订单
-- 测试 `/api/pay/wx-notify` 支付回调验签
-- uniapp 端 `requestPayment` 拉起收银台
-
-## Web 前端已删除
-
-`frontend/` 目录已不存在。uni-app 是唯一客户端。管理后台通过 Swagger `/docs` 操作。
-
-## 今天已完成的修复
-
-- 计费时序：AMap 成功后 commit，失败 rollback
+### P0 修复
+- 计费时序：AMap 成功 → commit 扣点，失败 → rollback
 - location.py 接入 key 池
-- 死代码清理 ~1000 行
-- B26/B27 修复
-- safe-area 适配
-- 全部文档更新
-- GitHub 仓库重建
+- B26 错误格式 / B27 billing refresh
 
-不要重复执行以上修复。
+### LLM 幻觉问题（C-4 验证）
+- 小餐饮/宝鸡：LLM 编造假 POI（好又多、学校）
+- P0 guard 拦截正确，但 retry 后仍编造
+- 这是当前最大阻塞 — 等 Codex 审核给 prompt 层修复指令
+
+## 下一步任务
+
+1. **全面排查** — 管理后台各模块功能完整性走查
+2. **管理后台完善** — 边界情况、错误处理、交互细节
+3. **样本库完善** — 13 个业态补 substitute 列
+4. **正式上线** — 部署到公网服务器，微信支付真机联调

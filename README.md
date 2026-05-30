@@ -152,7 +152,8 @@ npm run dev:h5            # H5 网页
 
 ## 版本历史
 
-- **v1.12.0** (2026-05-30) — 项目简化与安全加固：移除 Web 前端（React），uni-app 成为唯一客户端；后端 location 端点接入 Key 池实现配额自动切换；计费扣点时序优化（AMap 成功后再 commit，失败则 rollback）；uniapp 4 页面 safe-area-inset-bottom iPhone 适配；管理后台功能完整可用
+- **v1.13.0** (2026-05-30) — 管理后台重建 + 微信支付接入：全新独立 HTML 管理后台（`/admin`），8 模块功能完整对齐旧版；系统设置含 7 子标签（核心配置/UI/分享/二维码/SKU/Key池/存储）；业态规则从 industry_config.py 直接读取；仪表盘含 15 天趋势图；微信支付 JSAPI v3 完整链路（prepay + notify）；小程序充值页接入真实支付；死代码清理 ~1,000 行；P0 计费时序修复；B26/B27 修复
+- **v1.12.0** (2026-05-30) — 项目简化与安全加固：移除 Web 前端（React），uni-app 成为唯一客户端；后端 location 端点接入 Key 池实现配额自动切换；计费扣点时序优化（AMap 成功后再 commit，失败则 rollback）；uniapp 4 页面 safe-area-inset-bottom iPhone 适配
 - **v1.11.0** (2026-05-29) — 小程序 UI 精细化收口：`compactAddress` 地址简写增强，四 tab 底部间距统一，guest 未登录态布局修复，Profile 页脚文案优化，首页/收藏页脚 padding 平衡，Profile 页面重构。check_industry_rigor_rules.py 2168 PASS / check_report_fact_guard.py 147 PASS
 - **v1.10.0** (2026-05-26) — 上线收口：微信支付后台 PEM 证书配置闭环，头像持久化上传，登录后 onboarding 流程，快捷登录错误引导，法律页面（用户协议/隐私政策），Admin 用户管理展示头像昵称。2168/147 PASS
 - **v1.9.0** (2026-05-26) — uni-app 登录/充值/CDK 独立页面化：快捷登录/密码登录/注册、兑换码独立页、充值中心独立页，微信支付后端（JSAPI v3），User.nickname 字段 DB 迁移。2168/147 PASS
