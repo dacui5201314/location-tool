@@ -3,9 +3,20 @@ import os, httpx
 from fastapi import APIRouter, Query
 from starlette.responses import JSONResponse
 
+from database import SessionLocal
+from routers.admin import _get_amap_key_selector
+
 router = APIRouter(prefix="/api/location", tags=["location"])
 
-AMAP_KEY = os.getenv("AMAP_WEB_KEY", os.getenv("AMAP_KEY", ""))
+
+def _get_key():
+    """从 key 池获取当前可用的高德 Key，池空则回退到 .env"""
+    db = SessionLocal()
+    try:
+        key, _ = _get_amap_key_selector(db)
+        return key
+    finally:
+        db.close()
 
 
 @router.get("/suggest")
@@ -17,17 +28,18 @@ async def location_suggest(
     小程序端不保存、不暴露地图服务 Key。
     统一返回 { ok, data/error } + HTTP 状态码。
     """
-    if not AMAP_KEY:
+    amap_key = _get_key()
+    if not amap_key:
         return JSONResponse(
             status_code=503,
-            content={"ok": False, "error": "地图服务未配置（AMAP_WEB_KEY 缺失）"},
+            content={"ok": False, "error": "地图服务未配置（AMAP Key 池为空且 .env 中未设置）"},
         )
 
     if not keyword.strip():
         return {"ok": True, "data": [], "source": "amap_inputtips"}
 
     params = {
-        "key": AMAP_KEY,
+        "key": amap_key,
         "keywords": keyword.strip(),
         "datatype": "all",
         "output": "JSON",
@@ -93,13 +105,14 @@ async def location_regeocode(
     lat: float = Query(..., description="纬度"),
 ):
     """反向地理编码：经纬度 → 文字地址。小程序端不暴露 Key。"""
-    if not AMAP_KEY:
-        return JSONResponse(status_code=503, content={"ok": False, "error": "地图服务未配置（AMAP_WEB_KEY 缺失）"})
+    amap_key = _get_key()
+    if not amap_key:
+        return JSONResponse(status_code=503, content={"ok": False, "error": "地图服务未配置（AMAP Key 池为空且 .env 中未设置）"})
 
     try:
         async with httpx.AsyncClient(timeout=10) as client:
             resp = await client.get("https://restapi.amap.com/v3/geocode/regeo", params={
-                "key": AMAP_KEY, "location": f"{lng},{lat}", "extensions": "base", "output": "JSON",
+                "key": amap_key, "location": f"{lng},{lat}", "extensions": "base", "output": "JSON",
             })
             data = resp.json()
     except Exception:

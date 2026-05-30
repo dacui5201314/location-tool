@@ -392,12 +392,13 @@ export default {
 .points-card { background:linear-gradient(180deg,#ffffff,#f9fbff); margin:0 24rpx 20rpx; border-radius:22rpx; padding:28rpx; box-shadow:0 18rpx 38rpx rgba(51,87,150,0.13); border:1rpx solid rgba(219,230,255,0.96); }
 .pc-head { display:flex; justify-content:space-between; align-items:center; gap:16rpx; margin-bottom:24rpx; }
 .pc-copy { display:flex; align-items:center; gap:18rpx; min-width:0; flex:1; }
-.pc-asset { position:relative; width:86rpx; height:78rpx; flex-shrink:0; }
-.pc-coin { position:absolute; display:block; border-radius:50%; background:linear-gradient(145deg,#fff1b8 0%,#ffd166 48%,#e3a833 100%); border:1rpx solid rgba(255,255,255,0.70); box-shadow:0 12rpx 22rpx rgba(227,168,51,0.20),inset 0 2rpx 0 rgba(255,255,255,0.72); }
-.pc-coin::before { content:''; position:absolute; left:50%; top:50%; width:44%; height:44%; transform:translate(-50%,-50%); border-radius:50%; border:3rpx solid rgba(126,75,0,0.30); }
-.pc-coin-a { right:0; top:4rpx; width:58rpx; height:58rpx; }
-.pc-coin-b { left:4rpx; bottom:4rpx; width:50rpx; height:50rpx; opacity:0.94; }
-.pc-coin-c { left:18rpx; top:0; width:42rpx; height:42rpx; opacity:0.72; }
+.pc-asset { position:relative; width:92rpx; height:78rpx; flex-shrink:0; filter:drop-shadow(0 14rpx 22rpx rgba(245,177,43,0.22)); }
+.pc-coin { position:absolute; display:block; border-radius:50%; background:radial-gradient(circle at 31% 24%,#fff9d6 0 16%,#ffdf72 38%,#f5b82f 68%,#d68a10 100%); border:2rpx solid rgba(255,246,205,0.95); box-shadow:inset 0 4rpx 0 rgba(255,255,255,0.58),inset 0 -6rpx 10rpx rgba(142,78,0,0.15); }
+.pc-coin::before { content:''; position:absolute; inset:10rpx; border-radius:50%; border:3rpx solid rgba(139,82,0,0.20); box-shadow:inset 0 2rpx 0 rgba(255,255,255,0.34); }
+.pc-coin::after { content:''; position:absolute; left:19rpx; top:13rpx; width:18rpx; height:8rpx; border-radius:50%; background:rgba(255,255,255,0.46); transform:rotate(-28deg); }
+.pc-coin-a { right:2rpx; top:4rpx; width:62rpx; height:62rpx; z-index:3; }
+.pc-coin-b { left:4rpx; bottom:6rpx; width:50rpx; height:50rpx; z-index:2; opacity:0.98; }
+.pc-coin-c { left:22rpx; top:0; width:42rpx; height:42rpx; z-index:1; opacity:0.72; }
 .pc-title { display:block; font-size:29rpx; font-weight:900; color:#1e293b; line-height:1.2; }
 .pc-subtitle { display:block; font-size:24rpx; color:#8b99b6; margin-top:8rpx; line-height:1.45; }
 .pc-actions { display:flex; flex-direction:row; align-items:center; gap:12rpx; flex-shrink:0; }

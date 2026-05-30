@@ -2,7 +2,7 @@
   <view class="industry-picker">
     <view class="label" v-if="!hideLabel">选择业态</view>
     <view class="cat-wrap">
-      <scroll-view scroll-x class="cat-scroll">
+      <scroll-view scroll-x class="cat-scroll" :scroll-left="catScrollLeft" :show-scrollbar="false" @scroll="onCatScroll">
         <view class="cat-row">
           <view v-for="cat in displayCats" :key="cat.key" class="cat-tile" :class="[{ active: activeCat === cat.key }, 'cat-' + cat.key]" @tap="selectCat(cat.key)">
             <text class="cat-icon">{{ cat.icon }}</text>
@@ -10,7 +10,7 @@
           </view>
         </view>
       </scroll-view>
-      <view class="scroll-cue"><view class="cue-line" /><view class="cue-thumb" /></view>
+      <view class="scroll-cue" @tap="onCueTouch" @touchstart="onCueTouch" @touchmove.stop.prevent="onCueTouch"><view class="cue-line" /><view class="cue-thumb" :style="cueThumbStyle" /></view>
     </view>
     <view class="sub-panel" v-if="activeCat && subTypes.length">
       <view v-for="st in subTypes" :key="st.name" class="chip" :class="{ selected: selected === st.name }" @tap="onSelect(st.name)">{{ st.name }}</view>
@@ -60,23 +60,100 @@ export default {
     industries: { type: Array, default: () => [] },
     disabled: { type: Boolean, default: false }
   },
-  data () { return { activeCat: '', subTypes: [] } },
+  data () {
+    return {
+      activeCat: '',
+      subTypes: [],
+      scrollLeft: 0,
+      catScrollLeft: 0,
+      scrollMax: 1,
+      cueTrackWidth: 0,
+      cueThumbWidth: 56
+    }
+  },
   computed: {
     displayCats () {
       return groupIndustries(this.industries) || mockIndustries
+    },
+    cueThumbStyle () {
+      const track = this.cueTrackWidth || 180
+      const thumb = this.cueThumbWidth || 56
+      const movable = Math.max(0, track - thumb)
+      const left = this.scrollMax > 0 ? Math.min(movable, movable * this.scrollLeft / this.scrollMax) : 0
+      return `width:${thumb}px; transform:translateX(${left}px);`
     }
+  },
+  watch: {
+    industries () {
+      this.$nextTick(this.updateCueMetrics)
+    }
+  },
+  mounted () {
+    this.$nextTick(this.updateCueMetrics)
   },
   methods: {
     selectCat (key) {
       if (this.disabled) return
+      if (this.activeCat === key) {
+        this.activeCat = ''
+        this.subTypes = []
+        this.$nextTick(this.updateCueMetrics)
+        return
+      }
       this.activeCat = key
       const list = this.displayCats
       const cat = list.find(c => c.key === key)
       this.subTypes = cat && cat.subTypes ? cat.subTypes.map(s => ({ name: s })) : []
+      this.$nextTick(this.updateCueMetrics)
     },
     onSelect (name) {
       if (this.disabled) return
       this.$emit('change', name)
+    },
+    onCatScroll (e) {
+      const d = e && e.detail ? e.detail : {}
+      const left = Math.max(0, Number(d.scrollLeft || 0))
+      this.scrollLeft = left
+      this.catScrollLeft = left
+      if (d.scrollWidth && d.clientWidth) {
+        this.scrollMax = Math.max(1, Number(d.scrollWidth) - Number(d.clientWidth))
+      } else if (d.scrollWidth) {
+        this.$nextTick(this.updateCueMetrics)
+      }
+    },
+    onCueTouch (e) {
+      if (this.disabled) return
+      const touch = (e.touches && e.touches[0]) || (e.changedTouches && e.changedTouches[0])
+      const x = touch ? touch.clientX : (e.detail && e.detail.x)
+      if (typeof x !== 'number') return
+      const query = uni.createSelectorQuery().in(this)
+      query.select('.scroll-cue').boundingClientRect()
+      query.exec((res) => {
+        const track = res && res[0]
+        if (!track || !track.width) return
+        const ratio = Math.max(0, Math.min(1, (x - track.left) / track.width))
+        const nextLeft = Math.round(this.scrollMax * ratio)
+        this.scrollLeft = nextLeft
+        this.catScrollLeft = nextLeft
+      })
+    },
+    updateCueMetrics () {
+      const query = uni.createSelectorQuery().in(this)
+      query.select('.scroll-cue').boundingClientRect()
+      query.select('.cat-scroll').boundingClientRect()
+      query.select('.cat-row').boundingClientRect()
+      query.exec((res) => {
+        const track = res && res[0]
+        const viewport = res && res[1]
+        const row = res && res[2]
+        if (!track || !viewport || !row) return
+        const trackWidth = Math.max(1, track.width || 1)
+        const viewportWidth = Math.max(1, viewport.width || 1)
+        const rowWidth = Math.max(viewportWidth, row.width || viewportWidth)
+        this.cueTrackWidth = trackWidth
+        this.scrollMax = Math.max(1, rowWidth - viewportWidth)
+        this.cueThumbWidth = Math.max(48, Math.min(trackWidth, trackWidth * viewportWidth / rowWidth))
+      })
     }
   }
 }
@@ -85,39 +162,39 @@ export default {
 <style scoped>
 .industry-picker { margin: 24rpx 0; }
 .label { font-size: 28rpx; font-weight: 600; color: #334155; margin-bottom: 16rpx; }
-.cat-wrap { position:relative; padding-bottom:0; }
+.cat-wrap { position:relative; padding-bottom:24rpx; }
 .cat-wrap::after { content:''; position:absolute; right:0; top:0; width:50rpx; height:158rpx; pointer-events:none; background:linear-gradient(90deg,rgba(255,255,255,0),#fff 76%); }
 .cat-scroll { width:100%; height:160rpx; white-space:nowrap; display:block; box-sizing:border-box; }
 .cat-row { display:inline-flex; align-items:stretch; gap:18rpx; padding:0 56rpx 0 0; box-sizing:border-box; }
-.cat-tile { position:relative; display:inline-flex; flex-direction:column; align-items:center; justify-content:center; width:166rpx; height:148rpx; padding:18rpx 12rpx; border-radius:18rpx; background:linear-gradient(180deg,#ffffff,#f9fbff); border:1px solid rgba(209,222,249,0.98); box-shadow:0 14rpx 30rpx rgba(74,111,172,0.08); flex-shrink:0; box-sizing:border-box; vertical-align:top; }
+.cat-tile { position:relative; display:inline-flex; flex-direction:column; align-items:center; justify-content:center; width:166rpx; height:148rpx; padding:14rpx 12rpx 14rpx; border-radius:18rpx; background:linear-gradient(180deg,#ffffff,#f9fbff); border:1px solid rgba(209,222,249,0.98); box-shadow:0 14rpx 30rpx rgba(74,111,172,0.08); flex-shrink:0; box-sizing:border-box; vertical-align:top; }
 .cat-tile.active { background: linear-gradient(180deg,#ffffff,#f4f7ff); border-color: rgba(49,91,255,0.70); box-shadow: 0 18rpx 34rpx rgba(49,91,255,0.16); }
 .cat-tile.active::after { content:'✓'; position:absolute; right:-10rpx; top:-10rpx; width:38rpx; height:38rpx; line-height:38rpx; border-radius:50%; text-align:center; background:linear-gradient(135deg,#315bff,#1f57ff); color:#fff; font-size:24rpx; font-weight:900; box-shadow:0 8rpx 18rpx rgba(49,91,255,0.24); }
-.cat-icon { position:relative; width:64rpx; height:64rpx; min-width:64rpx; min-height:64rpx; line-height:64rpx; text-align:center; border-radius:18rpx; background:linear-gradient(145deg,#f6f9ff,#ffffff); color:transparent; font-size:0; box-shadow:inset 0 0 0 1px rgba(13,75,220,0.10),0 8rpx 18rpx rgba(74,111,172,0.06); overflow:hidden; flex-shrink:0; }
+.cat-icon { position:relative; display:flex; align-items:center; justify-content:center; width:64rpx; height:64rpx; min-width:64rpx; min-height:64rpx; line-height:64rpx; text-align:center; border-radius:18rpx; background:linear-gradient(145deg,#f6f9ff,#ffffff); color:transparent; font-size:0; box-shadow:inset 0 0 0 1px rgba(13,75,220,0.10),0 8rpx 18rpx rgba(74,111,172,0.06); overflow:hidden; flex-shrink:0; margin:0 auto; }
 .cat-icon::before,.cat-icon::after { content: ''; position: absolute; box-sizing: border-box; }
-.cat-icon::before { left: 16rpx; top: 16rpx; width: 26rpx; height: 26rpx; border-radius: 8rpx; border: 4rpx solid #0d4bdc; }
-.cat-icon::after { left: 22rpx; top: 22rpx; width: 14rpx; height: 14rpx; border-radius: 50%; background: rgba(13,75,220,0.16); }
+.cat-icon::before { left: 17rpx; top: 17rpx; width: 30rpx; height: 30rpx; border-radius: 8rpx; border: 4rpx solid #0d4bdc; }
+.cat-icon::after { left: 25rpx; top: 25rpx; width: 14rpx; height: 14rpx; border-radius: 50%; background: rgba(13,75,220,0.16); }
 .cat-tile.active .cat-icon { background: linear-gradient(135deg,#0d4bdc,#5b4be6); box-shadow: 0 12rpx 24rpx rgba(13,75,220,0.24); }
 .cat-tile.active .cat-icon::before { border-color: #fff; }
 .cat-tile.active .cat-icon::after { background: rgba(255,255,255,0.30); }
-.cat-tile:nth-child(1) .cat-icon::before { left: 15rpx; top: 25rpx; width: 28rpx; height: 14rpx; border-radius: 0 0 16rpx 16rpx; border-top: 0; }
-.cat-tile:nth-child(1) .cat-icon::after { left: 20rpx; top: 15rpx; width: 18rpx; height: 14rpx; border-radius: 50%; background: rgba(13,75,220,0.18); }
-.cat-tile:nth-child(2) .cat-icon::before { left: 15rpx; top: 18rpx; width: 24rpx; height: 22rpx; border-radius: 0 0 14rpx 14rpx; }
-.cat-tile:nth-child(2) .cat-icon::after { left: 38rpx; top: 22rpx; width: 8rpx; height: 12rpx; border: 3rpx solid #0d4bdc; border-left: 0; background: transparent; border-radius: 0 8rpx 8rpx 0; }
-.cat-tile:nth-child(3) .cat-icon::before { left: 15rpx; top: 18rpx; width: 28rpx; height: 24rpx; border-radius: 5rpx; }
-.cat-tile:nth-child(3) .cat-icon::after { left: 19rpx; top: 14rpx; width: 20rpx; height: 8rpx; border-radius: 8rpx 8rpx 0 0; background: #0d4bdc; }
-.cat-tile:nth-child(4) .cat-icon::before { left: 14rpx; top: 14rpx; width: 30rpx; height: 32rpx; border-radius: 4rpx; background: repeating-linear-gradient(90deg,transparent 0 8rpx,rgba(13,75,220,0.14) 8rpx 11rpx); }
-.cat-tile:nth-child(4) .cat-icon::after { left: 24rpx; top: 36rpx; width: 10rpx; height: 10rpx; border-radius: 2rpx 2rpx 0 0; background: #0d4bdc; }
-.cat-tile:nth-child(5) .cat-icon::before { left: 17rpx; top: 17rpx; width: 24rpx; height: 24rpx; border-radius: 50%; }
-.cat-tile:nth-child(5) .cat-icon::after { left: 27rpx; top: 11rpx; width: 4rpx; height: 36rpx; border-radius: 999rpx; background: #0d4bdc; transform: rotate(45deg); }
-.cat-tile:nth-child(6) .cat-icon::before { left: 14rpx; top: 21rpx; width: 30rpx; height: 18rpx; border-radius: 10rpx; }
-.cat-tile:nth-child(6) .cat-icon::after { left: 22rpx; top: 18rpx; width: 14rpx; height: 8rpx; border-radius: 8rpx 8rpx 0 0; background: #0d4bdc; }
+.cat-tile:nth-child(1) .cat-icon::before { left: 17rpx; top: 30rpx; width: 30rpx; height: 15rpx; border-radius: 0 0 16rpx 16rpx; border-top: 0; }
+.cat-tile:nth-child(1) .cat-icon::after { left: 22rpx; top: 19rpx; width: 20rpx; height: 15rpx; border-radius: 50%; background: rgba(13,75,220,0.18); }
+.cat-tile:nth-child(2) .cat-icon::before { left: 18rpx; top: 21rpx; width: 25rpx; height: 23rpx; border-radius: 0 0 14rpx 14rpx; }
+.cat-tile:nth-child(2) .cat-icon::after { left: 42rpx; top: 25rpx; width: 8rpx; height: 12rpx; border: 3rpx solid #0d4bdc; border-left: 0; background: transparent; border-radius: 0 8rpx 8rpx 0; }
+.cat-tile:nth-child(3) .cat-icon::before { left: 18rpx; top: 22rpx; width: 28rpx; height: 24rpx; border-radius: 5rpx; }
+.cat-tile:nth-child(3) .cat-icon::after { left: 22rpx; top: 18rpx; width: 20rpx; height: 8rpx; border-radius: 8rpx 8rpx 0 0; background: #0d4bdc; }
+.cat-tile:nth-child(4) .cat-icon::before { left: 17rpx; top: 16rpx; width: 30rpx; height: 32rpx; border-radius: 4rpx; background: repeating-linear-gradient(90deg,transparent 0 8rpx,rgba(13,75,220,0.14) 8rpx 11rpx); }
+.cat-tile:nth-child(4) .cat-icon::after { left: 27rpx; top: 38rpx; width: 10rpx; height: 10rpx; border-radius: 2rpx 2rpx 0 0; background: #0d4bdc; }
+.cat-tile:nth-child(5) .cat-icon::before { left: 20rpx; top: 20rpx; width: 24rpx; height: 24rpx; border-radius: 50%; }
+.cat-tile:nth-child(5) .cat-icon::after { left: 30rpx; top: 14rpx; width: 4rpx; height: 36rpx; border-radius: 999rpx; background: #0d4bdc; transform: rotate(45deg); }
+.cat-tile:nth-child(6) .cat-icon::before { left: 17rpx; top: 24rpx; width: 30rpx; height: 18rpx; border-radius: 10rpx; }
+.cat-tile:nth-child(6) .cat-icon::after { left: 25rpx; top: 21rpx; width: 14rpx; height: 8rpx; border-radius: 8rpx 8rpx 0 0; background: #0d4bdc; }
 .cat-tile.active:nth-child(1) .cat-icon::after,.cat-tile.active:nth-child(3) .cat-icon::after,.cat-tile.active:nth-child(4) .cat-icon::after,.cat-tile.active:nth-child(5) .cat-icon::after,.cat-tile.active:nth-child(6) .cat-icon::after { background:#fff; }
 .cat-tile.active:nth-child(2) .cat-icon::after { border-color:#fff; }
-.cat-name { display:block; width:100%; text-align:center; font-size:24rpx; font-weight:900; color:#17244e; margin-top:16rpx; line-height:1.18; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.cat-name { display:block; width:100%; text-align:center; font-size:24rpx; font-weight:900; color:#17244e; margin-top:14rpx; line-height:1.18; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .cat-tile.active .cat-name { color: #0d4bdc; }
-.scroll-cue { display:none; }
+.scroll-cue { position:absolute; left:12rpx; right:42rpx; bottom:0; height:18rpx; padding:4rpx 0; box-sizing:border-box; }
 .cue-line { position:absolute; left:0; right:0; top:2rpx; height:6rpx; border-radius:999rpx; background:#edf3ff; box-shadow:inset 0 0 0 1rpx rgba(219,230,255,0.88); }
-.cue-thumb { position:absolute; left:0; top:1rpx; width:112rpx; height:8rpx; border-radius:999rpx; background:linear-gradient(90deg,#315bff,#5b4be6); box-shadow:0 4rpx 10rpx rgba(49,91,255,0.22); }
+.cue-thumb { position:absolute; left:0; top:1rpx; width:112rpx; height:8rpx; border-radius:999rpx; background:linear-gradient(90deg,#315bff,#5b4be6); box-shadow:0 4rpx 10rpx rgba(49,91,255,0.22); transition:transform 0.12s ease; pointer-events:none; }
 .sub-panel { margin-top: 16rpx; display: flex; flex-wrap: wrap; gap: 12rpx; padding: 16rpx; border-radius: 16rpx; background: linear-gradient(180deg,#f8fbff,#ffffff); border: 1px solid rgba(219,230,255,0.78); }
 .chip { padding: 12rpx 24rpx; border-radius: 16rpx; background: #fff; font-size: 26rpx; font-weight: 700; color: #5c677d; border: 1px solid rgba(219,230,255,0.95); box-shadow: 0 8rpx 18rpx rgba(74,111,172,0.05); }
 .chip.selected { background: #f3f7ff; color: #315bff; border-color: rgba(88,105,255,0.44); box-shadow: 0 10rpx 20rpx rgba(68,84,255,0.11); }

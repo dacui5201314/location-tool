@@ -302,8 +302,8 @@ async def analyze_location(req: AnalyzeRequest, user: dict = Depends(get_current
         if not billing.allowed:
             db_billing.close()
             raise HTTPException(status_code=402, detail=billing.reason)
-        db_billing.commit()
-        db_billing.close()
+        # ★ P0修复：计费扣点延后到 AMap 采集成功后 commit，避免崩溃丢点
+        # db_billing 在 event_stream 内 AMap 成功后 commit，失败则 rollback
     except HTTPException:
         raise
     except Exception:
@@ -396,6 +396,16 @@ async def analyze_location(req: AnalyzeRequest, user: dict = Depends(get_current
                     "data_quality_notes": ld.data_quality_notes,
                     "rigor_enabled": bool(get_rigor_for_config_key(config_key)),
                 }
+                # ★ P0修复：AMap 采集成功 → 计费确认
+                try:
+                    db_billing.commit()
+                except Exception:
+                    pass  # 可能已提交或会话异常，不影响主流程
+                finally:
+                    try:
+                        db_billing.close()
+                    except Exception:
+                        pass
             except Exception as _ame:
                 import traceback
                 _am_err = str(_ame)[:200]
@@ -420,6 +430,16 @@ async def analyze_location(req: AnalyzeRequest, user: dict = Depends(get_current
                     real_data = fallback
                 else:
                     _amap_failed = True
+                    # ★ P0修复：AMap 失败 → 计费回滚，不扣点
+                    try:
+                        db_billing.rollback()
+                    except Exception:
+                        pass
+                    finally:
+                        try:
+                            db_billing.close()
+                        except Exception:
+                            pass
                     real_data = {
                         "city": "", "district": "", "township": "",
                         "poi_counts": {}, "stats_200m": {}, "stats_500m": {}, "stats_1000m": {},
@@ -812,15 +832,13 @@ async def analyze_location(req: AnalyzeRequest, user: dict = Depends(get_current
                 yield _sse("error", "分析服务异常，请稍后重试")
             await asyncio.sleep(0)
         finally:
-            # ★ 退款收口：LLM/JSON/AMap/DB 失败 → 点数模式退款 (Phase 13: +_db_save_error)
-            should_refund = (_llm_server_error or _llm_parse_error or _amap_failed or _db_save_error) and not _refund_processed
+            # ★ 退款收口：LLM/JSON/DB 失败 → 点数模式退款
+            should_refund = (_llm_server_error or _llm_parse_error or _db_save_error) and not _refund_processed
             if should_refund and billing and billing.source == "points":
                 _refund_processed = True
                 try:
                     if _db_save_error:
                         refund_reason = "DB保存失败"
-                    elif _amap_failed:
-                        refund_reason = "AMap数据采集失败"
                     elif _llm_server_error:
                         refund_reason = "LLM服务端异常"
                     else:

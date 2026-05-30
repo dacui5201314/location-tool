@@ -37,8 +37,8 @@
     </view>
 
     <view class="tabs" v-if="isLoggedIn">
-      <view v-for="tab in tabs" :key="tab.key" class="tab" :class="{ active: activeTab === tab.key }" @tap="activeTab = tab.key">
-        <text>{{ tab.label }} {{ counts[tab.key] || '' }}</text>
+      <view v-for="tab in tabs" :key="tab.key" class="tab" :class="{ active: sortMode === tab.key }" @tap="sortMode = tab.key">
+        <text>{{ tab.label }}</text>
       </view>
     </view>
 
@@ -63,7 +63,11 @@
           </view>
         </view>
         <view class="card-body-row">
-          <view class="map-thumb"><text class="mt-icon">📍</text></view>
+          <view class="map-thumb">
+            <view class="record-pin">
+              <view class="record-pin-dot"></view>
+            </view>
+          </view>
           <view class="card-mid">
             <text class="card-addr">{{ displayAddress(r.address) }}</text>
             <text class="card-time" v-if="r.created_at">{{ fmtTime(r.created_at) }}</text>
@@ -107,17 +111,24 @@ export default {
   data () {
     return {
       loading: false, isLoggedIn: false,
-      activeTab: 'all',
-      tabs: [{ key:'all',label:'全部' },{ key:'done',label:'已完成' }],
+      sortMode: 'newest',
+      tabs: [{ key:'newest',label:'最新' },{ key:'scoreDesc',label:'高分优先' },{ key:'scoreAsc',label:'低分优先' }],
       records: [], delTarget: null, delLoading: false
     }
   },
   computed: {
-    displayList () { return this.records },
-    counts () {
-      const r = this.records
-      return { all: r.length, done: r.length }
-    }
+    displayList () {
+      const items = [...this.records]
+      if (this.sortMode === 'scoreDesc') {
+        items.sort((a, b) => Number(b.overall_score || 0) - Number(a.overall_score || 0) || new Date(b.created_at || 0) - new Date(a.created_at || 0))
+      } else if (this.sortMode === 'scoreAsc') {
+        items.sort((a, b) => Number(a.overall_score || 0) - Number(b.overall_score || 0) || new Date(b.created_at || 0) - new Date(a.created_at || 0))
+      } else {
+        items.sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0))
+      }
+      return items
+    },
+    counts () { return { all: this.records.length } }
   },
   mounted () {
     this.isLoggedIn = auth.isLoggedIn()
@@ -209,7 +220,7 @@ export default {
 .lb-icon { display:flex; align-items:center; justify-content:center; width:74rpx; height:74rpx; margin:0 auto 14rpx; border-radius:50%; background:linear-gradient(145deg,#eff5ff,#dfeaff); color:#315bff; font-size:32rpx; line-height:1; box-shadow:inset 0 1rpx 0 rgba(255,255,255,0.78); }
 .lb-name { display:block; font-size:25rpx; color:#17244e; font-weight:900; line-height:1.3; }
 .lb-desc { display:block; font-size:22rpx; color:#7b8aa8; line-height:1.35; margin-top:8rpx; }
-.tabs { display:flex; gap:12rpx; margin-bottom:18rpx; }
+.tabs { display:flex; gap:12rpx; margin-bottom:18rpx; padding-top:2rpx; }
 .tab { padding:14rpx 26rpx; border-radius:999rpx; background:rgba(255,255,255,0.90); border:1px solid rgba(219,230,255,0.95); font-size:26rpx; font-weight:800; color:#5c677d; box-shadow:0 8rpx 18rpx rgba(74,111,172,0.05); }
 .tab.active { background:#f3f7ff; color:#315bff; border-color:rgba(88,105,255,0.44); }
 .loading { text-align:center; padding:72rpx 0; background:rgba(255,255,255,0.72); border:1rpx solid rgba(219,230,255,0.72); border-radius:22rpx; }
@@ -233,8 +244,11 @@ export default {
 .score-unit { font-size:22rpx; color:#94a3b8; }
 .stars { font-size:23rpx; color:#f8c861; letter-spacing:2rpx; }
 .card-body-row { display:flex; align-items:center; margin-bottom:10rpx; }
-.map-thumb { width:84rpx; height:84rpx; background:linear-gradient(135deg,#eef3ff,#dce4f2); border-radius:16rpx; flex-shrink:0; display:flex; align-items:center; justify-content:center; margin-right:16rpx; border:1rpx solid rgba(219,230,255,0.92); }
-.mt-icon { font-size:36rpx; opacity:0.7; }
+.map-thumb { width:84rpx; height:84rpx; background:radial-gradient(circle at 50% 52%,rgba(49,91,255,0.10),transparent 52%),linear-gradient(145deg,#f7faff,#e9f0ff); border-radius:20rpx; flex-shrink:0; display:flex; align-items:center; justify-content:center; margin-right:16rpx; border:1rpx solid rgba(219,230,255,0.96); box-shadow:inset 0 1rpx 0 rgba(255,255,255,0.86); }
+.record-pin { position:relative; width:48rpx; height:48rpx; border-radius:50%; background:linear-gradient(145deg,#ffffff,#edf4ff); box-shadow:0 10rpx 22rpx rgba(49,91,255,0.12),inset 0 1rpx 0 rgba(255,255,255,0.90); }
+.record-pin::before { content:''; position:absolute; left:50%; top:50%; width:26rpx; height:26rpx; transform:translate(-50%,-50%); border-radius:50% 50% 50% 8rpx; background:linear-gradient(145deg,#6ea2ff 0%,#315bff 62%,#5b4be6 100%); box-shadow:0 8rpx 16rpx rgba(49,91,255,0.22); }
+.record-pin::after { content:''; position:absolute; left:50%; top:50%; width:8rpx; height:8rpx; transform:translate(-50%,-58%); border-radius:50%; background:#fff; box-shadow:0 0 0 4rpx rgba(255,255,255,0.18); }
+.record-pin-dot { position:absolute; left:50%; bottom:6rpx; width:24rpx; height:5rpx; transform:translateX(-50%); border-radius:50%; background:rgba(49,91,255,0.16); }
 .card-mid { flex:1; min-width:0; }
 .card-addr { font-size:26rpx; color:#475569; line-height:1.5; display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; overflow:hidden; word-break:break-all; }
 .card-time { font-size:23rpx; color:#8b99b6; display:block; margin-top:6rpx; }

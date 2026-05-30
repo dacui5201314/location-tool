@@ -126,7 +126,11 @@
         <!-- 状态 B：真实地图（idle 选点态） -->
         <template v-if="mapMode === 'map'">
           <map id="homeMap" class="map-view" :latitude="mapLat" :longitude="mapLng" :markers="mapMarkers" scale="15" :show-location="showUserLocation" :enable-scroll="true" :enable-zoom="true" :enable-rotate="false" @tap="onMapTap" @regionchange="onMapRegionChange" />
-          <cover-image src="/static/map-pin.png" class="crosshair-pin" />
+          <cover-view class="crosshair-pin">
+            <cover-view class="pin-shadow" />
+            <cover-view class="pin-head"><cover-view class="pin-dot" /></cover-view>
+            <cover-view class="pin-tip" />
+          </cover-view>
         </template>
 
         <!-- 状态 C：分析中卡片 -->
@@ -1012,8 +1016,12 @@ export default {
 .phb { width:40rpx; border-radius:8rpx 8rpx 0 0; background:rgba(148,163,184,0.25); }
 .phb-a { height:60rpx; } .phb-b { height:96rpx; } .phb-c { height:78rpx; } .phb-d { height:48rpx; }
 
-/* State B: Map center pin — cover-image, pin tip at map center */
-.crosshair-pin { position:absolute; left:50%; top:50%; width:56rpx; height:72rpx; margin-left:-28rpx; margin-top:-72rpx; z-index:10; pointer-events:none; }
+/* State B: Map center pin */
+.crosshair-pin { position:absolute; left:50%; top:50%; width:76rpx; height:92rpx; margin-left:-38rpx; margin-top:-86rpx; z-index:10; pointer-events:none; }
+.pin-shadow { position:absolute; left:18rpx; bottom:0; width:40rpx; height:12rpx; border-radius:50%; background:rgba(15,23,42,0.22); }
+.pin-head { position:absolute; left:11rpx; top:0; width:54rpx; height:54rpx; border-radius:50% 50% 50% 12rpx; transform:rotate(-45deg); background:linear-gradient(145deg,#ff6b6b 0%,#ef4444 58%,#c81e1e 100%); box-shadow:0 12rpx 24rpx rgba(239,68,68,0.30),inset 0 2rpx 0 rgba(255,255,255,0.38); }
+.pin-dot { position:absolute; left:17rpx; top:17rpx; width:20rpx; height:20rpx; border-radius:50%; background:#fff; box-shadow:0 0 0 7rpx rgba(255,255,255,0.18); }
+.pin-tip { position:absolute; left:34rpx; top:48rpx; width:8rpx; height:30rpx; border-radius:999rpx; background:linear-gradient(180deg,#ef4444,#c81e1e); box-shadow:0 8rpx 14rpx rgba(239,68,68,0.22); }
 
 /* State C: Analyzing card */
 .analyzing-card { height:360rpx; background:linear-gradient(180deg,#eef3ff,#dce4f2); display:flex; flex-direction:column; align-items:center; justify-content:center; padding:40rpx; }
