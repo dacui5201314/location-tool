@@ -161,7 +161,7 @@ async function navTo(page){
     logs:renderLogs, cdk:renderCdk, sysparams:renderSysParams,
     oplogs:renderOpLogs, industries:renderIndustries
   };
-  if(renderers[page]){c.innerHTML=await renderers[page]();await loaders[page]?.()}
+  if(renderers[page]){c.innerHTML=await renderers[page]();await loaders[page]?.();if(page==='dashboard')setTimeout(drawTrend,200)}
 }
 
 // ── Dashboard ──
@@ -177,8 +177,7 @@ async function renderDashboard(){
     <div class="grid2"><div class="card"><h3>📈 分析趋势（近15天）</h3><canvas id="trendChart" width="500" height="180"></canvas></div>
     <div class="card"><h3>🔥 热门业态</h3><div class="flex-wrap">${topBiz}</div><h4 class="mt">🏷️ 热门品牌</h4><div class="flex-wrap">${topBrands}</div></div></div>
     <div class="grid2"><div class="card"><h3>快速操作</h3><div class="flex-wrap">${ql('users','👥 用户管理')}${ql('settings','⚙️ 系统设置')}${ql('cdk','🎫 生成 CDK')}${ql('logs','📋 系统日志')}${ql('industries','🏭 业态规则')}</div></div>
-    <div class="card"><h3>当前状态</h3><div class="text-sm">后端运行中 · 测试基线: compileall PASS / industry 2168 PASS / fact guard 147 PASS</div></div></div>
-    setTimeout(drawTrend,100)<\/script>\``;
+    <div class="card"><h3>当前状态</h3><div class="text-sm">后端运行中 · 测试基线: compileall PASS / industry 2168 PASS / fact guard 147 PASS</div></div></div>`;
 }
 function drawTrend(){
   if(!_trends||!_trends.trend_dates)return;
@@ -255,7 +254,7 @@ async function uploadShareImg(){const inp=document.createElement('input');inp.ty
 // QR Codes
 function renderQrcodePanel(){return `<div class="card" style="max-width:400px"><h3>客服二维码</h3><div class="text-sm mb">联系客服展示</div><div id="csQrPreview"></div><button class="btn btn-outline btn-sm mt" onclick="uploadCsQr()">上传二维码</button></div>`}
 function loadQrcodePreviews(){af('GET','/api/admin/qrcode-slot/cs').then(r=>{if(r.ok&&r.data?.url)document.getElementById('csQrPreview').innerHTML=`<img src="${r.data.url}" class="preview-img">`})}
-async function uploadCsQr(){const inp=document.createElement('input');inp.type='file';inp.accept='image/*';inp.onchange=async()=>{const f=inp.files[0];if(!f)return;const fd=new FormData();fd.append('file',f);const r=await fetch(API+'/api/admin/upload-qrcode?slot=cs',{method:'POST',headers:{'Authorization':'Bearer '+token},body:fd}).then(r=>r.json());if(r.url){document.getElementById('csQrPreview').innerHTML=`<img src="${r.url}" class="preview-img">`;toast('上传成功',true)}else{toast(r.detail||'上传失败',false)}};inp.click()}
+async function uploadCsQr(){const inp=document.createElement('input');inp.type='file';inp.accept='image/*';inp.onchange=async()=>{const f=inp.files[0];if(!f)return;const fd=new FormData();fd.append('file',f);const r=await fetch(API+'/api/admin/upload-qrcode?tag=cs',{method:'POST',headers:{'Authorization':'Bearer '+token},body:fd}).then(r=>r.json());if(r.url){document.getElementById('csQrPreview').innerHTML=`<img src="${r.url}" class="preview-img">`;toast('上传成功',true)}else{toast(r.detail||'上传失败',false)}};inp.click()}
 
 // SKU Panel
 function renderSkuPanel(){return `<div class="card"><div class="flex-between mb"><h3>套餐与点数包</h3><button class="btn btn-primary btn-sm" onclick="addSku()">+ 添加</button></div><div id="skuList"></div></div>`}
@@ -308,8 +307,8 @@ async function loadOpLogs(){const r=await af('GET','/api/admin/operation-logs');
 
 // ── Industries ──
 function renderIndustries(){return `<div class="card"><h3>业态规则管理</h3><div class="text-sm mb">查看业态配置，编辑专属提示词</div><div id="indList"></div></div>`}
-async function loadIndustries(){const r=await af('GET','/api/industries/active');const inds=r.ok?(r.data.industries||[]):[];document.getElementById('indList').innerHTML=`<table><thead><tr><th>名称</th><th>Config Key</th><th>状态</th><th>操作</th></tr></thead><tbody>${inds.map(i=>`<tr><td><b>${i.name}</b></td><td class="mono">${i.config_key||'-'}</td><td><span class="tag ${i.is_active?'tag-green':'tag-red'}">${i.is_active?'启用':'禁用'}</span></td><td><button class="btn btn-outline btn-xs" onclick="editIndustryPrompt(${i.id},'${i.name}')">编辑提示词</button></td></tr>`).join('')}</tbody></table>`}
-async function editIndustryPrompt(id,name){const r=await af('GET',`/api/industries/${id}/prompt`);const prompt=r.ok?(r.data?.exclusive_prompt||r.data?.prompt||''):'';const box=document.createElement('div');box.className='modal-overlay';box.innerHTML=`<div class="modal-box"><h3>编辑 ${name} 专属提示词</h3><textarea id="indPrompt" rows="10" class="mono">${prompt}</textarea><div class="text-xs mt">留空则使用默认 System Prompt</div><div style="display:flex;gap:8px;margin-top:16px"><button class="btn btn-primary" id="saveIndBtn">保存</button><button class="btn btn-outline" onclick="this.closest('.modal-overlay').remove()">取消</button></div></div>`;document.body.appendChild(box);box.querySelector('#saveIndBtn').onclick=async()=>{const rr=await af('PUT',`/api/industries/${id}`,{exclusive_prompt:document.getElementById('indPrompt').value});toast(rr.ok?'已保存':(rr.data?.detail||'失败'),rr.ok);if(rr.ok)box.remove()}}
+async function loadIndustries(){const r=await af('GET','/api/admin/industries');const inds=r.ok?(r.data.industries||[]):[];document.getElementById('indList').innerHTML=`<table><thead><tr><th>名称</th><th>Config Key</th><th>状态</th><th>操作</th></tr></thead><tbody>${inds.map(i=>`<tr><td><b>${i.name}</b></td><td class="mono">${i.config_key||'-'}</td><td><span class="tag ${i.is_active?'tag-green':'tag-red'}">${i.is_active?'启用':'禁用'}</span></td><td><button class="btn btn-outline btn-xs" onclick="editIndustryPrompt(${i.id},${JSON.stringify(i.name)})">编辑提示词</button></td></tr>`).join('')}</tbody></table>`}
+async function editIndustryPrompt(id,name){const r=await af('GET','/api/admin/industries');let prompt='';if(r.ok){const inds=r.data.industries||[];const found=inds.find(i=>i.id===id);if(found)prompt=found.exclusive_prompt||''}const box=document.createElement('div');box.className='modal-overlay';box.innerHTML=`<div class="modal-box"><h3>编辑 ${name} 专属提示词</h3><textarea id="indPrompt" rows="10" class="mono">${prompt.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</textarea><div class="text-xs mt">留空则使用默认 System Prompt</div><div style="display:flex;gap:8px;margin-top:16px"><button class="btn btn-primary" id="saveIndBtn">保存</button><button class="btn btn-outline" onclick="this.closest('.modal-overlay').remove()">取消</button></div></div>`;document.body.appendChild(box);box.querySelector('#saveIndBtn').onclick=async()=>{const rr=await af('PUT',`/api/admin/industries/${id}`,{exclusive_prompt:document.getElementById('indPrompt').value});toast(rr.ok?'已保存':(rr.data?.detail||'失败'),rr.ok);if(rr.ok)box.remove()}}
 
 // ── Register loaders ──
 const loaders={
