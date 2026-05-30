@@ -209,3 +209,26 @@ def match_industry(business_type: str = Query("", description="前端选中的�
                 return {"matched": True, "industry_id": item.id, "industry_name": name}
 
     return {"matched": False, "industry_id": None, "industry_name": ""}
+
+
+@public_router.get("/rules")
+def get_industry_rules():
+    """返回 industry_config.py 中的 Master 模板和业态映射（只读）"""
+    from prompts.industry_config import MASTER_TEMPLATES, BUSINESS_TYPE_TO_MASTER, get_rigor_for_config_key
+
+    masters = []
+    for key, cfg in MASTER_TEMPLATES.items():
+        competitor_codes = cfg.get("competitor_amap_types", "") or cfg.get("amap_codes", "")
+        radar = cfg.get("radar_weights", {})
+        radar_str = ", ".join(f"{k}:{v}" for k, v in radar.items()) if radar else "-"
+        masters.append({
+            "key": key,
+            "competitor_codes": competitor_codes,
+            "rigor_enabled": get_rigor_for_config_key(key),
+            "radar_weights": radar_str,
+        })
+
+    return {
+        "masters": masters,
+        "mapping": dict(sorted(BUSINESS_TYPE_TO_MASTER.items())),
+    }

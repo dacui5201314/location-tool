@@ -306,9 +306,15 @@ function renderOpLogs(){return `<div class="card"><div class="flex-between mb"><
 async function loadOpLogs(){const r=await af('GET','/api/admin/operation-logs');const logs=r.ok?(r.data.logs||[]):[];document.getElementById('oplogTbody').innerHTML=logs.length?logs.map(l=>`<tr><td>${(l.created_at||'').slice(0,19)}</td><td>${l.admin_id||'-'}</td><td><span class="tag tag-blue">${l.type||'-'}</span></td><td>${l.user_id||'-'}</td><td class="text-sm">${l.reason||l.description||'-'}</td></tr>`).join(''):'<tr><td colspan="5" class="text-sm">暂无操作记录</td></tr>'}
 
 // ── Industries ──
-function renderIndustries(){return `<div class="card"><h3>业态规则管理</h3><div class="text-sm mb">查看业态配置，编辑专属提示词</div><div id="indList"></div></div>`}
-async function loadIndustries(){const r=await af('GET','/api/admin/industries');const inds=r.ok?(r.data.industries||[]):[];document.getElementById('indList').innerHTML=`<table><thead><tr><th>名称</th><th>Config Key</th><th>状态</th><th>操作</th></tr></thead><tbody>${inds.map(i=>`<tr><td><b>${i.name}</b></td><td class="mono">${i.config_key||'-'}</td><td><span class="tag ${i.is_active?'tag-green':'tag-red'}">${i.is_active?'启用':'禁用'}</span></td><td><button class="btn btn-outline btn-xs" onclick="editIndustryPrompt(${i.id},${JSON.stringify(i.name)})">编辑提示词</button></td></tr>`).join('')}</tbody></table>`}
-async function editIndustryPrompt(id,name){const r=await af('GET','/api/admin/industries');let prompt='';if(r.ok){const inds=r.data.industries||[];const found=inds.find(i=>i.id===id);if(found)prompt=found.exclusive_prompt||''}const box=document.createElement('div');box.className='modal-overlay';box.innerHTML=`<div class="modal-box"><h3>编辑 ${name} 专属提示词</h3><textarea id="indPrompt" rows="10" class="mono">${prompt.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</textarea><div class="text-xs mt">留空则使用默认 System Prompt</div><div style="display:flex;gap:8px;margin-top:16px"><button class="btn btn-primary" id="saveIndBtn">保存</button><button class="btn btn-outline" onclick="this.closest('.modal-overlay').remove()">取消</button></div></div>`;document.body.appendChild(box);box.querySelector('#saveIndBtn').onclick=async()=>{const rr=await af('PUT',`/api/admin/industries/${id}`,{exclusive_prompt:document.getElementById('indPrompt').value});toast(rr.ok?'已保存':(rr.data?.detail||'失败'),rr.ok);if(rr.ok)box.remove()}}
+function renderIndustries(){return `<div class="card"><h3>业态规则 — Master 模板体系</h3><div class="text-sm mb">规则定义在 <code>prompts/industry_config.py</code>，新增业态只需在代码中添加映射即可自动识别。前台 57 个业态入口 → 14 个 Master 模板。</div><div id="indList"></div></div>`}
+async function loadIndustries(){const r=await af('GET','/api/industries/rules');const data=r.ok?r.data:{};const masters=data.masters||[],mapping=data.mapping||{};document.getElementById('indList').innerHTML=`
+  <h4>14 个 Master 模板</h4>
+  <table><thead><tr><th>模板</th><th>竞品 AMap 类型</th><th>严谨框架</th><th>雷达权重</th></tr></thead><tbody>
+  ${masters.map(m=>`<tr><td><b>${m.key}</b></td><td class="mono">${m.competitor_codes||'-'}</td><td><span class="tag ${m.rigor_enabled?'tag-green':'tag-red'}">${m.rigor_enabled?'启用':'关闭'}</span></td><td class="text-sm">${m.radar_weights||'-'}</td></tr>`).join('')}</tbody></table>
+  <h4 class="mt">57 个前台业态 → Master 映射</h4>
+  <div style="display:flex;flex-wrap:wrap;gap:8px">
+  ${Object.entries(mapping).map(([bt,mk])=>`<span class="tag tag-blue" style="font-size:12px;padding:4px 10px">${bt} → ${mk}</span>`).join(' ')}
+  </div>`}
 
 // ── Register loaders ──
 const loaders={
