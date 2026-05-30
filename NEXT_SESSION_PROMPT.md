@@ -1,57 +1,49 @@
-# New Window Prompt - Phase 13
+# Next Session Prompt — 2026-05-30
 
 Project: `C:\Users\admin\location-tool`
+GitHub: `https://github.com/dacui5201314/location-tool` (干净仓库)
 
-Read first only:
-1. `PROJECT_RULES.md`
-2. `PROJECT_PROGRESS.yml`
-3. `CURRENT_HANDOFF.md`
+## 开门三件事
 
-Do not read `PROJECT_STATE.md` / `WORKING_SET.md` unless explicitly needed.
+1. 读 `PROJECT_RULES.md`（产品原则、禁止事项）
+2. 读 `CURRENT_HANDOFF.md`（最新状态）
+3. 不读 `PROJECT_STATE.md` / `WORKING_SET.md` 旧章节（已过期）
 
-## Current State
+## 当前基线
 
-Report accuracy mainline is complete. Do not reopen POI/rules/sample expansion.
+- compileall: PASS
+- industry_rigor_rules: 2168 PASS, 0 FAIL
+- report_fact_guard: 147 PASS, 0 FAIL
 
-Latest relevant commits:
-- `52cc749` - `feat: complete pre-launch accuracy hardening`
-- `0871bac` - `docs: finalize Phase 12 launch readiness wording`
-- `53813cd` - `docs: update README to v1.5.0 with Phase 10-12 changes`
+## 首要任务：LLM POI 名称幻觉
 
-Baseline:
-- `python -m compileall backend`: PASS
-- `python backend/tests/check_industry_rigor_rules.py`: 2168 PASS, 0 FAIL
-- `python backend/tests/check_report_fact_guard.py`: 101 PASS, 0 FAIL
-- DB `analysis_records`: count/max id = 74/74
-- Expected `git status --short`: `M backend/main.py`, `M backend/routers/records.py`, `M backend/tests/check_report_fact_guard.py`, and `M backend/routers/admin.py` may be present from uncommitted partial Phase 13 attempts, plus `tmp_latest_report_text.txt`, `tmp_report_images/`, `tmp_report_pages/`
+**C-4 验证结果**：小餐饮/宝鸡，LLM 两次生成均编造不存在的 POI（好又多、学校、住宅小区）。
+P0 guard 正确拦截并退款，但 retry 后仍然编造，报告无法保存。
 
-## Phase 13 Goal
+**需要 Codex 审核后给出指令**：
+- System prompt 层如何约束 LLM 只引用 real_data 中的真实 POI
+- 是否需要更强的 retry 策略
+- Python 层是否可以做更严格的后处理
 
-Fix launch-blocking billing/save-chain risks:
+## 次要任务：微信支付联调
 
-1. `backend/main.py`: `AnalysisRecord` DB save failure is currently logged but can still return SSE success.
-   - Must hard-fail, not yield success.
-   - Must refund point users.
-   - HTML file save failure can remain best-effort if the DB record is saved.
-   - Note: if `backend/main.py` is dirty, it likely already contains a partial `_db_save_error` / `_db_save_ok` attempt; finish it rather than duplicating it.
+用户下午会填入真实微信支付商户密钥。需要：
+- 测试 `/api/pay/wx-prepay` 生成预支付订单
+- 测试 `/api/pay/wx-notify` 支付回调验签
+- uniapp 端 `requestPayment` 拉起收银台
 
-2. `backend/routers/records.py`: PDF unlock can double-charge on concurrent requests.
-   - If points were charged and conditional unlock `rowcount == 0`, refund before returning `already_unlocked`.
-   - Member unlocks should not refund.
-   - Note: if `records.py` is dirty, it likely attempts to rely on `db.rollback()` to undo `check_billing_access()` in the same transaction; verify with a focused test before committing.
+## Web 前端已删除
 
-Add minimal focused tests if feasible without broad refactor.
-If `check_report_fact_guard.py` is dirty, it likely has source-level/import Phase 13 checks; decide whether to keep, strengthen, or replace them with focused behavioral tests.
-If `admin.py` is dirty, it likely removes deprecated `/api/admin/logs`; this is optional cleanup and should not distract from the two blocking fixes.
+`frontend/` 目录已不存在。uni-app 是唯一客户端。管理后台通过 Swagger `/docs` 操作。
 
-## Boundaries
+## 今天已完成的修复
 
-- No push.
-- Do not process `tmp_*`.
-- Do not modify POI/rules/prompt accuracy logic.
-- Do not random sample or generate more real reports.
-- Do not change DB schema unless impossible to avoid.
-- Do not relax fact guard or classification boundaries.
+- 计费时序：AMap 成功后 commit，失败 rollback
+- location.py 接入 key 池
+- 死代码清理 ~1000 行
+- B26/B27 修复
+- safe-area 适配
+- 全部文档更新
+- GitHub 仓库重建
 
-Commit suggestion:
-`fix: harden billing refund and report save failure paths`
+不要重复执行以上修复。

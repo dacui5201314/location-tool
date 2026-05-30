@@ -1,106 +1,57 @@
-# Current Handoff - 2026-05-28
+# Current Handoff - 2026-05-30
 
 ## Read This First
 
-This file is intentionally short. Older phase history was removed because it is
-already in git history and was becoming context noise.
-
 - Project: `C:\Users\admin\location-tool`
 - Launch target: `uniapp` WeChat Mini Program
-- Web `frontend/`: product master/reference only; do not modify unless the user explicitly approves
-- Current committed HEAD before this handoff-slimming edit: `082c43d`
-- Latest code commit: `6a55fce` - single-page shell with custom tabbar replacing native `switchTab`
-- Latest backend fix: `668ccf7` - retry diagnostics and narrow P0-NAME artifact blacklist
-- This slimming edit may leave `CURRENT_HANDOFF.md` / `PROJECT_PROGRESS.yml` modified until committed
+- Web `frontend/`: **已删除** — uni-app 是唯一客户端
+- GitHub: `https://github.com/dacui5201314/location-tool` (干净仓库，重新上传)
+- Latest commit: `3073dab` — docs: update uniapp/miniprogram READMEs
 
-## Current Working State
+## 当前工作状态
 
-- Native tabBar white transition is fixed by the single-page shell/custom bottom nav.
-- Map no longer overlays other tabs and no longer disappears after fast tab switching.
-- Map uses a fixed center pin. Current interaction is drag/tap map under the pin.
-- Favorites -> Analyze -> Report is working with `favorite_id`, address, lat/lng, and report UUID write-back.
-- User manually verified favorite id=6 can read/open report `6413ae9793384520ae0fb90dbe24930f`.
-- `/api/analyze` has succeeded end-to-end with P0/P2/P3 hard guard preserved.
-- Report-detail UI has been redesigned on the mini-program display layer only: score card alignment, professional card hierarchy, dimension radar section, risk/crowd/POI sections, and visual polish were improved without changing report data or accuracy logic.
-- Mini-program global UI has a first launch-polish pass: clearer favorite button, traditional bottom tabbar, profile/cards/button states, and records/favorites/profile panel visual polish.
-- `compactAddress` enhanced: strips 4 admin levels (省/市/区/街道/镇/乡) and deduplicates city names from remaining text. Applied in home 门店位置 input and favorites card titles. Full address preserved in `addressText`, analyze payload, map 当前位置, and favorites detail line.
-- Report sharing uses `share_token`.
-- Payment code path exists, but production payment still needs real WeChat Pay credentials.
-- Four-tab bottom spacing normalized: `page{height:auto}` in App.vue, `.home-page` padding-bottom 64rpx + safe-area, sub-panels 40rpx. Guest (unlogged-in) panels no longer force 100vh with excessive padding.
-- ProfilePanel footer text changed to "会员权益与账户信息以实际页面为准"; home and profile footer padding balanced (44rpx/44rpx).
-- Profile page refactored: extracted tab panels (RecordsPanel, FavoritesPanel, ProfilePanel), contact page, recharge/redeem/login polish.
+- 后端 FastAPI 运行正常，测试基线：compileall PASS / industry 2168 PASS / fact guard 147 PASS
+- uni-app 小程序：地址联想、SSE 分析、登录/充值/CDK 均已集成
+- 管理后台功能完整，通过 Swagger `/docs` 操作（key 池、SKU、业态配置、用户管理）
+- 微信支付后端（JSAPI v3）已就绪，**待填入真实商户密钥后联调**
+- 报告分享（share_token）正常
+- 四个页面已适配 iPhone safe-area
 
-## Successful Analyze Evidence
+## 2026-05-30 今日完成
 
-- Latest successful `report_uuid`: `6413ae9793384520ae0fb90dbe24930f`
-- `AnalysisRecord id`: `96`
-- User: `46`
-- Favorite: `6`
-- `SavedLocation.latest_report_uuid` for favorite 6 equals the report UUID above
-- Input: Shaanxi Baoji, `小吃快餐`, `陕二丫擀面皮`, `50㎡`
-- User 46 is yearly member, so this successful analyze did not deduct points
-- First LLM output hit P0, retry corrected it, then the report saved. This is desired behavior.
+1. **P0 修复** — 计费扣点延后到 AMap 成功后 commit，失败 rollback（不再丢点）
+2. **P0 修复** — location.py suggest/regeocode 接入 key 池，配额自动切换
+3. **P0 修复** — BrandInput 受控组件 bug（已随前端删除）
+4. **删除 Web 前端** — React frontend/ 全部移除，项目仅保留 backend + uniapp + miniprogram
+5. **死代码清理** — ai_providers 6 个废弃 provider + business_profiles.py 777 行 + config.py 重复配置（共 ~1000 行）
+6. **B27** — billing rowcount==0 时 refresh user ORM 状态
+7. **B26** — records/favorites 错误响应统一为 HTTPException(404)
+8. **safe-area** — 4 页面添加 env(safe-area-inset-bottom)
+9. **文档重写** — README、uniapp/miniprogram README 全部更新
+10. **GitHub 仓库重建** — 清理旧仓库，推送干净代码
 
-## Still Open
+## C-4 真实报告验证
 
-1. **Final mini-program visual QA**: report-detail still needs final real-device/DevTools pass for long text, empty/loading states. Four-tab bottom spacing and guest-state layout improved but may need further micro-adjustment on real devices.
-2. **Home address display**: `compactAddress` now strips 4 admin levels + deduplicates city names. Still display-only; full address and analyze payload stay original. May need per-region testing (autonomous prefectures, etc.).
-3. **WeChat Pay**: external credential/setup task. After cert/key upload, replace customer-service purchase path with direct order/payment.
-4. **Admin UI/IA**: system settings are crowded; industry management and per-industry prompt participation need audit. Ask before touching `frontend/`.
-5. **P0 artifact maintenance**: keep hard guard. If a new false positive appears, add only narrow artifact filters with regression tests.
-6. **Analyze stability**: one success is confirmed; 5-run same-input acceptance is still pending and should only run after the user approves API/time cost.
-7. **HarmonyOS**: P2 compatibility QA only; no dedicated business branch yet.
-8. **Draggable map pointer**: user wants it, but WeChat map marker dragging is not natively supported. Research before attempting.
+- 业态：小餐饮 | 地址：陕二丫擀面皮(兰宝小区店) | 宝鸡
+- 结果：AMap 采集成功、计费链路正确（扣点→退款）、报告未保存
+- 失败原因：LLM 两次生成均编造了不存在的 POI 名称（好又多、学校、住宅小区）
+- P0 guard 正确拦截并触发退款，但 retry 后仍未通过
 
-## Hard Boundaries
+## 当前唯一阻塞问题
 
-- Do not push unless explicitly asked.
-- Do not leak AppID/AppSecret/tokens/API keys/AMap keys/security secrets/merchant keys/certs/PEM/private keys.
-- Do not process `tmp_*`.
-- Do not add `/unlock-pdf` or `/download`.
-- Do not implement PDF now.
-- Do not weaken P0/P2/P3 fact guard.
-- Do not turn real P0 into warning-save.
-- Do not modify scoring, POI classification, prompt semantics, report accuracy logic, or `report_fact_guard` unless explicitly authorized.
-- Do not modify `frontend/` unless explicitly approved.
-- Do not modify `PROJECT_STATE.md` / `WORKING_SET.md` unless explicitly needed.
+**LLM 在报告中编造假 POI 名称。** P0 guard 能拦截，但 retry 后仍然编造，导致报告无法保存。
+这是 prompt 层的对抗问题，需要 Codex 审核后给出指令。
 
-## Next Window Instruction
+## 下一步
 
-```text
-Project: C:\Users\admin\location-tool
+1. **微信支付联调** — 填写真实商户密钥后测试支付全链路
+2. **Prompt 对抗优化** — 等 Codex 额度恢复后审核，给出 prompt 层修复指令
+3. **样本库补充** — 13 个业态缺 substitute 列（非阻塞）
 
-You are a new Codex window. First read:
-1. CURRENT_HANDOFF.md
-2. PROJECT_RULES.md
-3. PROJECT_PROGRESS.yml
-4. C:\Users\admin\Desktop\问题审计.txt
+## 测试基线
 
-Do not read PROJECT_STATE.md / WORKING_SET.md unless explicitly needed.
-
-Start by running git status. Do not reset/revert/push/commit unless I explicitly ask.
-
-Current priority:
-1. Final QA mini-program UI polish already done in uniapp/: report-detail, home, favorites, records, profile, and traditional bottom tabbar.
-2. Verify bottom tabbar safe-area spacing, long text, empty/loading states, and home compact address display on real device/DevTools.
-3. Keep compactAddress display-only: do not change addressText/addressKeyword/analyze payload/favorites/map/regeocode.
-4. WeChat Pay direct purchase only after I provide credentials.
-5. Admin IA/UI and industry prompt audit later; ask before modifying frontend/.
-
-Keep P0/P2/P3 hard guard intact. Do not change scoring, POI classification, prompt semantics, report_fact_guard, PDF/download, or secrets.
-```
-
-## Validation For Any Code Change
-
-- Backend changed: `uv run python -m compileall backend`
-- Uniapp changed: `cd uniapp && npm run build:mp-weixin`
-- Frontend changed with permission: `cd frontend && npm run build`
-- JSON parse: `uniapp/package.json`, `uniapp/src/manifest.json`, `uniapp/src/pages.json`, `uniapp/dist/build/mp-weixin/app.json`, `uniapp/dist/build/mp-weixin/project.config.json`
-- `rg "unlock-pdf|/download" uniapp/src` must be 0
-- `rg "moveToLocation|moveToMapLocation" uniapp/src uniapp/dist/build/mp-weixin` must be 0
-- `rg "switchTab" uniapp/src uniapp/dist/build/mp-weixin` must be 0
-- Payment chain must still use real `requestPayment/createPrepay/queryOrder`
-- Share chain must keep `share_token/onShareAppMessage`
-- Developer/debug copy scan
-- Secret scan
-- `git status --short`
+- `python -m compileall backend`: PASS
+- `python backend/tests/check_industry_rigor_rules.py`: 2168 PASS, 0 FAIL
+- `python backend/tests/check_report_fact_guard.py`: 147 PASS, 0 FAIL
+- 后端运行中：http://localhost:8000
+- Swagger：http://localhost:8000/docs
