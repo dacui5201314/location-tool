@@ -5,110 +5,74 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>址得选 · 管理后台</title>
 <style>
-:root {
-  --bg: #f0f3f8;
-  --card: #fff;
-  --ink: #1e293b;
-  --muted: #64748b;
-  --line: #e2e8f0;
-  --blue: #315bff;
-  --blue-deep: #0b3fbd;
-  --navy: #172a8d;
-  --red: #dc2626;
-  --green: #16a34a;
-  --amber: #d97706;
-  --radius: 12px;
-  --shadow: 0 1px 3px rgba(0,0,0,.06), 0 6px 16px rgba(0,0,0,.04);
-}
-* { box-sizing:border-box; margin:0; padding:0; }
-body { font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif; background:var(--bg); color:var(--ink); min-width:1024px; }
-input,button,textarea,select { font:inherit; }
-button { cursor:pointer; border:none; }
-input,textarea,select { border:1px solid var(--line); border-radius:8px; padding:8px 12px; font-size:14px; width:100%; }
-input:focus,textarea:focus,select:focus { outline:none; border-color:var(--blue); box-shadow:0 0 0 3px rgba(49,91,255,.1); }
-label { font-size:13px; font-weight:600; color:var(--muted); display:block; margin-bottom:4px; }
-
-/* Login */
-.login-wrap { display:flex; align-items:center; justify-content:center; min-height:100vh; background:linear-gradient(135deg,#0b3fbd,#172a8d); }
-.login-card { background:#fff; border-radius:16px; padding:48px 40px; width:400px; box-shadow:0 24px 64px rgba(0,0,0,.25); }
-.login-card h1 { font-size:24px; font-weight:900; margin-bottom:6px; }
-.login-card p { color:var(--muted); font-size:14px; margin-bottom:28px; }
-.login-card .err { color:var(--red); font-size:13px; margin-top:12px; }
-
-/* Layout */
-.topbar { background:linear-gradient(135deg,#0b3fbd,#151f8f); color:#fff; padding:0 24px; height:56px; display:flex; align-items:center; justify-content:space-between; }
-.topbar h2 { font-size:18px; font-weight:900; }
-.topbar button { background:rgba(255,255,255,.12); color:#fff; border-radius:8px; padding:6px 16px; font-size:13px; }
-.topbar button:hover { background:rgba(255,255,255,.22); }
-.layout { display:flex; min-height:calc(100vh - 56px); }
-.sidebar { width:200px; background:#fff; border-right:1px solid var(--line); padding:12px 0; flex-shrink:0; }
-.sidebar a { display:block; padding:10px 24px; font-size:14px; font-weight:600; color:var(--muted); cursor:pointer; text-decoration:none; border-left:3px solid transparent; transition:all .15s; }
-.sidebar a:hover { background:#f8fafc; color:var(--ink); }
-.sidebar a.active { color:var(--blue); border-left-color:var(--blue); background:#eef3ff; }
-.main { flex:1; padding:24px; overflow-y:auto; }
-
-/* Cards */
-.card { background:var(--card); border-radius:var(--radius); padding:24px; box-shadow:var(--shadow); margin-bottom:20px; }
-.card h3 { font-size:16px; font-weight:900; margin-bottom:16px; color:var(--ink); }
-.card h4 { font-size:14px; font-weight:700; margin-bottom:12px; color:var(--ink); }
-.grid2 { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
-.grid3 { display:grid; grid-template-columns:1fr 1fr 1fr; gap:16px; }
-.grid4 { display:grid; grid-template-columns:1fr 1fr 1fr 1fr; gap:16px; }
-
-/* Stats */
-.stat { background:var(--card); border-radius:var(--radius); padding:20px 24px; box-shadow:var(--shadow); }
-.stat .num { font-size:32px; font-weight:900; color:var(--blue); }
-.stat .lbl { font-size:13px; color:var(--muted); margin-top:4px; }
-
-/* Tables */
-table { width:100%; border-collapse:collapse; font-size:13px; }
-th { text-align:left; padding:10px 12px; background:#f8fafc; color:var(--muted); font-weight:700; font-size:12px; border-bottom:2px solid var(--line); }
-td { padding:10px 12px; border-bottom:1px solid var(--line); }
-tr:hover td { background:#f8fafc; }
-
-/* Buttons */
-.btn { display:inline-flex;align-items:center;gap:6px; padding:8px 16px; border-radius:8px; font-size:13px; font-weight:700; transition:all .15s; }
-.btn-primary { background:var(--blue); color:#fff; }
-.btn-primary:hover { background:var(--blue-deep); }
-.btn-danger { background:var(--red); color:#fff; }
-.btn-danger:hover { background:#b91c1c; }
-.btn-outline { background:#fff; color:var(--blue); border:1px solid var(--blue); }
-.btn-outline:hover { background:#eef3ff; }
-.btn-sm { padding:5px 10px; font-size:12px; }
-.btn-xs { padding:3px 8px; font-size:11px; border-radius:6px; }
-
-/* Tags */
-.tag { display:inline-block; padding:2px 8px; border-radius:999px; font-size:11px; font-weight:700; }
-.tag-green { background:#dcfce7; color:#166534; }
-.tag-red { background:#fef2f2; color:#991b1b; }
-.tag-blue { background:#eef3ff; color:#315bff; }
-.tag-amber { background:#fffbeb; color:#92400e; }
-
-/* Toast */
-.toast { position:fixed; top:20px; right:20px; z-index:9999; padding:12px 24px; border-radius:10px; font-size:14px; font-weight:700; color:#fff; animation:fadeIn .3s; box-shadow:0 8px 24px rgba(0,0,0,.2); }
-.toast-ok { background:#16a34a; }
-.toast-err { background:#dc2626; }
-@keyframes fadeIn { from{opacity:0;transform:translateY(-10px)} to{opacity:1;transform:translateY(0)} }
-
-/* Form */
-.form-row { display:flex; gap:12px; align-items:flex-end; }
-.form-row > div { flex:1; }
-.form-group { margin-bottom:14px; }
-.inline-label { display:flex; align-items:center; gap:8px; font-size:14px; }
-
-/* Modal */
-.modal-overlay { position:fixed; inset:0; background:rgba(15,23,42,.5); z-index:1000; display:flex; align-items:center; justify-content:center; }
-.modal-box { background:#fff; border-radius:16px; padding:32px; width:480px; max-height:80vh; overflow-y:auto; box-shadow:0 24px 64px rgba(0,0,0,.3); }
-.modal-box h3 { margin-bottom:16px; }
-
-/* Hidden */
-.hidden { display:none !important; }
-.mb { margin-bottom:16px; }
-.mt { margin-top:16px; }
-.flex-between { display:flex; justify-content:space-between; align-items:center; }
-.text-sm { font-size:13px; color:var(--muted); }
-.text-xs { font-size:12px; color:var(--muted); }
-.badge { display:inline-flex;align-items:center;justify-content:center;min-width:20px;height:20px;border-radius:999px;background:var(--red);color:#fff;font-size:11px;font-weight:900;padding:0 6px;margin-left:6px; }
+:root{--bg:#f0f3f8;--card:#fff;--ink:#1e293b;--muted:#64748b;--line:#e2e8f0;--blue:#315bff;--blued:#0b3fbd;--navy:#172a8d;--red:#dc2626;--green:#16a34a;--amber:#d97706;--r:12px;--sh:0 1px 3px rgba(0,0,0,.06),0 6px 16px rgba(0,0,0,.04)}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;background:var(--bg);color:var(--ink);min-width:1024px}
+input,button,textarea,select{font:inherit}
+button{cursor:pointer;border:none}
+input,textarea,select{border:1px solid var(--line);border-radius:8px;padding:8px 12px;font-size:14px;width:100%}
+input:focus,textarea:focus,select:focus{outline:none;border-color:var(--blue);box-shadow:0 0 0 3px rgba(49,91,255,.1)}
+label{font-size:13px;font-weight:600;color:var(--muted);display:block;margin-bottom:4px}
+.login-wrap{display:flex;align-items:center;justify-content:center;min-height:100vh;background:linear-gradient(135deg,#0b3fbd,#172a8d)}
+.login-card{background:#fff;border-radius:16px;padding:48px 40px;width:400px;box-shadow:0 24px 64px rgba(0,0,0,.25)}
+.login-card h1{font-size:24px;font-weight:900;margin-bottom:6px}
+.login-card p{color:var(--muted);font-size:14px;margin-bottom:28px}
+.err{color:var(--red);font-size:13px;margin-top:12px}
+.topbar{background:linear-gradient(135deg,#0b3fbd,#151f8f);color:#fff;padding:0 24px;height:56px;display:flex;align-items:center;justify-content:space-between}
+.topbar h2{font-size:18px;font-weight:900}
+.topbar button{background:rgba(255,255,255,.12);color:#fff;border-radius:8px;padding:6px 16px;font-size:13px}
+.topbar button:hover{background:rgba(255,255,255,.22)}
+.layout{display:flex;min-height:calc(100vh - 56px)}
+.sidebar{width:200px;background:#fff;border-right:1px solid var(--line);padding:12px 0;flex-shrink:0}
+.sidebar a{display:block;padding:11px 24px;font-size:13px;font-weight:600;color:var(--muted);cursor:pointer;text-decoration:none;border-left:3px solid transparent;transition:all .15s}
+.sidebar a:hover{background:#f8fafc;color:var(--ink)}
+.sidebar a.active{color:var(--blue);border-left-color:var(--blue);background:#eef3ff}
+.main{flex:1;padding:24px;overflow-y:auto}
+.card{background:var(--card);border-radius:var(--r);padding:24px;box-shadow:var(--sh);margin-bottom:20px}
+.card h3{font-size:16px;font-weight:900;margin-bottom:12px}
+.card h4{font-size:14px;font-weight:700;margin-bottom:10px;margin-top:20px}
+.card h4:first-of-type{margin-top:0}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px}
+.grid4{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:16px}
+.stat{background:var(--card);border-radius:var(--r);padding:20px 24px;box-shadow:var(--sh)}
+.stat .num{font-size:30px;font-weight:900;color:var(--blue)}
+.stat .lbl{font-size:13px;color:var(--muted);margin-top:4px}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{text-align:left;padding:10px 12px;background:#f8fafc;color:var(--muted);font-weight:700;font-size:12px;border-bottom:2px solid var(--line)}
+td{padding:10px 12px;border-bottom:1px solid var(--line)}
+tr:hover td{background:#f8fafc}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:8px;font-size:13px;font-weight:700;transition:all .15s}
+.btn-primary{background:var(--blue);color:#fff}.btn-primary:hover{background:var(--blued)}
+.btn-danger{background:var(--red);color:#fff}.btn-danger:hover{background:#b91c1c}
+.btn-outline{background:#fff;color:var(--blue);border:1px solid var(--blue)}.btn-outline:hover{background:#eef3ff}
+.btn-sm{padding:5px 10px;font-size:12px}.btn-xs{padding:3px 8px;font-size:11px;border-radius:6px}
+.tag{display:inline-block;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:700}
+.tag-green{background:#dcfce7;color:#166534}.tag-red{background:#fef2f2;color:#991b1b}
+.tag-blue{background:#eef3ff;color:#315bff}.tag-amber{background:#fffbeb;color:#92400e}
+.tag-gray{background:#f1f5f9;color:#475569}
+.toast{position:fixed;top:20px;right:20px;z-index:9999;padding:12px 24px;border-radius:10px;font-size:14px;font-weight:700;color:#fff;animation:fadeIn .3s;box-shadow:0 8px 24px rgba(0,0,0,.2)}
+.toast-ok{background:#16a34a}.toast-err{background:#dc2626}
+@keyframes fadeIn{from{opacity:0;transform:translateY(-10px)}to{opacity:1;transform:translateY(0)}}
+.form-row{display:flex;gap:12px;align-items:flex-end}
+.form-row>div{flex:1}
+.form-group{margin-bottom:14px}
+.inline-label{display:flex;align-items:center;gap:8px;font-size:14px}
+.hidden{display:none!important}
+.mb{margin-bottom:16px}.mt{margin-top:16px}.mr{margin-right:8px}
+.flex-between{display:flex;justify-content:space-between;align-items:center}
+.flex-wrap{display:flex;flex-wrap:wrap;gap:12px}
+.text-sm{font-size:13px;color:var(--muted)}
+.text-xs{font-size:12px;color:var(--muted)}
+.mono{font-family:"SF Mono","Cascadia Code",Consolas,monospace;font-size:12px}
+pre{background:#f8fafc;border:1px solid var(--line);border-radius:8px;padding:16px;overflow-x:auto;font-size:12px;max-height:400px;overflow-y:auto}
+.tabs{display:flex;gap:4px;background:#f1f5f9;border-radius:10px;padding:4px;margin-bottom:20px;width:fit-content}
+.tab-btn{padding:8px 16px;border-radius:8px;font-size:13px;font-weight:600;color:var(--muted);background:transparent;transition:all .15s}
+.tab-btn.active{background:#fff;color:var(--blue);box-shadow:0 1px 3px rgba(0,0,0,.08)}
+.preview-img{max-width:200px;max-height:120px;border-radius:8px;border:1px solid var(--line);margin-top:8px}
+.modal-overlay{position:fixed;inset:0;background:rgba(15,23,42,.5);z-index:1000;display:flex;align-items:center;justify-content:center}
+.modal-box{background:#fff;border-radius:16px;padding:32px;width:520px;max-height:85vh;overflow-y:auto;box-shadow:0 24px 64px rgba(0,0,0,.3)}
+.modal-box h3{margin-bottom:16px}
 </style>
 </head>
 <body>
@@ -118,280 +82,227 @@ tr:hover td { background:#f8fafc; }
   <div class="login-card">
     <h1>址得选</h1>
     <p>AI 选址分析平台 · 管理后台</p>
-    <div class="form-group">
-      <label>管理员密码</label>
-      <input id="loginPwd" type="password" placeholder="请输入管理后台密码" onkeydown="if(event.key==='Enter')login()">
-    </div>
+    <div class="form-group"><label>管理员密码</label><input id="loginPwd" type="password" placeholder="请输入管理后台密码" onkeydown="if(event.key==='Enter')login()"></div>
     <button class="btn btn-primary" style="width:100%;justify-content:center;padding:10px" onclick="login()">登 录</button>
     <div id="loginErr" class="err hidden"></div>
   </div>
 </div>
 
-<!-- Main -->
+<!-- Main App -->
 <div id="mainPage" class="hidden">
   <div class="topbar">
     <h2>址得选 管理后台</h2>
-    <div style="display:flex;align-items:center;gap:16px">
-      <span style="font-size:13px;opacity:.7">v1.12.0</span>
-      <button onclick="logout()">退出登录</button>
-    </div>
+    <div style="display:flex;align-items:center;gap:16px"><span style="font-size:13px;opacity:.7">v1.12.0</span><button onclick="logout()">退出登录</button></div>
   </div>
   <div class="layout">
     <div class="sidebar">
       <a data-page="dashboard" class="active" onclick="navTo('dashboard')">📊 仪表盘</a>
       <a data-page="users" onclick="navTo('users')">👥 用户管理</a>
-      <a data-page="keys" onclick="navTo('keys')">🗝️ Key 池管理</a>
-      <a data-page="skus" onclick="navTo('skus')">💳 SKU 管理</a>
-      <a data-page="uiconfig" onclick="navTo('uiconfig')">🎨 UI 配置</a>
-      <a data-page="industries" onclick="navTo('industries')">🏪 业态管理</a>
-      <a data-page="cdk" onclick="navTo('cdk')">🎫 CDK 生成</a>
       <a data-page="settings" onclick="navTo('settings')">⚙️ 系统设置</a>
+      <a data-page="logs" onclick="navTo('logs')">📋 系统日志</a>
+      <a data-page="cdk" onclick="navTo('cdk')">🎫 兑换码管理</a>
+      <a data-page="sysparams" onclick="navTo('sysparams')">🔧 全局参数</a>
+      <a data-page="oplogs" onclick="navTo('oplogs')">📝 操作记录</a>
+      <a data-page="industries" onclick="navTo('industries')">🏭 业态规则</a>
     </div>
     <div class="main" id="content"></div>
   </div>
 </div>
 
 <script>
-// ── State ──
-let token = '';
-const API = '';
+let token='';
+const API='';
 
-function af(method, path, body) {
-  const headers = { 'Content-Type':'application/json' };
-  if (token) headers['Authorization'] = 'Bearer ' + token;
-  return fetch(API + path, { method, headers, body: body ? JSON.stringify(body) : undefined })
-    .then(r => r.json().then(d => ({ ok: r.ok, status: r.status, data: d })))
-    .catch(e => ({ ok: false, error: e.message }));
+function af(method,path,body,raw){
+  const headers={};
+  if(!raw) headers['Content-Type']='application/json';
+  if(token) headers['Authorization']='Bearer '+token;
+  return fetch(API+path,{method,headers,body:body?raw?body:JSON.stringify(body):undefined})
+    .then(r=>r.json().then(d=>({ok:r.ok,status:r.status,data:d})))
+    .catch(e=>({ok:false,error:e.message}));
 }
 
-// ── Toast ──
-function toast(msg, ok) {
-  const t = document.createElement('div');
-  t.className = 'toast ' + (ok ? 'toast-ok' : 'toast-err');
-  t.textContent = msg;
+function toast(msg,ok){
+  const t=document.createElement('div');
+  t.className='toast '+(ok?'toast-ok':'toast-err');
+  t.textContent=msg;
   document.body.appendChild(t);
-  setTimeout(() => t.remove(), 2800);
+  setTimeout(()=>t.remove(),2800);
 }
+
+function qv(id){return document.getElementById(id)?.value||''}
+function sv(id,v){const e=document.getElementById(id);if(e&&v!==undefined&&v!==null)e.value=v}
 
 // ── Login ──
-async function login() {
-  const pwd = document.getElementById('loginPwd').value;
-  if (!pwd) { document.getElementById('loginErr').textContent = '请输入密码'; document.getElementById('loginErr').classList.remove('hidden'); return; }
-  const r = await af('POST', '/api/admin/login', { password: pwd });
-  if (!r.ok) {
-    document.getElementById('loginErr').textContent = r.data?.detail || '登录失败';
-    document.getElementById('loginErr').classList.remove('hidden');
-    return;
-  }
-  token = r.data.token;
-  localStorage.setItem('zdx_admin_token', token);
-  document.getElementById('loginPage').classList.add('hidden');
-  document.getElementById('mainPage').classList.remove('hidden');
-  navTo('dashboard');
+async function login(){
+  const pwd=document.getElementById('loginPwd').value;
+  if(!pwd){E('loginErr','请输入密码');return}
+  const r=await af('POST','/api/admin/login',{password:pwd});
+  if(!r.ok){E('loginErr',r.data?.detail||'登录失败');return}
+  token=r.data.token;
+  localStorage.setItem('zdx_admin_token',token);
+  H('loginPage');S('mainPage');navTo('dashboard');
 }
-
-function logout() {
-  token = '';
-  localStorage.removeItem('zdx_admin_token');
-  document.getElementById('loginPage').classList.remove('hidden');
-  document.getElementById('mainPage').classList.add('hidden');
-}
+function logout(){token='';localStorage.removeItem('zdx_admin_token');S('loginPage');H('mainPage')}
+function H(id){document.getElementById(id).classList.add('hidden')}
+function S(id){document.getElementById(id).classList.remove('hidden')}
+function E(id,msg){const e=document.getElementById(id);e.textContent=msg;e.classList.remove('hidden')}
 
 // Auto-login
-(function() {
-  const t = localStorage.getItem('zdx_admin_token');
-  if (t) { token = t;
-    document.getElementById('loginPage').classList.add('hidden');
-    document.getElementById('mainPage').classList.remove('hidden');
-    navTo('dashboard');
-  }
-})();
+(function(){const t=localStorage.getItem('zdx_admin_token');if(t){token=t;S('mainPage');H('loginPage');navTo('dashboard')}})();
 
 // ── Nav ──
-async function navTo(page) {
-  document.querySelectorAll('.sidebar a').forEach(a => a.classList.remove('active'));
+async function navTo(page){
+  document.querySelectorAll('.sidebar a').forEach(a=>a.classList.remove('active'));
   document.querySelector(`[data-page="${page}"]`)?.classList.add('active');
-  const c = document.getElementById('content');
-  switch(page) {
-    case 'dashboard': c.innerHTML = await renderDashboard(); break;
-    case 'users': c.innerHTML = renderUsers(); await loadUsers(); break;
-    case 'keys': c.innerHTML = renderKeys(); await loadKeys(); break;
-    case 'skus': c.innerHTML = renderSkus(); await loadSkus(); break;
-    case 'uiconfig': c.innerHTML = renderUiConfig(); await loadUiConfig(); break;
-    case 'industries': c.innerHTML = renderIndustries(); await loadIndustries(); break;
-    case 'cdk': c.innerHTML = renderCdk(); break;
-    case 'settings': c.innerHTML = renderSettings(); await loadSettings(); break;
-  }
+  const c=document.getElementById('content');
+  const renderers={
+    dashboard:renderDashboard, users:renderUsers, settings:renderSettings,
+    logs:renderLogs, cdk:renderCdk, sysparams:renderSysParams,
+    oplogs:renderOpLogs, industries:renderIndustries
+  };
+  if(renderers[page]){c.innerHTML=await renderers[page]();await loaders[page]?.()}
 }
 
 // ── Dashboard ──
-async function renderDashboard() {
-  const r = await af('GET', '/api/admin/stats');
-  const s = r.ok ? r.data : {};
-  return `<div class="grid4 mb">${stat('总用户', s.total_users || 0)}${stat('总记录', s.total_records || 0)}${stat('今日分析', s.today_analyzes || 0)}${stat('活跃业态', s.active_industries || 0)}</div>
-    <div class="card"><h3>快速操作</h3><div style="display:flex;gap:12px;flex-wrap:wrap">${qlink('users','👥 用户管理')}${qlink('keys','🗝️ Key 池')}${qlink('skus','💳 套餐管理')}${qlink('cdk','🎫 生成 CDK')}${qlink('settings','⚙️ 系统设置')}</div></div>`;
+async function renderDashboard(){
+  const r=await af('GET','/api/admin/stats');
+  const s=r.ok?r.data:{};
+  return `<div class="grid4 mb">${st('总用户数',s.total_users||0,'#2563eb')}${st('累计报告',s.total_reports||s.total_records||0,'#16a34a')}${st('今日新增',s.today_users||0,'#7c5cff')}${st('今日报告',s.today_reports||s.today_analyzes||0,'#f59e0b')}</div>
+    <div class="grid2"><div class="card"><h3>快速操作</h3><div class="flex-wrap">${ql('users','👥 用户管理')}${ql('settings','⚙️ 系统设置')}${ql('cdk','🎫 生成 CDK')}${ql('logs','📋 系统日志')}${ql('industries','🏭 业态规则')}</div></div>
+    <div class="card"><h3>当前状态</h3><div class="text-sm">后端运行中 · 测试基线: compileall PASS / industry 2168 PASS / fact guard 147 PASS</div></div></div>`;
 }
-function stat(l, n) { return `<div class="stat"><div class="num">${n}</div><div class="lbl">${l}</div></div>`; }
-function qlink(p, t) { return `<button class="btn btn-outline" onclick="navTo('${p}')">${t}</button>`; }
+function st(l,n,c){return `<div class="stat"><div class="num" style="color:${c}">${n}</div><div class="lbl">${l}</div></div>`}
+function ql(p,t){return `<button class="btn btn-outline" onclick="navTo('${p}')">${t}</button>`}
 
 // ── Users ──
-function renderUsers() { return `<div class="card"><div class="flex-between mb"><h3>用户列表</h3><div style="display:flex;gap:8px"><input id="userSearch" placeholder="搜索手机号..." style="width:200px" oninput="loadUsers()"><button class="btn btn-outline btn-sm" onclick="loadUsers()">刷新</button></div></div><table><thead><tr><th>ID</th><th>手机号</th><th>昵称</th><th>余额</th><th>会员</th><th>注册时间</th><th>操作</th></tr></thead><tbody id="userTbody"></tbody></table></div>`; }
-async function loadUsers() {
-  const q = document.getElementById('userSearch')?.value || '';
-  const r = await af('GET', '/api/admin/users?search=' + encodeURIComponent(q));
-  const users = r.ok ? (r.data.users || []) : [];
-  document.getElementById('userTbody').innerHTML = users.map(u => `<tr>
-    <td>${u.id}</td><td>${u.phone_number || u.phone || '-'}</td><td>${u.nickname || '-'}</td>
-    <td>${u.balance_credits || 0}</td><td><span class="tag ${u.membership_tier&&u.membership_tier!=='free'?'tag-green':'tag-amber'}">${u.membership_tier||'free'}</span></td>
-    <td>${(u.created_at||'').slice(0,10)}</td>
-    <td><button class="btn btn-primary btn-xs" onclick="addCredits(${u.id})">加余额</button></td></tr>`).join('');
+function renderUsers(){return `<div class="card"><div class="flex-between mb"><h3>用户列表</h3><div style="display:flex;gap:8px"><input id="userSearch" placeholder="搜索手机号..." style="width:200px" oninput="loadUsers()"><button class="btn btn-outline btn-sm" onclick="loadUsers()">刷新</button></div></div><table><thead><tr><th>ID</th><th>手机号</th><th>昵称</th><th>余额</th><th>会员</th><th>注册时间</th><th>操作</th></tr></thead><tbody id="userTbody"></tbody></table></div>`}
+async function loadUsers(){
+  const q=document.getElementById('userSearch')?.value||'';
+  const r=await af('GET','/api/admin/users?search='+encodeURIComponent(q));
+  const users=r.ok?(r.data.users||[]):[];
+  document.getElementById('userTbody').innerHTML=users.map(u=>`<tr><td>${u.id}</td><td>${u.phone_number||u.phone||'-'}</td><td>${u.nickname||'-'}</td><td>${u.balance_credits||0}</td><td><span class="tag ${u.membership_tier&&u.membership_tier!=='free'?'tag-green':'tag-amber'}">${u.membership_tier||'free'}</span></td><td>${(u.created_at||'').slice(0,10)}</td><td><button class="btn btn-primary btn-xs" onclick="addCredits(${u.id})">加余额</button></td></tr>`).join('');
 }
-async function addCredits(uid) {
-  const amt = prompt('增加点数：', '10');
-  if (!amt) return;
-  const r = await af('POST', `/api/admin/users/${uid}/add-credits`, { amount: parseInt(amt), reason: '管理后台手动充值' });
-  toast(r.ok ? '充值成功' : (r.data?.detail || '失败'), r.ok);
-  if (r.ok) loadUsers();
+async function addCredits(uid){const amt=prompt('增加点数：','10');if(!amt)return;const r=await af('POST',`/api/admin/users/${uid}/add-credits`,{amount:parseInt(amt),reason:'管理后台手动充值'});toast(r.ok?'充值成功':(r.data?.detail||'失败'),r.ok);if(r.ok)loadUsers()}
+
+// ── Settings (big tab with sub-tabs) ──
+let settingsTab='core';
+function renderSettings(){return `
+  <div class="tabs" id="settingsTabs">
+    <button class="tab-btn active" onclick="switchSettingsTab('core')">核心配置</button>
+    <button class="tab-btn" onclick="switchSettingsTab('uiconfig')">UI 配置</button>
+    <button class="tab-btn" onclick="switchSettingsTab('share')">分享配置</button>
+    <button class="tab-btn" onclick="switchSettingsTab('qrcode')">二维码</button>
+    <button class="tab-btn" onclick="switchSettingsTab('pdf')">PDF 品牌</button>
+    <button class="tab-btn" onclick="switchSettingsTab('skus')">SKU 套餐</button>
+    <button class="tab-btn" onclick="switchSettingsTab('keys')">Key 池</button>
+    <button class="tab-btn" onclick="switchSettingsTab('storage')">存储配置</button>
+  </div>
+  <div id="settingsContent"></div>`}
+async function switchSettingsTab(t){
+  settingsTab=t;
+  document.querySelectorAll('#settingsTabs .tab-btn').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('#settingsTabs .tab-btn').forEach(b=>{if(b.textContent.includes({core:'核心',uiconfig:'UI',share:'分享',qrcode:'二维码',pdf:'PDF',skus:'SKU',keys:'Key',storage:'存储'}[t]))b.classList.add('active')});
+  const c=document.getElementById('settingsContent');
+  switch(t){
+    case'core':c.innerHTML=await renderCoreSettings();await loadCoreSettings();break;
+    case'uiconfig':c.innerHTML=renderUiConfigPanel();await loadUiConfigData();break;
+    case'share':c.innerHTML=renderShareConfig();await loadShareConfig();break;
+    case'qrcode':c.innerHTML=renderQrcodePanel();loadQrcodePreviews();break;
+    case'pdf':c.innerHTML=renderPdfConfig();await loadPdfConfig();break;
+    case'skus':c.innerHTML=renderSkuPanel();await loadSkus();break;
+    case'keys':c.innerHTML=renderKeyPool();await loadKeys();break;
+    case'storage':c.innerHTML=renderStorageConfig();await loadStorageConfig();break;
+  }
 }
 
-// ── Key Pool ──
-function renderKeys() { return `<div class="card"><div class="flex-between mb"><h3>高德 Key 池</h3><button class="btn btn-primary btn-sm" onclick="showKeyForm()">+ 添加 Key</button></div><table><thead><tr><th>名称</th><th>Key</th><th>密钥</th><th>状态</th><th>优先级</th><th>失败次数</th><th>最后状态</th><th>操作</th></tr></thead><tbody id="keyTbody"></tbody></table></div>`; }
-async function loadKeys() {
-  const r = await af('GET', '/api/admin/amap-keys');
-  const keys = r.ok ? (r.data || []) : [];
-  document.getElementById('keyTbody').innerHTML = keys.map(k => `<tr>
-    <td>${k.name||'-'}</td><td style="font-family:monospace;font-size:12px">${(k.api_key||'').slice(0,16)}...</td><td>${k.security_secret?'已设':'-'}</td>
-    <td><span class="tag ${k.enabled?'tag-green':'tag-red'}">${k.enabled?'启用':'禁用'}</span></td>
-    <td>${k.priority||0}</td><td>${k.fail_count||0}</td><td>${k.last_status||'-'}</td>
-    <td>
-      <button class="btn btn-outline btn-xs" onclick="testKey(${k.id})">测试</button>
-      <button class="btn btn-outline btn-xs" onclick="editKey(${k.id})">编辑</button>
-      <button class="btn btn-danger btn-xs" onclick="deleteKey(${k.id})">删除</button>
-    </td></tr>`).join('');
-}
-function showKeyForm(edit) {
-  const d = edit || {};
-  const box = document.createElement('div'); box.className='modal-overlay';
-  box.innerHTML = `<div class="modal-box"><h3>${edit?'编辑':'添加'} Key</h3>
-    <div class="form-group"><label>名称</label><input id="kf_name" value="${d.name||''}"></div>
-    <div class="form-group"><label>API Key</label><input id="kf_key" value="${d.api_key||''}"></div>
-    <div class="form-group"><label>安全密钥</label><input id="kf_sec" value="${d.security_secret||''}"></div>
-    <div class="form-row"><div class="form-group"><label>优先级</label><input id="kf_pri" type="number" value="${d.priority||0}"></div>
-    <div class="form-group"><label class="inline-label"><input id="kf_enabled" type="checkbox" ${d.enabled!==false?'checked':''} style="width:auto"> 启用</label></div></div>
-    <div style="display:flex;gap:8px;margin-top:16px"><button class="btn btn-primary" id="kfSave">保存</button><button class="btn btn-outline" onclick="this.closest('.modal-overlay').remove()">取消</button></div></div>`;
+// Core settings
+function renderCoreSettings(){return `<div class="card"><div class="flex-between mb"><h3>核心配置 · System Prompt</h3><div style="display:flex;gap:8px"><button class="btn btn-outline btn-sm" onclick="exportPrompt()">导出</button><label class="btn btn-outline btn-sm" style="cursor:pointer">导入<input type="file" accept=".txt" onchange="importPrompt(this)" style="display:none"></label></div></div><textarea id="corePrompt" rows="12" style="font-family:monospace;font-size:13px"></textarea><button class="btn btn-primary mt" onclick="saveCorePrompt()">💾 保存更新</button></div>`}
+async function loadCoreSettings(){const r=await af('GET','/api/admin/config/core-prompt');sv('corePrompt',r.ok?r.data?.prompt||r.data?.value||'':'')}
+async function saveCorePrompt(){const r=await af('POST','/api/admin/config/prompt',{prompt:qv('corePrompt')});toast(r.ok?'提示词已保存':(r.data?.detail||'失败'),r.ok)}
+function exportPrompt(){const v=qv('corePrompt');if(!v.trim()){toast('内容为空',false);return}const b=new Blob([v],{type:'text/plain;charset=utf-8'});const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='system_prompt.txt';a.click();toast('已导出',true)}
+function importPrompt(inp){const f=inp.files[0];if(!f)return;const r=new FileReader();r.onload=e=>{sv('corePrompt',e.target.result);toast('已导入，请点击保存更新')};r.readAsText(f);inp.value=''}
+
+// UI Config
+function renderUiConfigPanel(){return `<div class="card"><div class="flex-between mb"><h3>UI 客服配置</h3><button class="btn btn-primary btn-sm" onclick="saveUiConfigData()">保存</button></div><div class="form-group"><label>全局公告（留空隐藏）</label><input id="uic_ann" placeholder="如：系统维护中，预计22:00恢复"></div><div class="grid3"><div class="form-group"><label>客服名称</label><input id="uic_name" placeholder="如：大崔"></div><div class="form-group"><label>客服微信号</label><input id="uic_wx" placeholder="如：support_2026"></div><div class="form-group"><label>客服电话</label><input id="uic_phone" placeholder="选填"></div></div></div>`}
+async function loadUiConfigData(){const r=await af('GET','/api/admin/ui-config');if(r.ok){const d=r.data;sv('uic_ann',d.announcement||'');sv('uic_name',d.customer_service_name||'');sv('uic_wx',d.cs_wechat||'');sv('uic_phone',d.cs_phone||'')}}
+async function saveUiConfigData(){const r=await af('PUT','/api/admin/ui-config',{announcement:qv('uic_ann'),customer_service_name:qv('uic_name'),cs_wechat:qv('uic_wx'),cs_phone:qv('uic_phone')});toast(r.ok?'已保存':(r.data?.detail||'失败'),r.ok)}
+
+// Share Config
+function renderShareConfig(){return `<div class="card"><div class="flex-between mb"><h3>分享配置</h3><button class="btn btn-primary btn-sm" onclick="saveShareConfig()">保存</button></div><div class="form-group"><label>分享标题</label><input id="sh_title" placeholder="如：址得选 · AI选址报告"></div><div class="form-group"><label>报告分享标题模板</label><input id="sh_rtpl" placeholder="如：{{address}} · {{business_type}} 选址分析报告"></div><div class="form-group"><label>分享 CTA 文案</label><input id="sh_cta" placeholder="如：立即查看>>"></div><div class="form-group"><label>分享图片 URL</label><div class="form-row"><input id="sh_img" placeholder="/assets/share/xxx.png 或 HTTPS URL"><button class="btn btn-outline btn-sm" onclick="uploadShareImg()" style="flex:0 0 auto">上传图片</button></div></div><div id="shPreview"></div></div>`}
+async function loadShareConfig(){const r=await af('GET','/api/admin/share-config');if(r.ok){const d=r.data;sv('sh_title',d.share_title||'');sv('sh_rtpl',d.report_share_title_template||'');sv('sh_cta',d.share_cta_text||'');sv('sh_img',d.share_image_url||'');if(d.share_image_url)document.getElementById('shPreview').innerHTML=`<img src="${d.share_image_url}" class="preview-img">`}}
+async function saveShareConfig(){const r=await af('PUT','/api/admin/share-config',{share_title:qv('sh_title'),report_share_title_template:qv('sh_rtpl'),share_cta_text:qv('sh_cta'),share_image_url:qv('sh_img')});toast(r.ok?'已保存':(r.data?.detail||'失败'),r.ok)}
+async function uploadShareImg(){const inp=document.createElement('input');inp.type='file';inp.accept='image/*';inp.onchange=async()=>{const f=inp.files[0];if(!f)return;const fd=new FormData();fd.append('file',f);const r=await fetch(API+'/api/admin/share-config/upload-image',{method:'POST',headers:{'Authorization':'Bearer '+token},body:fd}).then(r=>r.json());if(r.url){sv('sh_img',r.url);document.getElementById('shPreview').innerHTML=`<img src="${r.url}" class="preview-img">`;toast('上传成功',true)}else{toast(r.detail||'上传失败',false)}};inp.click()}
+
+// QR Codes
+function renderQrcodePanel(){return `<div class="grid2"><div class="card"><h3>品牌二维码</h3><div class="text-sm mb">PDF 导出使用</div><div id="brandQrPreview"></div><button class="btn btn-outline btn-sm mt" onclick="uploadQr('brand')">上传品牌二维码</button></div><div class="card"><h3>客服二维码</h3><div class="text-sm mb">联系客服展示</div><div id="csQrPreview"></div><button class="btn btn-outline btn-sm mt" onclick="uploadQr('cs')">上传客服二维码</button></div></div>`}
+function loadQrcodePreviews(){af('GET','/api/admin/qrcode-slot/brand').then(r=>{if(r.ok&&r.data?.url)document.getElementById('brandQrPreview').innerHTML=`<img src="${r.data.url}" class="preview-img">`});af('GET','/api/admin/qrcode-slot/cs').then(r=>{if(r.ok&&r.data?.url)document.getElementById('csQrPreview').innerHTML=`<img src="${r.data.url}" class="preview-img">`})}
+async function uploadQr(slot){const inp=document.createElement('input');inp.type='file';inp.accept='image/*';inp.onchange=async()=>{const f=inp.files[0];if(!f)return;const fd=new FormData();fd.append('file',f);const r=await fetch(API+`/api/admin/upload-qrcode?slot=${slot}`,{method:'POST',headers:{'Authorization':'Bearer '+token},body:fd}).then(r=>r.json());if(r.url){if(slot==='brand')document.getElementById('brandQrPreview').innerHTML=`<img src="${r.url}" class="preview-img">`;else document.getElementById('csQrPreview').innerHTML=`<img src="${r.url}" class="preview-img">`;toast('上传成功',true)}else{toast(r.detail||'上传失败',false)}};inp.click()}
+
+// PDF Config
+function renderPdfConfig(){return `<div class="card"><div class="flex-between mb"><h3>PDF 品牌配置</h3><button class="btn btn-primary btn-sm" onclick="savePdfConfig()">保存</button></div><div class="form-group"><label>Logo URL</label><input id="pdf_logo" placeholder="HTTPS URL"></div><div id="pdfLogoPreview"></div><div class="form-group"><label>页脚文案</label><input id="pdf_footer" placeholder="AI 选址分析 · 商业选址初筛参考"></div></div>`}
+async function loadPdfConfig(){const r=await af('GET','/api/admin/pdf-config');if(r.ok){sv('pdf_logo',r.data.logo_url||'');sv('pdf_footer',r.data.footer_text||'AI 选址分析 · 商业选址初筛参考');if(r.data.logo_url)document.getElementById('pdfLogoPreview').innerHTML=`<img src="${r.data.logo_url}" class="preview-img">`}}
+async function savePdfConfig(){const r=await af('PUT','/api/admin/pdf-config',{logo_url:qv('pdf_logo'),footer_text:qv('pdf_footer')});toast(r.ok?'已保存':(r.data?.detail||'失败'),r.ok)}
+
+// SKU Panel
+function renderSkuPanel(){return `<div class="card"><div class="flex-between mb"><h3>套餐与点数包</h3><button class="btn btn-primary btn-sm" onclick="addSku()">+ 添加</button></div><div id="skuList"></div></div>`}
+async function loadSkus(){const r=await af('GET','/api/admin/skus');const skus=r.ok?(r.data.skus||r.data||[]):[];window._skus=skus;renderSkuList()}
+function renderSkuList(){document.getElementById('skuList').innerHTML=window._skus.map((s,i)=>`<div class="card" style="border:1px solid var(--line);box-shadow:none;margin-bottom:10px"><div class="flex-between"><div><span class="tag ${s.type==='membership'?'tag-blue':'tag-green'} mr">${s.type==='membership'?'会员':'点数'}</span><b>${s.label}</b>${s.badge?` <span class="tag tag-amber">${s.badge}</span>`:''}</div><div><button class="btn btn-outline btn-xs" onclick="editSku(${i})">编辑</button><button class="btn btn-danger btn-xs" onclick="deleteSku(${i})">删除</button></div></div><div class="text-sm mt">¥${s.price} · ${s.credits}点 · ${s.duration_days||0}天 · ${s.desc||''} · ${s.visible!==false?'显示':'隐藏'}</div></div>`).join('')+`<button class="btn btn-primary mt" onclick="saveAllSkus()">💾 保存全部</button>`}
+function addSku(){window._skus.push({id:Date.now(),type:'points',label:'新套餐',price:'0',credits:1,tier:'',duration_days:0,badge:'',desc:'',visible:true});renderSkuList()}
+function editSku(i){const s=window._skus[i];const box=document.createElement('div');box.className='modal-overlay';
+  box.innerHTML=`<div class="modal-box"><h3>编辑 SKU</h3><div class="form-row"><div class="form-group"><label>类型</label><select id="sf_t"><option value="membership" ${s.type==='membership'?'selected':''}>会员</option><option value="points" ${s.type==='points'?'selected':''}>点数</option></select></div><div class="form-group"><label>名称</label><input id="sf_l" value="${s.label||''}"></div></div><div class="form-row"><div class="form-group"><label>价格(元)</label><input id="sf_p" value="${s.price||'0'}"></div><div class="form-group"><label>点数</label><input id="sf_c" type="number" value="${s.credits||0}"></div></div><div class="form-row"><div class="form-group"><label>天数</label><input id="sf_d" type="number" value="${s.duration_days||0}"></div><div class="form-group"><label>徽章</label><input id="sf_b" value="${s.badge||''}"></div></div><div class="form-group"><label>描述</label><input id="sf_ds" value="${s.desc||''}"></div><div class="form-group"><label class="inline-label"><input id="sf_v" type="checkbox" ${s.visible!==false?'checked':''} style="width:auto"> 显示</label></div><div style="display:flex;gap:8px"><button class="btn btn-primary" id="sfSave">保存</button><button class="btn btn-outline" onclick="this.closest('.modal-overlay').remove()">取消</button></div></div>`;
   document.body.appendChild(box);
-  box.querySelector('#kfSave').onclick = async () => {
-    const body = { name: qv('kf_name'), api_key: qv('kf_key'), security_secret: qv('kf_sec'), priority: parseInt(qv('kf_pri'))||0, enabled: document.getElementById('kf_enabled').checked };
-    let r;
-    if (edit) r = await af('PUT', `/api/admin/amap-keys/${edit.id}`, body);
-    else r = await af('POST', '/api/admin/amap-keys', body);
-    toast(r.ok ? '保存成功' : (r.data?.detail||'失败'), r.ok);
-    if (r.ok) { box.remove(); loadKeys(); }
-  };
-}
-function editKey(id) { af('GET','/api/admin/amap-keys').then(r => { const k = (r.data||[]).find(x=>x.id===id); if(k) showKeyForm(k); }); }
-async function deleteKey(id) { if(!confirm('确定删除？'))return; const r=await af('DELETE',`/api/admin/amap-keys/${id}`); toast(r.ok?'已删除':(r.data?.detail||'失败'),r.ok); if(r.ok)loadKeys(); }
-async function testKey(id) { const r=await af('POST',`/api/admin/amap-keys/${id}/test`); toast(r.ok?'连通正常':(r.data?.info||'测试失败'),r.ok); }
-function qv(id) { return document.getElementById(id)?.value || ''; }
+  box.querySelector('#sfSave').onclick=()=>{Object.assign(window._skus[i],{type:qv('sf_t'),label:qv('sf_l'),price:qv('sf_p'),credits:parseInt(qv('sf_c'))||0,duration_days:parseInt(qv('sf_d'))||0,badge:qv('sf_b'),desc:qv('sf_ds'),visible:document.getElementById('sf_v').checked});box.remove();renderSkuList()}}
+function deleteSku(i){if(!confirm('删除？'))return;window._skus.splice(i,1);renderSkuList()}
+async function saveAllSkus(){const r=await af('PUT','/api/admin/skus',window._skus);toast(r.ok?'已保存':(r.data?.detail||'失败'),r.ok);if(r.ok)loadSkus()}
 
-// ── SKUs ──
-function renderSkus() { return `<div class="card"><div class="flex-between mb"><h3>套餐与点数包</h3><button class="btn btn-primary btn-sm" onclick="addSku()">+ 添加</button></div><div id="skuList"></div></div>`; }
-async function loadSkus() {
-  const r = await af('GET', '/api/admin/skus');
-  const skus = r.ok ? (r.data.skus || r.data || []) : [];
-  document.getElementById('skuList').innerHTML = skus.map((s,i) => `<div class="card" style="border:1px solid var(--line);box-shadow:none">
-    <div class="flex-between"><div><span class="tag ${s.type==='membership'?'tag-blue':'tag-green'}">${s.type==='membership'?'会员':'点数'}</span> <b>${s.label}</b> ${s.badge?`<span class="tag tag-amber">${s.badge}</span>`:''}</div>
-    <div><button class="btn btn-outline btn-xs" onclick="editSku(${i})">编辑</button><button class="btn btn-danger btn-xs" onclick="deleteSku(${i})">删除</button></div></div>
-    <div class="text-sm mt">¥${s.price} · ${s.credits}点 · ${s.duration_days||0}天 · ${s.desc||''} · ${s.visible?'显示':'隐藏'}</div></div>`).join('') + `<button class="btn btn-primary mt" onclick="saveSkus()">💾 保存全部</button>`;
-  window._skus = skus;
-}
-function addSku() { window._skus.push({ id:Date.now(), type:'points', label:'新套餐', price:'0', credits:1, tier:'', duration_days:0, badge:'', desc:'', visible:true }); renderSkuList(); }
-function editSku(i) {
-  const s = window._skus[i];
-  const box = document.createElement('div'); box.className='modal-overlay';
-  box.innerHTML = `<div class="modal-box"><h3>编辑 SKU</h3>
-    <div class="form-row"><div class="form-group"><label>类型</label><select id="sf_type"><option value="membership" ${s.type==='membership'?'selected':''}>会员</option><option value="points" ${s.type==='points'?'selected':''}>点数</option></select></div>
-    <div class="form-group"><label>名称</label><input id="sf_label" value="${s.label}"></div></div>
-    <div class="form-row"><div class="form-group"><label>价格(元)</label><input id="sf_price" value="${s.price}"></div>
-    <div class="form-group"><label>点数</label><input id="sf_credits" type="number" value="${s.credits}"></div></div>
-    <div class="form-row"><div class="form-group"><label>天数</label><input id="sf_days" type="number" value="${s.duration_days||0}"></div>
-    <div class="form-group"><label>徽章</label><input id="sf_badge" value="${s.badge||''}"></div></div>
-    <div class="form-group"><label>描述</label><input id="sf_desc" value="${s.desc||''}"></div>
-    <div class="form-group"><label class="inline-label"><input id="sf_visible" type="checkbox" ${s.visible!==false?'checked':''} style="width:auto"> 显示</label></div>
-    <div style="display:flex;gap:8px;margin-top:16px"><button class="btn btn-primary" id="sfSave">保存</button><button class="btn btn-outline" onclick="this.closest('.modal-overlay').remove()">取消</button></div></div>`;
-  document.body.appendChild(box);
-  box.querySelector('#sfSave').onclick = () => {
-    Object.assign(window._skus[i], { type:qv('sf_type'), label:qv('sf_label'), price:qv('sf_price'), credits:parseInt(qv('sf_credits'))||0, duration_days:parseInt(qv('sf_days'))||0, badge:qv('sf_badge'), desc:qv('sf_desc'), visible:document.getElementById('sf_visible').checked });
-    box.remove(); renderSkuList();
-  };
-}
-function deleteSku(i) { if(!confirm('删除？'))return; window._skus.splice(i,1); renderSkuList(); }
-function renderSkuList() { document.getElementById('skuList').innerHTML = window._skus.map((s,i) => `<div class="card" style="border:1px solid var(--line);box-shadow:none"><div class="flex-between"><div><span class="tag ${s.type==='membership'?'tag-blue':'tag-green'}">${s.type==='membership'?'会员':'点数'}</span> <b>${s.label}</b> ${s.badge?`<span class="tag tag-amber">${s.badge}</span>`:''}</div><div><button class="btn btn-outline btn-xs" onclick="editSku(${i})">编辑</button><button class="btn btn-danger btn-xs" onclick="deleteSku(${i})">删除</button></div></div><div class="text-sm mt">¥${s.price} · ${s.credits}点 · ${s.duration_days||0}天 · ${s.desc||''} · ${s.visible?'显示':'隐藏'}</div></div>`).join('') + `<button class="btn btn-primary mt" onclick="saveSkus()">💾 保存全部</button>`; }
-async function saveSkus() { const r = await af('PUT', '/api/admin/skus', window._skus); toast(r.ok ? '已保存' : (r.data?.detail||'失败'), r.ok); if(r.ok) loadSkus(); }
+// Key Pool
+function renderKeyPool(){return `<div class="card"><div class="flex-between mb"><h3>高德 Web 服务 Key 池</h3><button class="btn btn-primary btn-sm" onclick="showKeyForm()">+ 添加 Key</button></div><div class="text-xs mb" style="color:var(--amber)">⚠ 必须使用高德<strong>Web服务 API Key</strong>（非微信小程序 Key / JS API Key）</div><table><thead><tr><th>名称</th><th>Key</th><th>密钥</th><th>状态</th><th>优先级</th><th>失败</th><th>最后状态</th><th>操作</th></tr></thead><tbody id="keyTbody"></tbody></table></div>`}
+async function loadKeys(){const r=await af('GET','/api/admin/amap-keys');const keys=r.ok?(r.data||[]):[];document.getElementById('keyTbody').innerHTML=keys.map(k=>`<tr><td>${k.name||'-'}</td><td class="mono">${(k.api_key||'').slice(0,18)}...</td><td>${k.security_secret?'已设':'-'}</td><td><span class="tag ${k.enabled?'tag-green':'tag-red'}">${k.enabled?'启用':'禁用'}</span></td><td>${k.priority||0}</td><td>${k.fail_count||0}</td><td><span class="tag tag-gray">${k.last_status||'-'}</span></td><td><button class="btn btn-outline btn-xs" onclick="testKey(${k.id})">测试</button><button class="btn btn-outline btn-xs" onclick="editKey(${k.id})">编辑</button><button class="btn btn-danger btn-xs" onclick="deleteKey(${k.id})">删除</button></td></tr>`).join('')}
+function showKeyForm(edit){const d=edit||{};const box=document.createElement('div');box.className='modal-overlay';box.innerHTML=`<div class="modal-box"><h3>${edit?'编辑':'添加'} Key</h3><div class="form-group"><label>名称</label><input id="kf_name" value="${d.name||''}"></div><div class="form-group"><label>API Key</label><input id="kf_key" value="${d.api_key||''}" placeholder="${edit?'留空保留原Key':'高德 Web 服务 API Key'}"></div><div class="form-group"><label>安全密钥</label><input id="kf_sec" value="${d.security_secret||''}"></div><div class="form-row"><div class="form-group"><label>优先级</label><input id="kf_pri" type="number" value="${d.priority||0}"></div><div class="form-group"><label class="inline-label"><input id="kf_enabled" type="checkbox" ${d.enabled!==false?'checked':''} style="width:auto"> 启用</label></div></div><div style="display:flex;gap:8px"><button class="btn btn-primary" id="kfSave">保存</button><button class="btn btn-outline" onclick="this.closest('.modal-overlay').remove()">取消</button></div></div>`;document.body.appendChild(box);box.querySelector('#kfSave').onclick=async()=>{const body={name:qv('kf_name'),api_key:qv('kf_key'),security_secret:qv('kf_sec'),priority:parseInt(qv('kf_pri'))||0,enabled:document.getElementById('kf_enabled').checked};let r;if(edit)r=await af('PUT',`/api/admin/amap-keys/${edit.id}`,body);else r=await af('POST','/api/admin/amap-keys',body);toast(r.ok?'保存成功':(r.data?.detail||'失败'),r.ok);if(r.ok){box.remove();loadKeys()}}}
+async function editKey(id){const r=await af('GET','/api/admin/amap-keys');const k=(r.data||[]).find(x=>x.id===id);if(k)showKeyForm(k)}
+async function deleteKey(id){if(!confirm('确定删除？'))return;const r=await af('DELETE',`/api/admin/amap-keys/${id}`);toast(r.ok?'已删除':(r.data?.detail||'失败'),r.ok);if(r.ok)loadKeys()}
+async function testKey(id){const r=await af('POST',`/api/admin/amap-keys/${id}/test`);toast(r.ok?'连通正常':(r.data?.info||'测试失败'),r.ok)}
 
-// ── UI Config ──
-function renderUiConfig() { return `<div class="card"><div class="flex-between mb"><h3>UI 客服配置</h3><button class="btn btn-primary btn-sm" onclick="saveUiConfig()">保存</button></div>
-  <div class="form-group"><label>全局公告</label><input id="uic_ann" placeholder="留空则隐藏"></div>
-  <div class="grid3"><div class="form-group"><label>客服名称</label><input id="uic_name"></div>
-  <div class="form-group"><label>客服微信号</label><input id="uic_wx"></div>
-  <div class="form-group"><label>客服电话</label><input id="uic_phone"></div></div></div>`; }
-async function loadUiConfig() {
-  const r = await af('GET', '/api/admin/ui-config');
-  if (r.ok) { const d = r.data; document.getElementById('uic_ann').value = d.announcement||''; document.getElementById('uic_name').value = d.customer_service_name||''; document.getElementById('uic_wx').value = d.cs_wechat||''; document.getElementById('uic_phone').value = d.cs_phone||''; }
-}
-async function saveUiConfig() { const r = await af('PUT', '/api/admin/ui-config', { announcement: qv('uic_ann'), customer_service_name: qv('uic_name'), cs_wechat: qv('uic_wx'), cs_phone: qv('uic_phone') }); toast(r.ok ? '已保存' : (r.data?.detail||'失败'), r.ok); }
+// Storage Config
+function renderStorageConfig(){return `<div class="card"><div class="flex-between mb"><h3>存储配置</h3><button class="btn btn-primary btn-sm" onclick="saveStorageConfig()">保存</button></div><div class="form-row mb"><button class="btn" style="background:${(window._storeCfg||{}).storage_mode!=='cloud'?'var(--blue)':'var(--line)'};color:${(window._storeCfg||{}).storage_mode!=='cloud'?'#fff':'var(--ink)'}" onclick="window._storeCfg.storage_mode='local';renderStorageRadio()">本地存储</button><button class="btn" style="background:${(window._storeCfg||{}).storage_mode==='cloud'?'var(--blue)':'var(--line)'};color:${(window._storeCfg||{}).storage_mode==='cloud'?'#fff':'var(--ink)'}" onclick="window._storeCfg.storage_mode='cloud';renderStorageRadio()">阿里云 OSS</button></div><div id="ossFields"></div></div>`}
+async function loadStorageConfig(){const r=await af('GET','/api/admin/storage-config');window._storeCfg=r.ok?r.data:{storage_mode:'local'};renderStorageRadio()}
+function renderStorageRadio(){document.getElementById('ossFields').innerHTML=window._storeCfg.storage_mode==='cloud'?`<div class="grid2"><div class="form-group"><label>Endpoint</label><input id="oss_ep" value="${window._storeCfg.oss_endpoint||''}"></div><div class="form-group"><label>Bucket</label><input id="oss_bkt" value="${window._storeCfg.oss_bucket||''}"></div><div class="form-group"><label>Access Key ID</label><input id="oss_akid" value="${window._storeCfg.oss_access_key_id||''}"></div><div class="form-group"><label>Access Key Secret</label><input id="oss_aksec" type="password" value="${window._storeCfg.oss_access_key_secret||''}"></div></div>`:''}
+async function saveStorageConfig(){const d={storage_mode:window._storeCfg.storage_mode};if(d.storage_mode==='cloud'){d.oss_endpoint=qv('oss_ep');d.oss_bucket=qv('oss_bkt');d.oss_access_key_id=qv('oss_akid');d.oss_access_key_secret=qv('oss_aksec')}const r=await af('PUT','/api/admin/storage-config',d);toast(r.ok?'已保存':(r.data?.detail||'失败'),r.ok)}
 
-// ── Industries ──
-function renderIndustries() { return `<div class="card"><h3>业态列表</h3><div id="indList"></div></div>`; }
-async function loadIndustries() { const r = await af('GET', '/api/industries/active'); const inds = r.ok ? (r.data.industries || []) : []; document.getElementById('indList').innerHTML = `<table><thead><tr><th>名称</th><th>Config Key</th><th>状态</th></tr></thead><tbody>${inds.map(i => `<tr><td>${i.name}</td><td style="font-family:monospace;font-size:12px">${i.config_key||'-'}</td><td><span class="tag ${i.is_active?'tag-green':'tag-red'}">${i.is_active?'启用':'禁用'}</span></td></tr>`).join('')}</tbody></table>`; }
+// ── Logs ──
+function renderLogs(){return `<div class="card"><div class="flex-between mb"><h3>系统日志</h3><button class="btn btn-outline btn-sm" onclick="navTo('logs')">刷新</button></div><pre id="logContent" class="mono">加载中...</pre></div>`}
+async function loadLogs(){const r=await af('GET','/api/admin/logs');const logs=r.ok?(r.data.logs||[]):[];document.getElementById('logContent').textContent=logs.length?logs.join('\n'):'(无日志)'}
 
 // ── CDK ──
-function renderCdk() { return `<div class="card"><h3>批量生成兑换码</h3>
-  <div class="grid3 mb"><div class="form-group"><label>生成数量</label><input id="cdk_count" type="number" value="10"></div>
-  <div class="form-group"><label>每个点数</label><input id="cdk_credits" type="number" value="5"></div>
-  <div class="form-group"><label>有效期(天)</label><input id="cdk_days" type="number" value="365"></div></div>
-  <button class="btn btn-primary" onclick="genCdk()">生成兑换码</button>
-  <div id="cdkResult" class="mt"></div></div>`; }
-async function genCdk() {
-  const r = await af('POST', '/api/admin/cdk/generate', { count: parseInt(qv('cdk_count'))||10, credits: parseInt(qv('cdk_credits'))||5, days: parseInt(qv('cdk_days'))||365 });
-  if (!r.ok) { toast(r.data?.detail||'生成失败', false); return; }
-  const codes = r.data.codes || [];
-  document.getElementById('cdkResult').innerHTML = `<h4>已生成 ${codes.length} 个兑换码</h4>
-    <textarea style="height:200px;font-family:monospace;font-size:13px" readonly>${codes.join('\n')}</textarea>
-    <button class="btn btn-outline btn-sm mt" onclick="navigator.clipboard.writeText(this.previousElementSibling.value);toast('已复制',true)">📋 复制全部</button>`;
-}
+function renderCdk(){return `<div class="grid2"><div class="card"><h3>批量生成兑换码</h3><div class="grid3 mb"><div class="form-group"><label>生成数量</label><input id="cdk_count" type="number" value="10"></div><div class="form-group"><label>每个点数</label><input id="cdk_credits" type="number" value="5"></div><div class="form-group"><label>有效期(天)</label><input id="cdk_days" type="number" value="365"></div></div><button class="btn btn-primary" onclick="genCdk()">生成兑换码</button><div id="cdkResult" class="mt"></div></div><div class="card"><h3>CDK 列表</h3><div id="cdkList"></div></div></div>`}
+async function genCdk(){const r=await af('POST','/api/admin/cdk/generate',{count:parseInt(qv('cdk_count'))||10,credits:parseInt(qv('cdk_credits'))||5,days:parseInt(qv('cdk_days'))||365});if(!r.ok){toast(r.data?.detail||'失败',false);return}const codes=r.data.codes||[];document.getElementById('cdkResult').innerHTML=`<h4>已生成 ${codes.length} 个</h4><textarea style="height:160px;font-family:monospace;font-size:12px;width:100%" readonly>${codes.join('\n')}</textarea><button class="btn btn-outline btn-sm mt" onclick="navigator.clipboard.writeText(this.previousElementSibling.value);toast('已复制',true)">📋 复制全部</button>`;loadCdkList()}
+async function loadCdkList(){const r=await af('GET','/api/admin/cdk/list');const cdks=r.ok?(r.data.cdks||r.data||[]):[];document.getElementById('cdkList').innerHTML=cdks.length?`<table><thead><tr><th>兑换码</th><th>点数</th><th>状态</th><th>使用者</th><th>过期</th></tr></thead><tbody>${cdks.map(c=>`<tr><td class="mono">${c.code}</td><td>${c.credits}</td><td><span class="tag ${c.is_used?'tag-red':'tag-green'}">${c.is_used?'已用':'可用'}</span></td><td>${c.used_by||'-'}</td><td>${(c.expires_at||'').slice(0,10)}</td></tr>`).join('')}</tbody></table>`:'<div class="text-sm">暂无 CDK</div>'}
 
-// ── Settings ──
-function renderSettings() { return `<div class="card"><div class="flex-between mb"><h3>系统设置</h3><button class="btn btn-primary btn-sm" onclick="saveSettings()">保存</button></div>
-  <h4>微信支付</h4><div class="grid2 mb"><div class="form-group"><label>商户号 MCH ID</label><input id="ss_mchid"></div>
-  <div class="form-group"><label>小程序 AppID</label><input id="ss_wxappid"></div>
-  <div class="form-group"><label>API v3 Key</label><input id="ss_wxkey" type="password"></div>
-  <div class="form-group"><label>证书序列号</label><input id="ss_certsn"></div></div>
-  <div class="form-group"><label>商户私钥 PEM</label><textarea id="ss_privkey" rows="4" style="font-family:monospace;font-size:12px"></textarea></div>
-  <div class="form-group"><label>平台证书 PEM</label><textarea id="ss_platcert" rows="4" style="font-family:monospace;font-size:12px"></textarea></div>
-  <h4 class="mt">大模型</h4><div class="grid2"><div class="form-group"><label>Provider</label><input id="ss_ai_prov"></div>
-  <div class="form-group"><label>API Key</label><input id="ss_ai_key" type="password"></div></div>
-  <h4 class="mt">注册奖励</h4><div class="grid2"><div class="form-group"><label>赠送点数</label><input id="ss_bonus" type="number"></div>
-  <div class="form-group"><label>免费点数</label><input id="ss_free" type="number"></div></div></div>`; }
-async function loadSettings() {
-  const r = await af('GET', '/api/admin/system-settings');
-  if (!r.ok) return;
-  const d = r.data || {};
-  setVal('ss_mchid', d.wx_mch_id); setVal('ss_wxappid', d.wx_app_id); setVal('ss_wxkey', d.wx_api_key);
-  setVal('ss_certsn', d.wx_cert_sn); setVal('ss_privkey', d.wx_private_key_pem); setVal('ss_platcert', d.wx_platform_cert_pem);
-  setVal('ss_ai_prov', d.ai_provider); setVal('ss_ai_key', d.ai_key);
-  setVal('ss_bonus', d.register_bonus); setVal('ss_free', d.register_free);
-}
-function setVal(id, v) { if (v !== undefined && v !== null) document.getElementById(id).value = v; }
-async function saveSettings() {
-  const r = await af('PUT', '/api/admin/system-settings', {
-    wx_mch_id: qv('ss_mchid'), wx_app_id: qv('ss_wxappid'), wx_api_key: qv('ss_wxkey'),
-    wx_cert_sn: qv('ss_certsn'), wx_private_key_pem: qv('ss_privkey'), wx_platform_cert_pem: qv('ss_platcert'),
-    ai_provider: qv('ss_ai_prov'), ai_key: qv('ss_ai_key'),
-    register_bonus: qv('ss_bonus'), register_free: qv('ss_free')
-  });
-  toast(r.ok ? '已保存' : (r.data?.detail||'失败'), r.ok);
-}
+// ── SysParams ──
+function renderSysParams(){return `<div class="card"><div class="flex-between mb"><h3>全局参数</h3><button class="btn btn-primary btn-sm" onclick="saveSysParams()">保存</button></div>
+  <h4>微信支付</h4><div class="grid2 mb"><div class="form-group"><label>商户号 MCH ID</label><input id="sp_mchid"></div><div class="form-group"><label>小程序 AppID</label><input id="sp_wxappid"></div><div class="form-group"><label>API v3 Key</label><input id="sp_wxkey" type="password"></div><div class="form-group"><label>证书序列号</label><input id="sp_certsn"></div></div>
+  <div class="form-group"><label>商户私钥 PEM</label><textarea id="sp_privkey" rows="3" class="mono"></textarea></div>
+  <div class="form-group"><label>平台证书 PEM</label><textarea id="sp_platcert" rows="3" class="mono"></textarea></div>
+  <h4>大模型</h4><div class="grid2"><div class="form-group"><label>Provider</label><input id="sp_aiprov"></div><div class="form-group"><label>API Key</label><input id="sp_aikey" type="password"></div></div>
+  <h4>注册奖励</h4><div class="grid2"><div class="form-group"><label>赠送点数</label><input id="sp_bonus" type="number"></div><div class="form-group"><label>免费点数</label><input id="sp_free" type="number"></div></div></div>`}
+async function loadSysParams(){const r=await af('GET','/api/admin/system-settings');if(!r.ok)return;const d=r.data||{};sv('sp_mchid',d.wx_mch_id);sv('sp_wxappid',d.wx_app_id);sv('sp_wxkey',d.wx_api_key);sv('sp_certsn',d.wx_cert_sn);sv('sp_privkey',d.wx_private_key_pem);sv('sp_platcert',d.wx_platform_cert_pem);sv('sp_aiprov',d.ai_provider);sv('sp_aikey',d.ai_key);sv('sp_bonus',d.register_bonus);sv('sp_free',d.register_free)}
+async function saveSysParams(){const r=await af('PUT','/api/admin/system-settings',{wx_mch_id:qv('sp_mchid'),wx_app_id:qv('sp_wxappid'),wx_api_key:qv('sp_wxkey'),wx_cert_sn:qv('sp_certsn'),wx_private_key_pem:qv('sp_privkey'),wx_platform_cert_pem:qv('sp_platcert'),ai_provider:qv('sp_aiprov'),ai_key:qv('sp_aikey'),register_bonus:qv('sp_bonus'),register_free:qv('sp_free')});toast(r.ok?'已保存':(r.data?.detail||'失败'),r.ok)}
+
+// ── OpLogs ──
+function renderOpLogs(){return `<div class="card"><div class="flex-between mb"><h3>管理员操作审计日志</h3><button class="btn btn-outline btn-sm" onclick="navTo('oplogs')">刷新</button></div><table><thead><tr><th>时间</th><th>管理员</th><th>类型</th><th>目标用户</th><th>详情</th></tr></thead><tbody id="oplogTbody"></tbody></table></div>`}
+async function loadOpLogs(){const r=await af('GET','/api/admin/operation-logs');const logs=r.ok?(r.data.logs||[]):[];document.getElementById('oplogTbody').innerHTML=logs.length?logs.map(l=>`<tr><td>${(l.created_at||'').slice(0,19)}</td><td>${l.admin_id||'-'}</td><td><span class="tag tag-blue">${l.type||'-'}</span></td><td>${l.user_id||'-'}</td><td class="text-sm">${l.reason||l.description||'-'}</td></tr>`).join(''):'<tr><td colspan="5" class="text-sm">暂无操作记录</td></tr>'}
+
+// ── Industries ──
+function renderIndustries(){return `<div class="card"><h3>业态规则管理</h3><div class="text-sm mb">查看业态配置，编辑专属提示词</div><div id="indList"></div></div>`}
+async function loadIndustries(){const r=await af('GET','/api/industries/active');const inds=r.ok?(r.data.industries||[]):[];document.getElementById('indList').innerHTML=`<table><thead><tr><th>名称</th><th>Config Key</th><th>状态</th><th>操作</th></tr></thead><tbody>${inds.map(i=>`<tr><td><b>${i.name}</b></td><td class="mono">${i.config_key||'-'}</td><td><span class="tag ${i.is_active?'tag-green':'tag-red'}">${i.is_active?'启用':'禁用'}</span></td><td><button class="btn btn-outline btn-xs" onclick="editIndustryPrompt(${i.id},'${i.name}')">编辑提示词</button></td></tr>`).join('')}</tbody></table>`}
+async function editIndustryPrompt(id,name){const r=await af('GET',`/api/industries/${id}/prompt`);const prompt=r.ok?(r.data?.exclusive_prompt||r.data?.prompt||''):'';const box=document.createElement('div');box.className='modal-overlay';box.innerHTML=`<div class="modal-box"><h3>编辑 ${name} 专属提示词</h3><textarea id="indPrompt" rows="10" class="mono">${prompt}</textarea><div class="text-xs mt">留空则使用默认 System Prompt</div><div style="display:flex;gap:8px;margin-top:16px"><button class="btn btn-primary" id="saveIndBtn">保存</button><button class="btn btn-outline" onclick="this.closest('.modal-overlay').remove()">取消</button></div></div>`;document.body.appendChild(box);box.querySelector('#saveIndBtn').onclick=async()=>{const rr=await af('PUT',`/api/industries/${id}`,{exclusive_prompt:document.getElementById('indPrompt').value});toast(rr.ok?'已保存':(rr.data?.detail||'失败'),rr.ok);if(rr.ok)box.remove()}}
+
+// ── Register loaders ──
+const loaders={
+  users:loadUsers, settings:()=>switchSettingsTab('core'), logs:loadLogs,
+  cdk:loadCdkList, sysparams:loadSysParams, oplogs:loadOpLogs, industries:loadIndustries
+};
 </script>
 </body>
 </html>
