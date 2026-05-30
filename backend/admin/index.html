@@ -306,15 +306,12 @@ function renderOpLogs(){return `<div class="card"><div class="flex-between mb"><
 async function loadOpLogs(){const r=await af('GET','/api/admin/operation-logs');const logs=r.ok?(r.data.logs||[]):[];document.getElementById('oplogTbody').innerHTML=logs.length?logs.map(l=>`<tr><td>${(l.created_at||'').slice(0,19)}</td><td>${l.admin_id||'-'}</td><td><span class="tag tag-blue">${l.type||'-'}</span></td><td>${l.user_id||'-'}</td><td class="text-sm">${l.reason||l.description||'-'}</td></tr>`).join(''):'<tr><td colspan="5" class="text-sm">暂无操作记录</td></tr>'}
 
 // ── Industries ──
-function renderIndustries(){return `<div class="card"><h3>业态规则 — Master 模板体系</h3><div class="text-sm mb">规则定义在 <code>prompts/industry_config.py</code>，新增业态只需在代码中添加映射即可自动识别。前台 57 个业态入口 → 14 个 Master 模板。</div><div id="indList"></div></div>`}
-async function loadIndustries(){const r=await af('GET','/api/industries/rules');const data=r.ok?r.data:{};const masters=data.masters||[],mapping=data.mapping||{};document.getElementById('indList').innerHTML=`
-  <h4>14 个 Master 模板</h4>
-  <table><thead><tr><th>模板</th><th>竞品 AMap 类型</th><th>严谨框架</th><th>雷达权重</th></tr></thead><tbody>
-  ${masters.map(m=>`<tr><td><b>${m.key}</b></td><td class="mono">${m.competitor_codes||'-'}</td><td><span class="tag ${m.rigor_enabled?'tag-green':'tag-red'}">${m.rigor_enabled?'启用':'关闭'}</span></td><td class="text-sm">${m.radar_weights||'-'}</td></tr>`).join('')}</tbody></table>
-  <h4 class="mt">57 个前台业态 → Master 映射</h4>
-  <div style="display:flex;flex-wrap:wrap;gap:8px">
-  ${Object.entries(mapping).map(([bt,mk])=>`<span class="tag tag-blue" style="font-size:12px;padding:4px 10px">${bt} → ${mk}</span>`).join(' ')}
-  </div>`}
+function renderIndustries(){return `<div class="card"><h3>业态类目</h3><div class="text-sm mb">前台用户可选择的业态列表，按分析模板分组。新增业态在 <code>prompts/industry_config.py</code> 里加一行即可。</div><div id="indList"></div></div>`}
+async function loadIndustries(){const r=await af('GET','/api/industries/rules');const data=r.ok?r.data:{};const groups=data.groups||[];document.getElementById('indList').innerHTML=groups.map(g=>`
+  <div class="card" style="border:1px solid var(--line);box-shadow:none;margin-bottom:12px">
+    <div class="flex-between mb"><h4>📁 ${g.label}</h4><span class="tag tag-blue">${g.types.length} 个业态</span></div>
+    <div class="flex-wrap">${g.types.map(t=>`<span class="tag ${t.active?'tag-green':'tag-gray'}" style="font-size:13px;padding:5px 12px" title="${t.name}">${t.name}</span>`).join(' ')}</div>
+  </div>`).join('')}
 
 // ── Register loaders ──
 const loaders={

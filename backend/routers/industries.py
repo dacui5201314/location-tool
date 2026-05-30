@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 
-from database import get_db
+from database import get_db, SessionLocal
 from models.db_models import BusinessIndustry, OperationLog
 from auth import get_current_admin
 
@@ -213,22 +213,28 @@ def match_industry(business_type: str = Query("", description="前端选中的�
 
 @public_router.get("/rules")
 def get_industry_rules():
-    """返回 industry_config.py 中的 Master 模板和业态映射（只读）"""
-    from prompts.industry_config import MASTER_TEMPLATES, BUSINESS_TYPE_TO_MASTER, get_rigor_for_config_key
+    """返回按分析模板分组的业态列表（只读，来源于 industry_config.py）"""
+    from prompts.industry_config import MASTER_TEMPLATES, BUSINESS_TYPE_TO_MASTER
 
-    masters = []
-    for key, cfg in MASTER_TEMPLATES.items():
-        competitor_codes = cfg.get("competitor_amap_types", "") or cfg.get("amap_codes", "")
-        radar = cfg.get("radar_weights", {})
-        radar_str = ", ".join(f"{k}:{v}" for k, v in radar.items()) if radar else "-"
-        masters.append({
-            "key": key,
-            "competitor_codes": competitor_codes,
-            "rigor_enabled": get_rigor_for_config_key(key),
-            "radar_weights": radar_str,
+    # 反向建立 master → [business_types]
+    master_types = {}
+    for bt, mk in BUSINESS_TYPE_TO_MASTER.items():
+        master_types.setdefault(mk, []).append(bt)
+
+    # 从数据库获取 active 状态
+    db = SessionLocal()
+    try:
+        db_active = {i.name: i.is_active for i in db.query(BusinessIndustry).all()}
+    finally:
+        db.close()
+
+    groups = []
+    for mk, types in sorted(master_types.items()):
+        cfg = MASTER_TEMPLATES.get(mk, {})
+        groups.append({
+            "key": mk,
+            "label": cfg.get("label", mk),
+            "types": [{"name": t, "active": bool(db_active.get(t, 1))} for t in sorted(types)],
         })
 
-    return {
-        "masters": masters,
-        "mapping": dict(sorted(BUSINESS_TYPE_TO_MASTER.items())),
-    }
+    return {"groups": groups}
