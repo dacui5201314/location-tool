@@ -573,7 +573,7 @@ export default {
 </script>
 
 <style scoped>
-.detail-page { min-height:100vh; background:#e9edf5; padding-bottom:128rpx; }
+.detail-page { min-height:100vh; background:#e9edf5; padding-bottom:128rpx; padding-bottom:calc(128rpx + env(safe-area-inset-bottom)); }
 .report-shell { padding-bottom:24rpx; }
 .loading { text-align:center; padding:120rpx 0; }
 .ld-dots { font-size:60rpx; letter-spacing:12rpx; color:#94a3b8; }

@@ -154,7 +154,7 @@ export default {
 </script>
 
 <style scoped>
-.recharge-page { min-height:100vh; background:linear-gradient(180deg,#eef4ff 0%,#e8eef7 42%,#dce4f2 100%); padding:32rpx 28rpx 56rpx; box-sizing:border-box; }
+.recharge-page { min-height:100vh; background:linear-gradient(180deg,#eef4ff 0%,#e8eef7 42%,#dce4f2 100%); padding:32rpx 28rpx 56rpx; padding-bottom:calc(56rpx + env(safe-area-inset-bottom)); box-sizing:border-box; }
 .status-card { background:linear-gradient(135deg,#0b3fbd,#172a8d); border-radius:24rpx; padding:30rpx; color:#fff; box-shadow:0 14rpx 34rpx rgba(21,31,143,0.20); margin-bottom:24rpx; }
 .eyebrow { display:block; font-size:23rpx; color:rgba(255,255,255,0.70); font-weight:800; }
 .status-title { display:block; font-size:40rpx; line-height:1.2; font-weight:900; margin-top:8rpx; }
