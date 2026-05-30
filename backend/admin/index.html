@@ -165,12 +165,32 @@ async function navTo(page){
 }
 
 // ── Dashboard ──
+let _trends=null;
 async function renderDashboard(){
   const r=await af('GET','/api/admin/stats');
   const s=r.ok?r.data:{};
+  const tr=await af('GET','/api/admin/dashboard/stats');
+  _trends=tr.ok?tr.data:null;
+  const topBiz=(_trends?.top_business_types||[]).slice(0,8).map(b=>`<span class="tag tag-blue mr">${b.name}: ${b.count}</span>`).join(' ')||'-';
+  const topBrands=(_trends?.top_brands||[]).slice(0,5).map(b=>`<span class="tag tag-amber mr">${b.name}: ${b.count}</span>`).join(' ')||'-';
   return `<div class="grid4 mb">${st('总用户数',s.total_users||0,'#2563eb')}${st('累计报告',s.total_reports||s.total_records||0,'#16a34a')}${st('今日新增',s.today_users||0,'#7c5cff')}${st('今日报告',s.today_reports||s.today_analyzes||0,'#f59e0b')}</div>
+    <div class="grid2"><div class="card"><h3>📈 分析趋势（近15天）</h3><canvas id="trendChart" width="500" height="180"></canvas></div>
+    <div class="card"><h3>🔥 热门业态</h3><div class="flex-wrap">${topBiz}</div><h4 class="mt">🏷️ 热门品牌</h4><div class="flex-wrap">${topBrands}</div></div></div>
     <div class="grid2"><div class="card"><h3>快速操作</h3><div class="flex-wrap">${ql('users','👥 用户管理')}${ql('settings','⚙️ 系统设置')}${ql('cdk','🎫 生成 CDK')}${ql('logs','📋 系统日志')}${ql('industries','🏭 业态规则')}</div></div>
-    <div class="card"><h3>当前状态</h3><div class="text-sm">后端运行中 · 测试基线: compileall PASS / industry 2168 PASS / fact guard 147 PASS</div></div></div>`;
+    <div class="card"><h3>当前状态</h3><div class="text-sm">后端运行中 · 测试基线: compileall PASS / industry 2168 PASS / fact guard 147 PASS</div></div></div>
+    <script>drawTrend()</script>`;
+}
+function drawTrend(){
+  if(!_trends||!_trends.trend_dates)return;
+  const c=document.getElementById('trendChart');if(!c)return;
+  const ctx=c.getContext('2d'),W=c.width,H=c.height;
+  const dates=_trends.trend_dates,counts=_trends.trend_counts;
+  const max=Math.max(...counts,1),barW=(W-60)/dates.length-4;
+  ctx.clearRect(0,0,W,H);
+  ctx.fillStyle='#64748b';ctx.font='10px sans-serif';ctx.textAlign='right';
+  for(let i=0;i<=4;i++){const y=H-20-(H-40)*i/4;ctx.fillText(Math.round(max*i/4),28,y+4);ctx.strokeStyle='#e2e8f0';ctx.beginPath();ctx.moveTo(32,y);ctx.lineTo(W-10,y);ctx.stroke()}
+  ctx.textAlign='center';
+  dates.forEach((d,i)=>{const x=40+i*(barW+4),h=(H-40)*counts[i]/max,y=H-20-h;ctx.fillStyle='#315bff';ctx.fillRect(x,y,barW,h);ctx.fillStyle='#64748b';ctx.fillText(d,x+barW/2,H-4)});
 }
 function st(l,n,c){return `<div class="stat"><div class="num" style="color:${c}">${n}</div><div class="lbl">${l}</div></div>`}
 function ql(p,t){return `<button class="btn btn-outline" onclick="navTo('${p}')">${t}</button>`}
@@ -192,8 +212,7 @@ function renderSettings(){return `
     <button class="tab-btn active" onclick="switchSettingsTab('core')">核心配置</button>
     <button class="tab-btn" onclick="switchSettingsTab('uiconfig')">UI 配置</button>
     <button class="tab-btn" onclick="switchSettingsTab('share')">分享配置</button>
-    <button class="tab-btn" onclick="switchSettingsTab('qrcode')">二维码</button>
-    <button class="tab-btn" onclick="switchSettingsTab('pdf')">PDF 品牌</button>
+    <button class="tab-btn" onclick="switchSettingsTab('qrcode')">客服二维码</button>
     <button class="tab-btn" onclick="switchSettingsTab('skus')">SKU 套餐</button>
     <button class="tab-btn" onclick="switchSettingsTab('keys')">Key 池</button>
     <button class="tab-btn" onclick="switchSettingsTab('storage')">存储配置</button>
@@ -202,14 +221,13 @@ function renderSettings(){return `
 async function switchSettingsTab(t){
   settingsTab=t;
   document.querySelectorAll('#settingsTabs .tab-btn').forEach(b=>b.classList.remove('active'));
-  document.querySelectorAll('#settingsTabs .tab-btn').forEach(b=>{if(b.textContent.includes({core:'核心',uiconfig:'UI',share:'分享',qrcode:'二维码',pdf:'PDF',skus:'SKU',keys:'Key',storage:'存储'}[t]))b.classList.add('active')});
+  document.querySelectorAll('#settingsTabs .tab-btn').forEach(b=>{if(b.textContent.includes({core:'核心',uiconfig:'UI',share:'分享',qrcode:'客服',skus:'SKU',keys:'Key',storage:'存储'}[t]))b.classList.add('active')});
   const c=document.getElementById('settingsContent');
   switch(t){
     case'core':c.innerHTML=await renderCoreSettings();await loadCoreSettings();break;
     case'uiconfig':c.innerHTML=renderUiConfigPanel();await loadUiConfigData();break;
     case'share':c.innerHTML=renderShareConfig();await loadShareConfig();break;
     case'qrcode':c.innerHTML=renderQrcodePanel();loadQrcodePreviews();break;
-    case'pdf':c.innerHTML=renderPdfConfig();await loadPdfConfig();break;
     case'skus':c.innerHTML=renderSkuPanel();await loadSkus();break;
     case'keys':c.innerHTML=renderKeyPool();await loadKeys();break;
     case'storage':c.innerHTML=renderStorageConfig();await loadStorageConfig();break;
@@ -235,14 +253,9 @@ async function saveShareConfig(){const r=await af('PUT','/api/admin/share-config
 async function uploadShareImg(){const inp=document.createElement('input');inp.type='file';inp.accept='image/*';inp.onchange=async()=>{const f=inp.files[0];if(!f)return;const fd=new FormData();fd.append('file',f);const r=await fetch(API+'/api/admin/share-config/upload-image',{method:'POST',headers:{'Authorization':'Bearer '+token},body:fd}).then(r=>r.json());if(r.url){sv('sh_img',r.url);document.getElementById('shPreview').innerHTML=`<img src="${r.url}" class="preview-img">`;toast('上传成功',true)}else{toast(r.detail||'上传失败',false)}};inp.click()}
 
 // QR Codes
-function renderQrcodePanel(){return `<div class="grid2"><div class="card"><h3>品牌二维码</h3><div class="text-sm mb">PDF 导出使用</div><div id="brandQrPreview"></div><button class="btn btn-outline btn-sm mt" onclick="uploadQr('brand')">上传品牌二维码</button></div><div class="card"><h3>客服二维码</h3><div class="text-sm mb">联系客服展示</div><div id="csQrPreview"></div><button class="btn btn-outline btn-sm mt" onclick="uploadQr('cs')">上传客服二维码</button></div></div>`}
-function loadQrcodePreviews(){af('GET','/api/admin/qrcode-slot/brand').then(r=>{if(r.ok&&r.data?.url)document.getElementById('brandQrPreview').innerHTML=`<img src="${r.data.url}" class="preview-img">`});af('GET','/api/admin/qrcode-slot/cs').then(r=>{if(r.ok&&r.data?.url)document.getElementById('csQrPreview').innerHTML=`<img src="${r.data.url}" class="preview-img">`})}
-async function uploadQr(slot){const inp=document.createElement('input');inp.type='file';inp.accept='image/*';inp.onchange=async()=>{const f=inp.files[0];if(!f)return;const fd=new FormData();fd.append('file',f);const r=await fetch(API+`/api/admin/upload-qrcode?slot=${slot}`,{method:'POST',headers:{'Authorization':'Bearer '+token},body:fd}).then(r=>r.json());if(r.url){if(slot==='brand')document.getElementById('brandQrPreview').innerHTML=`<img src="${r.url}" class="preview-img">`;else document.getElementById('csQrPreview').innerHTML=`<img src="${r.url}" class="preview-img">`;toast('上传成功',true)}else{toast(r.detail||'上传失败',false)}};inp.click()}
-
-// PDF Config
-function renderPdfConfig(){return `<div class="card"><div class="flex-between mb"><h3>PDF 品牌配置</h3><button class="btn btn-primary btn-sm" onclick="savePdfConfig()">保存</button></div><div class="form-group"><label>Logo URL</label><input id="pdf_logo" placeholder="HTTPS URL"></div><div id="pdfLogoPreview"></div><div class="form-group"><label>页脚文案</label><input id="pdf_footer" placeholder="AI 选址分析 · 商业选址初筛参考"></div></div>`}
-async function loadPdfConfig(){const r=await af('GET','/api/admin/pdf-config');if(r.ok){sv('pdf_logo',r.data.logo_url||'');sv('pdf_footer',r.data.footer_text||'AI 选址分析 · 商业选址初筛参考');if(r.data.logo_url)document.getElementById('pdfLogoPreview').innerHTML=`<img src="${r.data.logo_url}" class="preview-img">`}}
-async function savePdfConfig(){const r=await af('PUT','/api/admin/pdf-config',{logo_url:qv('pdf_logo'),footer_text:qv('pdf_footer')});toast(r.ok?'已保存':(r.data?.detail||'失败'),r.ok)}
+function renderQrcodePanel(){return `<div class="card" style="max-width:400px"><h3>客服二维码</h3><div class="text-sm mb">联系客服展示</div><div id="csQrPreview"></div><button class="btn btn-outline btn-sm mt" onclick="uploadCsQr()">上传二维码</button></div>`}
+function loadQrcodePreviews(){af('GET','/api/admin/qrcode-slot/cs').then(r=>{if(r.ok&&r.data?.url)document.getElementById('csQrPreview').innerHTML=`<img src="${r.data.url}" class="preview-img">`})}
+async function uploadCsQr(){const inp=document.createElement('input');inp.type='file';inp.accept='image/*';inp.onchange=async()=>{const f=inp.files[0];if(!f)return;const fd=new FormData();fd.append('file',f);const r=await fetch(API+'/api/admin/upload-qrcode?slot=cs',{method:'POST',headers:{'Authorization':'Bearer '+token},body:fd}).then(r=>r.json());if(r.url){document.getElementById('csQrPreview').innerHTML=`<img src="${r.url}" class="preview-img">`;toast('上传成功',true)}else{toast(r.detail||'上传失败',false)}};inp.click()}
 
 // SKU Panel
 function renderSkuPanel(){return `<div class="card"><div class="flex-between mb"><h3>套餐与点数包</h3><button class="btn btn-primary btn-sm" onclick="addSku()">+ 添加</button></div><div id="skuList"></div></div>`}
