@@ -141,7 +141,7 @@ def _sign(method, url_path, body_str, mchid, cert_serial, private_key):
 # ── APIv3 HTTP ──
 def _wx_post(url_path, body, mchid, appid, key, cert_serial, private_key):
     """private_key 为已加载的 cryptography 私钥对象"""
-    import urllib.request, ssl
+    import urllib.request, urllib.error, ssl
     body_str = json.dumps(body, ensure_ascii=False)
     token = _sign("POST", url_path, body_str, mchid, cert_serial, private_key)
     url = f"https://api.mch.weixin.qq.com{url_path}"
@@ -176,7 +176,9 @@ def wechat_prepay(
     if not db_user:
         raise HTTPException(status_code=404, detail="用户不存在")
 
-    # openid 检查：JSAPI 支付必须有小程序 openid
+    # 参数校验
+    if not appid:
+        raise HTTPException(status_code=400, detail="微信支付未配置小程序AppID，请在管理后台→系统设置→核心配置中填写")
     openid = db_user.wx_mini_openid or ""
     if not openid:
         raise HTTPException(
@@ -231,12 +233,27 @@ def wechat_prepay(
         "amount": {"total": total_fen, "currency": "CNY"},
         "payer": {"openid": openid},
     }
+    # 调试日志
+    wx_body_dbg = {k:v for k,v in wx_body.items()}
+    if 'amount' in wx_body_dbg: wx_body_dbg['amount'] = wx_body['amount']
+    print(f"[WXPAY] 下单参数: appid={appid}, mchid={mchid}, openid={openid[:8]}***, notify_url={notify_url[:50]}", flush=True)
     try:
         wx_resp = _wx_post("/v3/pay/transactions/jsapi", wx_body, mchid, appid, api_v3_key, cert_serial, private_key)
+    except urllib.error.HTTPError as e:
+        order.status = "FAILED"
+        db.commit()
+        err_body = ""
+        try: err_body = e.read().decode()[:500]
+        except: pass
+        print(f"[WXPAY] 微信返回错误 body={err_body}", flush=True)
+        raise HTTPException(status_code=502, detail=f"微信支付接口异常: {err_body or str(e)[:200]}")
     except Exception as e:
         order.status = "FAILED"
         db.commit()
-        raise HTTPException(status_code=502, detail="微信支付接口异常")
+        err_msg = str(e)[:300]
+        print(f"[WXPAY] JSAPI下单失败: {err_msg}", flush=True)
+        import traceback; traceback.print_exc()
+        raise HTTPException(status_code=502, detail=f"微信支付接口异常: {err_msg}")
 
     prepay_id = wx_resp.get("prepay_id", "")
     if not prepay_id:
