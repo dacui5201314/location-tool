@@ -178,7 +178,7 @@ async function renderDashboard(){
     <div class="card"><h3>🔥 热门业态</h3><div class="flex-wrap">${topBiz}</div><h4 class="mt">🏷️ 热门品牌</h4><div class="flex-wrap">${topBrands}</div></div></div>
     <div class="grid2"><div class="card"><h3>快速操作</h3><div class="flex-wrap">${ql('users','👥 用户管理')}${ql('settings','⚙️ 系统设置')}${ql('cdk','🎫 生成 CDK')}${ql('logs','📋 系统日志')}${ql('industries','🏭 业态规则')}</div></div>
     <div class="card"><h3>当前状态</h3><div class="text-sm">后端运行中 · 测试基线: compileall PASS / industry 2168 PASS / fact guard 147 PASS</div></div></div>
-    <script>drawTrend()</script>`;
+    setTimeout(drawTrend,100)<\/script>\``;
 }
 function drawTrend(){
   if(!_trends||!_trends.trend_dates)return;
