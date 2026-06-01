@@ -53,7 +53,7 @@
     <view class="vip-card">
       <view class="vc-top">
         <view class="vc-copy">
-          <view class="vc-kicker"><text class="vc-crown">♛</text><text>会员权益</text></view>
+          <view class="vc-kicker"><image class="vc-crown-img" :src="vipCrownIcon" mode="aspectFit" /><text>会员权益</text></view>
           <text class="vc-title">{{ memberTitle }}</text>
           <text class="vc-desc">{{ memberSubtitle }}</text>
         </view>
@@ -69,11 +69,7 @@
     <view class="points-card">
       <view class="pc-head">
         <view class="pc-copy">
-          <view class="pc-asset">
-            <text class="pc-coin pc-coin-a"></text>
-            <text class="pc-coin pc-coin-b"></text>
-            <text class="pc-coin pc-coin-c"></text>
-          </view>
+          <image class="pc-asset-img" :src="coinStackIcon" mode="aspectFit" />
           <view>
             <text class="pc-title">账户点数</text>
             <text class="pc-subtitle">用于生成商业选址分析报告</text>
@@ -148,6 +144,8 @@
 import auth from '../../utils/auth'
 import api from '../../utils/api'
 import config from '../../utils/config'
+import vipCrownIcon from '../../static/vip-crown.png'
+import coinStackIcon from '../../static/coin-stack-v2.png'
 
 export default {
   name: 'ProfilePanel',
@@ -159,6 +157,8 @@ export default {
       points: 0, freePointActive: true, freePointExpiry: '',
       memberDays: 0, memberExpiry: '', reportCount: 0, favCount: 0,
       csQrUrl: '', csWechat: '', csPhone: '',
+      vipCrownIcon,
+      coinStackIcon,
       csSheetOpen: false,
       benefits: [
         { icon:'∞',label:'无限分析',desc:'次数不限' },
@@ -378,8 +378,9 @@ export default {
 .vip-card::after { content:''; position:absolute; right:-190rpx; bottom:28rpx; width:560rpx; height:260rpx; border-top:2rpx solid rgba(188,205,255,0.14); border-radius:50%; transform:rotate(-14deg); }
 .vc-top { display:flex; justify-content:space-between; align-items:center; margin-bottom:24rpx; }
 .vc-copy { min-width:0; padding-right:18rpx; position:relative; z-index:1; }
-.vc-kicker { display:flex; align-items:center; gap:8rpx; height:32rpx; font-size:24rpx; line-height:32rpx; color:#ffe5a2; font-weight:900; margin-bottom:10rpx; }
-.vc-crown { display:inline-flex; align-items:center; justify-content:center; width:28rpx; height:28rpx; color:#ffd166; font-size:22rpx; line-height:28rpx; transform:translateY(1rpx); text-shadow:0 4rpx 12rpx rgba(255,209,102,0.32); }
+.vc-kicker { display:flex; align-items:center; gap:8rpx; min-height:32rpx; font-size:24rpx; line-height:32rpx; color:#ffe5a2; font-weight:900; margin-bottom:10rpx; }
+.vc-kicker > text { line-height:32rpx; }
+.vc-crown-img { width:36rpx; height:30rpx; flex-shrink:0; display:block; transform:translateY(1rpx); }
 .vc-title { font-size:36rpx; line-height:1.25; font-weight:900; display:block; color:#fff; }
 .vc-desc { font-size:26rpx; line-height:1.55; color:rgba(232,240,255,0.84); display:block; margin-top:10rpx; }
 .vc-btn { background:linear-gradient(135deg,#fff0bd 0%,#ffd166 58%,#e2aa37 100%); color:#432400; border-radius:999rpx; font-size:26rpx; font-weight:900; padding:0 30rpx; height:68rpx; line-height:68rpx; border:1px solid rgba(255,255,255,0.66); flex-shrink:0; align-self:center; position:relative; z-index:2; box-shadow:0 18rpx 34rpx rgba(247,190,79,0.26),inset 0 2rpx 0 rgba(255,255,255,0.66); }
@@ -392,13 +393,7 @@ export default {
 .points-card { background:linear-gradient(180deg,#ffffff,#f9fbff); margin:0 24rpx 20rpx; border-radius:22rpx; padding:28rpx; box-shadow:0 18rpx 38rpx rgba(51,87,150,0.13); border:1rpx solid rgba(219,230,255,0.96); }
 .pc-head { display:flex; justify-content:space-between; align-items:center; gap:16rpx; margin-bottom:24rpx; }
 .pc-copy { display:flex; align-items:center; gap:18rpx; min-width:0; flex:1; }
-.pc-asset { position:relative; width:92rpx; height:78rpx; flex-shrink:0; filter:drop-shadow(0 14rpx 22rpx rgba(245,177,43,0.22)); }
-.pc-coin { position:absolute; display:block; border-radius:50%; background:radial-gradient(circle at 31% 24%,#fff9d6 0 16%,#ffdf72 38%,#f5b82f 68%,#d68a10 100%); border:2rpx solid rgba(255,246,205,0.95); box-shadow:inset 0 4rpx 0 rgba(255,255,255,0.58),inset 0 -6rpx 10rpx rgba(142,78,0,0.15); }
-.pc-coin::before { content:''; position:absolute; inset:10rpx; border-radius:50%; border:3rpx solid rgba(139,82,0,0.20); box-shadow:inset 0 2rpx 0 rgba(255,255,255,0.34); }
-.pc-coin::after { content:''; position:absolute; left:19rpx; top:13rpx; width:18rpx; height:8rpx; border-radius:50%; background:rgba(255,255,255,0.46); transform:rotate(-28deg); }
-.pc-coin-a { right:2rpx; top:4rpx; width:62rpx; height:62rpx; z-index:3; }
-.pc-coin-b { left:4rpx; bottom:6rpx; width:50rpx; height:50rpx; z-index:2; opacity:0.98; }
-.pc-coin-c { left:22rpx; top:0; width:42rpx; height:42rpx; z-index:1; opacity:0.72; }
+.pc-asset-img { width:96rpx; height:76rpx; flex-shrink:0; display:block; filter:drop-shadow(0 12rpx 18rpx rgba(244,173,22,0.20)); }
 .pc-title { display:block; font-size:29rpx; font-weight:900; color:#1e293b; line-height:1.2; }
 .pc-subtitle { display:block; font-size:24rpx; color:#8b99b6; margin-top:8rpx; line-height:1.45; }
 .pc-actions { display:flex; flex-direction:row; align-items:center; gap:12rpx; flex-shrink:0; }

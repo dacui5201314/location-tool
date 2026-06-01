@@ -819,10 +819,12 @@ def get_ui_config(db: Session = Depends(get_db)):
 # ═══════════════════════════════════════════
 # 小程序分享设置
 # ═══════════════════════════════════════════
-_SHARE_CONFIG_KEYS = ["share_title", "share_image_url", "report_share_title_template", "share_cta_text"]
+_SHARE_CONFIG_KEYS = ["share_title", "share_image_url", "home_share_image_url", "report_share_image_url", "report_share_title_template", "share_cta_text"]
 _SHARE_CONFIG_DEFAULTS = {
     "share_title": "址得选 - 商铺选址分析工具",
     "share_image_url": "",
+    "home_share_image_url": "",
+    "report_share_image_url": "",
     "report_share_title_template": "{address}选址分析报告",
     "share_cta_text": "我也要生成选址报告",
 }
@@ -847,8 +849,8 @@ def save_share_config(body: dict, admin: dict = Depends(get_current_admin), db: 
     """管理后台保存分享配置"""
     for key in _SHARE_CONFIG_KEYS:
         val = str(body.get(key, "") or "").strip()
-        if key == "share_image_url" and val and not val.startswith("/assets/"):
-            raise HTTPException(status_code=400, detail="图片路径必须以 /assets/ 开头，请通过上传接口上传")
+        if key.endswith("image_url") and val and not (val.startswith("/assets/") or val.startswith("https://")):
+            raise HTTPException(status_code=400, detail="图片路径必须是后台上传的 /assets/ 路径或 HTTPS 地址")
         row = db.query(SystemConfig).filter(SystemConfig.key == f"share_{key}").first()
         if row:
             row.value = val
@@ -994,6 +996,11 @@ def delete_cdk_batch(body: DeleteCdkBody, admin: dict = Depends(get_current_admi
     ))
     db.commit()
     return {"ok": True, "deleted": deleted, "skipped": len(selected) - deleted}
+
+@router.post("/cdk/batch-delete")
+def delete_cdk_batch_post(body: DeleteCdkBody, admin: dict = Depends(get_current_admin), db: Session = Depends(get_db)):
+    """批量删除 CDK（POST 兼容浏览器/代理不稳定处理 DELETE body 的情况）。"""
+    return delete_cdk_batch(body, admin, db)
 
 # ── CDK 激活速率限制（防暴力枚举）──────────────────────────
 _CDK_RATE_WINDOW = 60      # 窗口：60 秒

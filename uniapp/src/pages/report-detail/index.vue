@@ -215,6 +215,7 @@
 
 <script>
 import api from '../../utils/api'
+import config from '../../utils/config'
 import { scoreColor, formatTime } from '../../utils/format'
 
 export default {
@@ -316,7 +317,7 @@ export default {
     const addr = this.record.address || this.record.brand_desc || '门店'
     const titleTpl = cfg.report_share_title_template || '{address}选址分析报告'
     const title = titleTpl.replace('{address}', addr)
-    const imageUrl = cfg.share_image_url || ''
+    const imageUrl = this.resolveShareImage(cfg.report_share_image_url || cfg.share_image_url || '')
     const token = this._shareToken || ''
     if (token) {
       return { title, path: `/pages/report-detail/index?share=${token}`, ...(imageUrl ? { imageUrl } : {}) }
@@ -326,6 +327,11 @@ export default {
   },
   methods: {
     sc: scoreColor, fmtTime: formatTime,
+    resolveShareImage (url) {
+      if (!url) return ''
+      if (url.startsWith('/assets/')) return config.API_BASE_URL + url
+      return url
+    },
     statIcon (key) {
       const map = {
         residential: '🏘️',

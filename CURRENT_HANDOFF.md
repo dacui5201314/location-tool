@@ -71,6 +71,23 @@ python tests/check_report_fact_guard.py    → 175 PASS, 0 FAIL
 uniapp build:mp-weixin                     → DONE
 ```
 
+### 第四轮：Codex UI 精细收口（2026-06-01）
+
+**管理后台：**
+- 仪表盘趋势图：从简单柱状图升级为 DPI-aware 交互折线图（hover 提示每日数量）
+- 品牌 logo 移至 `/assets/admin-logo.png`，带 fallback 文字
+- 移除已废弃的"系统日志"导航项
+- 分享配置：首页分享图 + 报告分享图独立设置（`home_share_image_url` / `report_share_image_url`）
+- 用户列表：会员显示友好化（普通用户/月度/季度/年度）、头像昵称强化
+- 操作记录：增加类型标签、变更内容详情、管理员信息
+- 业态规则：按大类别（餐饮/茶饮咖啡/零售/生活服务等）分组展示，从 `/api/industries/active` 读取前台分类
+- CDK 批量删除：增加 POST `/api/admin/cdk/batch-delete` 兼容路由
+
+**前端 uni-app：**
+- ProfilePanel：金币堆和皇冠改用 PNG 图片（`coin-stack-v2.png` / `vip-crown.png`）
+- 首页分享：支持 `home_share_image_url` 独立封面，`resolveShareImage()` 处理 `/assets/` 路径
+- 报告分享：支持 `report_share_image_url` 独立封面
+
 ## 待上线事项
 
 - 微信支付真机联调（需公网 HTTPS + 商户配置）

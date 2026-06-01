@@ -157,7 +157,8 @@ http://localhost:8000/docs           # Swagger API 文档（调试用）
 
 ## 版本历史
 
-- **v1.15.0** (2026-06-01) — C-4 报告幻觉专项 + 管理后台 SaaS 闭环：POI 名称校验 retry 白名单收窄（排除 hot_brands/nearby_roads）、retry prompt 注入 allowed_names/forbidden_names 强约束、模板去诱导（禁止编造学校/小区/商场名）；管理后台新增订单管理+点数流水页面、业态管理完整 CRUD、SKU/CDK/二维码/Key池字段全部对齐后端接口；fact guard 175 PASS
+- **v1.15.1** (2026-06-01) — Codex UI 精细收口：管理后台仪表盘交互折线图、分享图拆分首页/报告独立封面、用户列表会员友好化、业态按类目分组、操作记录美化；前端 ProfilePanel 图标改用 PNG、首页和报告分享封面独立配置
+- **v1.15.0** (2026-06-01) — C-4 报告幻觉专项 + 管理后台 SaaS 闭环：POI 名称校验 retry 白名单收窄、retry prompt 注入强约束、模板去诱导；后台新增订单管理+点数流水、业态 CRUD、SKU/CDK/二维码/Key池接口对齐；fact guard 175 PASS
 - **v1.14.0** (2026-06-01) — 上线闭环与安全加固：支付 queryOrder 确认闭环、.gitignore 防护、管理后台 search→phone 修复、innerHTML XSS 转义、匿名设备 ID 去硬编码、退款幂等保护、location key 池完整重试、文档统一
 - **v1.13.0** (2026-05-30) — 管理后台重建 + 微信支付接入：全新独立 HTML 管理后台（`/admin`），8 模块功能完整对齐旧版；系统设置含 7 子标签（核心配置/UI/分享/二维码/SKU/Key池/存储）；业态规则从 industry_config.py 直接读取；仪表盘含 15 天趋势图；微信支付 JSAPI v3 完整链路（prepay + notify）；小程序充值页接入真实支付；死代码清理 ~1,000 行；P0 计费时序修复；B26/B27 修复
 - **v1.12.0** (2026-05-30) — 项目简化与安全加固：移除 Web 前端（React），uni-app 成为唯一客户端；后端 location 端点接入 Key 池实现配额自动切换；计费扣点时序优化（AMap 成功后再 commit，失败则 rollback）；uniapp 4 页面 safe-area-inset-bottom iPhone 适配

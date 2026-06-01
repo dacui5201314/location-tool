@@ -263,6 +263,7 @@ import RecordsPanel from '../../components/tab/RecordsPanel.vue'
 import FavoritesPanel from '../../components/tab/FavoritesPanel.vue'
 import ProfilePanel from '../../components/tab/ProfilePanel.vue'
 import api from '../../utils/api'
+import config from '../../utils/config'
 
 export default {
   components: { IndustryPicker, RecordsPanel, FavoritesPanel, ProfilePanel },
@@ -430,6 +431,11 @@ export default {
     this._mapTimer = setTimeout(() => { this.mapReady = true }, 350)
   },
   methods: {
+    resolveShareImage (url) {
+      if (!url) return ''
+      if (url.startsWith('/assets/')) return config.API_BASE_URL + url
+      return url
+    },
     onSwitchTab (key) {
       const sameTab = this.activeTab === key
       this._scrollPageTop()
@@ -892,10 +898,11 @@ export default {
     },
     onShareAppMessage () {
       const cfg = this.shareConfig || {}
+      const imageUrl = this.resolveShareImage(cfg.home_share_image_url || cfg.share_image_url || '')
       return {
         title: cfg.share_title || '址得选 - 商铺选址分析工具',
         path: '/pages/home/index',
-        imageUrl: cfg.share_image_url || ''
+        ...(imageUrl ? { imageUrl } : {})
       }
     },
     async _recoverRecentReport () {

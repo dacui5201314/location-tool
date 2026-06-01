@@ -33,7 +33,8 @@ storage/reports/*
 # 上传的静态资源（二维码等——运营数据，不应入库）
 storage/assets/
 storage/assets/*
-!storage/assets/.gitkeep
+!storage/assets/
+!storage/assets/admin-logo.png
 
 # IDE
 .vscode/

@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>址得选 · 管理后台</title>
-<link rel="icon" type="image/png" href="/admin-logo.png">
+<link rel="icon" type="image/png" href="/assets/admin-logo.png">
 <style>
 :root{--bg:#f5f7fb;--panel:#fff;--panel2:#f8fafc;--ink:#172033;--muted:#667085;--subtle:#98a2b3;--line:#d9e0ea;--line2:#eef2f6;--blue:#1f5eff;--blue2:#1745c8;--cyan:#0e9f9a;--red:#d92d20;--green:#079455;--amber:#b54708;--r:8px;--sh:0 1px 2px rgba(16,24,40,.05),0 12px 28px rgba(16,24,40,.07)}
 *{box-sizing:border-box;margin:0;padding:0}
@@ -15,7 +15,7 @@ input,textarea,select{border:1px solid var(--line);border-radius:var(--r);paddin
 input:focus,textarea:focus,select:focus{outline:none;border-color:var(--blue);box-shadow:0 0 0 3px rgba(31,94,255,.12)}
 label{font-size:12px;font-weight:700;color:#475467;display:block;margin-bottom:6px}
 .brand{display:flex;align-items:center;gap:10px}
-.brand-logo{width:38px;height:38px;border-radius:9px;object-fit:cover;box-shadow:0 10px 24px rgba(31,94,255,.18);background:#edf3ff}
+.brand-logo{width:42px;height:42px;border-radius:10px;object-fit:cover;box-shadow:0 10px 24px rgba(31,94,255,.18);background:#edf3ff}.brand-fallback{width:42px;height:42px;border-radius:10px;background:#edf3ff;color:var(--blue);display:none;align-items:center;justify-content:center;font-weight:900;font-size:16px}
 .brand-title{font-size:15px;font-weight:900;line-height:1.1}.brand-sub{font-size:12px;color:var(--subtle);margin-top:2px}
 .login-wrap{display:flex;align-items:center;justify-content:center;min-height:100vh;background:radial-gradient(circle at 18% 18%,rgba(14,159,154,.18),transparent 28%),linear-gradient(135deg,#eef4ff 0%,#f7fbfb 48%,#f6f7fb 100%)}
 .login-card{background:rgba(255,255,255,.96);border:1px solid rgba(217,224,234,.9);border-radius:var(--r);padding:34px;width:392px;box-shadow:0 24px 70px rgba(16,24,40,.16)}
@@ -83,7 +83,7 @@ pre{background:#0f172a;color:#dbeafe;border:1px solid #1e293b;border-radius:var(
 .modal-box h3{margin-bottom:16px}
 .user-cell{display:flex;align-items:center;gap:10px;min-width:180px}.avatar{width:34px;height:34px;border-radius:50%;object-fit:cover;background:#edf3ff;border:1px solid var(--line)}.avatar-fallback{display:flex;align-items:center;justify-content:center;color:var(--blue);font-weight:900}
 .mini-note{padding:10px 12px;border-radius:var(--r);background:#f8fafc;border:1px solid var(--line2);color:var(--muted);font-size:12px}
-.biz-board{display:grid;grid-template-columns:170px 1fr;gap:16px;align-items:center}.donut-wrap{position:relative;width:160px;height:160px}.donut-center{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;font-weight:900}.donut-center span{font-size:12px;color:var(--subtle);margin-top:2px}.rank-list{display:flex;flex-direction:column;gap:9px}.rank-row{display:grid;grid-template-columns:22px minmax(80px,1fr) minmax(80px,1.2fr) 38px;align-items:center;gap:8px;font-size:12px}.rank-dot{width:9px;height:9px;border-radius:50%}.bar-track{height:9px;background:#eef2f6;border-radius:99px;overflow:hidden}.bar-fill{height:100%;border-radius:99px}.section-card{border:1px solid var(--line2);border-radius:var(--r);padding:14px;background:#fff;margin-bottom:12px}.section-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.biz-board{display:grid;grid-template-columns:170px 1fr;gap:16px;align-items:center}.donut-wrap{position:relative;width:160px;height:160px}.donut-center{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;font-weight:900}.donut-center span{font-size:12px;color:var(--subtle);margin-top:2px}.rank-list{display:flex;flex-direction:column;gap:9px}.rank-row{display:grid;grid-template-columns:22px minmax(80px,1fr) minmax(80px,1.2fr) 38px;align-items:center;gap:8px;font-size:12px}.rank-dot{width:9px;height:9px;border-radius:50%}.bar-track{height:9px;background:#eef2f6;border-radius:99px;overflow:hidden}.bar-fill{height:100%;border-radius:99px}.section-card{border:1px solid var(--line2);border-radius:var(--r);padding:14px;background:#fff;margin-bottom:12px}.section-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}.trend-wrap{height:260px;position:relative}.trend-wrap canvas{width:100%;height:240px;display:block}.trend-meta{display:flex;gap:10px;margin-top:10px;color:var(--muted);font-size:12px}.chart-tip{position:absolute;pointer-events:none;z-index:4;transform:translate(-50%,-110%);background:#101828;color:#fff;padding:8px 10px;border-radius:8px;box-shadow:0 12px 28px rgba(16,24,40,.2);font-size:12px;white-space:nowrap}.chart-tip:after{content:"";position:absolute;left:50%;bottom:-5px;margin-left:-5px;border:5px solid transparent;border-top-color:#101828;border-bottom:0}.op-type{min-width:86px;justify-content:center}.op-detail{display:flex;flex-direction:column;gap:3px}
 </style>
 </head>
 <body>
@@ -92,7 +92,7 @@ pre{background:#0f172a;color:#dbeafe;border:1px solid #1e293b;border-radius:var(
 <div id="loginPage" class="login-wrap">
   <div class="login-card">
     <div class="brand">
-      <img class="brand-logo" src="/admin-logo.png" alt="址得选">
+      <img class="brand-logo" src="/assets/admin-logo.png" alt="址得选" onerror="this.onerror=null;this.src='/admin-logo.png'"><span class="brand-fallback">址</span>
       <div><div class="brand-title">址得选 Admin</div><div class="brand-sub">运营管理控制台</div></div>
     </div>
     <h1>址得选</h1>
@@ -107,7 +107,7 @@ pre{background:#0f172a;color:#dbeafe;border:1px solid #1e293b;border-radius:var(
 <div id="mainPage" class="hidden">
   <div class="topbar">
     <div class="brand">
-      <img class="brand-logo" src="/admin-logo.png" alt="址得选">
+      <img class="brand-logo" src="/assets/admin-logo.png" alt="址得选" onerror="this.onerror=null;this.src='/admin-logo.png'"><span class="brand-fallback">址</span>
       <div><div class="brand-title">址得选管理后台</div><div class="brand-sub">支付、用户、报告与运营配置</div></div>
     </div>
     <div style="display:flex;align-items:center;gap:12px"><span class="tag tag-gray">v1.12.0</span><button onclick="logout()">退出登录</button></div>
@@ -125,7 +125,6 @@ pre{background:#0f172a;color:#dbeafe;border:1px solid #1e293b;border-radius:var(
       <a data-page="settings" onclick="navTo('settings')"><span class="nav-icon">⚙️</span><span>系统设置</span></a>
       <a data-page="sysparams" onclick="navTo('sysparams')"><span class="nav-icon">🔧</span><span>全局参数</span></a>
       <a data-page="industries" onclick="navTo('industries')"><span class="nav-icon">🏭</span><span>业态规则</span></a>
-      <a data-page="logs" onclick="navTo('logs')"><span class="nav-icon">📋</span><span>系统日志</span></a>
       <a data-page="oplogs" onclick="navTo('oplogs')"><span class="nav-icon">📝</span><span>操作记录</span></a>
     </div>
     <div class="main" id="content"></div>
@@ -155,6 +154,8 @@ function toast(msg,ok){
 
 function qv(id){return document.getElementById(id)?.value||''}
 function sv(id,v){const e=document.getElementById(id);if(e&&v!==undefined&&v!==null)e.value=v}
+function fmtDateTime(v,len=16){if(!v)return'-';return String(v).replace('T',' ').replace(/\.\d+/, '').replace(/Z$/, '').slice(0,len)}
+function fmtDate(v){if(!v)return'-';return fmtDateTime(v,10)}
 
 // ── Login ──
 async function login(){
@@ -183,7 +184,7 @@ async function navTo(page){
   const c=document.getElementById('content');
   const renderers={
     dashboard:renderDashboard, users:renderUsers, orders:renderOrders, billing:renderBilling,
-    settings:renderSettings, logs:renderLogs, cdk:renderCdk, sysparams:renderSysParams,
+    settings:renderSettings, cdk:renderCdk, sysparams:renderSysParams,
     oplogs:renderOpLogs, industries:renderIndustries
   };
   if(renderers[page]){c.innerHTML=await renderers[page]();await loaders[page]?.();if(page==='dashboard')setTimeout(drawTrend,200)}
@@ -199,7 +200,7 @@ async function renderDashboard(){
   const topBiz=(_trends?.top_business_types||[]).slice(0,6);
   const topBrands=(_trends?.top_brands||[]).slice(0,5);
   return `<div class="grid4 mb">${st('总用户数',s.total_users||0,'#2563eb')}${st('累计报告',s.total_reports||s.total_records||0,'#16a34a')}${st('今日新增',s.today_users||0,'#7c5cff')}${st('今日报告',s.today_reports||s.today_analyzes||0,'#f59e0b')}</div>
-    <div class="grid2"><div class="card"><h3>📈 分析趋势（近15天）</h3><canvas id="trendChart" width="500" height="180"></canvas></div>
+    <div class="grid2"><div class="card"><h3>📈 近15天分析趋势</h3><div class="trend-wrap"><canvas id="trendChart" width="620" height="240"></canvas><div id="trendTip" class="chart-tip hidden"></div></div><div class="trend-meta"><span>按报告生成时间统计</span><span>鼠标悬停查看每日数量</span></div></div>
     <div class="card"><h3>🔥 热门选址业态</h3>${renderBizDonut(topBiz)}<h4 class="mt">🏷️ 高频分析品牌 TOP 5</h4>${renderBrandBars(topBrands)}</div></div>
     <div class="grid2"><div class="card"><h3>快速操作</h3><div class="flex-wrap">${ql('users','👥 用户管理')}${ql('orders','💳 订单管理')}${ql('billing','🧾 账户流水')}${ql('settings','⚙️ 系统设置')}${ql('cdk','🎫 生成 CDK')}${ql('industries','🏭 业态规则')}</div></div>
     <div class="card"><h3>上线状态</h3><div class="mini-note">系统运行正常。支付、报告准确度和业态规则校验已通过最近一轮检查，详情以后放到交接文档，不在后台首页展示技术缩写。</div></div></div>`;
@@ -221,17 +222,34 @@ function renderBrandBars(data){
 function drawTrend(){
   if(!_trends||!_trends.trend_dates)return;
   const c=document.getElementById('trendChart');if(!c)return;
-  const ctx=c.getContext('2d'),W=c.width,H=c.height;
+  const ctx=c.getContext('2d');
+  const rect=c.getBoundingClientRect();
+  const dpr=Math.max(1,Math.min(2,window.devicePixelRatio||1));
+  const W=Math.max(520,Math.round(rect.width||620)),H=240;
+  const bw=Math.round(W*dpr),bh=Math.round(H*dpr);
+  if(c.width!==bw||c.height!==bh){c.width=bw;c.height=bh}
+  ctx.setTransform(dpr,0,0,dpr,0,0);
   const dates=_trends.trend_dates,counts=_trends.trend_counts;
-  const max=Math.max(...counts,1),barW=(W-60)/dates.length-4;
+  const max=Math.max(...counts,1),min=0,pad={l:46,r:20,t:18,b:36};
+  const plotW=W-pad.l-pad.r,plotH=H-pad.t-pad.b;
+  const x=i=>pad.l+(dates.length<=1?plotW/2:i*plotW/(dates.length-1));
+  const y=v=>pad.t+plotH-(v-min)/(max-min||1)*plotH;
   ctx.clearRect(0,0,W,H);
-  ctx.fillStyle='#64748b';ctx.font='10px sans-serif';ctx.textAlign='right';
-  for(let i=0;i<=4;i++){const y=H-20-(H-40)*i/4;ctx.fillText(Math.round(max*i/4),28,y+4);ctx.strokeStyle='#e2e8f0';ctx.beginPath();ctx.moveTo(32,y);ctx.lineTo(W-10,y);ctx.stroke()}
-  ctx.textAlign='center';
-  dates.forEach((d,i)=>{const x=40+i*(barW+4),h=(H-40)*counts[i]/max,y=H-20-h;ctx.fillStyle='#315bff';ctx.fillRect(x,y,barW,h);ctx.fillStyle='#64748b';ctx.fillText(d,x+barW/2,H-4)});
+  ctx.font='11px sans-serif';ctx.textAlign='right';
+  for(let i=0;i<=4;i++){const val=Math.round(max*i/4),gy=y(val);ctx.fillStyle='#98a2b3';ctx.fillText(val,pad.l-10,gy+4);ctx.strokeStyle='#edf2f7';ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(pad.l,gy);ctx.lineTo(W-pad.r,gy);ctx.stroke()}
+  const grad=ctx.createLinearGradient(0,pad.t,0,H-pad.b);grad.addColorStop(0,'rgba(31,94,255,.28)');grad.addColorStop(1,'rgba(31,94,255,0)');
+  ctx.beginPath();dates.forEach((d,i)=>{const px=x(i),py=y(counts[i]||0);if(i===0)ctx.moveTo(px,py);else ctx.lineTo(px,py)});ctx.lineTo(x(dates.length-1),H-pad.b);ctx.lineTo(x(0),H-pad.b);ctx.closePath();ctx.fillStyle=grad;ctx.fill();
+  ctx.save();ctx.shadowColor='rgba(31,94,255,.24)';ctx.shadowBlur=14;ctx.shadowOffsetY=6;ctx.beginPath();dates.forEach((d,i)=>{const px=x(i),py=y(counts[i]||0);if(i===0)ctx.moveTo(px,py);else ctx.lineTo(px,py)});ctx.strokeStyle='#1f5eff';ctx.lineWidth=3.5;ctx.lineJoin='round';ctx.lineCap='round';ctx.stroke();ctx.restore();
+  dates.forEach((d,i)=>{const px=x(i),py=y(counts[i]||0);ctx.fillStyle='#fff';ctx.beginPath();ctx.arc(px,py,4,0,Math.PI*2);ctx.fill();ctx.strokeStyle='#1f5eff';ctx.lineWidth=2;ctx.stroke();if(i%2===0||dates.length<=8){ctx.fillStyle='#667085';ctx.textAlign='center';ctx.fillText(d,px,H-12)}});
+  const pts=dates.map((d,i)=>({date:d,count:counts[i]||0,x:x(i),y:y(counts[i]||0)}));
+  const tip=document.getElementById('trendTip');
+  const base=ctx.getImageData(0,0,c.width,c.height);
+  c.onmousemove=e=>{const r=c.getBoundingClientRect(),mx=(e.clientX-r.left)*(W/r.width);let p=pts[0];pts.forEach(q=>{if(Math.abs(q.x-mx)<Math.abs(p.x-mx))p=q});if(!p||!tip)return;ctx.putImageData(base,0,0);ctx.strokeStyle='rgba(31,94,255,.22)';ctx.lineWidth=1;ctx.setLineDash([4,4]);ctx.beginPath();ctx.moveTo(p.x,pad.t);ctx.lineTo(p.x,H-pad.b);ctx.stroke();ctx.setLineDash([]);ctx.fillStyle='#fff';ctx.beginPath();ctx.arc(p.x,p.y,7,0,Math.PI*2);ctx.fill();ctx.strokeStyle='#1f5eff';ctx.lineWidth=3;ctx.stroke();tip.innerHTML=`${esc(p.date)}<br><b>${p.count}</b> 份报告`;tip.style.left=(p.x*r.width/W)+'px';tip.style.top=(p.y*r.height/H)+'px';tip.classList.remove('hidden')};
+  c.onmouseleave=()=>{ctx.putImageData(base,0,0);tip&&tip.classList.add('hidden')};
 }
 function st(l,n,c){return `<div class="stat"><div class="num" style="color:${c}">${n}</div><div class="lbl">${l}</div></div>`}
 function ql(p,t){return `<button class="btn btn-outline" onclick="navTo('${p}')">${t}</button>`}
+function memberText(u){const tier=u.membership_tier||'free';const map={free:'普通用户',monthly:'月度会员',quarterly:'季度会员',yearly:'年度会员'};return u.membership_label&&u.membership_label!=='非会员'?u.membership_label:map[tier]||tier}
 
 // ── Users ──
 let _userPage=1,_userTotal=0;
@@ -243,7 +261,7 @@ async function loadUsers(pg){
   const users=r.ok?(r.data.users||[]):[];
   _userTotal=r.ok?(r.data.total||0):0;
   const totalPages=Math.ceil(_userTotal/20);
-  document.getElementById('userTbody').innerHTML=users.map(u=>{const nick=u.nickname||'未设置昵称';const av=u.avatar_url?`<img class="avatar" src="${escUrl(u.avatar_url)}" alt="">`:`<div class="avatar avatar-fallback">${esc(nick.slice(0,1)||'用')}</div>`;return `<tr><td>${u.id}</td><td><div class="user-cell">${av}<div><b>${esc(nick)}</b><div class="text-xs">ID ${u.id}</div></div></div></td><td>${esc(u.phone_number||u.phone||'-')}</td><td>${u.balance_credits||0}</td><td><span class="tag ${u.membership_tier&&u.membership_tier!=='free'?'tag-green':'tag-amber'}">${esc(u.membership_tier||'free')}</span></td><td>${esc((u.created_at||'').slice(0,10))}</td><td><button class="btn btn-primary btn-xs" onclick="adjustAccount(${u.id})">调整账户</button><button class="btn btn-outline btn-xs" onclick="viewUserOrders(${u.id})">订单</button><button class="btn btn-outline btn-xs" onclick="viewUserBilling(${u.id})">流水</button></td></tr>`}).join('');
+  document.getElementById('userTbody').innerHTML=users.map(u=>{const nick=u.nickname||'未设置昵称';const av=u.avatar_url?`<img class="avatar" src="${escUrl(u.avatar_url)}" alt="">`:`<div class="avatar avatar-fallback">${esc(nick.slice(0,1)||'用')}</div>`;const member=memberText(u);return `<tr><td>${u.id}</td><td><div class="user-cell">${av}<div><b>${esc(nick)}</b><div class="text-xs">ID ${u.id}</div></div></div></td><td>${esc(u.phone_number||u.phone||'-')}</td><td>${u.balance_credits||0}</td><td><span class="tag ${u.membership_tier&&u.membership_tier!=='free'?'tag-green':'tag-gray'}">${esc(member)}</span></td><td>${esc(fmtDate(u.created_at))}</td><td><button class="btn btn-primary btn-xs" onclick="adjustAccount(${u.id})">调整账户</button><button class="btn btn-outline btn-xs" onclick="viewUserOrders(${u.id})">订单</button><button class="btn btn-outline btn-xs" onclick="viewUserBilling(${u.id})">流水</button></td></tr>`}).join('');
   const pager=document.getElementById('userPager');if(pager)pager.innerHTML=`<span>共 ${_userTotal} 用户 · 第 ${_userPage}/${totalPages||1} 页</span><span>${_userPage>1?`<button class="btn btn-outline btn-xs mr" onclick="loadUsers(${_userPage-1})">上一页</button>`:''}${_userPage<totalPages?`<button class="btn btn-outline btn-xs" onclick="loadUsers(${_userPage+1})">下一页</button>`:''}</span>`;
 }
 async function adjustAccount(uid){
@@ -310,10 +328,10 @@ async function loadUiConfigData(){const r=await af('GET','/api/admin/ui-config')
 async function saveUiConfigData(){const r=await af('PUT','/api/admin/ui-config',{announcement:qv('uic_ann'),customer_service_name:qv('uic_name'),cs_wechat:qv('uic_wx'),cs_phone:qv('uic_phone')});toast(r.ok?'已保存':(r.data?.detail||'失败'),r.ok)}
 
 // Share Config
-function renderShareConfig(){return `<div class="card"><div class="flex-between mb"><div><h3>分享配置</h3><div class="text-sm">小程序报告页已接入分享能力，报告分享图会用于 onShareAppMessage 的 imageUrl。</div></div><button class="btn btn-primary btn-sm" onclick="saveShareConfig()">保存</button></div><div class="form-group"><label>分享标题</label><input id="sh_title" placeholder="如：址得选 · AI选址报告"></div><div class="form-group"><label>报告分享标题模板</label><input id="sh_rtpl" placeholder="如：{{address}} · {{business_type}} 选址分析报告"></div><div class="form-group"><label>分享 CTA 文案</label><input id="sh_cta" placeholder="如：立即查看>>"></div><div class="form-group"><label>报告分享图 URL</label><div class="form-row"><input id="sh_img" placeholder="/assets/share/xxx.png 或 HTTPS URL"><button class="btn btn-outline btn-sm" onclick="uploadShareImg()" style="flex:0 0 auto">上传分享图</button></div></div><div id="shPreview"></div></div>`}
-async function loadShareConfig(){const r=await af('GET','/api/admin/share-config');if(r.ok){const d=r.data;sv('sh_title',d.share_title||'');sv('sh_rtpl',d.report_share_title_template||'');sv('sh_cta',d.share_cta_text||'');sv('sh_img',d.share_image_url||'');if(d.share_image_url)document.getElementById('shPreview').innerHTML=`<img src="${escUrl(d.share_image_url)}" class="preview-img">`}}
-async function saveShareConfig(){const r=await af('PUT','/api/admin/share-config',{share_title:qv('sh_title'),report_share_title_template:qv('sh_rtpl'),share_cta_text:qv('sh_cta'),share_image_url:qv('sh_img')});toast(r.ok?'已保存':(r.data?.detail||'失败'),r.ok)}
-async function uploadShareImg(){const inp=document.createElement('input');inp.type='file';inp.accept='image/*';inp.onchange=async()=>{const f=inp.files[0];if(!f)return;const fd=new FormData();fd.append('file',f);const r=await fetch(API+'/api/admin/share-config/upload-image',{method:'POST',headers:{'Authorization':'Bearer '+token},body:fd}).then(r=>r.json());if(r.url){sv('sh_img',r.url);document.getElementById('shPreview').innerHTML=`<img src="${escUrl(r.url)}" class="preview-img">`;toast('上传成功',true)}else{toast(r.detail||'上传失败',false)}};inp.click()}
+function renderShareConfig(){return `<div class="card"><div class="flex-between mb"><div><h3>分享配置</h3><div class="text-sm">首页分享和报告分享使用不同封面，避免报告卡片与产品入口混在一起。</div></div><button class="btn btn-primary btn-sm" onclick="saveShareConfig()">保存</button></div><div class="mini-note mb">微信小程序分享封面按 5:4 展示，建议上传 500 × 400 px 的 JPG/PNG；使用后台上传生成的 /assets 路径或 HTTPS 图片。</div><div class="form-group"><label>首页分享标题</label><input id="sh_title" placeholder="如：址得选 · AI选址报告"></div><div class="form-group"><label>报告分享标题模板</label><input id="sh_rtpl" placeholder="如：{{address}} · {{business_type}} 选址分析报告"></div><div class="form-group"><label>分享 CTA 文案</label><input id="sh_cta" placeholder="如：立即查看>>"></div><div class="grid2"><div class="form-group"><label>首页分享图 URL</label><div class="form-row"><input id="sh_home_img" placeholder="/assets/share/home.png"><button class="btn btn-outline btn-sm" onclick="uploadShareImg('home')" style="flex:0 0 auto">上传首页图</button></div><div id="shHomePreview"></div></div><div class="form-group"><label>报告分享图 URL</label><div class="form-row"><input id="sh_report_img" placeholder="/assets/share/report.png"><button class="btn btn-outline btn-sm" onclick="uploadShareImg('report')" style="flex:0 0 auto">上传报告图</button></div><div id="shReportPreview"></div></div></div></div>`}
+async function loadShareConfig(){const r=await af('GET','/api/admin/share-config');if(r.ok){const d=r.data;sv('sh_title',d.share_title||'');sv('sh_rtpl',d.report_share_title_template||'');sv('sh_cta',d.share_cta_text||'');const home=d.home_share_image_url||d.share_image_url||'';const report=d.report_share_image_url||d.share_image_url||'';sv('sh_home_img',home);sv('sh_report_img',report);if(home)document.getElementById('shHomePreview').innerHTML=`<img src="${escUrl(home)}" class="preview-img">`;if(report)document.getElementById('shReportPreview').innerHTML=`<img src="${escUrl(report)}" class="preview-img">`}}
+async function saveShareConfig(){const r=await af('PUT','/api/admin/share-config',{share_title:qv('sh_title'),report_share_title_template:qv('sh_rtpl'),share_cta_text:qv('sh_cta'),share_image_url:qv('sh_home_img'),home_share_image_url:qv('sh_home_img'),report_share_image_url:qv('sh_report_img')});toast(r.ok?'已保存':(r.data?.detail||'失败'),r.ok)}
+async function uploadShareImg(kind){const inp=document.createElement('input');inp.type='file';inp.accept='image/*';inp.onchange=async()=>{const f=inp.files[0];if(!f)return;const fd=new FormData();fd.append('file',f);const r=await fetch(API+'/api/admin/share-config/upload-image',{method:'POST',headers:{'Authorization':'Bearer '+token},body:fd}).then(r=>r.json());if(r.url){if(kind==='report'){sv('sh_report_img',r.url);document.getElementById('shReportPreview').innerHTML=`<img src="${escUrl(r.url)}" class="preview-img">`}else{sv('sh_home_img',r.url);document.getElementById('shHomePreview').innerHTML=`<img src="${escUrl(r.url)}" class="preview-img">`}toast('上传成功',true)}else{toast(r.detail||'上传失败',false)}};inp.click()}
 
 // QR Codes
 function renderQrcodePanel(){return `<div class="card" style="max-width:400px"><h3>客服二维码</h3><div class="text-sm mb">联系客服展示</div><div id="csQrPreview"></div><button class="btn btn-outline btn-sm mt" onclick="uploadCsQr()">上传二维码</button></div>`}
@@ -348,14 +366,12 @@ function renderStorageRadio(){const provider=window._storeCfg.storage_provider==
 async function saveStorageConfig(){const d={storage_mode:window._storeCfg.storage_mode,storage_provider:window._storeCfg.storage_provider||'aliyun_oss'};if(d.storage_mode==='cloud'){d.oss_endpoint=qv('oss_ep');d.oss_bucket=qv('oss_bkt');d.oss_access_key_id=qv('oss_akid');d.oss_access_key_secret=qv('oss_aksec')}const r=await af('PUT','/api/admin/storage-config',d);toast(r.ok?'已保存':(r.data?.detail||'失败'),r.ok)}
 
 // ── Logs ──
-function renderLogs(){return `<div class="card"><div class="flex-between mb"><h3>系统日志</h3><button class="btn btn-outline btn-sm" onclick="navTo('logs')">刷新</button></div><pre id="logContent" class="mono">加载中...</pre></div>`}
-async function loadLogs(){const r=await af('GET','/api/admin/logs');const logs=r.ok?(r.data.logs||[]):[];document.getElementById('logContent').textContent=logs.length?logs.join('\n'):'(无日志)'}
 
 // ── CDK ──
 function renderCdk(){return `<div class="grid2"><div class="card"><h3>批量生成兑换码</h3><div class="grid3 mb"><div class="form-group"><label>前缀</label><input id="cdk_prefix" value="AI" placeholder="AI"></div><div class="form-group"><label>生成数量</label><input id="cdk_count" type="number" value="10"></div><div class="form-group"><label>每个点数</label><input id="cdk_credits" type="number" value="5"></div></div><div class="grid3 mb"><div class="form-group"><label>有效期(天)</label><input id="cdk_days" type="number" value="365"></div></div><button class="btn btn-primary" onclick="genCdk()">生成兑换码</button><div id="cdkResult" class="mt"></div></div><div class="card"><h3>CDK 列表</h3><div id="cdkList"></div></div></div>`}
 async function genCdk(){const r=await af('POST','/api/admin/cdk/generate',{prefix:qv('cdk_prefix')||'AI',count:parseInt(qv('cdk_count'))||10,credits:parseInt(qv('cdk_credits'))||5,days_valid:parseInt(qv('cdk_days'))||365});if(!r.ok){toast(r.data?.detail||'失败',false);return}const codes=r.data.codes||[];document.getElementById('cdkResult').innerHTML=`<h4>已生成 ${codes.length} 个</h4><textarea style="height:160px;font-family:monospace;font-size:12px;width:100%" readonly>${codes.map(c=>esc(c)).join('\n')}</textarea><button class="btn btn-outline btn-sm mt" onclick="navigator.clipboard.writeText(this.previousElementSibling.value);toast('已复制',true)">📋 复制全部</button>`;loadCdkList()}
-async function loadCdkList(){const r=await af('GET','/api/admin/cdk/list');const codes=r.ok?(r.data.codes||[]):[];document.getElementById('cdkList').innerHTML=codes.length?`<div class="flex-between mb"><div class="text-sm">最近 ${codes.length} 个兑换码</div><button class="btn btn-danger btn-sm" onclick="deleteSelectedCdk()">批量删除未使用</button></div><table><thead><tr><th><input type="checkbox" style="width:auto" onchange="document.querySelectorAll('.cdk-check').forEach(x=>x.checked=this.checked)"></th><th>兑换码</th><th>点数</th><th>状态</th><th>使用者</th><th>过期</th></tr></thead><tbody>${codes.map(c=>`<tr><td><input class="cdk-check" type="checkbox" style="width:auto" value="${esc(c.code)}" ${c.is_used?'disabled':''}></td><td class="mono">${esc(c.code)}</td><td>${c.credits}</td><td><span class="tag ${c.is_used?'tag-red':'tag-green'}">${c.is_used?'已用':'可用'}</span></td><td>${esc(c.used_by||'-')}</td><td>${esc((c.expires_at||'').slice(0,10))}</td></tr>`).join('')}</tbody></table>`:'<div class="text-sm">暂无 CDK</div>'}
-async function deleteSelectedCdk(){const codes=[...document.querySelectorAll('.cdk-check:checked')].map(x=>x.value);if(!codes.length){toast('请选择未使用兑换码',false);return}if(!confirm(`确定删除 ${codes.length} 个未使用兑换码？已使用兑换码不会被删除。`))return;const r=await af('DELETE','/api/admin/cdk/batch',{codes,include_used:false});toast(r.ok?`已删除 ${r.data.deleted||0} 个兑换码`:(r.data?.detail||'删除失败'),r.ok);if(r.ok)loadCdkList()}
+async function loadCdkList(){const r=await af('GET','/api/admin/cdk/list');const codes=r.ok?(r.data.codes||[]):[];document.getElementById('cdkList').innerHTML=codes.length?`<div class="flex-between mb"><div class="text-sm">最近 ${codes.length} 个兑换码</div><button class="btn btn-danger btn-sm" onclick="deleteSelectedCdk()">批量删除未使用</button></div><table><thead><tr><th><input type="checkbox" style="width:auto" onchange="document.querySelectorAll('.cdk-check').forEach(x=>x.checked=this.checked)"></th><th>兑换码</th><th>点数</th><th>状态</th><th>使用者</th><th>过期</th></tr></thead><tbody>${codes.map(c=>`<tr><td><input class="cdk-check" type="checkbox" style="width:auto" value="${esc(c.code)}" ${c.is_used?'disabled':''}></td><td class="mono">${esc(c.code)}</td><td>${c.credits}</td><td><span class="tag ${c.is_used?'tag-red':'tag-green'}">${c.is_used?'已用':'可用'}</span></td><td>${esc(c.used_by||'-')}</td><td>${esc(fmtDate(c.expires_at))}</td></tr>`).join('')}</tbody></table>`:'<div class="text-sm">暂无 CDK</div>'}
+async function deleteSelectedCdk(){const codes=[...document.querySelectorAll('.cdk-check:checked')].map(x=>x.value);if(!codes.length){toast('请选择未使用兑换码',false);return}if(!confirm(`确定删除 ${codes.length} 个未使用兑换码？已使用兑换码不会被删除。`))return;const r=await af('POST','/api/admin/cdk/batch-delete',{codes,include_used:false});let msg=r.data?.detail||'删除失败';if(r.status===404)msg='批量删除接口未生效，请重启后端服务后再试';toast(r.ok?`已删除 ${r.data.deleted||0} 个兑换码`+((r.data.skipped||0)?`，跳过 ${r.data.skipped} 个`:''):msg,r.ok);if(r.ok)loadCdkList()}
 
 // ── SysParams ──
 function renderSysParams(){return `<div class="card"><div class="flex-between mb"><h3>全局参数</h3><button class="btn btn-primary btn-sm" onclick="saveSysParams()">保存</button></div>
@@ -365,14 +381,14 @@ async function loadSysParams(){const r=await af('GET','/api/admin/system-setting
 async function saveSysParams(){const r=await af('PUT','/api/admin/system-settings',{items:{wx_mini_appid:qv('sp_miniappid'),wx_mini_secret:qv('sp_minisecret'),register_bonus:qv('sp_bonus'),register_free:qv('sp_free')}});toast(r.ok?'已保存':(r.data?.detail||'失败'),r.ok);if(r.ok)loadSysParams()}
 
 // ── OpLogs ──
-function renderOpLogs(){return `<div class="card"><div class="flex-between mb"><h3>管理员操作审计日志</h3><button class="btn btn-outline btn-sm" onclick="navTo('oplogs')">刷新</button></div><table><thead><tr><th>时间</th><th>管理员</th><th>类型</th><th>目标用户</th><th>详情</th></tr></thead><tbody id="oplogTbody"></tbody></table></div>`}
-async function loadOpLogs(){const r=await af('GET','/api/admin/operation-logs');const logs=r.ok?(r.data.logs||[]):[];document.getElementById('oplogTbody').innerHTML=logs.length?logs.map(l=>`<tr><td>${esc((l.created_at||'').slice(0,19))}</td><td>${esc(l.admin_id||'-')}</td><td><span class="tag tag-blue">${esc(l.type||'-')}</span></td><td>${l.user_id||'-'}</td><td class="text-sm">${esc(l.reason||l.description||'-')}</td></tr>`).join(''):'<tr><td colspan="5" class="text-sm">暂无操作记录</td></tr>'}
+function renderOpLogs(){return `<div class="card"><div class="flex-between mb"><div><h3>操作记录</h3><div class="text-sm">记录管理员对用户账户、套餐、业态和配置的改动，方便追责和客服核对。</div></div><button class="btn btn-outline btn-sm" onclick="navTo('oplogs')">刷新</button></div><table><thead><tr><th>时间</th><th>操作</th><th>对象</th><th>变更内容</th><th>备注</th></tr></thead><tbody id="oplogTbody"></tbody></table></div>`}
+function opTypeLabel(t){return {ADJUST_POINTS:'调整点数',ASSIGN_PACKAGE:'分配套餐',PROMPT_UPDATE:'更新Prompt',INDUSTRY_CREATE:'新增业态',INDUSTRY_UPDATE:'编辑业态',INDUSTRY_DELETE:'删除业态',CDK_BATCH_DELETE:'删除兑换码'}[t]||t||'操作'}
+async function loadOpLogs(){const r=await af('GET','/api/admin/operation-logs');const logs=r.ok?(r.data.logs||[]):[];document.getElementById('oplogTbody').innerHTML=logs.length?logs.map(l=>`<tr><td>${esc(fmtDateTime(l.created_at,19))}</td><td><span class="tag tag-blue op-type">${esc(opTypeLabel(l.type))}</span><div class="text-xs">管理员 ${esc(l.admin_id||'-')}</div></td><td>${l.user_id?`用户 ${l.user_id}`:'系统配置'}</td><td><div class="op-detail"><span>${esc(l.change_amount||l.after_value||'-')}</span>${l.before_value?`<span class="text-xs">原值：${esc(l.before_value)}</span>`:''}${l.after_value&&l.after_value!==l.change_amount?`<span class="text-xs">新值：${esc(l.after_value)}</span>`:''}</div></td><td class="text-sm">${esc(l.reason||l.description||'-')}</td></tr>`).join(''):'<tr><td colspan="5" class="text-sm">暂无操作记录</td></tr>'}
 
 // ── Industries ──
-function renderIndustries(){return `<div class="card"><div class="flex-between mb"><div><h3>业态类目</h3><div class="text-sm">按大类目 → 规则组 → 子类目展示，避免所有业态混在一起。</div></div><button class="btn btn-primary btn-sm" onclick="showIndForm()">+ 新增业态</button></div><div id="indTbody"></div></div>`}
-async function loadIndustries(){const r=await af('GET','/api/admin/industries');const inds=r.ok?(r.data.industries||[]):[];window._inds=inds;renderIndTable()}
-function industryCategory(k){return {'异国_中高端正餐':'餐饮','火锅_烧烤':'餐饮','刚需快餐小吃':'餐饮','中餐正餐':'餐饮','烘焙甜品':'餐饮','精品茶饮咖啡':'茶饮咖啡','商务酒店':'酒店住宿','民宿青旅':'酒店住宿','高频刚需零售':'零售商业','低频目的零售':'零售商业','专业生活服务':'生活服务','社区基础服务':'生活服务','夜经济娱乐':'休闲娱乐','沉浸式社交娱乐':'休闲娱乐'}[k]||'其他'}
-function renderIndTable(){const inds=window._inds||[];const groups={};inds.forEach(i=>{const cat=industryCategory(i.config_key);const rule=i.config_key||'未绑定规则组';groups[cat]=groups[cat]||{};groups[cat][rule]=groups[cat][rule]||[];groups[cat][rule].push(i)});document.getElementById('indTbody').innerHTML=Object.entries(groups).map(([cat,byRule])=>`<div class="section-card"><div class="section-head"><h4>${esc(cat)}</h4><span class="tag tag-gray">${Object.values(byRule).flat().length} 个子类目</span></div>${Object.entries(byRule).map(([rule,items])=>`<div class="mini-note mb"><b>${esc(rule)}</b></div><table class="mb"><thead><tr><th>ID</th><th>子类目</th><th>排序</th><th>状态</th><th>操作</th></tr></thead><tbody>${items.map(i=>`<tr><td>${i.id}</td><td><b>${esc(i.name)}</b></td><td>${i.sort_order||0}</td><td><span class="tag ${i.is_active?'tag-green':'tag-red'}">${i.is_active?'启用':'停用'}</span></td><td><button class="btn btn-outline btn-xs" onclick="editInd(${i.id})">编辑</button><button class="btn btn-outline btn-xs" onclick="toggleInd(${i.id})">${i.is_active?'停用':'启用'}</button><button class="btn btn-danger btn-xs" onclick="deleteInd(${i.id})">删除</button></td></tr>`).join('')}</tbody></table>`).join('')}</div>`).join('')||'<div class="text-sm">暂无业态</div>'}
+function renderIndustries(){return `<div class="card"><div class="flex-between mb"><div><h3>业态类目</h3><div class="text-sm">与小程序前台的大类目/小类目一致展示，后台只补充规则组和运营操作。</div></div><button class="btn btn-primary btn-sm" onclick="showIndForm()">+ 新增业态</button></div><div id="indTbody"></div></div>`}
+async function loadIndustries(){const ar=await af('GET','/api/admin/industries');const pr=await af('GET','/api/industries/active');const adminInds=ar.ok?(ar.data.industries||[]):[];const active=pr.ok?(pr.data.industries||[]):[];const byId={};adminInds.forEach(i=>byId[i.id]=i);window._inds=adminInds.map(i=>({...i,category:(active.find(a=>a.id===i.id)||{}).category||'其他'}));renderIndTable()}
+function renderIndTable(){const inds=window._inds||[];const groups={};inds.forEach(i=>{const cat=i.category||'其他';groups[cat]=groups[cat]||[];groups[cat].push(i)});const order=['餐饮','茶饮咖啡','酒店住宿','零售商业','生活服务','休闲娱乐','其他'];document.getElementById('indTbody').innerHTML=order.filter(cat=>groups[cat]?.length).map(cat=>`<div class="section-card"><div class="section-head"><h4>${esc(cat)}</h4><span class="tag tag-gray">${groups[cat].length} 个小类目</span></div><table><thead><tr><th>ID</th><th>前台小类目</th><th>规则组</th><th>排序</th><th>状态</th><th>操作</th></tr></thead><tbody>${groups[cat].map(i=>`<tr><td>${i.id}</td><td><b>${esc(i.name)}</b></td><td class="mono text-sm">${esc(i.config_key||'-')}</td><td>${i.sort_order||0}</td><td><span class="tag ${i.is_active?'tag-green':'tag-red'}">${i.is_active?'启用':'停用'}</span></td><td><button class="btn btn-outline btn-xs" onclick="editInd(${i.id})">编辑</button><button class="btn btn-outline btn-xs" onclick="toggleInd(${i.id})">${i.is_active?'停用':'启用'}</button><button class="btn btn-danger btn-xs" onclick="deleteInd(${i.id})">删除</button></td></tr>`).join('')}</tbody></table></div>`).join('')||'<div class="text-sm">暂无业态</div>'}
 function showIndForm(edit){const d=edit||{};const box=document.createElement('div');box.className='modal-overlay';
   box.innerHTML=`<div class="modal-box"><h3>${edit?'编辑':'新增'}业态</h3><div class="form-group"><label>名称</label><input id="inf_name" value="${esc(d.name||'')}"></div><div class="form-group"><label>排序</label><input id="inf_sort" type="number" value="${d.sort_order||0}"></div><div class="form-group"><label class="inline-label"><input id="inf_active" type="checkbox" ${d.is_active!==0?'checked':''} style="width:auto"> 启用</label></div><div style="display:flex;gap:8px"><button class="btn btn-primary" id="infSave">保存</button><button class="btn btn-outline" onclick="this.closest('.modal-overlay').remove()">取消</button></div></div>`;
   document.body.appendChild(box);
@@ -385,7 +401,7 @@ async function deleteInd(id){if(!confirm('确定删除？此操作不可恢复�
 let _orderPage=1,_orderTotal=0;
 function renderOrders(){return `<div class="card"><div class="flex-between mb"><h3>订单管理</h3><button class="btn btn-outline btn-sm" onclick="loadOrders(1)">刷新</button></div>
   <div class="form-row mb"><div><label>手机号/ID</label><input id="ord_phone" placeholder="手机号或ID" onchange="window._orderFilter.phone=this.value;loadOrders()"></div><div><label>订单号</label><input id="ord_trade_no" placeholder="商户订单号" onchange="window._orderFilter.outTradeNo=this.value;loadOrders()"></div><div><label>状态</label><select id="ord_status" onchange="window._orderFilter.status=this.value;loadOrders()"><option value="">全部</option><option value="PAID">已支付</option><option value="CREATED">待支付</option><option value="FAILED">失败</option></select></div></div>
-  <table><thead><tr><th>时间</th><th>用户</th><th>手机号</th><th>套餐</th><th>金额</th><th>点数/天</th><th>状态</th><th>商户单号</th><th>微信交易号</th><th>支付时间</th></tr></thead><tbody id="ordTbody"></tbody></table><div id="ordPager" class="flex-between mt" style="font-size:13px"></div></div>`}
+  <table><thead><tr><th>时间</th><th>用户ID</th><th>昵称</th><th>手机号</th><th>套餐</th><th>金额</th><th>点数/天</th><th>状态</th><th>商户单号</th><th>微信交易号</th><th>支付时间</th></tr></thead><tbody id="ordTbody"></tbody></table><div id="ordPager" class="flex-between mt" style="font-size:13px"></div></div>`}
 async function loadOrders(pg){
   if(pg!==undefined)_orderPage=pg;else _orderPage=1;
   const f=window._orderFilter||{};
@@ -398,7 +414,7 @@ async function loadOrders(pg){
   const orders=r.ok?(r.data.orders||[]):[];
   _orderTotal=r.ok?(r.data.total||0):0;
   const tp=Math.ceil(_orderTotal/20);
-  document.getElementById('ordTbody').innerHTML=orders.map(o=>`<tr><td>${esc((o.created_at||'').slice(0,16))}</td><td>${o.user_id} ${esc(o.nickname||'')}</td><td>${esc(o.phone||'-')}</td><td>${esc(o.sku_label||'-')}</td><td>¥${o.amount_yuan||'0.00'}</td><td>${o.credits?o.credits+'点':''}${o.membership_days?'/'+o.membership_days+'天':''}</td><td><span class="tag ${o.status==='PAID'?'tag-green':o.status==='FAILED'?'tag-red':'tag-amber'}">${o.status==='PAID'?'已支付':o.status==='FAILED'?'失败':o.status==='CREATED'?'待支付':esc(o.status)}</span></td><td class="mono text-sm">${esc((o.out_trade_no||'').slice(0,20))}${(o.out_trade_no||'').length>20?'...':''}</td><td class="mono text-xs">${esc((o.transaction_id||'').slice(0,20))}${(o.transaction_id||'').length>20?'...':''}</td><td>${esc((o.paid_at||'').slice(0,16))}</td></tr>`).join('');
+  document.getElementById('ordTbody').innerHTML=orders.map(o=>`<tr><td>${esc(fmtDateTime(o.created_at))}</td><td class="mono">${o.user_id}</td><td>${esc(o.nickname||'-')}</td><td>${esc(o.phone||'-')}</td><td>${esc(o.sku_label||'-')}</td><td>¥${o.amount_yuan||'0.00'}</td><td>${o.credits?o.credits+'点':''}${o.membership_days?'/'+o.membership_days+'天':''}</td><td><span class="tag ${o.status==='PAID'?'tag-green':o.status==='FAILED'?'tag-red':'tag-amber'}">${o.status==='PAID'?'已支付':o.status==='FAILED'?'失败':o.status==='CREATED'?'待支付':esc(o.status)}</span></td><td class="mono text-sm">${esc((o.out_trade_no||'').slice(0,20))}${(o.out_trade_no||'').length>20?'...':''}</td><td class="mono text-xs">${esc((o.transaction_id||'').slice(0,20))}${(o.transaction_id||'').length>20?'...':''}</td><td>${esc(fmtDateTime(o.paid_at))}</td></tr>`).join('');
   const pager=document.getElementById('ordPager');if(pager)pager.innerHTML=`<span>共 ${_orderTotal} 条 · 第 ${_orderPage}/${tp||1} 页</span><span>${_orderPage>1?`<button class="btn btn-outline btn-xs mr" onclick="loadOrders(${_orderPage-1})">上一页</button>`:''}${_orderPage<tp?`<button class="btn btn-outline btn-xs" onclick="loadOrders(${_orderPage+1})">下一页</button>`:''}</span>`;
 }
 
@@ -420,14 +436,14 @@ async function loadBilling(pg){
   _billingTotal=r.ok?(r.data.total||0):0;
   const tp=Math.ceil(_billingTotal/20);
   const typeLabels={BONUS:'🎁 注册奖励',PURCHASE:'💳 购买',CONSUME:'🔍 分析消费',REFUND:'↩️ 退款',MEMBERSHIP:'⭐ 会员',CDK_REDEEM:'🎫 CDK兑换'};
-  document.getElementById('bilTbody').innerHTML=recs.map(b=>`<tr><td>${esc((b.created_at||'').slice(0,16))}</td><td>${b.user_id}</td><td>${esc(b.phone||'-')}</td><td>${esc(b.nickname||'-')}</td><td><span class="tag ${b.record_type==='REFUND'||b.record_type==='CONSUME'?'tag-red':b.record_type==='PURCHASE'?'tag-green':'tag-blue'}">${typeLabels[b.record_type]||esc(b.record_type||'-')}</span></td><td>${b.amount>0?'+':''}${b.amount}</td><td>${b.balance_after}</td><td class="text-sm">${esc((b.reason||'').slice(0,60))}</td></tr>`).join('');
+  document.getElementById('bilTbody').innerHTML=recs.map(b=>`<tr><td>${esc(fmtDateTime(b.created_at))}</td><td>${b.user_id}</td><td>${esc(b.phone||'-')}</td><td>${esc(b.nickname||'-')}</td><td><span class="tag ${b.record_type==='REFUND'||b.record_type==='CONSUME'?'tag-red':b.record_type==='PURCHASE'?'tag-green':'tag-blue'}">${typeLabels[b.record_type]||esc(b.record_type||'-')}</span></td><td>${b.amount>0?'+':''}${b.amount}</td><td>${b.balance_after}</td><td class="text-sm">${esc((b.reason||'').slice(0,60))}</td></tr>`).join('');
   const pager=document.getElementById('bilPager');if(pager)pager.innerHTML=`<span>共 ${_billingTotal} 条 · 第 ${_billingPage}/${tp||1} 页</span><span>${_billingPage>1?`<button class="btn btn-outline btn-xs mr" onclick="loadBilling(${_billingPage-1})">上一页</button>`:''}${_billingPage<tp?`<button class="btn btn-outline btn-xs" onclick="loadBilling(${_billingPage+1})">下一页</button>`:''}</span>`;
 }
 
 // ── Register loaders ──
 const loaders={
   users:loadUsers, orders:loadOrders, billing:loadBilling, settings:()=>switchSettingsTab('core'),
-  logs:loadLogs, cdk:loadCdkList, sysparams:loadSysParams, oplogs:loadOpLogs, industries:loadIndustries
+  cdk:loadCdkList, sysparams:loadSysParams, oplogs:loadOpLogs, industries:loadIndustries
 };
 </script>
 </body>
