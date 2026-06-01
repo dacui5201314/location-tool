@@ -33,9 +33,14 @@ function normalizeError (result) {
 }
 
 // ── Auth ──
-/** 匿名设备 token（Web 兼容降级） */
+/** 匿名设备 token（Web 兼容降级） — 首次启动生成随机设备ID，持久化复用 */
 function ensureAnonToken () {
-  return request({ url: '/api/auth/token?device_id=uni-default', auth: false })
+  let deviceId = uni.getStorageSync('_zdx_device_id')
+  if (!deviceId) {
+    deviceId = 'uni_' + Date.now() + '_' + Math.random().toString(36).slice(2, 10)
+    uni.setStorageSync('_zdx_device_id', deviceId)
+  }
+  return request({ url: '/api/auth/token?device_id=' + encodeURIComponent(deviceId), auth: false })
 }
 
 /** 微信小程序登录：code → /api/auth/wechat/mini → JWT */

@@ -7,7 +7,7 @@ repo:
   latest_code_commit: "6a55fce"
   latest_backend_fix_commit: "668ccf7"
   launch_target: "uniapp WeChat Mini Program"
-  frontend_policy: "frontend/ is product master/reference; do not modify unless explicitly approved"
+  frontend_policy: "frontend/ has been deleted; uniapp is the only client; do not modify frontend/"
 
 verified_working:
   - "Native switchTab white flash fixed by single-page shell/custom bottom nav"
@@ -55,7 +55,7 @@ hard_boundaries:
   - "Do not weaken P0/P2/P3 fact guard"
   - "Do not turn real P0 into warning-save"
   - "Do not modify scoring, POI classification, prompt semantics, report accuracy logic, or report_fact_guard unless explicitly authorized"
-  - "Do not modify frontend/ unless explicitly approved"
+  - "Do not modify frontend/ (directory deleted, keep deleted)"
 
 next_priority:
   - "Inspect git status first"
@@ -68,7 +68,7 @@ next_priority:
 validation:
   backend_changed: "uv run python -m compileall backend"
   uniapp_changed: "cd uniapp && npm run build:mp-weixin"
-  frontend_changed_with_permission: "cd frontend && npm run build"
+  frontend_changed_with_permission: "frontend/ deleted — cd uniapp && npm run build:mp-weixin"
   required_scans:
     - "JSON parse package/manifest/pages/dist app.json/project.config.json"
     - "rg \"unlock-pdf|/download\" uniapp/src == 0"

@@ -2,6 +2,7 @@ import json
 import os
 import re
 import asyncio
+import uuid
 from dotenv import load_dotenv
 load_dotenv()
 
@@ -294,6 +295,7 @@ from report_fact_guard import validate_report_fact_consistency
 async def analyze_location(req: AnalyzeRequest, user: dict = Depends(get_current_user)):
     """SSE 流式选址分析 — 四步进度推送 + 最终报告 JSON"""
     current_user_id = user["user_id"]
+    refund_idem_key = uuid.uuid4().hex[:16]  # 单次分析请求粒度幂等键
 
     # ── 前置计费校验（流开始前必须通过，失败直接返回 402）──
     billing = None
@@ -840,7 +842,7 @@ async def analyze_location(req: AnalyzeRequest, user: dict = Depends(get_current
                 yield _sse("error", "分析服务异常，请稍后重试")
             await asyncio.sleep(0)
         finally:
-            # ★ 退款收口：LLM/JSON/DB 失败 → 点数模式退款
+            # ★ 退款收口：LLM/JSON/DB 失败 → 点数模式退款（幂等保护）
             should_refund = (_llm_server_error or _llm_parse_error or _db_save_error) and not _refund_processed
             if should_refund and billing and billing.source == "points":
                 _refund_processed = True
@@ -851,7 +853,7 @@ async def analyze_location(req: AnalyzeRequest, user: dict = Depends(get_current
                         refund_reason = "LLM服务端异常"
                     else:
                         refund_reason = "LLM响应解析失败"
-                    refund_credits(current_user_id, 1, reason=refund_reason)
+                    refund_credits(current_user_id, 1, reason=refund_reason, idempotency_key=refund_idem_key)
                     print(f"[SSE Guard] {refund_reason}，已执行点数退款", flush=True)
                 except Exception:
                     import traceback

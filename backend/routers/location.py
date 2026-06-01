@@ -1,4 +1,6 @@
-"""地址联想 / POI 搜索 — 后端代理高德 Web API，小程序端不暴露 Key"""
+"""地址联想 / POI 搜索 — 后端代理高德 Web API，小程序端不暴露 Key
+Key 池完整 failover：第一个 key 日限额/QPS 时自动尝试下一个。
+"""
 import os, httpx
 from fastapi import APIRouter, Query
 from starlette.responses import JSONResponse
@@ -9,14 +11,60 @@ from routers.admin import _get_amap_key_selector
 router = APIRouter(prefix="/api/location", tags=["location"])
 
 
-def _get_key():
-    """从 key 池获取当前可用的高德 Key，池空则回退到 .env"""
+def _get_all_keys():
+    """从 DB Key 池取所有启用的 Key，按优先级排序。池空回退到 .env"""
+    keys = []
     db = SessionLocal()
     try:
-        key, _ = _get_amap_key_selector(db)
-        return key
+        from models.db_models import AmapKey
+        rows = db.query(AmapKey).filter(AmapKey.enabled == 1).order_by(AmapKey.priority, AmapKey.id).all()
+        for r in rows:
+            if r.api_key:
+                keys.append((r.api_key, r.security_secret or ""))
     finally:
         db.close()
+    # env fallback
+    env_key = os.getenv("AMAP_WEB_KEY", os.getenv("AMAP_KEY", ""))
+    if env_key and not any(k == env_key for k, _ in keys):
+        keys.append((env_key, ""))
+    return keys
+
+
+def _is_retryable_amap_error(data: dict) -> bool:
+    """判断高德错误是否可重试（日限额 / QPS 超限）"""
+    info = str(data.get("info", "") or "").upper()
+    ic = str(data.get("infocode", "") or "")
+    return "OVER_DAILY" in info or ic in ("10003", "10004") or "CUQPS" in info or ic == "10007"
+
+
+async def _amap_request_with_retry(path: str, params: dict) -> dict:
+    """使用完整 Key 池发起高德请求，遇日限额/QPS 自动切换下一个 Key。
+    返回响应 JSON dict；全部 Key 失败时抛出 Exception。
+    """
+    all_keys = _get_all_keys()
+    if not all_keys:
+        raise Exception("AMAP_KEY_UNAVAILABLE: 无可用高德 Key")
+
+    last_data = None
+    for key, _sec in all_keys:
+        p = {**params, "key": key}
+        try:
+            async with httpx.AsyncClient(timeout=10) as client:
+                resp = await client.get(f"https://restapi.amap.com/v3{path}", params=p)
+                data = resp.json()
+                if data.get("status") == "1":
+                    return data
+                if _is_retryable_amap_error(data):
+                    last_data = data
+                    continue
+                # 不可重试错误（如 INVALID_KEY），直接返回给调用方
+                return data
+        except Exception:
+            continue
+
+    if last_data:
+        return last_data
+    raise Exception("AMAP_ALL_KEYS_EXHAUSTED: 所有 Key 均不可用")
 
 
 @router.get("/suggest")
@@ -27,19 +75,12 @@ async def location_suggest(
     """地址联想：调用高德输入提示 API，返回候选列表。
     小程序端不保存、不暴露地图服务 Key。
     统一返回 { ok, data/error } + HTTP 状态码。
+    Key 池完整 failover：日限额/QPS 超限自动切换下一个 Key。
     """
-    amap_key = _get_key()
-    if not amap_key:
-        return JSONResponse(
-            status_code=503,
-            content={"ok": False, "error": "地图服务未配置（AMAP Key 池为空且 .env 中未设置）"},
-        )
-
     if not keyword.strip():
         return {"ok": True, "data": [], "source": "amap_inputtips"}
 
     params = {
-        "key": amap_key,
         "keywords": keyword.strip(),
         "datatype": "all",
         "output": "JSON",
@@ -48,17 +89,12 @@ async def location_suggest(
         params["city"] = city.strip()
 
     try:
-        async with httpx.AsyncClient(timeout=10) as client:
-            resp = await client.get(
-                "https://restapi.amap.com/v3/assistant/inputtips",
-                params=params,
-            )
-            data = resp.json()
-    except Exception:
-        return JSONResponse(
-            status_code=502,
-            content={"ok": False, "error": "地图服务请求失败，请稍后重试"},
-        )
+        data = await _amap_request_with_retry("/assistant/inputtips", params)
+    except Exception as e:
+        err_msg = str(e)
+        if "AMAP_KEY_UNAVAILABLE" in err_msg or "AMAP_ALL_KEYS_EXHAUSTED" in err_msg:
+            return JSONResponse(status_code=503, content={"ok": False, "error": "地图服务未配置或所有 Key 已耗尽"})
+        return JSONResponse(status_code=502, content={"ok": False, "error": "地图服务请求失败，请稍后重试"})
 
     if data.get("status") != "1":
         info = data.get("info", "unknown error")
@@ -104,18 +140,17 @@ async def location_regeocode(
     lng: float = Query(..., description="经度"),
     lat: float = Query(..., description="纬度"),
 ):
-    """反向地理编码：经纬度 → 文字地址。小程序端不暴露 Key。"""
-    amap_key = _get_key()
-    if not amap_key:
-        return JSONResponse(status_code=503, content={"ok": False, "error": "地图服务未配置（AMAP Key 池为空且 .env 中未设置）"})
-
+    """反向地理编码：经纬度 → 文字地址。小程序端不暴露 Key。
+    Key 池完整 failover：日限额/QPS 超限自动切换下一个 Key。
+    """
     try:
-        async with httpx.AsyncClient(timeout=10) as client:
-            resp = await client.get("https://restapi.amap.com/v3/geocode/regeo", params={
-                "key": amap_key, "location": f"{lng},{lat}", "extensions": "base", "output": "JSON",
-            })
-            data = resp.json()
-    except Exception:
+        data = await _amap_request_with_retry("/geocode/regeo", {
+            "location": f"{lng},{lat}", "extensions": "base", "output": "JSON",
+        })
+    except Exception as e:
+        err_msg = str(e)
+        if "AMAP_KEY_UNAVAILABLE" in err_msg or "AMAP_ALL_KEYS_EXHAUSTED" in err_msg:
+            return JSONResponse(status_code=503, content={"ok": False, "error": "地图服务未配置或所有 Key 已耗尽"})
         return JSONResponse(status_code=502, content={"ok": False, "error": "地图服务请求失败，请稍后重试"})
 
     if data.get("status") != "1":

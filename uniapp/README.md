@@ -13,7 +13,7 @@ AI 选址初筛参考工具 · 主力客户端（Vue3 + Vite）
 - **地址自动联想** — `@input` 显式绑定 + 400ms debounce + 竞态守卫，Timeout 三级降级
 - **SSE 分析接口** — `/api/analyze` 流式集成：401/402/5xx/成功 → 跳转 `report-detail?id=<record_id>`
 - **登录/充值/CDK** — 快捷登录、密码登录、注册、兑换码、充值中心均已独立页面化
-- **微信支付** — JSAPI v3 prepay + notify 后端已就绪，uni-app 端待接
+- **微信支付** — JSAPI v3 prepay + notify 后端已就绪，前端已接入真实支付含 queryOrder 确认闭环，待公网 HTTPS 真机验收
 - 未接：PDF unlock/download
 
 ## 构建方式

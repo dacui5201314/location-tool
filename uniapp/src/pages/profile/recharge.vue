@@ -165,27 +165,60 @@ export default {
         }
         const pp = r.data
         // 拉起微信支付
-        const payRes = await new Promise((resolve, reject) => {
-          uni.requestPayment({
-            provider: 'wxpay',
-            timeStamp: String(pp.timeStamp || ''),
-            nonceStr: pp.nonceStr || '',
-            package: pp.package || '',
-            signType: pp.signType || 'RSA',
-            paySign: pp.paySign || '',
-            success: resolve,
-            fail: reject
+        try {
+          await new Promise((resolve, reject) => {
+            uni.requestPayment({
+              provider: 'wxpay',
+              timeStamp: String(pp.timeStamp || ''),
+              nonceStr: pp.nonceStr || '',
+              package: pp.package || '',
+              signType: pp.signType || 'RSA',
+              paySign: pp.paySign || '',
+              success: resolve,
+              fail: reject
+            })
           })
-        })
-        uni.showToast({ title: '支付成功', icon: 'success' })
-        this.selectedSku = null
-        await this.loadProfile()
-      } catch (e) {
-        if (e && e.errMsg && e.errMsg.includes('cancel')) {
-          this.payErr = '支付已取消'
-        } else {
-          this.payErr = (e && (e.errMsg || e.message)) || '支付失败'
+        } catch (payErr) {
+          if (payErr && payErr.errMsg && payErr.errMsg.includes('cancel')) {
+            this.payErr = '支付已取消'
+          } else {
+            this.payErr = (payErr && (payErr.errMsg || payErr.message)) || '支付失败'
+          }
+          return
         }
+        // requestPayment 成功 → 轮询确认订单已到账
+        const outTradeNo = pp.out_trade_no || ''
+        if (!outTradeNo) {
+          this.payErr = '支付确认中，请稍后刷新或联系客服'
+          return
+        }
+        let paid = false
+        for (let i = 0; i < 6; i++) {
+          await new Promise(r => setTimeout(r, 1500))
+          try {
+            const qr = await api.queryOrder(outTradeNo)
+            if (qr.ok && qr.data && qr.data.status === 'PAID') {
+              paid = true
+              break
+            }
+          } catch (e) {
+            // queryOrder 网络异常不中断轮询
+          }
+        }
+        if (paid) {
+          uni.showToast({ title: '支付成功', icon: 'success' })
+          this.selectedSku = null
+          try {
+            await this.loadProfile()
+          } catch (e) {
+            // loadProfile 失败不影响已确认的支付结果
+            this.payErr = '支付成功，资料刷新失败，请稍后下拉刷新'
+          }
+        } else {
+          this.payErr = '支付确认中，请稍后刷新'
+        }
+      } catch (e) {
+        this.payErr = (e && (e.errMsg || e.message)) || '支付失败'
       } finally {
         this.paying = false
       }

@@ -130,12 +130,28 @@ def check_billing_access(user: User, cost: int = 1, db_session=None) -> BillingR
     )
 
 
-def refund_credits(user_id: int, amount: int = 1, reason: str = ""):
-    """原子化退还点数 — LLM/JSON解析异常时的资损兜底回滚。写入REFUND记录。"""
+def refund_credits(user_id: int, amount: int = 1, reason: str = "", idempotency_key: str = ""):
+    """原子化退还点数 — LLM/JSON解析异常时的资损兜底回滚。写入REFUND记录。
+
+    idempotency_key: 可选幂等键。传入后先检查是否已有同 key 的 REFUND 记录，
+    存在则直接返回（不再重复加余额）。key 写入 BillingRecord.reason 的稳定前缀。
+    """
     from database import SessionLocal
     from models.db_models import BillingRecord
     db = SessionLocal()
     try:
+        # 幂等检查
+        if idempotency_key:
+            idem_prefix = f"AUTO_REFUND:{idempotency_key}:"
+            existing = db.query(BillingRecord).filter(
+                BillingRecord.user_id == user_id,
+                BillingRecord.record_type == "REFUND",
+                BillingRecord.reason.like(f"{idem_prefix}%"),
+            ).first()
+            if existing:
+                print(f"[SSE Guard] 退款幂等跳过 user_id={user_id} key={idempotency_key}", flush=True)
+                return
+
         user = db.query(User).filter(User.id == user_id).first()
         if not user:
             print(f"[CRITICAL] 退款失败：用户不存在 user_id={user_id}", flush=True)
@@ -146,15 +162,16 @@ def refund_credits(user_id: int, amount: int = 1, reason: str = ""):
             .where(User.id == user_id)
             .values(balance_credits=User.balance_credits + amount)
         )
+        refund_reason = f"AUTO_REFUND:{idempotency_key}:{reason}" if idempotency_key else (reason or "LLM/JSON 异常自动退款")
         db.add(BillingRecord(
             user_id=user_id,
             amount=amount,
             balance_after=before + amount,
             record_type="REFUND",
-            reason=reason or "LLM/JSON 异常自动退款",
+            reason=refund_reason,
         ))
         db.commit()
-        print(f"[SSE Guard] 退款成功 user_id={user_id} amount={amount} reason={reason}", flush=True)
+        print(f"[SSE Guard] 退款成功 user_id={user_id} amount={amount} reason={reason} idem_key={idempotency_key or 'none'}", flush=True)
     except Exception:
         db.rollback()
         import traceback

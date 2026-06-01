@@ -24,3 +24,15 @@ backend/.env
 # 备份目录
 zhidexuan/
 backend/logs/
+
+# 本地数据库（防止 SQLite 入库）
+backend/location_tool.db
+backend/location_tool.db-wal
+backend/location_tool.db-shm
+
+# 运行时存储（报告/上传文件）
+backend/storage/
+
+# Python 编译缓存
+__pycache__/
+*.pyc

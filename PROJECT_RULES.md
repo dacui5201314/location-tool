@@ -83,10 +83,10 @@
 
 ## 前端技术规范
 
-- 前端框架：React + Vite。
-- 前端验证：`cd frontend && npm run build`。
+- 前端框架：uni-app (Vue 3 + Vite) → 微信小程序 / 抖音 / App 多端
+- 前端验证：`cd uniapp && npm run build:mp-weixin`
 - 本阶段原则：除非明确要求或必须验证前端兼容，不主动修改前端。
-- `frontend/src/services/amapData.js` 是 Deprecated 兼容层；正式分析链路以后端 AMap 采集和 `real_data` 为准。本轮曾被 Claude Code 修改后已要求回退。
+- `frontend/` 目录已删除（原 React Web 前端，~17,000 行）；uni-app 是唯一客户端。
 
 ## 禁止事项
 
@@ -98,3 +98,4 @@
 - 禁止把体检中心、整形美容中心、眼科、视光、助听器、皮肤修护、疤痕管理、医美算作医院或药店。
 - 禁止把产业园、大厦、办公楼算作住宅小区。
 - 禁止把美甲、手机维修、彩票、黄金回收、OPPO 体验店算作便利店。
+- `frontend/` 已删除；不要再修改或引用该目录。
