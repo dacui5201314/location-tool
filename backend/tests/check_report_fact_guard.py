@@ -14,6 +14,9 @@ _spec.loader.exec_module(_guard)
 check_poi_name_hallucination = _guard.check_poi_name_hallucination
 check_poi_context_mismatch = _guard.check_poi_context_mismatch
 check_direct_competitor_count_mismatch = _guard.check_direct_competitor_count_mismatch
+build_retry_name_constraints = _guard.build_retry_name_constraints
+build_allowed_names = _guard.build_allowed_names
+build_forbidden_names = _guard.build_forbidden_names
 
 p, f = 0, 0
 
@@ -459,6 +462,125 @@ rd = {"direct_competitor_list": []}
 report = "周边写字楼白领客群稳定，带来稳定午市客流。"
 issues = check_poi_name_hallucination(report, rd)
 check(len(issues) == 0, f"P0F-15 裸泛称通过: {issues}")
+
+# ═══════════════════════════════════════════════════════════════
+# C-4: 报告幻觉专项 — real_data 不含名称时编造必须触发 P0
+# ═══════════════════════════════════════════════════════════════
+
+# T-C4-1: real_data 不含"好又多超市"时，报告引用"好又多超市"必须触发 P0
+print("=== T-C4-1: 编造超市名触发P0 ===")
+rd = {
+    "direct_competitor_list": [{"name": "陕十三擀面皮", "distance": 200}],
+    "substitute_list": [],
+    "traffic_anchor_list": [],
+    "poi_lists": {},
+}
+report = "周边有陕十三擀面皮和好又多超市，直接竞争激烈，商业配套完善。"
+issues = check_poi_name_hallucination(report, rd)
+check(len(issues) >= 1, f"T-C4-1 编造好又多超市应触发P0: {issues}")
+check(any("好又多" in i for i in issues), f"T-C4-1 包含好又多: {issues}")
+
+# T-C4-2: real_data 不含某学校/某小区时，编造假学校/假小区必须触发 P0
+print("=== T-C4-2: 编造学校名触发P0 ===")
+rd = {
+    "direct_competitor_list": [],
+    "substitute_list": [],
+    "traffic_anchor_list": [],
+    "poi_lists": {"schools": [], "residential": []},
+}
+report = "周边有育才小学和阳光花园小区，学区客流和社区客群稳定。"
+issues = check_poi_name_hallucination(report, rd)
+check(len(issues) >= 2, f"T-C4-2 编造学校+小区至少2条: {issues}")
+check(any("育才小学" in i for i in issues), f"T-C4-2 包含育才小学: {issues}")
+check(any("阳光花园" in i for i in issues), f"T-C4-2 包含阳光花园小区: {issues}")
+
+# T-C4-3: "500米内6所学校""500米内3个住宅小区" 泛化数量不触发 P0
+print("=== T-C4-3: 泛化数量句不触发P0 ===")
+rd = {
+    "direct_competitor_list": [],
+    "substitute_list": [],
+    "traffic_anchor_list": [],
+    "poi_lists": {},
+}
+report = "500米内6所学校，学生客流充沛。500米内3个住宅小区，社区消费基本盘扎实。"
+issues = check_poi_name_hallucination(report, rd)
+check(len(issues) == 0, f"T-C4-3 泛化数量不触发: {issues}")
+
+# T-C4-4: real_data poi_lists 中真实存在的学校名应通过
+print("=== T-C4-4: 真实学校名通过 ===")
+rd = {
+    "direct_competitor_list": [],
+    "substitute_list": [],
+    "traffic_anchor_list": [],
+    "poi_lists": {"schools": [{"name": "宝鸡市第一中学", "distance": 300}]},
+}
+report = "周边500米内分布宝鸡市第一中学，学生客流稳定。"
+issues = check_poi_name_hallucination(report, rd)
+check(len(issues) == 0, f"T-C4-4 真实学校名应通过: {issues}")
+
+# T-C4-5: traffic_anchor_list 中的真实小区名应通过
+print("=== T-C4-5: 锚点小区名通过 ===")
+rd = {
+    "direct_competitor_list": [],
+    "substitute_list": [],
+    "traffic_anchor_list": [{"name": "兰宝小区", "distance": 100}],
+    "poi_lists": {},
+}
+report = "兰宝小区是周边重要的客流锚点，提供稳定客源基础。"
+issues = check_poi_name_hallucination(report, rd)
+check(len(issues) == 0, f"T-C4-5 锚点小区名应通过: {issues}")
+
+# T-C4-6: retry 辅助函数 — forbidden_names 从 fact_errors 提取 P0-NAME
+print("=== T-C4-6: build_forbidden_names 提取P0-NAME ===")
+fe = ["[P0-NAME] POI名称不在数据源中: 好又多超市", "[P3-COUNT] direct_competitors_200m=0 but report says 3家", "[P0-NAME] POI名称不在数据源中: 育才小学"]
+forbidden = build_forbidden_names(fe)
+check(len(forbidden) == 2, f"T-C4-6a 应提取2个: {forbidden}")
+check("好又多超市" in forbidden, f"T-C4-6b 包含好又多超市: {forbidden}")
+check("育才小学" in forbidden, f"T-C4-6c 包含育才小学: {forbidden}")
+check(not any("P3-COUNT" in f for f in forbidden), f"T-C4-6d 不含P3: {forbidden}")
+
+# T-C4-7: retry 白名单收窄 — 仅 direct/substitute/anchor/poi_lists，不含 hot_brands/nearby_roads
+print("=== T-C4-7: retry 白名单收窄不含 hot_brands/nearby_roads ===")
+rd = {
+    "direct_competitor_list": [{"name": "陕十三擀面皮", "distance": 200}, {"name": "", "distance": 300}],
+    "substitute_list": [{"name": "星巴克", "distance": 400}],
+    "traffic_anchor_list": [{"name": "兰宝小区", "distance": 100}],
+    "hot_brands": [{"name": "肯德基", "count": 2}],
+    "nearby_roads": ["经二路", ""],
+    "poi_lists": {"schools": [{"name": "宝鸡市第一中学", "distance": 300}], "hospitals": []},
+}
+fe = ["[P0-NAME] POI名称不在数据源中: 好又多超市"]
+ct = build_retry_name_constraints(rd, fe)
+check("" not in ct["allowed_names"], "T-C4-7a allowed_names 不含空字符串")
+check("" not in ct["forbidden_names"], "T-C4-7b forbidden_names 不含空字符串")
+check("陕十三擀面皮" in ct["allowed_names"], "T-C4-7c 包含竞品名")
+check("星巴克" in ct["allowed_names"], "T-C4-7d 包含替代名")
+check("兰宝小区" in ct["allowed_names"], "T-C4-7e 包含锚点名")
+check("肯德基" not in ct["allowed_names"], "T-C4-7f hot_brands不进入retry白名单")
+check("经二路" not in ct["allowed_names"], "T-C4-7g nearby_roads不进入retry白名单")
+check("宝鸡市第一中学" in ct["allowed_names"], "T-C4-7h 包含学校名(poi_lists)")
+check("好又多超市" in ct["forbidden_names"], "T-C4-7i 包含禁用名")
+check(not ct["allowlist_empty"], f"T-C4-7j allowlist_empty=False (got={ct['allowlist_empty']})")
+
+# T-C4-8: 空 real_data 时 allowlist_empty=True
+print("=== T-C4-8: 空数据 allowlist_empty=True ===")
+ct = build_retry_name_constraints({}, [])
+check(ct["allowlist_empty"], f"T-C4-8 allowlist_empty=True: {ct}")
+check(len(ct["allowed_names"]) == 0, f"T-C4-8 allowed_names空: {ct}")
+check(len(ct["forbidden_names"]) == 0, f"T-C4-8 forbidden_names空: {ct}")
+
+# T-C4-9: 仅含空名称 → allowlist_empty=True（过滤后无有效名称）
+print("=== T-C4-9: 仅空名称 allowlist_empty=True ===")
+rd = {
+    "direct_competitor_list": [{"name": "", "distance": 200}],
+    "substitute_list": [],
+    "traffic_anchor_list": [],
+    "poi_lists": {"schools": [{"name": "", "distance": 300}]},
+}
+ct = build_retry_name_constraints(rd, [])
+check(ct["allowlist_empty"], f"T-C4-9 allowlist_empty=True (got={ct['allowlist_empty']})")
+check(len(ct["allowed_names"]) == 0, f"T-C4-9 allowed_names应为空: {ct['allowed_names']}")
+check("" not in ct["allowed_names"], "T-C4-9 空字符串已过滤")
 
 # T-P3-8: 500m/1000m 半径独立校验
 print("=== T-P3-8: 多半径独立 ===")

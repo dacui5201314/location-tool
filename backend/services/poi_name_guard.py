@@ -339,6 +339,80 @@ def check_poi_name_hallucination(
 
 
 # ═══════════════════════════════════════════════════════════════
+# C-4: Retry 辅助 — 生成白名单/禁用名摘要供 retry_prompt 使用
+# ═══════════════════════════════════════════════════════════════
+
+def _build_retry_name_allowlist(real_data: dict) -> set:
+    """构建 retry 专用白名单（比 P0 allowlist 更窄）。
+    仅包含可直接引用的具体 POI 名称，排除 hot_brands 和 nearby_roads。
+    来源：direct_competitor_list / substitute_list / traffic_anchor_list
+         / poi_lists 全部 category name。
+    """
+    allowlist = set()
+
+    # 一级
+    for key in ("direct_competitor_list","substitute_list","traffic_anchor_list"):
+        for entry in real_data.get(key, []) or []:
+            name = (entry.get("name") or "").strip()
+            if name:
+                allowlist.add(name)
+
+    # 二级：poi_lists 全部 category
+    for entries in real_data.get("poi_lists", {}).values():
+        for entry in entries or []:
+            name = (entry.get("name") or "").strip()
+            if name:
+                allowlist.add(name)
+
+    return allowlist
+
+
+def build_allowed_names(real_data: dict) -> list[str]:
+    """从 real_data 提取所有合法可引用的 POI 名称，去重排序。
+    来源：direct_competitor_list / substitute_list / traffic_anchor_list
+         / hot_brands / nearby_roads / poi_lists 全部 category name。
+    （P0 全量白名单，非 retry 专用。）
+    """
+    return sorted(_build_name_allowlist(real_data))
+
+
+def build_forbidden_names(fact_errors: list[str]) -> list[str]:
+    """从 fact_errors 中提取 [P0-NAME] 标记的非法 POI 名称，去重排序。"""
+    names = set()
+    for err in fact_errors or []:
+        if "[P0-NAME]" not in err:
+            continue
+        # 格式: [P0-NAME] POI名称不在数据源中: <candidate>
+        parts = err.split("POI名称不在数据源中:", 1)
+        if len(parts) == 2:
+            name = parts[1].strip()
+            if name:
+                names.add(name)
+    return sorted(names)
+
+
+def build_retry_name_constraints(real_data: dict, fact_errors: list[str]) -> dict:
+    """为 retry_prompt 构建命名约束（使用收窄白名单，不含 hot_brands/nearby_roads）。
+
+    Returns:
+        {
+            "allowed_names": [...],   # 白名单（可引用名称，不含空值）
+            "forbidden_names": [...], # 本轮禁止再次出现的名称
+            "allowlist_empty": bool,  # 过滤后白名单是否为空
+        }
+    """
+    allowed_raw = sorted(_build_retry_name_allowlist(real_data))
+    forbidden_raw = build_forbidden_names(fact_errors or [])
+    filtered_allowed = [n for n in allowed_raw if n]
+    filtered_forbidden = [n for n in forbidden_raw if n]
+    return {
+        "allowed_names": filtered_allowed,
+        "forbidden_names": filtered_forbidden,
+        "allowlist_empty": len(filtered_allowed) == 0,
+    }
+
+
+# ═══════════════════════════════════════════════════════════════
 # P2: 竞品语境误用检测 (warning-only)
 # ═══════════════════════════════════════════════════════════════
 

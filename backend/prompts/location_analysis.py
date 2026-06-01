@@ -138,8 +138,8 @@ def build_system_prompt(business_type: str = "", config: dict = None) -> str:
 
 # 输出格式（JSON，不含markdown代码块）：
 {{
-  "advantages": ["5条优势，每条引用具体POI数据"],
-  "disadvantages": ["5条劣势，每条引用具体POI数据"],
+  "advantages": ["5条优势，每条引用真实字段数据、数量或白名单内POI名称（禁止编造学校/小区/商场名称）"],
+  "disadvantages": ["5条劣势，每条引用真实字段数据、数量或白名单内POI名称（禁止编造学校/小区/商场名称）"],
   "warning": "最致命1个风险点，25字以内",
   "summary": "100字以内，直击要害，用数据说话",
   "executive_summary": {{
@@ -159,11 +159,11 @@ def build_system_prompt(business_type: str = "", config: dict = None) -> str:
   ],
   "action_plan": ["开业前验证动作1", "定价/产品动作2", "获客动作3"],
   "details": {{
-    "population_density": "引用住宅/写字楼/学校/医院数据推算人口量级，末尾「评分：XX」",
+    "population_density": "引用住宅/写字楼/学校/医院数据推算人口量级（只引用数量和类别，不得编造具体学校名、小区名、商超名），末尾「评分：XX」",
     "traffic_accessibility": "引用地铁/公交/停车场数据，按交通判定标准得出结论，末尾「评分：XX」",
     "traffic_flow": "推算日均有效客流量区间（禁止单点数字），分析峰谷时段，末尾「评分：XX」",
-    "consumer_profile": "住宅vs办公vs学校比例，消费水平推断，末尾「评分：XX」",
-    "competition": "引用竞品品牌名，标注🔴🟡🟢威胁等级，末尾「评分：XX」。评分<50时warning必须提及",
+    "consumer_profile": "住宅vs办公vs学校比例，消费水平推断（只引用数量和类别，不得编造具体学校名、小区名、商场名），末尾「评分：XX」",
+    "competition": "引用竞品品牌名（仅限 direct_competitor_list 中真实名称），标注🔴🟡🟢威胁等级，末尾「评分：XX」。评分<50时warning必须提及",
     "complementary_businesses": "配套协同效应，末尾「评分：XX」",
     "category_advantage": "该品类在此地的供需匹配度和切入机会，末尾「评分：XX」",
     "cost_estimate": "预估月租金范围（元/㎡/月）及性价比，末尾「评分：XX」",
@@ -611,7 +611,9 @@ def build_analysis_prompt(address: str, lng: float, lat: float,
             pre_judged += f"  {i}. {fact}\n"
     if pre_judged:
         pre_judged += "\n上述预判事实已完成物理隔离，" \
-                      "每条事实只能出现在对应的列表中，绝不可跨列表引用。\n"
+                      "每条事实只能出现在对应的列表中，绝不可跨列表引用。\n" \
+                      "⚠️ 系统预判只提供类别和数量信息，不提供具体 POI 名称。" \
+                      "禁止基于预判内容自行补写具体学校名、小区名、医院名、商场名、酒店名等实体名称。\n"
 
     parts.append(pre_judged)
     parts.append(f"""

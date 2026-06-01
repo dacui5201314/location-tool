@@ -581,7 +581,7 @@ async def analyze_location(req: AnalyzeRequest, user: dict = Depends(get_current
                 )
 
                 # ★ P0: POI 名称引用校验 → hard-error (Phase 11)
-                from services.poi_name_guard import check_poi_name_hallucination, check_poi_context_mismatch, check_direct_competitor_count_mismatch
+                from services.poi_name_guard import check_poi_name_hallucination, check_poi_context_mismatch, check_direct_competitor_count_mismatch, build_retry_name_constraints
                 poi_name_issues = check_poi_name_hallucination(full_text, real_data, strict=True)
                 if poi_name_issues:
                     print(f"[SSE Guard] POI名称引用告警 ({len(poi_name_issues)}条): {'; '.join(poi_name_issues[:5])}", flush=True)
@@ -612,11 +612,26 @@ async def analyze_location(req: AnalyzeRequest, user: dict = Depends(get_current
                     result["_fact_retry"] = True
                     result["_fact_errors_before_retry"] = fact_errors.copy()
 
-                    # 构建修正提示
+                    # 构建修正提示 + 命名约束
+                    constraints = build_retry_name_constraints(real_data, fact_errors)
                     correction_lines = []
                     for fe in fact_errors[:8]:  # 最多带 8 条错误提示
                         correction_lines.append(f"  - {fe}")
                     correction_hint = "\n".join(correction_lines)
+
+                    # 命名约束摘要
+                    name_constraint_block = ""
+                    if constraints["forbidden_names"]:
+                        forbidden_text = "、".join(constraints["forbidden_names"][:10])
+                        name_constraint_block += f"\n🚫 本轮禁止再次出现的名称（上一版P0-NAME标出）：{forbidden_text}\n"
+                        name_constraint_block += "这些名称必须从报告中删除，禁止换成另一个不在白名单里的具体名称。\n"
+                    if constraints["allowed_names"]:
+                        allowed_preview = "、".join(constraints["allowed_names"][:20])
+                        name_constraint_block += f"\n✅ 允许引用的具体POI名称（仅限数据源中真实存在的）：{allowed_preview}\n"
+                        if len(constraints["allowed_names"]) > 20:
+                            name_constraint_block += f"  （共 {len(constraints['allowed_names'])} 个，以上为前20个）\n"
+                    if constraints["allowlist_empty"]:
+                        name_constraint_block += "\n⚠️ 当前数据源中无可引用的具体POI名称。所有POI只能以\"类别+数量\"方式描述。\n"
 
                     retry_prompt = prompt + f"""
 
@@ -624,8 +639,12 @@ async def analyze_location(req: AnalyzeRequest, user: dict = Depends(get_current
 
 {correction_hint}
 
-修正要求：
-- [P0-NAME] 报告中引用的POI名称必须在数据源中真实存在，不得凭知识编造。如果数据源中没有对应的POI，请写"暂无数据"，绝对不要凭空编造。不要使用"某X"、"周边有X"等模糊描述代替具体名称
+{name_constraint_block}
+## 修正要求（强制遵守）：
+- [P0-NAME] 报告中引用的POI名称必须在数据源中真实存在，不得凭知识编造。如果数据源中没有对应的POI，写"暂无具体名称数据"，绝对不要凭空编造。
+- [P0-NAME] 上一版被标出的非法名称（见上方🚫列表）必须删除，禁止换成另一个不在白名单（✅列表）里的具体名称。
+- 学校、住宅小区、酒店、商超等如果数据源中只有数量没有名称，只能写"500米内6所学校""500米内3个住宅小区"这类类别+数量格式，不得自行补写学校名、小区名、酒店名、商场名。
+- 如果白名单为空或对应类别无名称，写"暂无具体名称数据"或泛化类别（如"周边社区""附近学校"），不写具体实体名。
 - [P2-CTX] 替代性竞品和客流锚点不得在竞品语境中被写成直接竞品，必须标注其真实分类
 - [P3-COUNT] 所有数值必须来自上方数据表格，不要夸大或编造。直接对照 stats_* 字段的数字填写
 - 特别是交通设施数量（地铁站、公交站、停车场），必须严格使用 real_data 中各半径 stats 字段的值
