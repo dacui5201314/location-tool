@@ -153,6 +153,14 @@ async def admin_dashboard():
     return FileResponse(admin_html)
 
 
+@app.get("/admin-logo.png")
+async def admin_logo():
+    """管理后台浏览器图标与品牌标识"""
+    import os as _os
+    logo_file = _os.path.join(_os.path.dirname(__file__), "admin", "admin-logo.png")
+    return FileResponse(logo_file, media_type="image/png")
+
+
 @app.get("/api/health")
 async def health():
     return {"status": "ok"}

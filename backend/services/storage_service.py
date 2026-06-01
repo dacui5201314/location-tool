@@ -12,6 +12,7 @@ STORAGE_DIR = Path(__file__).resolve().parent.parent / "storage" / "reports"
 # 默认配置
 _DEFAULTS = {
     "storage_mode": "local",
+    "storage_provider": "aliyun_oss",
     "oss_endpoint": "",
     "oss_bucket": "",
     "oss_access_key_id": "",

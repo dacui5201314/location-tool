@@ -949,6 +949,10 @@ class ActivateCdkBody(BaseModel):
 
     code: str = ""
 
+class DeleteCdkBody(BaseModel):
+    codes: list[str] = []
+    include_used: bool = False
+
 @router.post("/cdk/generate")
 def generate_cdk(body: GenCdkBody, admin: dict = Depends(get_current_admin), db: Session = Depends(get_db)):
     """生成兑换码（需管理员权限）"""
@@ -970,6 +974,26 @@ def list_cdk(admin: dict = Depends(get_current_admin), db: Session = Depends(get
     """兑换码列表（需管理员权限）"""
     codes = db.query(RedeemCode).order_by(RedeemCode.created_at.desc()).limit(100).all()
     return {"codes": [c.to_dict() for c in codes]}
+
+@router.delete("/cdk/batch")
+def delete_cdk_batch(body: DeleteCdkBody, admin: dict = Depends(get_current_admin), db: Session = Depends(get_db)):
+    """批量删除 CDK。默认只删除未使用兑换码，避免破坏已兑换审计记录。"""
+    selected = [c.strip() for c in body.codes if c and c.strip()]
+    if not selected:
+        raise HTTPException(status_code=400, detail="请选择要删除的兑换码")
+    query = db.query(RedeemCode).filter(RedeemCode.code.in_(selected))
+    if not body.include_used:
+        query = query.filter(RedeemCode.is_used == 0)
+    rows = query.all()
+    deleted = len(rows)
+    for row in rows:
+        db.delete(row)
+    db.add(OperationLog(
+        admin_id=admin.get("user_id", 0), user_id=0, type="CDK_BATCH_DELETE",
+        change_amount=f"{deleted}个", reason="管理后台批量删除兑换码",
+    ))
+    db.commit()
+    return {"ok": True, "deleted": deleted, "skipped": len(selected) - deleted}
 
 # ── CDK 激活速率限制（防暴力枚举）──────────────────────────
 _CDK_RATE_WINDOW = 60      # 窗口：60 秒
@@ -1137,6 +1161,7 @@ def save_pdf_config(body: PdfConfigBody, admin: dict = Depends(get_current_admin
 # ============================================================
 _DEFAULT_STORAGE = {
     "storage_mode": "local",
+    "storage_provider": "aliyun_oss",
     "oss_endpoint": "",
     "oss_bucket": "",
     "oss_access_key_id": "",
@@ -1169,6 +1194,7 @@ def _save_storage_config(db: Session, cfg: dict):
 
 class StorageConfigBody(BaseModel):
     storage_mode: str = "local"
+    storage_provider: str = "aliyun_oss"
     oss_endpoint: str = ""
     oss_bucket: str = ""
     oss_access_key_id: str = ""
@@ -1186,6 +1212,7 @@ def save_storage_config(body: StorageConfigBody, admin: dict = Depends(get_curre
     """保存对象存储配置（需管理员权限）"""
     cfg = {
         "storage_mode": body.storage_mode,
+        "storage_provider": body.storage_provider,
         "oss_endpoint": body.oss_endpoint,
         "oss_bucket": body.oss_bucket,
         "oss_access_key_id": body.oss_access_key_id,

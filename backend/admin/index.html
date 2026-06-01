@@ -4,55 +4,63 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>址得选 · 管理后台</title>
+<link rel="icon" type="image/png" href="/admin-logo.png">
 <style>
-:root{--bg:#f0f3f8;--card:#fff;--ink:#1e293b;--muted:#64748b;--line:#e2e8f0;--blue:#315bff;--blued:#0b3fbd;--navy:#172a8d;--red:#dc2626;--green:#16a34a;--amber:#d97706;--r:12px;--sh:0 1px 3px rgba(0,0,0,.06),0 6px 16px rgba(0,0,0,.04)}
+:root{--bg:#f5f7fb;--panel:#fff;--panel2:#f8fafc;--ink:#172033;--muted:#667085;--subtle:#98a2b3;--line:#d9e0ea;--line2:#eef2f6;--blue:#1f5eff;--blue2:#1745c8;--cyan:#0e9f9a;--red:#d92d20;--green:#079455;--amber:#b54708;--r:8px;--sh:0 1px 2px rgba(16,24,40,.05),0 12px 28px rgba(16,24,40,.07)}
 *{box-sizing:border-box;margin:0;padding:0}
-body{font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;background:var(--bg);color:var(--ink);min-width:1024px}
+body{font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;background:var(--bg);color:var(--ink);min-width:1120px;font-size:14px}
 input,button,textarea,select{font:inherit}
 button{cursor:pointer;border:none}
-input,textarea,select{border:1px solid var(--line);border-radius:8px;padding:8px 12px;font-size:14px;width:100%}
-input:focus,textarea:focus,select:focus{outline:none;border-color:var(--blue);box-shadow:0 0 0 3px rgba(49,91,255,.1)}
-label{font-size:13px;font-weight:600;color:var(--muted);display:block;margin-bottom:4px}
-.login-wrap{display:flex;align-items:center;justify-content:center;min-height:100vh;background:linear-gradient(135deg,#0b3fbd,#172a8d)}
-.login-card{background:#fff;border-radius:16px;padding:48px 40px;width:400px;box-shadow:0 24px 64px rgba(0,0,0,.25)}
-.login-card h1{font-size:24px;font-weight:900;margin-bottom:6px}
-.login-card p{color:var(--muted);font-size:14px;margin-bottom:28px}
+input,textarea,select{border:1px solid var(--line);border-radius:var(--r);padding:9px 11px;font-size:13px;width:100%;background:#fff;color:var(--ink);transition:border-color .15s,box-shadow .15s}
+input:focus,textarea:focus,select:focus{outline:none;border-color:var(--blue);box-shadow:0 0 0 3px rgba(31,94,255,.12)}
+label{font-size:12px;font-weight:700;color:#475467;display:block;margin-bottom:6px}
+.brand{display:flex;align-items:center;gap:10px}
+.brand-logo{width:38px;height:38px;border-radius:9px;object-fit:cover;box-shadow:0 10px 24px rgba(31,94,255,.18);background:#edf3ff}
+.brand-title{font-size:15px;font-weight:900;line-height:1.1}.brand-sub{font-size:12px;color:var(--subtle);margin-top:2px}
+.login-wrap{display:flex;align-items:center;justify-content:center;min-height:100vh;background:radial-gradient(circle at 18% 18%,rgba(14,159,154,.18),transparent 28%),linear-gradient(135deg,#eef4ff 0%,#f7fbfb 48%,#f6f7fb 100%)}
+.login-card{background:rgba(255,255,255,.96);border:1px solid rgba(217,224,234,.9);border-radius:var(--r);padding:34px;width:392px;box-shadow:0 24px 70px rgba(16,24,40,.16)}
+.login-card h1{font-size:24px;font-weight:900;margin:18px 0 6px}
+.login-card p{color:var(--muted);font-size:13px;margin-bottom:26px}
 .err{color:var(--red);font-size:13px;margin-top:12px}
-.topbar{background:linear-gradient(135deg,#0b3fbd,#151f8f);color:#fff;padding:0 24px;height:56px;display:flex;align-items:center;justify-content:space-between}
+.topbar{height:62px;background:#fff;border-bottom:1px solid var(--line);padding:0 24px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:20}
 .topbar h2{font-size:18px;font-weight:900}
-.topbar button{background:rgba(255,255,255,.12);color:#fff;border-radius:8px;padding:6px 16px;font-size:13px}
-.topbar button:hover{background:rgba(255,255,255,.22)}
-.layout{display:flex;min-height:calc(100vh - 56px)}
-.sidebar{width:200px;background:#fff;border-right:1px solid var(--line);padding:12px 0;flex-shrink:0}
-.sidebar a{display:block;padding:11px 24px;font-size:13px;font-weight:600;color:var(--muted);cursor:pointer;text-decoration:none;border-left:3px solid transparent;transition:all .15s}
-.sidebar a:hover{background:#f8fafc;color:var(--ink)}
-.sidebar a.active{color:var(--blue);border-left-color:var(--blue);background:#eef3ff}
-.main{flex:1;padding:24px;overflow-y:auto}
-.card{background:var(--card);border-radius:var(--r);padding:24px;box-shadow:var(--sh);margin-bottom:20px}
-.card h3{font-size:16px;font-weight:900;margin-bottom:12px}
-.card h4{font-size:14px;font-weight:700;margin-bottom:10px;margin-top:20px}
+.topbar button{background:#f2f4f7;color:#344054;border:1px solid var(--line);border-radius:var(--r);padding:7px 13px;font-size:13px;font-weight:700}
+.topbar button:hover{background:#e9eef6}
+.layout{display:flex;min-height:calc(100vh - 62px)}
+.sidebar{width:228px;background:#fff;border-right:1px solid var(--line);padding:18px 12px;flex-shrink:0}
+.sidebar-section{font-size:11px;font-weight:800;color:var(--subtle);letter-spacing:.08em;margin:10px 12px 8px}
+.sidebar a{display:flex;align-items:center;gap:10px;padding:10px 12px;font-size:13px;font-weight:700;color:#475467;cursor:pointer;text-decoration:none;border-radius:var(--r);transition:background .15s,color .15s,box-shadow .15s}
+.sidebar a:hover{background:var(--panel2);color:var(--ink)}
+.sidebar a.active{color:var(--blue);background:#edf3ff;box-shadow:inset 3px 0 0 var(--blue)}
+.nav-icon{width:24px;height:24px;border-radius:7px;display:inline-flex;align-items:center;justify-content:center;background:#eef2f6;font-size:13px;flex:0 0 auto}.sidebar a.active .nav-icon{background:#dbe8ff}
+.main{flex:1;padding:24px 28px 40px;overflow-y:auto}
+.card{background:var(--panel);border:1px solid var(--line2);border-radius:var(--r);padding:20px;box-shadow:var(--sh);margin-bottom:18px}
+.card h3{font-size:16px;font-weight:900;margin-bottom:14px;color:#101828}
+.card h4{font-size:14px;font-weight:800;margin-bottom:10px;margin-top:18px;color:#344054}
 .card h4:first-of-type{margin-top:0}
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
 .grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px}
 .grid4{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:16px}
-.stat{background:var(--card);border-radius:var(--r);padding:20px 24px;box-shadow:var(--sh)}
-.stat .num{font-size:30px;font-weight:900;color:var(--blue)}
-.stat .lbl{font-size:13px;color:var(--muted);margin-top:4px}
-table{width:100%;border-collapse:collapse;font-size:13px}
-th{text-align:left;padding:10px 12px;background:#f8fafc;color:var(--muted);font-weight:700;font-size:12px;border-bottom:2px solid var(--line)}
-td{padding:10px 12px;border-bottom:1px solid var(--line)}
-tr:hover td{background:#f8fafc}
-.btn{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:8px;font-size:13px;font-weight:700;transition:all .15s}
-.btn-primary{background:var(--blue);color:#fff}.btn-primary:hover{background:var(--blued)}
-.btn-danger{background:var(--red);color:#fff}.btn-danger:hover{background:#b91c1c}
-.btn-outline{background:#fff;color:var(--blue);border:1px solid var(--blue)}.btn-outline:hover{background:#eef3ff}
-.btn-sm{padding:5px 10px;font-size:12px}.btn-xs{padding:3px 8px;font-size:11px;border-radius:6px}
-.tag{display:inline-block;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:700}
-.tag-green{background:#dcfce7;color:#166534}.tag-red{background:#fef2f2;color:#991b1b}
-.tag-blue{background:#eef3ff;color:#315bff}.tag-amber{background:#fffbeb;color:#92400e}
-.tag-gray{background:#f1f5f9;color:#475569}
-.toast{position:fixed;top:20px;right:20px;z-index:9999;padding:12px 24px;border-radius:10px;font-size:14px;font-weight:700;color:#fff;animation:fadeIn .3s;box-shadow:0 8px 24px rgba(0,0,0,.2)}
-.toast-ok{background:#16a34a}.toast-err{background:#dc2626}
+.stat{background:var(--panel);border:1px solid var(--line2);border-radius:var(--r);padding:18px 20px;box-shadow:var(--sh);position:relative;overflow:hidden}
+.stat:before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--blue)}
+.stat .num{font-size:28px;font-weight:900;color:var(--blue);line-height:1}
+.stat .lbl{font-size:12px;color:var(--muted);margin-top:8px;font-weight:700}
+table{width:100%;border-collapse:separate;border-spacing:0;font-size:13px;background:#fff;border:1px solid var(--line2);border-radius:var(--r);overflow:hidden}
+th{text-align:left;padding:11px 12px;background:#f8fafc;color:#667085;font-weight:800;font-size:12px;border-bottom:1px solid var(--line)}
+td{padding:11px 12px;border-bottom:1px solid var(--line2);vertical-align:middle}
+tbody tr:last-child td{border-bottom:0}
+tr:hover td{background:#fbfcff}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:8px 14px;border-radius:var(--r);font-size:13px;font-weight:800;transition:background .15s,border-color .15s,color .15s,box-shadow .15s;white-space:nowrap}
+.btn-primary{background:var(--blue);color:#fff;box-shadow:0 1px 2px rgba(16,24,40,.08)}.btn-primary:hover{background:var(--blue2)}
+.btn-danger{background:var(--red);color:#fff}.btn-danger:hover{background:#b42318}
+.btn-outline{background:#fff;color:#344054;border:1px solid var(--line)}.btn-outline:hover{background:#f8fafc;border-color:#b8c2d0}
+.btn-sm{padding:6px 10px;font-size:12px}.btn-xs{padding:4px 8px;font-size:11px;border-radius:6px}
+.tag{display:inline-flex;align-items:center;padding:3px 8px;border-radius:999px;font-size:11px;font-weight:800}
+.tag-green{background:#ecfdf3;color:#067647}.tag-red{background:#fef3f2;color:#b42318}
+.tag-blue{background:#edf3ff;color:#1745c8}.tag-amber{background:#fffaeb;color:#b54708}
+.tag-gray{background:#f2f4f7;color:#475467}
+.toast{position:fixed;top:20px;right:20px;z-index:9999;padding:12px 18px;border-radius:var(--r);font-size:14px;font-weight:800;color:#fff;animation:fadeIn .3s;box-shadow:0 12px 32px rgba(16,24,40,.2)}
+.toast-ok{background:var(--green)}.toast-err{background:var(--red)}
 @keyframes fadeIn{from{opacity:0;transform:translateY(-10px)}to{opacity:1;transform:translateY(0)}}
 .form-row{display:flex;gap:12px;align-items:flex-end}
 .form-row>div{flex:1}
@@ -65,14 +73,17 @@ tr:hover td{background:#f8fafc}
 .text-sm{font-size:13px;color:var(--muted)}
 .text-xs{font-size:12px;color:var(--muted)}
 .mono{font-family:"SF Mono","Cascadia Code",Consolas,monospace;font-size:12px}
-pre{background:#f8fafc;border:1px solid var(--line);border-radius:8px;padding:16px;overflow-x:auto;font-size:12px;max-height:400px;overflow-y:auto}
-.tabs{display:flex;gap:4px;background:#f1f5f9;border-radius:10px;padding:4px;margin-bottom:20px;width:fit-content}
-.tab-btn{padding:8px 16px;border-radius:8px;font-size:13px;font-weight:600;color:var(--muted);background:transparent;transition:all .15s}
-.tab-btn.active{background:#fff;color:var(--blue);box-shadow:0 1px 3px rgba(0,0,0,.08)}
-.preview-img{max-width:200px;max-height:120px;border-radius:8px;border:1px solid var(--line);margin-top:8px}
-.modal-overlay{position:fixed;inset:0;background:rgba(15,23,42,.5);z-index:1000;display:flex;align-items:center;justify-content:center}
-.modal-box{background:#fff;border-radius:16px;padding:32px;width:520px;max-height:85vh;overflow-y:auto;box-shadow:0 24px 64px rgba(0,0,0,.3)}
+pre{background:#0f172a;color:#dbeafe;border:1px solid #1e293b;border-radius:var(--r);padding:16px;overflow-x:auto;font-size:12px;max-height:400px;overflow-y:auto}
+.tabs{display:flex;gap:4px;background:#eef2f6;border-radius:var(--r);padding:4px;margin-bottom:18px;width:fit-content;border:1px solid var(--line2)}
+.tab-btn{padding:8px 14px;border-radius:6px;font-size:13px;font-weight:800;color:var(--muted);background:transparent;transition:all .15s}
+.tab-btn.active{background:#fff;color:var(--blue);box-shadow:0 1px 2px rgba(16,24,40,.08)}
+.preview-img{max-width:200px;max-height:120px;border-radius:var(--r);border:1px solid var(--line);margin-top:8px}
+.modal-overlay{position:fixed;inset:0;background:rgba(16,24,40,.56);z-index:1000;display:flex;align-items:center;justify-content:center;padding:20px}
+.modal-box{background:#fff;border-radius:var(--r);padding:26px;width:520px;max-height:85vh;overflow-y:auto;box-shadow:0 24px 64px rgba(16,24,40,.28)}
 .modal-box h3{margin-bottom:16px}
+.user-cell{display:flex;align-items:center;gap:10px;min-width:180px}.avatar{width:34px;height:34px;border-radius:50%;object-fit:cover;background:#edf3ff;border:1px solid var(--line)}.avatar-fallback{display:flex;align-items:center;justify-content:center;color:var(--blue);font-weight:900}
+.mini-note{padding:10px 12px;border-radius:var(--r);background:#f8fafc;border:1px solid var(--line2);color:var(--muted);font-size:12px}
+.biz-board{display:grid;grid-template-columns:170px 1fr;gap:16px;align-items:center}.donut-wrap{position:relative;width:160px;height:160px}.donut-center{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;font-weight:900}.donut-center span{font-size:12px;color:var(--subtle);margin-top:2px}.rank-list{display:flex;flex-direction:column;gap:9px}.rank-row{display:grid;grid-template-columns:22px minmax(80px,1fr) minmax(80px,1.2fr) 38px;align-items:center;gap:8px;font-size:12px}.rank-dot{width:9px;height:9px;border-radius:50%}.bar-track{height:9px;background:#eef2f6;border-radius:99px;overflow:hidden}.bar-fill{height:100%;border-radius:99px}.section-card{border:1px solid var(--line2);border-radius:var(--r);padding:14px;background:#fff;margin-bottom:12px}.section-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
 </style>
 </head>
 <body>
@@ -80,6 +91,10 @@ pre{background:#f8fafc;border:1px solid var(--line);border-radius:8px;padding:16
 <!-- Login -->
 <div id="loginPage" class="login-wrap">
   <div class="login-card">
+    <div class="brand">
+      <img class="brand-logo" src="/admin-logo.png" alt="址得选">
+      <div><div class="brand-title">址得选 Admin</div><div class="brand-sub">运营管理控制台</div></div>
+    </div>
     <h1>址得选</h1>
     <p>AI 选址分析平台 · 管理后台</p>
     <div class="form-group"><label>管理员密码</label><input id="loginPwd" type="password" placeholder="请输入管理后台密码" onkeydown="if(event.key==='Enter')login()"></div>
@@ -91,21 +106,27 @@ pre{background:#f8fafc;border:1px solid var(--line);border-radius:8px;padding:16
 <!-- Main App -->
 <div id="mainPage" class="hidden">
   <div class="topbar">
-    <h2>址得选 管理后台</h2>
-    <div style="display:flex;align-items:center;gap:16px"><span style="font-size:13px;opacity:.7">v1.12.0</span><button onclick="logout()">退出登录</button></div>
+    <div class="brand">
+      <img class="brand-logo" src="/admin-logo.png" alt="址得选">
+      <div><div class="brand-title">址得选管理后台</div><div class="brand-sub">支付、用户、报告与运营配置</div></div>
+    </div>
+    <div style="display:flex;align-items:center;gap:12px"><span class="tag tag-gray">v1.12.0</span><button onclick="logout()">退出登录</button></div>
   </div>
   <div class="layout">
     <div class="sidebar">
-      <a data-page="dashboard" class="active" onclick="navTo('dashboard')">📊 仪表盘</a>
-      <a data-page="users" onclick="navTo('users')">👥 用户管理</a>
-      <a data-page="orders" onclick="openOrders(true)">💳 订单管理</a>
-      <a data-page="billing" onclick="openBilling(true)">🧾 点数流水</a>
-      <a data-page="settings" onclick="navTo('settings')">⚙️ 系统设置</a>
-      <a data-page="logs" onclick="navTo('logs')">📋 系统日志</a>
-      <a data-page="cdk" onclick="navTo('cdk')">🎫 兑换码管理</a>
-      <a data-page="sysparams" onclick="navTo('sysparams')">🔧 全局参数</a>
-      <a data-page="oplogs" onclick="navTo('oplogs')">📝 操作记录</a>
-      <a data-page="industries" onclick="navTo('industries')">🏭 业态规则</a>
+      <div class="sidebar-section">概览</div>
+      <a data-page="dashboard" class="active" onclick="navTo('dashboard')"><span class="nav-icon">📊</span><span>仪表盘</span></a>
+      <div class="sidebar-section">客户与交易</div>
+      <a data-page="users" onclick="navTo('users')"><span class="nav-icon">👥</span><span>用户管理</span></a>
+      <a data-page="orders" onclick="openOrders(true)"><span class="nav-icon">💳</span><span>订单管理</span></a>
+      <a data-page="billing" onclick="openBilling(true)"><span class="nav-icon">🧾</span><span>账户流水</span></a>
+      <a data-page="cdk" onclick="navTo('cdk')"><span class="nav-icon">🎫</span><span>兑换码管理</span></a>
+      <div class="sidebar-section">系统运营</div>
+      <a data-page="settings" onclick="navTo('settings')"><span class="nav-icon">⚙️</span><span>系统设置</span></a>
+      <a data-page="sysparams" onclick="navTo('sysparams')"><span class="nav-icon">🔧</span><span>全局参数</span></a>
+      <a data-page="industries" onclick="navTo('industries')"><span class="nav-icon">🏭</span><span>业态规则</span></a>
+      <a data-page="logs" onclick="navTo('logs')"><span class="nav-icon">📋</span><span>系统日志</span></a>
+      <a data-page="oplogs" onclick="navTo('oplogs')"><span class="nav-icon">📝</span><span>操作记录</span></a>
     </div>
     <div class="main" id="content"></div>
   </div>
@@ -175,13 +196,27 @@ async function renderDashboard(){
   const s=r.ok?r.data:{};
   const tr=await af('GET','/api/admin/dashboard/stats');
   _trends=tr.ok?tr.data:null;
-  const topBiz=(_trends?.top_business_types||[]).slice(0,8).map(b=>`<span class="tag tag-blue mr">${esc(b.name)}: ${b.count}</span>`).join(' ')||'-';
-  const topBrands=(_trends?.top_brands||[]).slice(0,5).map(b=>`<span class="tag tag-amber mr">${esc(b.name)}: ${b.count}</span>`).join(' ')||'-';
+  const topBiz=(_trends?.top_business_types||[]).slice(0,6);
+  const topBrands=(_trends?.top_brands||[]).slice(0,5);
   return `<div class="grid4 mb">${st('总用户数',s.total_users||0,'#2563eb')}${st('累计报告',s.total_reports||s.total_records||0,'#16a34a')}${st('今日新增',s.today_users||0,'#7c5cff')}${st('今日报告',s.today_reports||s.today_analyzes||0,'#f59e0b')}</div>
     <div class="grid2"><div class="card"><h3>📈 分析趋势（近15天）</h3><canvas id="trendChart" width="500" height="180"></canvas></div>
-    <div class="card"><h3>🔥 热门业态</h3><div class="flex-wrap">${topBiz}</div><h4 class="mt">🏷️ 热门品牌</h4><div class="flex-wrap">${topBrands}</div></div></div>
-    <div class="grid2"><div class="card"><h3>快速操作</h3><div class="flex-wrap">${ql('users','👥 用户管理')}${ql('settings','⚙️ 系统设置')}${ql('cdk','🎫 生成 CDK')}${ql('logs','📋 系统日志')}${ql('industries','🏭 业态规则')}</div></div>
-    <div class="card"><h3>当前状态</h3><div class="text-sm">后端运行中 · 测试基线: compileall PASS / industry 2168 PASS / fact guard 147 PASS</div></div></div>`;
+    <div class="card"><h3>🔥 热门选址业态</h3>${renderBizDonut(topBiz)}<h4 class="mt">🏷️ 高频分析品牌 TOP 5</h4>${renderBrandBars(topBrands)}</div></div>
+    <div class="grid2"><div class="card"><h3>快速操作</h3><div class="flex-wrap">${ql('users','👥 用户管理')}${ql('orders','💳 订单管理')}${ql('billing','🧾 账户流水')}${ql('settings','⚙️ 系统设置')}${ql('cdk','🎫 生成 CDK')}${ql('industries','🏭 业态规则')}</div></div>
+    <div class="card"><h3>上线状态</h3><div class="mini-note">系统运行正常。支付、报告准确度和业态规则校验已通过最近一轮检查，详情以后放到交接文档，不在后台首页展示技术缩写。</div></div></div>`;
+}
+function renderBizDonut(data){
+  if(!data.length)return '<div class="text-sm">暂无数据</div>';
+  const colors=['#1f5eff','#0e9f9a','#8b5cf6','#f59e0b','#079455','#d92d20'];
+  const total=data.reduce((s,x)=>s+(x.count||0),0)||1;
+  let acc=0;
+  const segs=data.map((x,i)=>{const val=(x.count||0)/total*100;const seg=`${colors[i%colors.length]} ${acc} ${acc+val}`;acc+=val;return seg}).join(',');
+  return `<div class="biz-board"><div class="donut-wrap"><div style="width:160px;height:160px;border-radius:50%;background:conic-gradient(${segs});"></div><div class="donut-center"><div>${data.length}</div><span>个业态</span></div></div><div class="rank-list">${data.map((x,i)=>`<div class="rank-row"><span class="rank-dot" style="background:${colors[i%colors.length]}"></span><span>${esc(x.name)}</span><div class="bar-track"><div class="bar-fill" style="width:${Math.max(8,(x.count||0)/total*100)}%;background:${colors[i%colors.length]}"></div></div><b>${x.count||0}</b></div>`).join('')}</div></div>`;
+}
+function renderBrandBars(data){
+  if(!data.length)return '<div class="text-sm">暂无数据</div>';
+  const colors=['#1f5eff','#0e9f9a','#8b5cf6','#f59e0b','#079455'];
+  const max=Math.max(...data.map(x=>x.count||0),1);
+  return `<div class="rank-list">${data.map((x,i)=>`<div class="rank-row"><b>${i+1}</b><span>${esc(x.name)}</span><div class="bar-track"><div class="bar-fill" style="width:${Math.max(8,(x.count||0)/max*100)}%;background:${colors[i%colors.length]}"></div></div><b>${x.count||0}</b></div>`).join('')}</div>`;
 }
 function drawTrend(){
   if(!_trends||!_trends.trend_dates)return;
@@ -200,7 +235,7 @@ function ql(p,t){return `<button class="btn btn-outline" onclick="navTo('${p}')"
 
 // ── Users ──
 let _userPage=1,_userTotal=0;
-function renderUsers(){return `<div class="card"><div class="flex-between mb"><h3>用户列表</h3><div style="display:flex;gap:8px"><input id="userSearch" placeholder="搜索手机号..." style="width:200px" oninput="loadUsers()"><button class="btn btn-outline btn-sm" onclick="loadUsers()">刷新</button></div></div><table><thead><tr><th>ID</th><th>手机号</th><th>昵称</th><th>余额</th><th>会员</th><th>注册时间</th><th>操作</th></tr></thead><tbody id="userTbody"></tbody></table><div id="userPager" class="flex-between mt" style="font-size:13px"></div></div>`}
+function renderUsers(){return `<div class="card"><div class="flex-between mb"><h3>用户列表</h3><div style="display:flex;gap:8px"><input id="userSearch" placeholder="搜索手机号或ID..." style="width:220px" oninput="loadUsers()"><button class="btn btn-outline btn-sm" onclick="loadUsers()">刷新</button></div></div><table><thead><tr><th>ID</th><th>用户</th><th>手机号</th><th>余额</th><th>会员</th><th>注册时间</th><th>操作</th></tr></thead><tbody id="userTbody"></tbody></table><div id="userPager" class="flex-between mt" style="font-size:13px"></div></div>`}
 async function loadUsers(pg){
   if(pg!==undefined)_userPage=pg;else _userPage=1;
   const q=document.getElementById('userSearch')?.value||'';
@@ -208,10 +243,20 @@ async function loadUsers(pg){
   const users=r.ok?(r.data.users||[]):[];
   _userTotal=r.ok?(r.data.total||0):0;
   const totalPages=Math.ceil(_userTotal/20);
-  document.getElementById('userTbody').innerHTML=users.map(u=>`<tr><td>${u.id}</td><td>${esc(u.phone_number||u.phone||'-')}</td><td>${esc(u.nickname||'-')}</td><td>${u.balance_credits||0}</td><td><span class="tag ${u.membership_tier&&u.membership_tier!=='free'?'tag-green':'tag-amber'}">${esc(u.membership_tier||'free')}</span></td><td>${esc((u.created_at||'').slice(0,10))}</td><td><button class="btn btn-primary btn-xs" onclick="addCredits(${u.id})">加余额</button><button class="btn btn-outline btn-xs" onclick="viewUserOrders(${u.id})">📋</button><button class="btn btn-outline btn-xs" onclick="viewUserBilling(${u.id})">🧾</button></td></tr>`).join('');
+  document.getElementById('userTbody').innerHTML=users.map(u=>{const nick=u.nickname||'未设置昵称';const av=u.avatar_url?`<img class="avatar" src="${escUrl(u.avatar_url)}" alt="">`:`<div class="avatar avatar-fallback">${esc(nick.slice(0,1)||'用')}</div>`;return `<tr><td>${u.id}</td><td><div class="user-cell">${av}<div><b>${esc(nick)}</b><div class="text-xs">ID ${u.id}</div></div></div></td><td>${esc(u.phone_number||u.phone||'-')}</td><td>${u.balance_credits||0}</td><td><span class="tag ${u.membership_tier&&u.membership_tier!=='free'?'tag-green':'tag-amber'}">${esc(u.membership_tier||'free')}</span></td><td>${esc((u.created_at||'').slice(0,10))}</td><td><button class="btn btn-primary btn-xs" onclick="adjustAccount(${u.id})">调整账户</button><button class="btn btn-outline btn-xs" onclick="viewUserOrders(${u.id})">订单</button><button class="btn btn-outline btn-xs" onclick="viewUserBilling(${u.id})">流水</button></td></tr>`}).join('');
   const pager=document.getElementById('userPager');if(pager)pager.innerHTML=`<span>共 ${_userTotal} 用户 · 第 ${_userPage}/${totalPages||1} 页</span><span>${_userPage>1?`<button class="btn btn-outline btn-xs mr" onclick="loadUsers(${_userPage-1})">上一页</button>`:''}${_userPage<totalPages?`<button class="btn btn-outline btn-xs" onclick="loadUsers(${_userPage+1})">下一页</button>`:''}</span>`;
 }
-async function addCredits(uid){const amt=prompt('增加点数：','10');if(!amt)return;const r=await af('POST',`/api/admin/users/${uid}/add-credits`,{amount:parseInt(amt),reason:'管理后台手动充值'});toast(r.ok?'充值成功':(r.data?.detail||'失败'),r.ok);if(r.ok)loadUsers()}
+async function adjustAccount(uid){
+  const skuR=await af('GET','/api/admin/skus');
+  const skus=skuR.ok?(skuR.data.skus||skuR.data||[]):[];
+  const box=document.createElement('div');box.className='modal-overlay';
+  box.innerHTML=`<div class="modal-box"><h3>调整用户账户</h3><div class="mini-note mb">可单独加减点数，也可给用户开通套餐/会员。所有操作会进入操作记录。</div>
+    <div class="grid2"><div class="form-group"><label>点数变动</label><input id="ua_points" type="number" placeholder="正数增加，负数扣减"></div><div class="form-group"><label>选择套餐</label><select id="ua_pkg"><option value="">不调整套餐</option>${skus.map(s=>`<option value="${s.id}">${esc(s.label)} · ${s.type==='membership'?'会员':'点数'} · ${s.credits||0}点 · ${s.duration_days||0}天</option>`).join('')}</select></div></div>
+    <div class="form-group"><label>操作备注</label><input id="ua_reason" placeholder="如：客服补偿、线下收款、测试账号调整"></div>
+    <div style="display:flex;gap:8px"><button class="btn btn-primary" id="uaSave">确认调整</button><button class="btn btn-outline" onclick="this.closest('.modal-overlay').remove()">取消</button></div></div>`;
+  document.body.appendChild(box);
+  box.querySelector('#uaSave').onclick=async()=>{const reason=qv('ua_reason');if(!reason.trim()){toast('请填写操作备注',false);return}const pts=parseInt(qv('ua_points')||'0');const pkg=qv('ua_pkg');let ok=true,msg='调整完成';if(pts){const r=await af('POST',`/api/admin/users/${uid}/points`,{points:pts,reason});ok=r.ok;msg=r.data?.detail||r.data?.message||msg}if(ok&&pkg){const r=await af('POST',`/api/admin/users/${uid}/package`,{packageId:parseInt(pkg),reason});ok=r.ok;msg=r.data?.detail||r.data?.message||msg}toast(ok?msg:msg,ok);if(ok){box.remove();loadUsers(_userPage)}}
+}
 function openOrders(reset){if(reset)window._orderFilter={phone:'',outTradeNo:'',status:''};navTo('orders')}
 function openBilling(reset){if(reset)window._billingFilter={phone:'',userId:'',recordType:''};navTo('billing')}
 function viewUserOrders(uid){window._orderFilter={phone:String(uid),outTradeNo:'',status:''};navTo('orders')}
@@ -265,7 +310,7 @@ async function loadUiConfigData(){const r=await af('GET','/api/admin/ui-config')
 async function saveUiConfigData(){const r=await af('PUT','/api/admin/ui-config',{announcement:qv('uic_ann'),customer_service_name:qv('uic_name'),cs_wechat:qv('uic_wx'),cs_phone:qv('uic_phone')});toast(r.ok?'已保存':(r.data?.detail||'失败'),r.ok)}
 
 // Share Config
-function renderShareConfig(){return `<div class="card"><div class="flex-between mb"><h3>分享配置</h3><button class="btn btn-primary btn-sm" onclick="saveShareConfig()">保存</button></div><div class="form-group"><label>分享标题</label><input id="sh_title" placeholder="如：址得选 · AI选址报告"></div><div class="form-group"><label>报告分享标题模板</label><input id="sh_rtpl" placeholder="如：{{address}} · {{business_type}} 选址分析报告"></div><div class="form-group"><label>分享 CTA 文案</label><input id="sh_cta" placeholder="如：立即查看>>"></div><div class="form-group"><label>分享图片 URL</label><div class="form-row"><input id="sh_img" placeholder="/assets/share/xxx.png 或 HTTPS URL"><button class="btn btn-outline btn-sm" onclick="uploadShareImg()" style="flex:0 0 auto">上传图片</button></div></div><div id="shPreview"></div></div>`}
+function renderShareConfig(){return `<div class="card"><div class="flex-between mb"><div><h3>分享配置</h3><div class="text-sm">小程序报告页已接入分享能力，报告分享图会用于 onShareAppMessage 的 imageUrl。</div></div><button class="btn btn-primary btn-sm" onclick="saveShareConfig()">保存</button></div><div class="form-group"><label>分享标题</label><input id="sh_title" placeholder="如：址得选 · AI选址报告"></div><div class="form-group"><label>报告分享标题模板</label><input id="sh_rtpl" placeholder="如：{{address}} · {{business_type}} 选址分析报告"></div><div class="form-group"><label>分享 CTA 文案</label><input id="sh_cta" placeholder="如：立即查看>>"></div><div class="form-group"><label>报告分享图 URL</label><div class="form-row"><input id="sh_img" placeholder="/assets/share/xxx.png 或 HTTPS URL"><button class="btn btn-outline btn-sm" onclick="uploadShareImg()" style="flex:0 0 auto">上传分享图</button></div></div><div id="shPreview"></div></div>`}
 async function loadShareConfig(){const r=await af('GET','/api/admin/share-config');if(r.ok){const d=r.data;sv('sh_title',d.share_title||'');sv('sh_rtpl',d.report_share_title_template||'');sv('sh_cta',d.share_cta_text||'');sv('sh_img',d.share_image_url||'');if(d.share_image_url)document.getElementById('shPreview').innerHTML=`<img src="${escUrl(d.share_image_url)}" class="preview-img">`}}
 async function saveShareConfig(){const r=await af('PUT','/api/admin/share-config',{share_title:qv('sh_title'),report_share_title_template:qv('sh_rtpl'),share_cta_text:qv('sh_cta'),share_image_url:qv('sh_img')});toast(r.ok?'已保存':(r.data?.detail||'失败'),r.ok)}
 async function uploadShareImg(){const inp=document.createElement('input');inp.type='file';inp.accept='image/*';inp.onchange=async()=>{const f=inp.files[0];if(!f)return;const fd=new FormData();fd.append('file',f);const r=await fetch(API+'/api/admin/share-config/upload-image',{method:'POST',headers:{'Authorization':'Bearer '+token},body:fd}).then(r=>r.json());if(r.url){sv('sh_img',r.url);document.getElementById('shPreview').innerHTML=`<img src="${escUrl(r.url)}" class="preview-img">`;toast('上传成功',true)}else{toast(r.detail||'上传失败',false)}};inp.click()}
@@ -289,18 +334,18 @@ async function saveAllSkus(){const r=await af('PUT','/api/admin/skus',{items:win
 
 // Key Pool
 function renderKeyPool(){return `<div class="card"><div class="flex-between mb"><h3>高德 Web 服务 Key 池</h3><button class="btn btn-primary btn-sm" onclick="showKeyForm()">+ 添加 Key</button></div><div class="text-xs mb" style="color:var(--amber)">⚠ 必须使用高德<strong>Web服务 API Key</strong>（非微信小程序 Key / JS API Key）</div><table><thead><tr><th>名称</th><th>Key</th><th>密钥</th><th>状态</th><th>优先级</th><th>失败</th><th>最后状态</th><th>操作</th></tr></thead><tbody id="keyTbody"></tbody></table></div>`}
-async function loadKeys(){const r=await af('GET','/api/admin/amap-keys');const keys=r.ok?(r.data||[]):[];window._keys=keys;document.getElementById('keyTbody').innerHTML=keys.map(k=>`<tr><td>${esc(k.name||'-')}</td><td class="mono">${esc((k.api_key||'').slice(0,18))}...</td><td>${k.security_secret?'已设':'-'}</td><td><span class="tag ${k.enabled?'tag-green':'tag-red'}" style="cursor:pointer" title="点击切换启停" onclick="toggleKeyEnabled(${k.id})">${k.enabled?'启用':'禁用'}</span></td><td>${k.priority||0}</td><td>${k.fail_count||0}</td><td><span class="tag tag-gray">${esc(k.last_status||'-')}</span></td><td><button class="btn btn-outline btn-xs" onclick="testKey(${k.id})">测试</button><button class="btn btn-outline btn-xs" onclick="editKey(${k.id})">编辑</button><button class="btn btn-danger btn-xs" onclick="deleteKey(${k.id})">删除</button></td></tr>`).join('')}
-function showKeyForm(edit){const d=edit||{};const box=document.createElement('div');box.className='modal-overlay';box.innerHTML=`<div class="modal-box"><h3>${edit?'编辑':'添加'} Key</h3><div class="form-group"><label>名称</label><input id="kf_name" value="${esc(d.name||'')}"></div><div class="form-group"><label>API Key</label><input id="kf_key" value="${esc(d.api_key||'')}" placeholder="${edit?'留空保留原Key':'高德 Web 服务 API Key'}"></div><div class="form-group"><label>安全密钥</label><input id="kf_sec" value="${esc(d.security_secret||'')}"></div><div class="form-row"><div class="form-group"><label>优先级</label><input id="kf_pri" type="number" value="${d.priority||0}"></div><div class="form-group"><label class="inline-label"><input id="kf_enabled" type="checkbox" ${d.enabled!==false?'checked':''} style="width:auto"> 启用</label></div></div><div style="display:flex;gap:8px"><button class="btn btn-primary" id="kfSave">保存</button><button class="btn btn-outline" onclick="this.closest('.modal-overlay').remove()">取消</button></div></div>`;document.body.appendChild(box);box.querySelector('#kfSave').onclick=async()=>{const body={name:qv('kf_name'),api_key:qv('kf_key'),security_secret:qv('kf_sec'),priority:parseInt(qv('kf_pri'))||0,enabled:document.getElementById('kf_enabled').checked};let r;if(edit)r=await af('PUT',`/api/admin/amap-keys/${edit.id}`,body);else r=await af('POST','/api/admin/amap-keys',body);toast(r.ok?'保存成功':(r.data?.detail||'失败'),r.ok);if(r.ok){box.remove();loadKeys()}}}
-async function editKey(id){const r=await af('GET','/api/admin/amap-keys');const k=(r.data||[]).find(x=>x.id===id);if(k)showKeyForm(k)}
+async function loadKeys(){const r=await af('GET','/api/admin/amap-keys');const keys=r.ok?(r.data.keys||[]):[];window._keys=keys;document.getElementById('keyTbody').innerHTML=keys.map(k=>`<tr><td>${esc(k.name||'-')}</td><td class="mono">${esc(k.masked_key||'-')}</td><td>${k.has_security_secret?'已设':'-'}</td><td><span class="tag ${k.enabled?'tag-green':'tag-red'}" style="cursor:pointer" title="点击切换启停" onclick="toggleKeyEnabled(${k.id})">${k.enabled?'启用':'禁用'}</span></td><td>${k.priority||0}</td><td>${k.fail_count||0}</td><td><span class="tag tag-gray">${esc(k.last_status||'-')}</span></td><td><button class="btn btn-outline btn-xs" onclick="testKey(${k.id})">测试</button><button class="btn btn-outline btn-xs" onclick="editKey(${k.id})">编辑</button><button class="btn btn-danger btn-xs" onclick="deleteKey(${k.id})">删除</button></td></tr>`).join('')}
+function showKeyForm(edit){const d=edit||{};const box=document.createElement('div');box.className='modal-overlay';box.innerHTML=`<div class="modal-box"><h3>${edit?'编辑':'添加'} Key</h3><div class="form-group"><label>名称</label><input id="kf_name" value="${esc(d.name||'')}"></div><div class="form-group"><label>API Key</label><input id="kf_key" placeholder="${edit?'留空保留原Key':'高德 Web 服务 API Key'}"></div><div class="form-group"><label>安全密钥</label><input id="kf_sec" placeholder="${d.has_security_secret?'已设置，留空保留':''}"></div><div class="form-row"><div class="form-group"><label>优先级</label><input id="kf_pri" type="number" value="${d.priority||0}"></div><div class="form-group"><label class="inline-label"><input id="kf_enabled" type="checkbox" ${d.enabled!==false?'checked':''} style="width:auto"> 启用</label></div></div><div style="display:flex;gap:8px"><button class="btn btn-primary" id="kfSave">保存</button><button class="btn btn-outline" onclick="this.closest('.modal-overlay').remove()">取消</button></div></div>`;document.body.appendChild(box);box.querySelector('#kfSave').onclick=async()=>{const body={name:qv('kf_name'),api_key:qv('kf_key'),security_secret:qv('kf_sec'),priority:parseInt(qv('kf_pri'))||0,enabled:document.getElementById('kf_enabled').checked};let r;if(edit)r=await af('PUT',`/api/admin/amap-keys/${edit.id}`,body);else r=await af('POST','/api/admin/amap-keys',body);toast(r.ok?'保存成功':(r.data?.detail||'失败'),r.ok);if(r.ok){box.remove();loadKeys()}}}
+async function editKey(id){const r=await af('GET','/api/admin/amap-keys');const k=(r.data.keys||[]).find(x=>x.id===id);if(k)showKeyForm(k)}
 async function deleteKey(id){if(!confirm('确定删除？'))return;const r=await af('DELETE',`/api/admin/amap-keys/${id}`);toast(r.ok?'已删除':(r.data?.detail||'失败'),r.ok);if(r.ok)loadKeys()}
 async function toggleKeyEnabled(id){const k=(window._keys||[]).find(x=>x.id===id);if(!k)return;const r=await af('PUT',`/api/admin/amap-keys/${id}`,{name:k.name,enabled:!k.enabled,priority:k.priority});toast(r.ok?'已切换':(r.data?.detail||'失败'),r.ok);if(r.ok)loadKeys()}
 async function testKey(id){const r=await af('POST',`/api/admin/amap-keys/${id}/test`);toast(r.ok?'连通正常':(r.data?.info||'测试失败'),r.ok)}
 
 // Storage Config
-function renderStorageConfig(){return `<div class="card"><div class="flex-between mb"><h3>存储配置</h3><button class="btn btn-primary btn-sm" onclick="saveStorageConfig()">保存</button></div><div class="form-row mb"><button class="btn" style="background:${(window._storeCfg||{}).storage_mode!=='cloud'?'var(--blue)':'var(--line)'};color:${(window._storeCfg||{}).storage_mode!=='cloud'?'#fff':'var(--ink)'}" onclick="window._storeCfg.storage_mode='local';renderStorageRadio()">本地存储</button><button class="btn" style="background:${(window._storeCfg||{}).storage_mode==='cloud'?'var(--blue)':'var(--line)'};color:${(window._storeCfg||{}).storage_mode==='cloud'?'#fff':'var(--ink)'}" onclick="window._storeCfg.storage_mode='cloud';renderStorageRadio()">阿里云 OSS</button></div><div id="ossFields"></div></div>`}
+function renderStorageConfig(){return `<div class="card"><div class="flex-between mb"><h3>存储配置</h3><button class="btn btn-primary btn-sm" onclick="saveStorageConfig()">保存</button></div><div class="form-row mb"><button class="btn" style="background:${(window._storeCfg||{}).storage_mode!=='cloud'?'var(--blue)':'var(--line)'};color:${(window._storeCfg||{}).storage_mode!=='cloud'?'#fff':'var(--ink)'}" onclick="window._storeCfg.storage_mode='local';renderStorageRadio()">本地存储</button><button class="btn" style="background:${(window._storeCfg||{}).storage_mode==='cloud'&&(window._storeCfg||{}).storage_provider!=='tencent_cos'?'var(--blue)':'var(--line)'};color:${(window._storeCfg||{}).storage_mode==='cloud'&&(window._storeCfg||{}).storage_provider!=='tencent_cos'?'#fff':'var(--ink)'}" onclick="window._storeCfg.storage_mode='cloud';window._storeCfg.storage_provider='aliyun_oss';renderStorageRadio()">阿里云 OSS</button><button class="btn" style="background:${(window._storeCfg||{}).storage_mode==='cloud'&&(window._storeCfg||{}).storage_provider==='tencent_cos'?'var(--blue)':'var(--line)'};color:${(window._storeCfg||{}).storage_mode==='cloud'&&(window._storeCfg||{}).storage_provider==='tencent_cos'?'#fff':'var(--ink)'}" onclick="window._storeCfg.storage_mode='cloud';window._storeCfg.storage_provider='tencent_cos';renderStorageRadio()">腾讯云 COS</button></div><div id="ossFields"></div></div>`}
 async function loadStorageConfig(){const r=await af('GET','/api/admin/storage-config');window._storeCfg=r.ok?r.data:{storage_mode:'local'};renderStorageRadio()}
-function renderStorageRadio(){document.getElementById('ossFields').innerHTML=window._storeCfg.storage_mode==='cloud'?`<div class="grid2"><div class="form-group"><label>Endpoint</label><input id="oss_ep" value="${esc(window._storeCfg.oss_endpoint||'')}"></div><div class="form-group"><label>Bucket</label><input id="oss_bkt" value="${esc(window._storeCfg.oss_bucket||'')}"></div><div class="form-group"><label>Access Key ID</label><input id="oss_akid" value="${esc(window._storeCfg.oss_access_key_id||'')}"></div><div class="form-group"><label>Access Key Secret</label><input id="oss_aksec" type="password" value="${esc(window._storeCfg.oss_access_key_secret||'')}"></div></div>`:''}
-async function saveStorageConfig(){const d={storage_mode:window._storeCfg.storage_mode};if(d.storage_mode==='cloud'){d.oss_endpoint=qv('oss_ep');d.oss_bucket=qv('oss_bkt');d.oss_access_key_id=qv('oss_akid');d.oss_access_key_secret=qv('oss_aksec')}const r=await af('PUT','/api/admin/storage-config',d);toast(r.ok?'已保存':(r.data?.detail||'失败'),r.ok)}
+function renderStorageRadio(){const provider=window._storeCfg.storage_provider==='tencent_cos'?'腾讯云 COS':'阿里云 OSS';document.getElementById('ossFields').innerHTML=window._storeCfg.storage_mode==='cloud'?`<div class="mini-note mb">${provider} 使用对象存储 S3/HTTP 兼容上传方式，请填写对应 Endpoint、Bucket 和访问密钥。</div><div class="grid2"><div class="form-group"><label>Endpoint</label><input id="oss_ep" value="${esc(window._storeCfg.oss_endpoint||'')}" placeholder="${window._storeCfg.storage_provider==='tencent_cos'?'https://bucket.cos.ap-region.myqcloud.com':'https://oss-cn-region.aliyuncs.com'}"></div><div class="form-group"><label>Bucket</label><input id="oss_bkt" value="${esc(window._storeCfg.oss_bucket||'')}"></div><div class="form-group"><label>Access Key ID / SecretId</label><input id="oss_akid" value="${esc(window._storeCfg.oss_access_key_id||'')}"></div><div class="form-group"><label>Access Key Secret / SecretKey</label><input id="oss_aksec" type="password" value="${esc(window._storeCfg.oss_access_key_secret||'')}"></div></div>`:''}
+async function saveStorageConfig(){const d={storage_mode:window._storeCfg.storage_mode,storage_provider:window._storeCfg.storage_provider||'aliyun_oss'};if(d.storage_mode==='cloud'){d.oss_endpoint=qv('oss_ep');d.oss_bucket=qv('oss_bkt');d.oss_access_key_id=qv('oss_akid');d.oss_access_key_secret=qv('oss_aksec')}const r=await af('PUT','/api/admin/storage-config',d);toast(r.ok?'已保存':(r.data?.detail||'失败'),r.ok)}
 
 // ── Logs ──
 function renderLogs(){return `<div class="card"><div class="flex-between mb"><h3>系统日志</h3><button class="btn btn-outline btn-sm" onclick="navTo('logs')">刷新</button></div><pre id="logContent" class="mono">加载中...</pre></div>`}
@@ -309,25 +354,25 @@ async function loadLogs(){const r=await af('GET','/api/admin/logs');const logs=r
 // ── CDK ──
 function renderCdk(){return `<div class="grid2"><div class="card"><h3>批量生成兑换码</h3><div class="grid3 mb"><div class="form-group"><label>前缀</label><input id="cdk_prefix" value="AI" placeholder="AI"></div><div class="form-group"><label>生成数量</label><input id="cdk_count" type="number" value="10"></div><div class="form-group"><label>每个点数</label><input id="cdk_credits" type="number" value="5"></div></div><div class="grid3 mb"><div class="form-group"><label>有效期(天)</label><input id="cdk_days" type="number" value="365"></div></div><button class="btn btn-primary" onclick="genCdk()">生成兑换码</button><div id="cdkResult" class="mt"></div></div><div class="card"><h3>CDK 列表</h3><div id="cdkList"></div></div></div>`}
 async function genCdk(){const r=await af('POST','/api/admin/cdk/generate',{prefix:qv('cdk_prefix')||'AI',count:parseInt(qv('cdk_count'))||10,credits:parseInt(qv('cdk_credits'))||5,days_valid:parseInt(qv('cdk_days'))||365});if(!r.ok){toast(r.data?.detail||'失败',false);return}const codes=r.data.codes||[];document.getElementById('cdkResult').innerHTML=`<h4>已生成 ${codes.length} 个</h4><textarea style="height:160px;font-family:monospace;font-size:12px;width:100%" readonly>${codes.map(c=>esc(c)).join('\n')}</textarea><button class="btn btn-outline btn-sm mt" onclick="navigator.clipboard.writeText(this.previousElementSibling.value);toast('已复制',true)">📋 复制全部</button>`;loadCdkList()}
-async function loadCdkList(){const r=await af('GET','/api/admin/cdk/list');const codes=r.ok?(r.data.codes||[]):[];document.getElementById('cdkList').innerHTML=codes.length?`<table><thead><tr><th>兑换码</th><th>点数</th><th>状态</th><th>使用者</th><th>过期</th></tr></thead><tbody>${codes.map(c=>`<tr><td class="mono">${esc(c.code)}</td><td>${c.credits}</td><td><span class="tag ${c.is_used?'tag-red':'tag-green'}">${c.is_used?'已用':'可用'}</span></td><td>${esc(c.used_by||'-')}</td><td>${esc((c.expires_at||'').slice(0,10))}</td></tr>`).join('')}</tbody></table>`:'<div class="text-sm">暂无 CDK</div>'}
+async function loadCdkList(){const r=await af('GET','/api/admin/cdk/list');const codes=r.ok?(r.data.codes||[]):[];document.getElementById('cdkList').innerHTML=codes.length?`<div class="flex-between mb"><div class="text-sm">最近 ${codes.length} 个兑换码</div><button class="btn btn-danger btn-sm" onclick="deleteSelectedCdk()">批量删除未使用</button></div><table><thead><tr><th><input type="checkbox" style="width:auto" onchange="document.querySelectorAll('.cdk-check').forEach(x=>x.checked=this.checked)"></th><th>兑换码</th><th>点数</th><th>状态</th><th>使用者</th><th>过期</th></tr></thead><tbody>${codes.map(c=>`<tr><td><input class="cdk-check" type="checkbox" style="width:auto" value="${esc(c.code)}" ${c.is_used?'disabled':''}></td><td class="mono">${esc(c.code)}</td><td>${c.credits}</td><td><span class="tag ${c.is_used?'tag-red':'tag-green'}">${c.is_used?'已用':'可用'}</span></td><td>${esc(c.used_by||'-')}</td><td>${esc((c.expires_at||'').slice(0,10))}</td></tr>`).join('')}</tbody></table>`:'<div class="text-sm">暂无 CDK</div>'}
+async function deleteSelectedCdk(){const codes=[...document.querySelectorAll('.cdk-check:checked')].map(x=>x.value);if(!codes.length){toast('请选择未使用兑换码',false);return}if(!confirm(`确定删除 ${codes.length} 个未使用兑换码？已使用兑换码不会被删除。`))return;const r=await af('DELETE','/api/admin/cdk/batch',{codes,include_used:false});toast(r.ok?`已删除 ${r.data.deleted||0} 个兑换码`:(r.data?.detail||'删除失败'),r.ok);if(r.ok)loadCdkList()}
 
 // ── SysParams ──
 function renderSysParams(){return `<div class="card"><div class="flex-between mb"><h3>全局参数</h3><button class="btn btn-primary btn-sm" onclick="saveSysParams()">保存</button></div>
   <h4>微信小程序</h4><div class="grid2 mb"><div class="form-group"><label>小程序 AppID</label><input id="sp_miniappid"></div><div class="form-group"><label>小程序 Secret</label><input id="sp_minisecret" type="password"></div></div>
-  <h4>微信公众号</h4><div class="grid2"><div class="form-group"><label>公众号 AppID</label><input id="sp_mpappid"></div><div class="form-group"><label>公众号 Secret</label><input id="sp_mpsecret" type="password"></div></div>
   <h4 class="mt">注册奖励</h4><div class="grid2"><div class="form-group"><label>赠送永久点数</label><input id="sp_bonus" type="number"></div><div class="form-group"><label>免费体验点数(24h)</label><input id="sp_free" type="number"></div></div></div>`}
-async function loadSysParams(){const r=await af('GET','/api/admin/system-settings');if(!r.ok)return;const cfg=r.data.configs||{};const g=(k,d='')=>cfg[k]?.value||d;sv('sp_miniappid',g('wx_mini_appid'));sv('sp_minisecret',g('wx_mini_secret'));sv('sp_mpappid',g('wx_mp_appid'));sv('sp_mpsecret',g('wx_mp_secret'));sv('sp_bonus',g('register_bonus','3'));sv('sp_free',g('register_free','1'))}
-async function saveSysParams(){const r=await af('PUT','/api/admin/system-settings',{items:{wx_mini_appid:qv('sp_miniappid'),wx_mini_secret:qv('sp_minisecret'),wx_mp_appid:qv('sp_mpappid'),wx_mp_secret:qv('sp_mpsecret'),register_bonus:qv('sp_bonus'),register_free:qv('sp_free')}});toast(r.ok?'已保存':(r.data?.detail||'失败'),r.ok);if(r.ok)loadSysParams()}
+async function loadSysParams(){const r=await af('GET','/api/admin/system-settings');if(!r.ok)return;const cfg=r.data.configs||{};const g=(k,d='')=>cfg[k]?.value||d;sv('sp_miniappid',g('wx_mini_appid'));sv('sp_minisecret',g('wx_mini_secret'));sv('sp_bonus',g('register_bonus','3'));sv('sp_free',g('register_free','1'))}
+async function saveSysParams(){const r=await af('PUT','/api/admin/system-settings',{items:{wx_mini_appid:qv('sp_miniappid'),wx_mini_secret:qv('sp_minisecret'),register_bonus:qv('sp_bonus'),register_free:qv('sp_free')}});toast(r.ok?'已保存':(r.data?.detail||'失败'),r.ok);if(r.ok)loadSysParams()}
 
 // ── OpLogs ──
 function renderOpLogs(){return `<div class="card"><div class="flex-between mb"><h3>管理员操作审计日志</h3><button class="btn btn-outline btn-sm" onclick="navTo('oplogs')">刷新</button></div><table><thead><tr><th>时间</th><th>管理员</th><th>类型</th><th>目标用户</th><th>详情</th></tr></thead><tbody id="oplogTbody"></tbody></table></div>`}
 async function loadOpLogs(){const r=await af('GET','/api/admin/operation-logs');const logs=r.ok?(r.data.logs||[]):[];document.getElementById('oplogTbody').innerHTML=logs.length?logs.map(l=>`<tr><td>${esc((l.created_at||'').slice(0,19))}</td><td>${esc(l.admin_id||'-')}</td><td><span class="tag tag-blue">${esc(l.type||'-')}</span></td><td>${l.user_id||'-'}</td><td class="text-sm">${esc(l.reason||l.description||'-')}</td></tr>`).join(''):'<tr><td colspan="5" class="text-sm">暂无操作记录</td></tr>'}
 
 // ── Industries ──
-function renderIndustries(){return `<div class="card"><div class="flex-between mb"><h3>业态类目</h3><button class="btn btn-primary btn-sm" onclick="showIndForm()">+ 新增业态</button></div>
-  <table><thead><tr><th>ID</th><th>名称</th><th>配置键</th><th>排序</th><th>状态</th><th>操作</th></tr></thead><tbody id="indTbody"></tbody></table></div>`}
+function renderIndustries(){return `<div class="card"><div class="flex-between mb"><div><h3>业态类目</h3><div class="text-sm">按大类目 → 规则组 → 子类目展示，避免所有业态混在一起。</div></div><button class="btn btn-primary btn-sm" onclick="showIndForm()">+ 新增业态</button></div><div id="indTbody"></div></div>`}
 async function loadIndustries(){const r=await af('GET','/api/admin/industries');const inds=r.ok?(r.data.industries||[]):[];window._inds=inds;renderIndTable()}
-function renderIndTable(){const inds=window._inds||[];document.getElementById('indTbody').innerHTML=inds.map(i=>`<tr><td>${i.id}</td><td><b>${esc(i.name)}</b></td><td class="mono text-sm">${esc(i.config_key||'-')}</td><td>${i.sort_order||0}</td><td><span class="tag ${i.is_active?'tag-green':'tag-red'}">${i.is_active?'启用':'停用'}</span></td><td><button class="btn btn-outline btn-xs" onclick="editInd(${i.id})">编辑</button><button class="btn btn-outline btn-xs" onclick="toggleInd(${i.id})">${i.is_active?'停用':'启用'}</button><button class="btn btn-danger btn-xs" onclick="deleteInd(${i.id})">删除</button></td></tr>`).join('')}
+function industryCategory(k){return {'异国_中高端正餐':'餐饮','火锅_烧烤':'餐饮','刚需快餐小吃':'餐饮','中餐正餐':'餐饮','烘焙甜品':'餐饮','精品茶饮咖啡':'茶饮咖啡','商务酒店':'酒店住宿','民宿青旅':'酒店住宿','高频刚需零售':'零售商业','低频目的零售':'零售商业','专业生活服务':'生活服务','社区基础服务':'生活服务','夜经济娱乐':'休闲娱乐','沉浸式社交娱乐':'休闲娱乐'}[k]||'其他'}
+function renderIndTable(){const inds=window._inds||[];const groups={};inds.forEach(i=>{const cat=industryCategory(i.config_key);const rule=i.config_key||'未绑定规则组';groups[cat]=groups[cat]||{};groups[cat][rule]=groups[cat][rule]||[];groups[cat][rule].push(i)});document.getElementById('indTbody').innerHTML=Object.entries(groups).map(([cat,byRule])=>`<div class="section-card"><div class="section-head"><h4>${esc(cat)}</h4><span class="tag tag-gray">${Object.values(byRule).flat().length} 个子类目</span></div>${Object.entries(byRule).map(([rule,items])=>`<div class="mini-note mb"><b>${esc(rule)}</b></div><table class="mb"><thead><tr><th>ID</th><th>子类目</th><th>排序</th><th>状态</th><th>操作</th></tr></thead><tbody>${items.map(i=>`<tr><td>${i.id}</td><td><b>${esc(i.name)}</b></td><td>${i.sort_order||0}</td><td><span class="tag ${i.is_active?'tag-green':'tag-red'}">${i.is_active?'启用':'停用'}</span></td><td><button class="btn btn-outline btn-xs" onclick="editInd(${i.id})">编辑</button><button class="btn btn-outline btn-xs" onclick="toggleInd(${i.id})">${i.is_active?'停用':'启用'}</button><button class="btn btn-danger btn-xs" onclick="deleteInd(${i.id})">删除</button></td></tr>`).join('')}</tbody></table>`).join('')}</div>`).join('')||'<div class="text-sm">暂无业态</div>'}
 function showIndForm(edit){const d=edit||{};const box=document.createElement('div');box.className='modal-overlay';
   box.innerHTML=`<div class="modal-box"><h3>${edit?'编辑':'新增'}业态</h3><div class="form-group"><label>名称</label><input id="inf_name" value="${esc(d.name||'')}"></div><div class="form-group"><label>排序</label><input id="inf_sort" type="number" value="${d.sort_order||0}"></div><div class="form-group"><label class="inline-label"><input id="inf_active" type="checkbox" ${d.is_active!==0?'checked':''} style="width:auto"> 启用</label></div><div style="display:flex;gap:8px"><button class="btn btn-primary" id="infSave">保存</button><button class="btn btn-outline" onclick="this.closest('.modal-overlay').remove()">取消</button></div></div>`;
   document.body.appendChild(box);
@@ -359,7 +404,7 @@ async function loadOrders(pg){
 
 // ── Billing Records ──
 let _billingPage=1,_billingTotal=0;
-function renderBilling(){return `<div class="card"><div class="flex-between mb"><h3>点数流水</h3><button class="btn btn-outline btn-sm" onclick="loadBilling(1)">刷新</button></div>
+function renderBilling(){return `<div class="card"><div class="flex-between mb"><div><h3>账户流水</h3><div class="text-sm">用于核对充值、消费、退款、会员和兑换码记录，客服查账时需要保留。</div></div><button class="btn btn-outline btn-sm" onclick="loadBilling(1)">刷新</button></div>
   <div class="form-row mb"><div><label>手机号/ID</label><input id="bil_phone" placeholder="手机号或ID" onchange="window._billingFilter.phone=this.value;loadBilling()"></div><div><label>用户ID</label><input id="bil_uid" type="number" placeholder="用户ID" onchange="window._billingFilter.userId=this.value;loadBilling()"></div><div><label>类型</label><select id="bil_type" onchange="window._billingFilter.recordType=this.value;loadBilling()"><option value="">全部</option><option value="BONUS">注册奖励</option><option value="PURCHASE">购买</option><option value="CONSUME">分析消费</option><option value="REFUND">退款</option><option value="MEMBERSHIP">会员</option><option value="CDK_REDEEM">CDK兑换</option></select></div></div>
   <table><thead><tr><th>时间</th><th>用户ID</th><th>手机号</th><th>昵称</th><th>类型</th><th>变动点数</th><th>变动后余额</th><th>原因</th></tr></thead><tbody id="bilTbody"></tbody></table><div id="bilPager" class="flex-between mt" style="font-size:13px"></div></div>`}
 async function loadBilling(pg){

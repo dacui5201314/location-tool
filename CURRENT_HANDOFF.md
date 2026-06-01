@@ -6,20 +6,20 @@
 - Launch target: `uniapp` WeChat Mini Program
 - Web `frontend/`: **已删除** — uni-app 唯一客户端
 - GitHub: `https://github.com/dacui5201314/location-tool` (干净仓库)
-- Admin Dashboard: `http://localhost:8000/admin` (独立 HTML，替代旧 React 后台)
-- Latest commit: pending — P0/P1 上线闭环修复 (2026-06-01)
+- Admin Dashboard: `http://localhost:8000/admin` (独立 HTML，10 模块)
+- Latest commit: see git log
 
 ## 项目结构
 
 ```
 location-tool/
 ├── backend/
-│   ├── admin/index.html      ← 管理后台（独立 HTML，/admin 路由）
-│   ├── main.py               ← FastAPI 入口
-│   ├── routers/              ← 9 个路由模块
+│   ├── admin/index.html      ← 管理后台（独立 HTML，/admin 路由，10 模块）
+│   ├── main.py               ← FastAPI 入口 v3.7.0
+│   ├── routers/              ← 10 个路由模块（含 orders/billing-records）
 │   ├── services/             ← amap/billing/runtime_config/storage/poi_name_guard
 │   ├── prompts/              ← location_analysis + industry_config（14 Master 模板）
-│   ├── tests/                ← 2168 PASS / 147 PASS
+│   ├── tests/                ← 2343 PASS（2168 + 175）
 │   └── storage/              ← 运行时文件
 ├── uniapp/                   ← 主力客户端（Vue3 + Vite → 微信小程序）
 └── miniprogram/              ← 原生小程序 scaffold（登录参考，不开发）
@@ -27,41 +27,52 @@ location-tool/
 
 ## 当前工作状态
 
-- 后端测试基线：compileall PASS / industry 2168 PASS / fact guard 147 PASS
-- 管理后台 `/admin` — 8 个导航模块，独立 HTML（非 Swagger UI）
-- 微信支付后端（JSAPI v3）代码就绪，前端 queryOrder 确认闭环已接入
+- 后端测试基线：compileall PASS / industry 2168 PASS / fact guard 175 PASS
+- 管理后台 `/admin` — 10 个导航模块（仪表盘/用户/订单/流水/设置/日志/CDK/全局参数/操作记录/业态规则）
+- 微信支付 JSAPI v3 后端就绪，前端 queryOrder 确认闭环已接入
 - 小程序充值页已接入真实支付 + queryOrder 轮询
-- 匿名设备 ID 已去硬编码，使用随机持久 ID
-- 退款幂等保护已添加（AUTO_REFUND:<key> 前缀写入 BillingRecord）
-- location suggest/regeocode 已接入完整 Key 池重试
-- 管理后台 innerHTML XSS 转义全部完成
+- 退款幂等保护（per-request UUID）+ 匿名设备 ID 随机持久化
+- location suggest/regeocode 完整 Key 池 failover
+- C-4 POI 名称幻觉：retry 白名单收窄 + 禁用名注入 + 模板去诱导
 
 ## 2026-06-01 完成清单
 
-### P0 修复
-- 支付闭环：requestPayment → queryOrder 轮询 → PAID 确认 → 余额刷新
-- .gitignore：数据库、storage、__pycache__、*.pyc 已屏蔽
-- 管理后台用户搜索：search→phone 参数匹配修复
-- 管理后台 XSS：esc()/escUrl() 全局转义所有 innerHTML 注入点
+### 第一轮：上线闭环 P0/P1（commit 3444360）
+- 支付闭环：requestPayment → queryOrder 轮询 → PAID 确认
+- .gitignore：数据库/storage/__pycache__/*.pyc
+- 管理后台：search→phone 参数修复 + esc/escUrl XSS 全局转义
+- 匿名设备 ID 去硬编码 + 退款幂等 + Key 池完整 failover + 文档统一
 
-### P1 修复
-- 匿名设备 ID：uni-default 硬编码 → uni_<timestamp>_<random> 持久化
-- 退款幂等：idempotency_key 参数 + AUTO_REFUND 前缀去重
-- Location Key 池：suggest/regeocode 完整多 Key failover
-- 文档统一：README/PROJECT_RULES/PROJECT_PROGRESS/CURRENT_HANDOFF/uniapp README
+### 第二轮：C-4 报告幻觉（commit e7153c3）
+- poi_name_guard.py：build_retry_name_constraints 白名单/禁用名导出
+- retry_prompt：注入 allowed_names + forbidden_names + 强约束
+- location_analysis.py：5 处模板去诱导（禁止编造学校/小区/商场名）
+- 测试：175 PASS（+8 C-4 专项 + 收窄白名单 + 仅空名 allowlist_empty）
 
-## C-4 真实报告验证 — 当前阻塞（本轮未修）
-
-- 业态：小餐饮 | 地址：陕二丫擀面皮(兰宝小区店) | 宝鸡
-- 结果：AMap 成功、计费扣点/退款链路正确、报告未保存
-- 失败原因：LLM 编造假 POI 名称（好又多、学校、住宅小区），P0 guard 拦截但 retry 后仍未通过
-- **本轮未修 C-4**：后续单独任务处理。不要顺手改评分、POI 分类、prompt 语义、report_fact_guard。
+### 第三轮：管理后台 SaaS 闭环（commit b92e66f）
+- /api/admin/orders：PaymentOrder JOIN User 查询，分页/筛选
+- /api/admin/billing-records：BillingRecord JOIN User 查询，分页/筛选
+- 后台新增 💳 订单管理 + 🧾 点数流水页面
+- 用户列表：📋 查看订单 / 🧾 查看流水 快捷跳转
+- 业态管理：完整 CRUD（新增/编辑/启停/删除）
+- SKU 保存：body { items: [...] } 对齐后端
+- CDK：prefix/days_valid 字段对齐 + codes 路径修复
+- 客服二维码：上传后 PUT /qrcode-slot/cs 持久化
+- Key 池：r.data.keys + masked_key/has_security_secret 字段对齐
+- 筛选状态：openOrders/openBilling 重置逻辑 + sv 回填一致性
+- 用户列表分页 + Key 池启用停用快捷切换
 
 ## 测试基线
 
 ```
 python -m compileall backend              → PASS
 python tests/check_industry_rigor_rules.py → 2168 PASS, 0 FAIL
-python tests/check_report_fact_guard.py    → 147 PASS, 0 FAIL
+python tests/check_report_fact_guard.py    → 175 PASS, 0 FAIL
 uniapp build:mp-weixin                     → DONE
 ```
+
+## 待上线事项
+
+- 微信支付真机联调（需公网 HTTPS + 商户配置）
+- C-4 真实 LLM 回归验证（代码防线已就绪，待实际跑一次分析确认不再编造假 POI）
+- 小程序审核提交
