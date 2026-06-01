@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func, update, or_
 from pydantic import BaseModel, ConfigDict
 from database import get_db
-from models.db_models import User, AnalysisRecord, SavedLocation, RedeemCode, SystemConfig, OperationLog, BillingRecord
+from models.db_models import User, AnalysisRecord, SavedLocation, RedeemCode, SystemConfig, OperationLog, BillingRecord, PaymentOrder
 from auth import get_current_admin, get_current_user, create_token
 from services.runtime_config import (
     CORE_CONFIG_DEFAULTS,
@@ -239,10 +239,101 @@ def add_credits(
 @router.get("/orders")
 def list_orders(
     admin: dict = Depends(get_current_admin),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100),
+    status: str = Query("", description="订单状态 CREATED/PAID/FAILED"),
+    phone: str = Query("", description="用户手机号或ID筛选"),
+    out_trade_no: str = Query("", description="商户订单号模糊筛选"),
     db: Session = Depends(get_db),
 ):
-    """充值记录列表（需管理员权限）"""
-    return {"orders": [], "total": 0}
+    """订单列表（需管理员权限）— 查询 PaymentOrder 关联 User"""
+    query = db.query(PaymentOrder, User).join(User, PaymentOrder.user_id == User.id)
+
+    if status:
+        query = query.filter(PaymentOrder.status == status)
+    if phone:
+        if phone.isdigit():
+            query = query.filter(or_(User.phone.contains(phone), User.phone_number.contains(phone), User.id == int(phone)))
+        else:
+            query = query.filter(or_(User.phone.contains(phone), User.phone_number.contains(phone)))
+    if out_trade_no:
+        query = query.filter(PaymentOrder.out_trade_no.contains(out_trade_no))
+
+    total = query.count()
+    rows = query.order_by(PaymentOrder.created_at.desc()).offset((page - 1) * page_size).limit(page_size).all()
+
+    orders = []
+    for order, user in rows:
+        sku_label = ""
+        try:
+            import json as _json
+            snap = _json.loads(order.sku_snapshot) if order.sku_snapshot else {}
+            sku_label = str(snap.get("label", "") or "")
+        except Exception:
+            pass
+        amount_yuan = f"{(order.amount_fen or 0) / 100:.2f}"
+        orders.append({
+            "id": order.id,
+            "out_trade_no": order.out_trade_no,
+            "transaction_id": order.transaction_id or "",
+            "user_id": order.user_id,
+            "phone": user.phone or user.phone_number or "",
+            "nickname": (user.nickname or "").strip(),
+            "sku_id": order.sku_id,
+            "sku_label": sku_label,
+            "amount_fen": order.amount_fen,
+            "amount_yuan": amount_yuan,
+            "credits": order.credits or 0,
+            "membership_days": order.membership_days or 0,
+            "status": order.status or "CREATED",
+            "paid_at": order.paid_at.isoformat() if order.paid_at else None,
+            "created_at": order.created_at.isoformat() if order.created_at else None,
+        })
+
+    return {"total": total, "page": page, "orders": orders}
+
+
+@router.get("/billing-records")
+def list_billing_records(
+    admin: dict = Depends(get_current_admin),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100),
+    user_id: int = Query(0, description="用户ID筛选"),
+    phone: str = Query("", description="用户手机号筛选"),
+    record_type: str = Query("", description="流水类型 BONUS/PURCHASE/CONSUME/REFUND/MEMBERSHIP/CDK_REDEEM"),
+    db: Session = Depends(get_db),
+):
+    """点数流水列表（需管理员权限）— 查询 BillingRecord 关联 User"""
+    query = db.query(BillingRecord, User).join(User, BillingRecord.user_id == User.id)
+
+    if user_id:
+        query = query.filter(BillingRecord.user_id == user_id)
+    if phone:
+        if phone.isdigit():
+            query = query.filter(or_(User.phone.contains(phone), User.phone_number.contains(phone), User.id == int(phone)))
+        else:
+            query = query.filter(or_(User.phone.contains(phone), User.phone_number.contains(phone)))
+    if record_type:
+        query = query.filter(BillingRecord.record_type == record_type)
+
+    total = query.count()
+    rows = query.order_by(BillingRecord.created_at.desc()).offset((page - 1) * page_size).limit(page_size).all()
+
+    records = []
+    for br, user in rows:
+        records.append({
+            "id": br.id,
+            "user_id": br.user_id,
+            "phone": user.phone or user.phone_number or "",
+            "nickname": (user.nickname or "").strip(),
+            "amount": br.amount,
+            "balance_after": br.balance_after,
+            "record_type": br.record_type or "",
+            "reason": br.reason or "",
+            "created_at": br.created_at.isoformat() if br.created_at else None,
+        })
+
+    return {"total": total, "page": page, "records": records}
 
 
 class ConfigBody(BaseModel):

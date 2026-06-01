@@ -98,6 +98,8 @@ pre{background:#f8fafc;border:1px solid var(--line);border-radius:8px;padding:16
     <div class="sidebar">
       <a data-page="dashboard" class="active" onclick="navTo('dashboard')">📊 仪表盘</a>
       <a data-page="users" onclick="navTo('users')">👥 用户管理</a>
+      <a data-page="orders" onclick="openOrders(true)">💳 订单管理</a>
+      <a data-page="billing" onclick="openBilling(true)">🧾 点数流水</a>
       <a data-page="settings" onclick="navTo('settings')">⚙️ 系统设置</a>
       <a data-page="logs" onclick="navTo('logs')">📋 系统日志</a>
       <a data-page="cdk" onclick="navTo('cdk')">🎫 兑换码管理</a>
@@ -159,8 +161,8 @@ async function navTo(page){
   document.querySelector(`[data-page="${page}"]`)?.classList.add('active');
   const c=document.getElementById('content');
   const renderers={
-    dashboard:renderDashboard, users:renderUsers, settings:renderSettings,
-    logs:renderLogs, cdk:renderCdk, sysparams:renderSysParams,
+    dashboard:renderDashboard, users:renderUsers, orders:renderOrders, billing:renderBilling,
+    settings:renderSettings, logs:renderLogs, cdk:renderCdk, sysparams:renderSysParams,
     oplogs:renderOpLogs, industries:renderIndustries
   };
   if(renderers[page]){c.innerHTML=await renderers[page]();await loaders[page]?.();if(page==='dashboard')setTimeout(drawTrend,200)}
@@ -197,14 +199,23 @@ function st(l,n,c){return `<div class="stat"><div class="num" style="color:${c}"
 function ql(p,t){return `<button class="btn btn-outline" onclick="navTo('${p}')">${t}</button>`}
 
 // ── Users ──
-function renderUsers(){return `<div class="card"><div class="flex-between mb"><h3>用户列表</h3><div style="display:flex;gap:8px"><input id="userSearch" placeholder="搜索手机号..." style="width:200px" oninput="loadUsers()"><button class="btn btn-outline btn-sm" onclick="loadUsers()">刷新</button></div></div><table><thead><tr><th>ID</th><th>手机号</th><th>昵称</th><th>余额</th><th>会员</th><th>注册时间</th><th>操作</th></tr></thead><tbody id="userTbody"></tbody></table></div>`}
-async function loadUsers(){
+let _userPage=1,_userTotal=0;
+function renderUsers(){return `<div class="card"><div class="flex-between mb"><h3>用户列表</h3><div style="display:flex;gap:8px"><input id="userSearch" placeholder="搜索手机号..." style="width:200px" oninput="loadUsers()"><button class="btn btn-outline btn-sm" onclick="loadUsers()">刷新</button></div></div><table><thead><tr><th>ID</th><th>手机号</th><th>昵称</th><th>余额</th><th>会员</th><th>注册时间</th><th>操作</th></tr></thead><tbody id="userTbody"></tbody></table><div id="userPager" class="flex-between mt" style="font-size:13px"></div></div>`}
+async function loadUsers(pg){
+  if(pg!==undefined)_userPage=pg;else _userPage=1;
   const q=document.getElementById('userSearch')?.value||'';
-  const r=await af('GET','/api/admin/users?phone='+encodeURIComponent(q));
+  const r=await af('GET','/api/admin/users?phone='+encodeURIComponent(q)+'&page='+_userPage);
   const users=r.ok?(r.data.users||[]):[];
-  document.getElementById('userTbody').innerHTML=users.map(u=>`<tr><td>${u.id}</td><td>${esc(u.phone_number||u.phone||'-')}</td><td>${esc(u.nickname||'-')}</td><td>${u.balance_credits||0}</td><td><span class="tag ${u.membership_tier&&u.membership_tier!=='free'?'tag-green':'tag-amber'}">${esc(u.membership_tier||'free')}</span></td><td>${esc((u.created_at||'').slice(0,10))}</td><td><button class="btn btn-primary btn-xs" onclick="addCredits(${u.id})">加余额</button></td></tr>`).join('');
+  _userTotal=r.ok?(r.data.total||0):0;
+  const totalPages=Math.ceil(_userTotal/20);
+  document.getElementById('userTbody').innerHTML=users.map(u=>`<tr><td>${u.id}</td><td>${esc(u.phone_number||u.phone||'-')}</td><td>${esc(u.nickname||'-')}</td><td>${u.balance_credits||0}</td><td><span class="tag ${u.membership_tier&&u.membership_tier!=='free'?'tag-green':'tag-amber'}">${esc(u.membership_tier||'free')}</span></td><td>${esc((u.created_at||'').slice(0,10))}</td><td><button class="btn btn-primary btn-xs" onclick="addCredits(${u.id})">加余额</button><button class="btn btn-outline btn-xs" onclick="viewUserOrders(${u.id})">📋</button><button class="btn btn-outline btn-xs" onclick="viewUserBilling(${u.id})">🧾</button></td></tr>`).join('');
+  const pager=document.getElementById('userPager');if(pager)pager.innerHTML=`<span>共 ${_userTotal} 用户 · 第 ${_userPage}/${totalPages||1} 页</span><span>${_userPage>1?`<button class="btn btn-outline btn-xs mr" onclick="loadUsers(${_userPage-1})">上一页</button>`:''}${_userPage<totalPages?`<button class="btn btn-outline btn-xs" onclick="loadUsers(${_userPage+1})">下一页</button>`:''}</span>`;
 }
 async function addCredits(uid){const amt=prompt('增加点数：','10');if(!amt)return;const r=await af('POST',`/api/admin/users/${uid}/add-credits`,{amount:parseInt(amt),reason:'管理后台手动充值'});toast(r.ok?'充值成功':(r.data?.detail||'失败'),r.ok);if(r.ok)loadUsers()}
+function openOrders(reset){if(reset)window._orderFilter={phone:'',outTradeNo:'',status:''};navTo('orders')}
+function openBilling(reset){if(reset)window._billingFilter={phone:'',userId:'',recordType:''};navTo('billing')}
+function viewUserOrders(uid){window._orderFilter={phone:String(uid),outTradeNo:'',status:''};navTo('orders')}
+function viewUserBilling(uid){window._billingFilter={phone:'',userId:String(uid),recordType:''};navTo('billing')}
 
 // ── Settings (big tab with sub-tabs) ──
 let settingsTab='core';
@@ -262,7 +273,7 @@ async function uploadShareImg(){const inp=document.createElement('input');inp.ty
 // QR Codes
 function renderQrcodePanel(){return `<div class="card" style="max-width:400px"><h3>客服二维码</h3><div class="text-sm mb">联系客服展示</div><div id="csQrPreview"></div><button class="btn btn-outline btn-sm mt" onclick="uploadCsQr()">上传二维码</button></div>`}
 function loadQrcodePreviews(){af('GET','/api/admin/qrcode-slot/cs').then(r=>{if(r.ok&&r.data?.url)document.getElementById('csQrPreview').innerHTML=`<img src="${escUrl(r.data.url)}" class="preview-img">`})}
-async function uploadCsQr(){const inp=document.createElement('input');inp.type='file';inp.accept='image/*';inp.onchange=async()=>{const f=inp.files[0];if(!f)return;const fd=new FormData();fd.append('file',f);const r=await fetch(API+'/api/admin/upload-qrcode?tag=cs',{method:'POST',headers:{'Authorization':'Bearer '+token},body:fd}).then(r=>r.json());if(r.url){document.getElementById('csQrPreview').innerHTML=`<img src="${escUrl(r.url)}" class="preview-img">`;toast('上传成功',true)}else{toast(r.detail||'上传失败',false)}};inp.click()}
+async function uploadCsQr(){const inp=document.createElement('input');inp.type='file';inp.accept='image/*';inp.onchange=async()=>{const f=inp.files[0];if(!f)return;const fd=new FormData();fd.append('file',f);const r=await fetch(API+'/api/admin/upload-qrcode?tag=cs',{method:'POST',headers:{'Authorization':'Bearer '+token},body:fd}).then(r=>r.json());if(!r.url){toast(r.detail||'上传失败',false);return}const saveR=await af('PUT','/api/admin/qrcode-slot/cs',{url:r.url});if(saveR.ok){document.getElementById('csQrPreview').innerHTML=`<img src="${escUrl(r.url)}" class="preview-img">`;toast('上传并保存成功',true)}else{toast('上传成功但保存失败: '+(saveR.data?.detail||'未知错误'),false)}};inp.click()}
 
 // SKU Panel
 function renderSkuPanel(){return `<div class="card"><div class="flex-between mb"><h3>套餐与点数包</h3><button class="btn btn-primary btn-sm" onclick="addSku()">+ 添加</button></div><div id="skuList"></div></div>`}
@@ -274,14 +285,15 @@ function editSku(i){const s=window._skus[i];const box=document.createElement('di
   document.body.appendChild(box);
   box.querySelector('#sfSave').onclick=()=>{Object.assign(window._skus[i],{type:qv('sf_t'),label:qv('sf_l'),price:qv('sf_p'),credits:parseInt(qv('sf_c'))||0,duration_days:parseInt(qv('sf_d'))||0,badge:qv('sf_b'),desc:qv('sf_ds'),visible:document.getElementById('sf_v').checked});box.remove();renderSkuList()}}
 function deleteSku(i){if(!confirm('删除？'))return;window._skus.splice(i,1);renderSkuList()}
-async function saveAllSkus(){const r=await af('PUT','/api/admin/skus',window._skus);toast(r.ok?'已保存':(r.data?.detail||'失败'),r.ok);if(r.ok)loadSkus()}
+async function saveAllSkus(){const r=await af('PUT','/api/admin/skus',{items:window._skus});toast(r.ok?'已保存':(r.data?.detail||'失败'),r.ok);if(r.ok)loadSkus()}
 
 // Key Pool
 function renderKeyPool(){return `<div class="card"><div class="flex-between mb"><h3>高德 Web 服务 Key 池</h3><button class="btn btn-primary btn-sm" onclick="showKeyForm()">+ 添加 Key</button></div><div class="text-xs mb" style="color:var(--amber)">⚠ 必须使用高德<strong>Web服务 API Key</strong>（非微信小程序 Key / JS API Key）</div><table><thead><tr><th>名称</th><th>Key</th><th>密钥</th><th>状态</th><th>优先级</th><th>失败</th><th>最后状态</th><th>操作</th></tr></thead><tbody id="keyTbody"></tbody></table></div>`}
-async function loadKeys(){const r=await af('GET','/api/admin/amap-keys');const keys=r.ok?(r.data||[]):[];document.getElementById('keyTbody').innerHTML=keys.map(k=>`<tr><td>${esc(k.name||'-')}</td><td class="mono">${esc((k.api_key||'').slice(0,18))}...</td><td>${k.security_secret?'已设':'-'}</td><td><span class="tag ${k.enabled?'tag-green':'tag-red'}">${k.enabled?'启用':'禁用'}</span></td><td>${k.priority||0}</td><td>${k.fail_count||0}</td><td><span class="tag tag-gray">${esc(k.last_status||'-')}</span></td><td><button class="btn btn-outline btn-xs" onclick="testKey(${k.id})">测试</button><button class="btn btn-outline btn-xs" onclick="editKey(${k.id})">编辑</button><button class="btn btn-danger btn-xs" onclick="deleteKey(${k.id})">删除</button></td></tr>`).join('')}
+async function loadKeys(){const r=await af('GET','/api/admin/amap-keys');const keys=r.ok?(r.data||[]):[];window._keys=keys;document.getElementById('keyTbody').innerHTML=keys.map(k=>`<tr><td>${esc(k.name||'-')}</td><td class="mono">${esc((k.api_key||'').slice(0,18))}...</td><td>${k.security_secret?'已设':'-'}</td><td><span class="tag ${k.enabled?'tag-green':'tag-red'}" style="cursor:pointer" title="点击切换启停" onclick="toggleKeyEnabled(${k.id})">${k.enabled?'启用':'禁用'}</span></td><td>${k.priority||0}</td><td>${k.fail_count||0}</td><td><span class="tag tag-gray">${esc(k.last_status||'-')}</span></td><td><button class="btn btn-outline btn-xs" onclick="testKey(${k.id})">测试</button><button class="btn btn-outline btn-xs" onclick="editKey(${k.id})">编辑</button><button class="btn btn-danger btn-xs" onclick="deleteKey(${k.id})">删除</button></td></tr>`).join('')}
 function showKeyForm(edit){const d=edit||{};const box=document.createElement('div');box.className='modal-overlay';box.innerHTML=`<div class="modal-box"><h3>${edit?'编辑':'添加'} Key</h3><div class="form-group"><label>名称</label><input id="kf_name" value="${esc(d.name||'')}"></div><div class="form-group"><label>API Key</label><input id="kf_key" value="${esc(d.api_key||'')}" placeholder="${edit?'留空保留原Key':'高德 Web 服务 API Key'}"></div><div class="form-group"><label>安全密钥</label><input id="kf_sec" value="${esc(d.security_secret||'')}"></div><div class="form-row"><div class="form-group"><label>优先级</label><input id="kf_pri" type="number" value="${d.priority||0}"></div><div class="form-group"><label class="inline-label"><input id="kf_enabled" type="checkbox" ${d.enabled!==false?'checked':''} style="width:auto"> 启用</label></div></div><div style="display:flex;gap:8px"><button class="btn btn-primary" id="kfSave">保存</button><button class="btn btn-outline" onclick="this.closest('.modal-overlay').remove()">取消</button></div></div>`;document.body.appendChild(box);box.querySelector('#kfSave').onclick=async()=>{const body={name:qv('kf_name'),api_key:qv('kf_key'),security_secret:qv('kf_sec'),priority:parseInt(qv('kf_pri'))||0,enabled:document.getElementById('kf_enabled').checked};let r;if(edit)r=await af('PUT',`/api/admin/amap-keys/${edit.id}`,body);else r=await af('POST','/api/admin/amap-keys',body);toast(r.ok?'保存成功':(r.data?.detail||'失败'),r.ok);if(r.ok){box.remove();loadKeys()}}}
 async function editKey(id){const r=await af('GET','/api/admin/amap-keys');const k=(r.data||[]).find(x=>x.id===id);if(k)showKeyForm(k)}
 async function deleteKey(id){if(!confirm('确定删除？'))return;const r=await af('DELETE',`/api/admin/amap-keys/${id}`);toast(r.ok?'已删除':(r.data?.detail||'失败'),r.ok);if(r.ok)loadKeys()}
+async function toggleKeyEnabled(id){const k=(window._keys||[]).find(x=>x.id===id);if(!k)return;const r=await af('PUT',`/api/admin/amap-keys/${id}`,{name:k.name,enabled:!k.enabled,priority:k.priority});toast(r.ok?'已切换':(r.data?.detail||'失败'),r.ok);if(r.ok)loadKeys()}
 async function testKey(id){const r=await af('POST',`/api/admin/amap-keys/${id}/test`);toast(r.ok?'连通正常':(r.data?.info||'测试失败'),r.ok)}
 
 // Storage Config
@@ -295,9 +307,9 @@ function renderLogs(){return `<div class="card"><div class="flex-between mb"><h3
 async function loadLogs(){const r=await af('GET','/api/admin/logs');const logs=r.ok?(r.data.logs||[]):[];document.getElementById('logContent').textContent=logs.length?logs.join('\n'):'(无日志)'}
 
 // ── CDK ──
-function renderCdk(){return `<div class="grid2"><div class="card"><h3>批量生成兑换码</h3><div class="grid3 mb"><div class="form-group"><label>生成数量</label><input id="cdk_count" type="number" value="10"></div><div class="form-group"><label>每个点数</label><input id="cdk_credits" type="number" value="5"></div><div class="form-group"><label>有效期(天)</label><input id="cdk_days" type="number" value="365"></div></div><button class="btn btn-primary" onclick="genCdk()">生成兑换码</button><div id="cdkResult" class="mt"></div></div><div class="card"><h3>CDK 列表</h3><div id="cdkList"></div></div></div>`}
-async function genCdk(){const r=await af('POST','/api/admin/cdk/generate',{count:parseInt(qv('cdk_count'))||10,credits:parseInt(qv('cdk_credits'))||5,days:parseInt(qv('cdk_days'))||365});if(!r.ok){toast(r.data?.detail||'失败',false);return}const codes=r.data.codes||[];document.getElementById('cdkResult').innerHTML=`<h4>已生成 ${codes.length} 个</h4><textarea style="height:160px;font-family:monospace;font-size:12px;width:100%" readonly>${codes.map(c=>esc(c)).join('\n')}</textarea><button class="btn btn-outline btn-sm mt" onclick="navigator.clipboard.writeText(this.previousElementSibling.value);toast('已复制',true)">📋 复制全部</button>`;loadCdkList()}
-async function loadCdkList(){const r=await af('GET','/api/admin/cdk/list');const cdks=r.ok?(r.data.cdks||r.data||[]):[];document.getElementById('cdkList').innerHTML=cdks.length?`<table><thead><tr><th>兑换码</th><th>点数</th><th>状态</th><th>使用者</th><th>过期</th></tr></thead><tbody>${cdks.map(c=>`<tr><td class="mono">${esc(c.code)}</td><td>${c.credits}</td><td><span class="tag ${c.is_used?'tag-red':'tag-green'}">${c.is_used?'已用':'可用'}</span></td><td>${esc(c.used_by||'-')}</td><td>${esc((c.expires_at||'').slice(0,10))}</td></tr>`).join('')}</tbody></table>`:'<div class="text-sm">暂无 CDK</div>'}
+function renderCdk(){return `<div class="grid2"><div class="card"><h3>批量生成兑换码</h3><div class="grid3 mb"><div class="form-group"><label>前缀</label><input id="cdk_prefix" value="AI" placeholder="AI"></div><div class="form-group"><label>生成数量</label><input id="cdk_count" type="number" value="10"></div><div class="form-group"><label>每个点数</label><input id="cdk_credits" type="number" value="5"></div></div><div class="grid3 mb"><div class="form-group"><label>有效期(天)</label><input id="cdk_days" type="number" value="365"></div></div><button class="btn btn-primary" onclick="genCdk()">生成兑换码</button><div id="cdkResult" class="mt"></div></div><div class="card"><h3>CDK 列表</h3><div id="cdkList"></div></div></div>`}
+async function genCdk(){const r=await af('POST','/api/admin/cdk/generate',{prefix:qv('cdk_prefix')||'AI',count:parseInt(qv('cdk_count'))||10,credits:parseInt(qv('cdk_credits'))||5,days_valid:parseInt(qv('cdk_days'))||365});if(!r.ok){toast(r.data?.detail||'失败',false);return}const codes=r.data.codes||[];document.getElementById('cdkResult').innerHTML=`<h4>已生成 ${codes.length} 个</h4><textarea style="height:160px;font-family:monospace;font-size:12px;width:100%" readonly>${codes.map(c=>esc(c)).join('\n')}</textarea><button class="btn btn-outline btn-sm mt" onclick="navigator.clipboard.writeText(this.previousElementSibling.value);toast('已复制',true)">📋 复制全部</button>`;loadCdkList()}
+async function loadCdkList(){const r=await af('GET','/api/admin/cdk/list');const codes=r.ok?(r.data.codes||[]):[];document.getElementById('cdkList').innerHTML=codes.length?`<table><thead><tr><th>兑换码</th><th>点数</th><th>状态</th><th>使用者</th><th>过期</th></tr></thead><tbody>${codes.map(c=>`<tr><td class="mono">${esc(c.code)}</td><td>${c.credits}</td><td><span class="tag ${c.is_used?'tag-red':'tag-green'}">${c.is_used?'已用':'可用'}</span></td><td>${esc(c.used_by||'-')}</td><td>${esc((c.expires_at||'').slice(0,10))}</td></tr>`).join('')}</tbody></table>`:'<div class="text-sm">暂无 CDK</div>'}
 
 // ── SysParams ──
 function renderSysParams(){return `<div class="card"><div class="flex-between mb"><h3>全局参数</h3><button class="btn btn-primary btn-sm" onclick="saveSysParams()">保存</button></div>
@@ -312,18 +324,65 @@ function renderOpLogs(){return `<div class="card"><div class="flex-between mb"><
 async function loadOpLogs(){const r=await af('GET','/api/admin/operation-logs');const logs=r.ok?(r.data.logs||[]):[];document.getElementById('oplogTbody').innerHTML=logs.length?logs.map(l=>`<tr><td>${esc((l.created_at||'').slice(0,19))}</td><td>${esc(l.admin_id||'-')}</td><td><span class="tag tag-blue">${esc(l.type||'-')}</span></td><td>${l.user_id||'-'}</td><td class="text-sm">${esc(l.reason||l.description||'-')}</td></tr>`).join(''):'<tr><td colspan="5" class="text-sm">暂无操作记录</td></tr>'}
 
 // ── Industries ──
-function renderIndustries(){return `<div class="card"><h3>业态类目</h3><div class="text-sm mb">与小程序前端显示一致。新增/启用/停用业态请在数据库中操作。</div><div id="indList"></div></div>`}
-async function loadIndustries(){const r=await af('GET','/api/admin/industries');const inds=r.ok?(r.data.industries||[]):[];const byMaster={};inds.forEach(i=>{const mk=i.config_key||'未分类';if(!byMaster[mk])byMaster[mk]=[];byMaster[mk].push(i)});document.getElementById('indList').innerHTML=Object.entries(byMaster).map(([mk,types])=>`
-  <div class="card" style="border:1px solid var(--line);box-shadow:none;margin-bottom:12px">
-    <div class="flex-between mb"><h4>📁 ${esc(mk)}</h4><span class="tag tag-blue">${types.length} 个</span></div>
-    <table><thead><tr><th>名称</th><th>状态</th><th>排序</th></tr></thead><tbody>
-    ${types.map(i=>`<tr><td><b>${esc(i.name)}</b></td><td><span class="tag ${i.is_active?'tag-green':'tag-red'}">${i.is_active?'启用':'停用'}</span></td><td>${i.sort_order||0}</td></tr>`).join('')}</tbody></table>
-  </div>`).join('')}
+function renderIndustries(){return `<div class="card"><div class="flex-between mb"><h3>业态类目</h3><button class="btn btn-primary btn-sm" onclick="showIndForm()">+ 新增业态</button></div>
+  <table><thead><tr><th>ID</th><th>名称</th><th>配置键</th><th>排序</th><th>状态</th><th>操作</th></tr></thead><tbody id="indTbody"></tbody></table></div>`}
+async function loadIndustries(){const r=await af('GET','/api/admin/industries');const inds=r.ok?(r.data.industries||[]):[];window._inds=inds;renderIndTable()}
+function renderIndTable(){const inds=window._inds||[];document.getElementById('indTbody').innerHTML=inds.map(i=>`<tr><td>${i.id}</td><td><b>${esc(i.name)}</b></td><td class="mono text-sm">${esc(i.config_key||'-')}</td><td>${i.sort_order||0}</td><td><span class="tag ${i.is_active?'tag-green':'tag-red'}">${i.is_active?'启用':'停用'}</span></td><td><button class="btn btn-outline btn-xs" onclick="editInd(${i.id})">编辑</button><button class="btn btn-outline btn-xs" onclick="toggleInd(${i.id})">${i.is_active?'停用':'启用'}</button><button class="btn btn-danger btn-xs" onclick="deleteInd(${i.id})">删除</button></td></tr>`).join('')}
+function showIndForm(edit){const d=edit||{};const box=document.createElement('div');box.className='modal-overlay';
+  box.innerHTML=`<div class="modal-box"><h3>${edit?'编辑':'新增'}业态</h3><div class="form-group"><label>名称</label><input id="inf_name" value="${esc(d.name||'')}"></div><div class="form-group"><label>排序</label><input id="inf_sort" type="number" value="${d.sort_order||0}"></div><div class="form-group"><label class="inline-label"><input id="inf_active" type="checkbox" ${d.is_active!==0?'checked':''} style="width:auto"> 启用</label></div><div style="display:flex;gap:8px"><button class="btn btn-primary" id="infSave">保存</button><button class="btn btn-outline" onclick="this.closest('.modal-overlay').remove()">取消</button></div></div>`;
+  document.body.appendChild(box);
+  box.querySelector('#infSave').onclick=async()=>{const body={name:qv('inf_name'),sort_order:parseInt(qv('inf_sort'))||0,is_active:document.getElementById('inf_active').checked?1:0,reason:'管理后台操作'};let r;if(edit)r=await af('PUT',`/api/admin/industries/${edit.id}`,body);else{r=await af('POST','/api/admin/industries',{...body,exclusive_prompt:''})}toast(r.ok?'保存成功':(r.data?.detail||'失败'),r.ok);if(r.ok){box.remove();loadIndustries()}}}
+async function editInd(id){const ind=(window._inds||[]).find(x=>x.id===id);if(ind)showIndForm(ind)}
+async function toggleInd(id){const ind=(window._inds||[]).find(x=>x.id===id);if(!ind)return;const r=await af('PUT',`/api/admin/industries/${id}`,{name:ind.name,is_active:ind.is_active?0:1,sort_order:ind.sort_order,reason:'管理后台操作'});toast(r.ok?'切换成功':(r.data?.detail||'失败'),r.ok);if(r.ok)loadIndustries()}
+async function deleteInd(id){if(!confirm('确定删除？此操作不可恢复。'))return;const r=await af('DELETE',`/api/admin/industries/${id}`);toast(r.ok?'已删除':(r.data?.detail||'失败'),r.ok);if(r.ok)loadIndustries()}
+
+// ── Orders ──
+let _orderPage=1,_orderTotal=0;
+function renderOrders(){return `<div class="card"><div class="flex-between mb"><h3>订单管理</h3><button class="btn btn-outline btn-sm" onclick="loadOrders(1)">刷新</button></div>
+  <div class="form-row mb"><div><label>手机号/ID</label><input id="ord_phone" placeholder="手机号或ID" onchange="window._orderFilter.phone=this.value;loadOrders()"></div><div><label>订单号</label><input id="ord_trade_no" placeholder="商户订单号" onchange="window._orderFilter.outTradeNo=this.value;loadOrders()"></div><div><label>状态</label><select id="ord_status" onchange="window._orderFilter.status=this.value;loadOrders()"><option value="">全部</option><option value="PAID">已支付</option><option value="CREATED">待支付</option><option value="FAILED">失败</option></select></div></div>
+  <table><thead><tr><th>时间</th><th>用户</th><th>手机号</th><th>套餐</th><th>金额</th><th>点数/天</th><th>状态</th><th>商户单号</th><th>微信交易号</th><th>支付时间</th></tr></thead><tbody id="ordTbody"></tbody></table><div id="ordPager" class="flex-between mt" style="font-size:13px"></div></div>`}
+async function loadOrders(pg){
+  if(pg!==undefined)_orderPage=pg;else _orderPage=1;
+  const f=window._orderFilter||{};
+  sv('ord_phone',f.phone||'');sv('ord_trade_no',f.outTradeNo||'');sv('ord_status',f.status||'');
+  let qs=`page=${_orderPage}&page_size=20`;
+  if(f.phone)qs+='&phone='+encodeURIComponent(f.phone);
+  if(f.outTradeNo)qs+='&out_trade_no='+encodeURIComponent(f.outTradeNo);
+  if(f.status)qs+='&status='+encodeURIComponent(f.status);
+  const r=await af('GET','/api/admin/orders?'+qs);
+  const orders=r.ok?(r.data.orders||[]):[];
+  _orderTotal=r.ok?(r.data.total||0):0;
+  const tp=Math.ceil(_orderTotal/20);
+  document.getElementById('ordTbody').innerHTML=orders.map(o=>`<tr><td>${esc((o.created_at||'').slice(0,16))}</td><td>${o.user_id} ${esc(o.nickname||'')}</td><td>${esc(o.phone||'-')}</td><td>${esc(o.sku_label||'-')}</td><td>¥${o.amount_yuan||'0.00'}</td><td>${o.credits?o.credits+'点':''}${o.membership_days?'/'+o.membership_days+'天':''}</td><td><span class="tag ${o.status==='PAID'?'tag-green':o.status==='FAILED'?'tag-red':'tag-amber'}">${o.status==='PAID'?'已支付':o.status==='FAILED'?'失败':o.status==='CREATED'?'待支付':esc(o.status)}</span></td><td class="mono text-sm">${esc((o.out_trade_no||'').slice(0,20))}${(o.out_trade_no||'').length>20?'...':''}</td><td class="mono text-xs">${esc((o.transaction_id||'').slice(0,20))}${(o.transaction_id||'').length>20?'...':''}</td><td>${esc((o.paid_at||'').slice(0,16))}</td></tr>`).join('');
+  const pager=document.getElementById('ordPager');if(pager)pager.innerHTML=`<span>共 ${_orderTotal} 条 · 第 ${_orderPage}/${tp||1} 页</span><span>${_orderPage>1?`<button class="btn btn-outline btn-xs mr" onclick="loadOrders(${_orderPage-1})">上一页</button>`:''}${_orderPage<tp?`<button class="btn btn-outline btn-xs" onclick="loadOrders(${_orderPage+1})">下一页</button>`:''}</span>`;
+}
+
+// ── Billing Records ──
+let _billingPage=1,_billingTotal=0;
+function renderBilling(){return `<div class="card"><div class="flex-between mb"><h3>点数流水</h3><button class="btn btn-outline btn-sm" onclick="loadBilling(1)">刷新</button></div>
+  <div class="form-row mb"><div><label>手机号/ID</label><input id="bil_phone" placeholder="手机号或ID" onchange="window._billingFilter.phone=this.value;loadBilling()"></div><div><label>用户ID</label><input id="bil_uid" type="number" placeholder="用户ID" onchange="window._billingFilter.userId=this.value;loadBilling()"></div><div><label>类型</label><select id="bil_type" onchange="window._billingFilter.recordType=this.value;loadBilling()"><option value="">全部</option><option value="BONUS">注册奖励</option><option value="PURCHASE">购买</option><option value="CONSUME">分析消费</option><option value="REFUND">退款</option><option value="MEMBERSHIP">会员</option><option value="CDK_REDEEM">CDK兑换</option></select></div></div>
+  <table><thead><tr><th>时间</th><th>用户ID</th><th>手机号</th><th>昵称</th><th>类型</th><th>变动点数</th><th>变动后余额</th><th>原因</th></tr></thead><tbody id="bilTbody"></tbody></table><div id="bilPager" class="flex-between mt" style="font-size:13px"></div></div>`}
+async function loadBilling(pg){
+  if(pg!==undefined)_billingPage=pg;else _billingPage=1;
+  const f=window._billingFilter||{};
+  sv('bil_phone',f.phone||'');sv('bil_uid',f.userId||'');sv('bil_type',f.recordType||'');
+  let qs=`page=${_billingPage}&page_size=20`;
+  if(f.userId)qs+='&user_id='+f.userId;
+  if(f.phone)qs+='&phone='+encodeURIComponent(f.phone);
+  if(f.recordType)qs+='&record_type='+encodeURIComponent(f.recordType);
+  const r=await af('GET','/api/admin/billing-records?'+qs);
+  const recs=r.ok?(r.data.records||[]):[];
+  _billingTotal=r.ok?(r.data.total||0):0;
+  const tp=Math.ceil(_billingTotal/20);
+  const typeLabels={BONUS:'🎁 注册奖励',PURCHASE:'💳 购买',CONSUME:'🔍 分析消费',REFUND:'↩️ 退款',MEMBERSHIP:'⭐ 会员',CDK_REDEEM:'🎫 CDK兑换'};
+  document.getElementById('bilTbody').innerHTML=recs.map(b=>`<tr><td>${esc((b.created_at||'').slice(0,16))}</td><td>${b.user_id}</td><td>${esc(b.phone||'-')}</td><td>${esc(b.nickname||'-')}</td><td><span class="tag ${b.record_type==='REFUND'||b.record_type==='CONSUME'?'tag-red':b.record_type==='PURCHASE'?'tag-green':'tag-blue'}">${typeLabels[b.record_type]||esc(b.record_type||'-')}</span></td><td>${b.amount>0?'+':''}${b.amount}</td><td>${b.balance_after}</td><td class="text-sm">${esc((b.reason||'').slice(0,60))}</td></tr>`).join('');
+  const pager=document.getElementById('bilPager');if(pager)pager.innerHTML=`<span>共 ${_billingTotal} 条 · 第 ${_billingPage}/${tp||1} 页</span><span>${_billingPage>1?`<button class="btn btn-outline btn-xs mr" onclick="loadBilling(${_billingPage-1})">上一页</button>`:''}${_billingPage<tp?`<button class="btn btn-outline btn-xs" onclick="loadBilling(${_billingPage+1})">下一页</button>`:''}</span>`;
+}
 
 // ── Register loaders ──
 const loaders={
-  users:loadUsers, settings:()=>switchSettingsTab('core'), logs:loadLogs,
-  cdk:loadCdkList, sysparams:loadSysParams, oplogs:loadOpLogs, industries:loadIndustries
+  users:loadUsers, orders:loadOrders, billing:loadBilling, settings:()=>switchSettingsTab('core'),
+  logs:loadLogs, cdk:loadCdkList, sysparams:loadSysParams, oplogs:loadOpLogs, industries:loadIndustries
 };
 </script>
 </body>
