@@ -14,11 +14,12 @@
     "useCompilerPlugins": false
   },
   "compileType": "miniprogram",
+  "lazyCodeLoading": "requiredComponents",
   "simulatorPluginLibVersion": {},
   "packOptions": {
     "ignore": [],
     "include": []
   },
-  "appid": "wx3e2e1bbabfa164dd",
+  "appid": "wxc8f7f6a2e29e7bb4",
   "editorSetting": {}
 }

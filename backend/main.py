@@ -338,6 +338,12 @@ async def analyze_location(req: AnalyzeRequest, user: dict = Depends(get_current
         _llm_parse_error = False   # ★ JSON 解析失败 / 空响应 / 报告结构缺失
         _amap_failed = False       # ★ AMap 采集失败（非调试模式）
         _db_save_error = False     # ★ Phase 13: DB 主记录保存失败（硬阻断，触发退款）
+        _fact_guard_failed = False # ★ C-4: 报告事实校验失败（P0/P2/P3 hard error）
+        # ★ C-4 统计计数器
+        _fact_guard_first_fail = False  # 首次 guard 失败
+        _retry_attempted = False        # 是否尝试了 retry
+        _retry_success = False          # retry 是否成功
+        _fallback_triggered = False     # 兜底报告是否触发
         try:
             # ═══════════════════════════════════════════
             # Step 1 — POI 数据采集
@@ -562,11 +568,12 @@ async def analyze_location(req: AnalyzeRequest, user: dict = Depends(get_current
                 if has_fields < 2:
                     return False, f"关键报告字段严重缺失(仅{has_fields}/4)"
                 return True, ""
+
             valid, fail_reason = _validate_report_payload(result)
             if not valid:
                 print(f"[SSE Guard] 报告结构校验失败: {fail_reason}", flush=True)
                 _llm_parse_error = True
-                raise ValueError(f"报告结构不可用: {fail_reason}")
+                raise ValueError(f"REPORT_PAYLOAD_INVALID: {fail_reason}")
 
             result = normalize_report_result(result, weights=industry_config.get("radar_weights") if industry_config else None)
             result["provider"] = runtime_llm.get("provider", req.provider)
@@ -615,7 +622,9 @@ async def analyze_location(req: AnalyzeRequest, user: dict = Depends(get_current
 
                 if fact_errors:
                     print(f"[SSE Guard] 事实校验失败: {'; '.join(fact_errors)}", flush=True)
+                    _fact_guard_first_fail = True  # ★ C-4 统计
                     # ★ 内部免费重试一次：用同一份 real_data + fact_errors 摘要，要求 LLM 修正数字
+                    _retry_attempted = True  # ★ C-4 统计
                     print(f"[SSE Guard] 启动内部重试，修正数字幻觉...", flush=True)
                     result["_fact_retry"] = True
                     result["_fact_errors_before_retry"] = fact_errors.copy()
@@ -643,23 +652,38 @@ async def analyze_location(req: AnalyzeRequest, user: dict = Depends(get_current
 
                     retry_prompt = prompt + f"""
 
-⚠️ 上一版报告存在以下数据错误，请根据错误提示严格对照上方 POI 数据表格和竞品字段修正：
+⚠️ 上一版报告存在以下数据错误，必须逐条对照修正：
 
 {correction_hint}
 
 {name_constraint_block}
-## 修正要求（强制遵守）：
-- [P0-NAME] 报告中引用的POI名称必须在数据源中真实存在，不得凭知识编造。如果数据源中没有对应的POI，写"暂无具体名称数据"，绝对不要凭空编造。
-- [P0-NAME] 上一版被标出的非法名称（见上方🚫列表）必须删除，禁止换成另一个不在白名单（✅列表）里的具体名称。
-- 学校、住宅小区、酒店、商超等如果数据源中只有数量没有名称，只能写"500米内6所学校""500米内3个住宅小区"这类类别+数量格式，不得自行补写学校名、小区名、酒店名、商场名。
-- 如果白名单为空或对应类别无名称，写"暂无具体名称数据"或泛化类别（如"周边社区""附近学校"），不写具体实体名。
-- [P2-CTX] 替代性竞品和客流锚点不得在竞品语境中被写成直接竞品，必须标注其真实分类
-- [P3-COUNT] 所有数值必须来自上方数据表格，不要夸大或编造。直接对照 stats_* 字段的数字填写
-- 特别是交通设施数量（地铁站、公交站、停车场），必须严格使用 real_data 中各半径 stats 字段的值
-- **每句只提一种类型数量**：住宅小区数量和学校数量要写在不同的句子中，例如"500米内有6所学校。同时有16个住宅小区"
-- 不得自行估算、放大或缩小任何数字
-- 不确定的数字改用"需线下核验"替代
-- 其他内容保持不变"""
+## 修正要求（强制遵守，违反即报告作废）：
+### POI名称红线：
+- 报告中任何具体POI名称（学校名、小区名、医院名、酒店名、商场名、超市名、写字楼名、竞品品牌名、餐饮店名）必须在上方✅白名单中
+- 上一版被🚫标出的非法名称必须删除，禁止换成另一个不在白名单里的具体名称
+- 只写类别+数量：如"500米内6所学校""500米内3个住宅小区""1000米内5家酒店"
+- 白名单为空的类别（如学校、住宅、酒店），只能写泛化表述或"暂无具体名称数据"，绝对不得编造具体名称
+
+### 数字红线：
+- 所有POI数量必须逐字对照上方三层半径数据表格中的数字
+- 直接竞品数量 > 替代消费数量 > 客流锚点数量，三者不可混淆
+- 不确定的数字写"需线下核验"，不写猜测值或区间
+- 每句只提一种类型数量
+
+### 引用来源约束：
+- 竞品品牌名只能从 direct_competitor_list 引用
+- 客流锚点名只能从 traffic_anchor_list 引用
+- 替代消费名只能从 substitute_list 引用
+- 学校/医院/住宅/写字楼/酒店/商场如无列表数据，只能用类别+数量
+- 不得引用 hot_brands、nearby_roads 作为POI名称
+
+### 严禁行为：
+- 凭知识库编造任何具体名称（无论是否是真实存在的品牌/设施）
+- 将上次的非法名称换成另一个不在白名单的名称
+- 将数量写成单点精确数字（如"日均183单"）
+- 将类别+数量混写成具体名称（如将"6所学校"写成"某某小学"）
+
+其他内容保持不变"""
 
                     try:
                         retry_raw = await generate_llm_response(retry_prompt)
@@ -700,6 +724,7 @@ async def analyze_location(req: AnalyzeRequest, user: dict = Depends(get_current
                                         retry_fe.append(f"[P3-COUNT] {issue}")
 
                             if not retry_fe:
+                                _retry_success = True  # ★ C-4 统计
                                 print(f"[SSE Guard] 重试通过，所有 fact_errors/P0/P2/P3 已修正", flush=True)
                                 _saved_retry_meta = {
                                     "_fact_retry": True,
@@ -732,9 +757,76 @@ async def analyze_location(req: AnalyzeRequest, user: dict = Depends(get_current
                             pass
                         _tb.print_exc()
 
-                    if fact_errors:  # 重试未通过 → 硬阻断 + 退款
-                        _llm_parse_error = True
-                        raise ValueError(f"报告事实校验失败(含重试): {'; '.join(fact_errors[:3])}")
+                    if fact_errors:  # 重试未通过 → 进入兜底报告
+                        _fact_guard_failed = True
+                        print(f"[SSE Guard] LLM重试仍失败，启用兜底报告: {'; '.join(fact_errors[:3])}", flush=True)
+                        yield _sse("error", "AI报告未通过事实校验，正在生成数据摘要报告...")
+                        await asyncio.sleep(0)
+
+                        from services.fallback_report_service import build_fallback_report
+                        fallback_result = build_fallback_report(
+                            real_data, address=req.address,
+                            business_type=req.business_type or "",
+                            brand_name=req.brand_name or "",
+                            store_size=req.store_size or 0,
+                        )
+                        fallback_result["provider"] = "fallback"
+                        fallback_result["error"] = None
+                        fallback_result["real_data"] = real_data
+                        fallback_result["_fact_retry"] = True
+                        fallback_result["_fact_retry_passed"] = False
+                        fallback_result["_fact_errors_before_retry"] = fact_errors.copy()
+                        fallback_result["_fallback_report"] = True
+                        fallback_result["_fallback_reason"] = f"LLM retry仍失败: {'; '.join(fact_errors[:5])}"
+                        fallback_result["_fact_errors_before_fallback"] = fact_errors.copy()
+                        _fallback_triggered = True  # ★ 统计标记
+
+                        # 兜底报告必须通过全部 guard
+                        fallback_text = (
+                            json.dumps(fallback_result.get("details", {}) or {}, ensure_ascii=False) + " " +
+                            json.dumps(fallback_result.get("advantages", []), ensure_ascii=False) + " " +
+                            json.dumps(fallback_result.get("disadvantages", []), ensure_ascii=False) + " " +
+                            json.dumps(fallback_result.get("executive_summary", {}) or {}, ensure_ascii=False) + " " +
+                            json.dumps(fallback_result.get("action_plan", []), ensure_ascii=False) + " " +
+                            str(fallback_result.get("summary", ""))
+                        )
+                        fb_issues = validate_report_fact_consistency(fallback_result, real_data)
+                        fb_issues = _filter_json_artifact_errors(fb_issues)
+                        if not fb_issues:
+                            fb_p0 = check_poi_name_hallucination(fallback_text, real_data, strict=True)
+                            fb_p2 = check_poi_context_mismatch(fallback_text, real_data)
+                            fb_p3 = check_direct_competitor_count_mismatch(fallback_text, real_data)
+                            if fb_p0:
+                                for issue in fb_p0[:3]:
+                                    fb_issues.append(f"[P0-NAME] {issue}")
+                            if fb_p2:
+                                for issue in fb_p2[:3]:
+                                    fb_issues.append(f"[P2-CTX] {issue}")
+                            if fb_p3:
+                                for issue in fb_p3[:3]:
+                                    fb_issues.append(f"[P3-COUNT] {issue}")
+
+                        if not fb_issues:
+                            print(f"[SSE Guard] 兜底报告通过全部guard，替换为兜底报告", flush=True)
+                            result = fallback_result
+                            fact_errors = []
+                            # ★ 兜底报告成功 → 退还点数（先退款再清标记，防止 finally 重复）
+                            _fact_guard_failed = False  # ★ 清除标记，避免 finally 再次退款
+                            if billing and billing.source == "points":
+                                try:
+                                    refund_credits(current_user_id, 1,
+                                                   reason="AI报告事实校验失败，已返回兜底报告",
+                                                   idempotency_key=refund_idem_key + "_fallback")
+                                    _refund_processed = True  # ★ 标记已退款，finally 不再退
+                                    print(f"[SSE Guard] 兜底报告退款成功", flush=True)
+                                except Exception:
+                                    import traceback
+                                    print("[CRITICAL] 兜底报告退款失败！", flush=True)
+                                    traceback.print_exc()
+                        else:
+                            print(f"[SSE Guard] 兜底报告未通过guard: {'; '.join(fb_issues[:3])}", flush=True)
+                            _fact_guard_failed = True
+                            raise ValueError(f"REPORT_FACT_GUARD_FAILED: {'; '.join(fact_errors[:3])}")
 
             # 保存到数据库
             _db_save_ok = False
@@ -812,6 +904,9 @@ async def analyze_location(req: AnalyzeRequest, user: dict = Depends(get_current
                 except Exception:
                     pass
             _stream_ok = True  # ★ 标记流完整成功，finally 块不退款
+            # ★ C-4 统计摘要
+            _report_type = "fallback" if _fallback_triggered else ("retry_ai" if _retry_success else ("ai" if not _fact_guard_first_fail else "first_fail"))
+            print(f"[SSE Stats] report_type={_report_type} first_fail={_fact_guard_first_fail} retry_attempted={_retry_attempted} retry_success={_retry_success} fallback={_fallback_triggered}", flush=True)
             yield _sse(4, "✅ 报告生成完毕！", result=result)
             await asyncio.sleep(0)
 
@@ -822,7 +917,7 @@ async def analyze_location(req: AnalyzeRequest, user: dict = Depends(get_current
         except json.JSONDecodeError:
             _llm_parse_error = True
             print("[SSE Error] JSON 解析失败，标记可退款", flush=True)
-            yield _sse("error", "AI 引擎数据生成异常，请稍后重试")
+            yield _sse("error", "AI 数据解析异常，请稍后重试")
             await asyncio.sleep(0)
         except RuntimeError as e:
             msg = str(e)
@@ -837,9 +932,23 @@ async def analyze_location(req: AnalyzeRequest, user: dict = Depends(get_current
                 yield _sse("error", "分析服务异常，请稍后重试")
             await asyncio.sleep(0)
         except ValueError as e:
-            _llm_parse_error = True
-            print(f"[SSE Error] 报告结构校验失败: {e}", flush=True)
-            yield _sse("error", f"报告生成异常，请稍后重试")
+            msg = str(e)
+            if msg.startswith("REPORT_FACT_GUARD_FAILED:"):
+                _fact_guard_failed = True
+                print(f"[SSE Error] {msg}", flush=True)
+                yield _sse("error", "报告未通过事实校验，未保存异常报告；如已扣点会自动退还，请稍后重试")
+            elif msg.startswith("REPORT_PAYLOAD_INVALID:"):
+                _llm_parse_error = True
+                print(f"[SSE Error] {msg}", flush=True)
+                yield _sse("error", "AI 数据解析异常，请稍后重试")
+            elif msg.startswith("REPORT_JSON_PARSE_FAILED:"):
+                _llm_parse_error = True
+                print(f"[SSE Error] JSON 解析失败: {msg}", flush=True)
+                yield _sse("error", "AI 数据解析异常，请稍后重试")
+            else:
+                _llm_parse_error = True
+                print(f"[SSE Error] 报告结构校验失败: {e}", flush=True)
+                yield _sse("error", "AI 数据解析异常，请稍后重试")
             await asyncio.sleep(0)
         except Exception as e:
             ename = type(e).__name__
@@ -869,13 +978,15 @@ async def analyze_location(req: AnalyzeRequest, user: dict = Depends(get_current
                 yield _sse("error", "分析服务异常，请稍后重试")
             await asyncio.sleep(0)
         finally:
-            # ★ 退款收口：LLM/JSON/DB 失败 → 点数模式退款（幂等保护）
-            should_refund = (_llm_server_error or _llm_parse_error or _db_save_error) and not _refund_processed
+            # ★ 退款收口：LLM/JSON/DB/Fact Guard 失败 → 点数模式退款（幂等保护）
+            should_refund = (_llm_server_error or _llm_parse_error or _db_save_error or _fact_guard_failed) and not _refund_processed
             if should_refund and billing and billing.source == "points":
                 _refund_processed = True
                 try:
                     if _db_save_error:
                         refund_reason = "DB保存失败"
+                    elif _fact_guard_failed:
+                        refund_reason = "报告事实校验失败"
                     elif _llm_server_error:
                         refund_reason = "LLM服务端异常"
                     else:

@@ -140,7 +140,7 @@ function af(method,path,body,raw){
   if(!raw) headers['Content-Type']='application/json';
   if(token) headers['Authorization']='Bearer '+token;
   return fetch(API+path,{method,headers,body:body?raw?body:JSON.stringify(body):undefined})
-    .then(r=>r.json().then(d=>({ok:r.ok,status:r.status,data:d})))
+    .then(r=>{if(r.status===401){token='';localStorage.removeItem('zdx_admin_token');S('loginPage');H('mainPage');return{ok:false,status:401,data:{detail:'登录已过期，请重新登录'}}}return r.json().then(d=>({ok:r.ok,status:r.status,data:d}))})
     .catch(e=>({ok:false,error:e.message}));
 }
 

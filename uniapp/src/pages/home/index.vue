@@ -127,17 +127,34 @@
         <template v-if="mapMode === 'map'">
           <map id="homeMap" class="map-view" :latitude="mapLat" :longitude="mapLng" :markers="mapMarkers" scale="15" :show-location="showUserLocation" :enable-scroll="true" :enable-zoom="true" :enable-rotate="false" @tap="onMapTap" @regionchange="onMapRegionChange" />
           <cover-view class="crosshair-pin">
-            <cover-view class="pin-shadow" />
-            <cover-view class="pin-head"><cover-view class="pin-dot" /></cover-view>
-            <cover-view class="pin-tip" />
+            <cover-image class="pin-image" src="/static/map-center-pin.png" />
           </cover-view>
         </template>
 
         <!-- 状态 C：分析中卡片 -->
         <view class="analyzing-card" v-if="mapMode === 'analyzing'">
-          <view class="ac-pulse" />
-          <text class="ac-title">正在生成选址分析报告</text>
-          <text class="ac-sub">请稍候，正在采集周边数据并进行分析...</text>
+          <view class="ac-grid" />
+          <view class="ac-code">
+            <text>POI_SYNC</text>
+            <text>RISK_SCAN</text>
+            <text>MODEL_GUARD</text>
+          </view>
+          <view class="ac-core">
+            <view class="ac-pulse" />
+            <view>
+              <text class="ac-title">商业数据引擎运行中</text>
+              <text class="ac-sub">正在交叉校验 POI、竞品、客流与风险线索</text>
+            </view>
+          </view>
+          <view class="ac-meter">
+            <view class="ac-meter-top">
+              <text>ANALYSIS_PROGRESS</text>
+              <text>{{ analyzeProgress }}%</text>
+            </view>
+            <view class="ac-meter-track">
+              <view class="ac-meter-fill" :style="{ width: analyzeProgress + '%' }" />
+            </view>
+          </view>
           <view class="ac-steps">
             <view class="acs" v-for="s in analyzeStepItems" :key="s.step" :class="s.status">
               <text class="acs-icon">{{ s.icon }}</text>
@@ -206,6 +223,16 @@
         <text class="cta-arrow">›</text>
       </button>
       <view class="analyze-steps" v-if="analyzing">
+        <view class="as-head">
+          <view>
+            <text class="as-kicker">MATRIX_ANALYSIS</text>
+            <text class="as-title">商业选址模型计算中</text>
+          </view>
+          <text class="as-percent">{{ analyzeProgress }}%</text>
+        </view>
+        <view class="as-progress">
+          <view class="as-progress-fill" :style="{ width: analyzeProgress + '%' }" />
+        </view>
         <view class="as-step" v-for="(item, i) in analyzeStepItems" :key="i" :class="item.status">
           <text class="as-icon">{{ item.icon }}</text>
           <view class="as-body">
@@ -325,10 +352,10 @@ export default {
     canAnalyze () { return !this.analyzing && this.addressText && this.industry && this.brandName && this.storeSize },
     analyzeStepItems () {
       const steps = [
-        { step: 1, label: 'POI 数据采集', icon: '📍' },
-        { step: 2, label: '数据交叉比对', icon: '🧮' },
-        { step: 3, label: 'AI 商业评估', icon: '🧠' },
-        { step: 4, label: '报告生成完毕', icon: '✅' }
+        { step: 1, label: 'POI 数据采集', icon: '01' },
+        { step: 2, label: '数据交叉比对', icon: '02' },
+        { step: 3, label: 'AI 商业评估', icon: 'AI' },
+        { step: 4, label: '报告生成完毕', icon: 'OK' }
       ]
       return steps.map(s => {
         const evt = this.analyzeSteps.find(e => e.step === s.step)
@@ -340,6 +367,18 @@ export default {
         }
         return { ...s, status: 'pending', icon: '○' }
       })
+    },
+    analyzeProgress () {
+      const doneSteps = new Set(
+        (this.analyzeSteps || [])
+          .map(s => Number(s.step))
+          .filter(n => Number.isFinite(n) && n > 0)
+      )
+      if (doneSteps.has(4)) return 100
+      const current = Math.max(1, Math.min(4, Number(this.currentStep) || 1))
+      const activeProgress = [0, 18, 43, 68, 92][current]
+      const doneProgress = Math.min(88, doneSteps.size * 24)
+      return Math.max(activeProgress, doneProgress)
     },
     ctaSubText () {
       if (this.analyzing) return this.analyzeStatus || '正在处理...'
@@ -355,7 +394,6 @@ export default {
       return ''
     },
     mapMarkers () {
-      // ★ 中心准星替代 marker；不再使用可拖拽 marker
       return []
     },
     compactAddress () {
@@ -880,7 +918,7 @@ export default {
           } else if (r.statusCode === 402) {
             this.analyzeErr = typeof r.error === 'string' ? r.error : '余额不足，请充值后重试'
           } else {
-            this.analyzeErr = r.error || '分析服务异常，请稍后重试'
+            this.analyzeErr = this.friendlyAnalyzeError(r.error)
           }
           // ★ 超时/失败兜底：检查是否有刚生成的报告
           await this._recoverRecentReport()
@@ -891,10 +929,19 @@ export default {
         // ★ 超时兜底：后端可能已落库，查询最近记录
         const recovered = await this._recoverRecentReport()
         if (!recovered) {
-          this.analyzeErr = typeof e === 'string' ? e : (e.message || e.errMsg || '分析服务暂不可用，请稍后重试')
+          const msg = typeof e === 'string' ? e : (e.message || e.errMsg || '分析服务暂不可用，请稍后重试')
+          this.analyzeErr = this.friendlyAnalyzeError(msg)
         }
         this.analyzing = false
       }
+    },
+    friendlyAnalyzeError (msg) {
+      const text = typeof msg === 'string' ? msg : ''
+      if (text.includes('事实校验') || text.includes('FACT_GUARD')) return text
+      if (text.includes('数据解析异常') || text.includes('JSON')) return text
+      if (text.includes('保存失败') || text.includes('DB')) return text
+      if (text.includes('数据采集失败') || text.includes('AMAP')) return text
+      return text || '分析服务异常，请稍后重试'
     },
     onShareAppMessage () {
       const cfg = this.shareConfig || {}
@@ -1024,23 +1071,31 @@ export default {
 .phb-a { height:60rpx; } .phb-b { height:96rpx; } .phb-c { height:78rpx; } .phb-d { height:48rpx; }
 
 /* State B: Map center pin */
-.crosshair-pin { position:absolute; left:50%; top:50%; width:76rpx; height:92rpx; margin-left:-38rpx; margin-top:-86rpx; z-index:10; pointer-events:none; }
-.pin-shadow { position:absolute; left:18rpx; bottom:0; width:40rpx; height:12rpx; border-radius:50%; background:rgba(15,23,42,0.22); }
-.pin-head { position:absolute; left:11rpx; top:0; width:54rpx; height:54rpx; border-radius:50% 50% 50% 12rpx; transform:rotate(-45deg); background:linear-gradient(145deg,#ff6b6b 0%,#ef4444 58%,#c81e1e 100%); box-shadow:0 12rpx 24rpx rgba(239,68,68,0.30),inset 0 2rpx 0 rgba(255,255,255,0.38); }
-.pin-dot { position:absolute; left:17rpx; top:17rpx; width:20rpx; height:20rpx; border-radius:50%; background:#fff; box-shadow:0 0 0 7rpx rgba(255,255,255,0.18); }
-.pin-tip { position:absolute; left:34rpx; top:48rpx; width:8rpx; height:30rpx; border-radius:999rpx; background:linear-gradient(180deg,#ef4444,#c81e1e); box-shadow:0 8rpx 14rpx rgba(239,68,68,0.22); }
+.crosshair-pin { position:absolute; left:50%; top:50%; width:96rpx; height:128rpx; margin-left:-48rpx; margin-top:-116rpx; z-index:10; pointer-events:none; display:flex; align-items:center; justify-content:center; }
+.pin-image { width:72rpx; height:96rpx; display:block; }
 
 /* State C: Analyzing card */
-.analyzing-card { height:360rpx; background:linear-gradient(180deg,#eef3ff,#dce4f2); display:flex; flex-direction:column; align-items:center; justify-content:center; padding:40rpx; }
-.ac-pulse { width:56rpx; height:56rpx; border-radius:50%; background:rgba(49,91,255,0.15); margin-bottom:20rpx; animation:pulse 1.5s ease-in-out infinite; }
-@keyframes pulse { 0%,100% { transform:scale(1); opacity:0.6; } 50% { transform:scale(1.3); opacity:1; } }
-.ac-title { font-size:28rpx; font-weight:700; color:#1e293b; margin-bottom:8rpx; }
-.ac-sub { font-size:22rpx; color:#94a3b8; margin-bottom:24rpx; text-align:center; }
-.ac-steps { width:100%; display:flex; flex-direction:column; gap:10rpx; }
-.acs { display:flex; align-items:center; gap:10rpx; font-size:24rpx; color:#94a3b8; }
-.acs.active { color:#315bff; font-weight:600; }
-.acs.done { color:#16a34a; }
-.acs-icon { font-size:24rpx; width:36rpx; text-align:center; }
+.analyzing-card { height:360rpx; background:radial-gradient(circle at 16% 20%,rgba(91,141,255,0.32),transparent 31%),radial-gradient(circle at 86% 82%,rgba(28,105,255,0.22),transparent 36%),linear-gradient(135deg,#061946 0%,#0b2c71 48%,#08225e 100%); display:flex; flex-direction:column; justify-content:center; padding:28rpx; position:relative; overflow:hidden; box-sizing:border-box; box-shadow:inset 0 1rpx 0 rgba(197,221,255,0.18),0 16rpx 34rpx rgba(10,35,92,0.18); }
+.analyzing-card::after { content:''; position:absolute; left:-20%; right:-20%; top:-45%; height:120rpx; background:linear-gradient(180deg,transparent,rgba(116,173,255,0.16),transparent); transform:rotate(8deg); animation:matrixScan 2.8s linear infinite; }
+.ac-grid { position:absolute; inset:0; opacity:0.36; background:linear-gradient(rgba(116,173,255,0.11) 1rpx,transparent 1rpx),linear-gradient(90deg,rgba(116,173,255,0.11) 1rpx,transparent 1rpx); background-size:34rpx 34rpx; }
+.ac-code { position:absolute; right:20rpx; top:18rpx; display:flex; flex-direction:column; align-items:flex-end; gap:6rpx; color:rgba(141,190,255,0.76); font-size:18rpx; font-weight:900; line-height:1.1; letter-spacing:0; }
+.ac-core { position:relative; z-index:1; display:flex; align-items:center; gap:20rpx; margin-bottom:18rpx; }
+.ac-pulse { width:72rpx; height:72rpx; border-radius:50%; background:radial-gradient(circle,#8ec5ff 0 23%,rgba(80,139,255,0.46) 24% 42%,rgba(80,139,255,0.12) 43% 100%); box-shadow:0 0 30rpx rgba(80,139,255,0.30),0 14rpx 30rpx rgba(37,99,235,0.22), inset 0 2rpx 0 rgba(255,255,255,0.28); position:relative; animation:pulse 1.5s ease-in-out infinite; flex-shrink:0; }
+.ac-pulse::before { content:''; position:absolute; inset:-10rpx; border-radius:50%; border:2rpx solid rgba(142,197,255,0.28); box-sizing:border-box; }
+.ac-pulse::after { content:''; position:absolute; inset:12rpx; border-radius:50%; border:2rpx solid rgba(198,221,255,0.56); box-sizing:border-box; }
+@keyframes pulse { 0%,100% { transform:scale(1); opacity:0.86; } 50% { transform:scale(1.06); opacity:1; } }
+@keyframes matrixScan { 0% { transform:translateY(-60rpx) rotate(8deg); opacity:0; } 20% { opacity:1; } 100% { transform:translateY(500rpx) rotate(8deg); opacity:0; } }
+.ac-title { display:block; font-size:31rpx; font-weight:900; color:#ffffff; line-height:1.25; }
+.ac-sub { display:block; font-size:22rpx; color:rgba(205,225,255,0.78); margin-top:7rpx; line-height:1.45; }
+.ac-meter { position:relative; z-index:1; margin-bottom:14rpx; }
+.ac-meter-top { display:flex; align-items:center; justify-content:space-between; color:rgba(168,207,255,0.82); font-size:18rpx; font-weight:900; line-height:1; }
+.ac-meter-track { margin-top:10rpx; height:10rpx; border-radius:999rpx; overflow:hidden; background:rgba(11,36,88,0.86); border:1rpx solid rgba(116,173,255,0.24); }
+.ac-meter-fill { height:100%; border-radius:999rpx; background:linear-gradient(90deg,#4f8cff,#8ec5ff,#c6ddff); box-shadow:0 0 22rpx rgba(80,139,255,0.34); transition:width 0.25s ease; }
+.ac-steps { position:relative; z-index:1; width:100%; display:grid; grid-template-columns:1fr 1fr; gap:12rpx; }
+.acs { display:flex; align-items:center; gap:10rpx; min-height:54rpx; padding:0 14rpx; border-radius:14rpx; font-size:22rpx; color:rgba(205,225,255,0.52); background:rgba(6,25,70,0.54); border:1rpx solid rgba(116,173,255,0.18); box-sizing:border-box; }
+.acs.active { color:#ffffff; border-color:rgba(80,139,255,0.68); background:rgba(49,91,255,0.28); box-shadow:0 0 24rpx rgba(80,139,255,0.18); font-weight:900; }
+.acs.done { color:#c6ddff; border-color:rgba(116,173,255,0.34); background:rgba(80,139,255,0.16); }
+.acs-icon { width:34rpx; height:34rpx; line-height:34rpx; border-radius:10rpx; text-align:center; font-size:18rpx; font-weight:900; background:rgba(198,221,255,0.12); color:inherit; flex-shrink:0; }
 .map-hint { text-align:center; padding:12rpx 0 4rpx; font-size:24rpx; color:#94a3b8; }
 .map-hint.done { color:#16a34a; } .map-hint.warn { color:#dc2626; }
 
@@ -1081,7 +1136,7 @@ export default {
 .label { font-size:26rpx; font-weight:900; color:#1f2d4f; margin-bottom:14rpx; }
 .req { color:#ef4444; font-size:24rpx; }
 .field-err { font-size:24rpx; color:#dc2626; margin-top:8rpx; display:block; line-height:1.45; }
-.analyze-err { text-align:center; margin:14rpx auto 0; line-height:1.45; max-width:640rpx; }
+.analyze-err { text-align:left; margin:16rpx auto 0; line-height:1.55; max-width:640rpx; padding:18rpx 22rpx; border-radius:16rpx; background:#fff1f2; border:1rpx solid #fecdd3; color:#be123c; box-sizing:border-box; }
 .field { width:100%; height:76rpx; border:1rpx solid rgba(199,215,246,0.95); border-radius:15rpx; padding:0 22rpx; font-size:29rpx; font-weight:700; background:#fff; color:#1e293b; box-sizing:border-box; box-shadow:inset 0 1rpx 0 rgba(255,255,255,0.9),0 8rpx 18rpx rgba(74,111,172,0.04); }
 .field:disabled { background:#f9fafb; color:#9ca3af; }
 
@@ -1099,13 +1154,25 @@ export default {
 .cta-btn.dim .cta-sub { color:rgba(255,255,255,0.74); }
 
 /* ── Analyze steps ── */
-.analyze-steps { background:rgba(255,255,255,0.96); border:1px solid rgba(219,230,255,0.92); border-radius:18rpx; padding:20rpx; margin-top:16rpx; box-shadow:0 12rpx 26rpx rgba(79,119,186,0.08); }
-.as-step { display:flex; align-items:flex-start; padding:6rpx 0; }
-.as-step.pending .as-icon,.as-step.pending .as-label { color:#cbd5e1; }
-.as-step.active .as-icon { color:#2563eb; } .as-step.active .as-label { color:#1e293b; font-weight:600; }
-.as-step.done .as-icon { color:#16a34a; } .as-step.done .as-label { color:#475569; }
-.as-icon { width:44rpx; font-size:28rpx; text-align:center; flex-shrink:0; margin-right:10rpx; line-height:34rpx; }
-.as-body { flex:1; } .as-label { font-size:25rpx; color:#475569; display:block; } .as-msg { font-size:22rpx; color:#94a3b8; display:block; }
+.analyze-steps { background:radial-gradient(circle at 12% 8%,rgba(91,141,255,0.30),transparent 32%),radial-gradient(circle at 86% 86%,rgba(28,105,255,0.20),transparent 32%),linear-gradient(135deg,#061946,#0b2c71 54%,#08225e); border:1rpx solid rgba(116,173,255,0.24); border-radius:20rpx; padding:22rpx 22rpx 18rpx; margin-top:16rpx; box-shadow:0 16rpx 34rpx rgba(8,21,39,0.20),inset 0 1rpx 0 rgba(197,221,255,0.14); position:relative; overflow:hidden; }
+.analyze-steps::before { content:''; position:absolute; inset:0; opacity:0.22; background:linear-gradient(rgba(116,173,255,0.12) 1rpx,transparent 1rpx),linear-gradient(90deg,rgba(116,173,255,0.12) 1rpx,transparent 1rpx); background-size:32rpx 32rpx; }
+.analyze-steps::after { content:''; position:absolute; left:-24%; right:-24%; top:-60rpx; height:90rpx; background:linear-gradient(180deg,transparent,rgba(116,173,255,0.16),transparent); transform:rotate(7deg); animation:matrixScan 2.8s linear infinite; }
+.as-head { position:relative; z-index:1; display:flex; align-items:flex-start; justify-content:space-between; gap:18rpx; margin-bottom:14rpx; }
+.as-kicker { display:block; color:rgba(168,207,255,0.82); font-size:18rpx; line-height:1; font-weight:900; }
+.as-title { display:block; margin-top:8rpx; color:#ffffff; font-size:28rpx; line-height:1.2; font-weight:900; }
+.as-percent { color:#8ec5ff; font-size:42rpx; line-height:1; font-weight:900; text-shadow:0 0 18rpx rgba(80,139,255,0.28); flex-shrink:0; }
+.as-progress { position:relative; z-index:1; height:12rpx; margin-bottom:14rpx; border-radius:999rpx; overflow:hidden; background:rgba(11,36,88,0.86); border:1rpx solid rgba(116,173,255,0.26); }
+.as-progress-fill { height:100%; border-radius:999rpx; background:linear-gradient(90deg,#4f8cff,#8ec5ff,#c6ddff); box-shadow:0 0 24rpx rgba(80,139,255,0.36); transition:width 0.25s ease; }
+.as-step { position:relative; z-index:1; display:flex; align-items:flex-start; padding:10rpx 0; }
+.as-step.pending .as-icon,.as-step.pending .as-label { color:rgba(205,225,255,0.42); }
+.as-step.active .as-icon { color:#ffffff; background:#4f8cff; box-shadow:0 0 18rpx rgba(80,139,255,0.32); }
+.as-step.active .as-label { color:#ffffff; font-weight:900; }
+.as-step.done .as-icon { color:#ffffff; background:#315bff; }
+.as-step.done .as-label { color:#c6ddff; }
+.as-icon { width:42rpx; height:42rpx; line-height:42rpx; border-radius:12rpx; font-size:18rpx; font-weight:900; text-align:center; flex-shrink:0; margin-right:14rpx; background:rgba(198,221,255,0.12); color:rgba(205,225,255,0.62); }
+.as-body { flex:1; min-width:0; }
+.as-label { font-size:26rpx; color:rgba(205,225,255,0.72); display:block; line-height:1.35; }
+.as-msg { font-size:22rpx; color:rgba(168,207,255,0.60); display:block; margin-top:4rpx; line-height:1.35; }
 
 /* ── Features ── */
 .features { display:flex; gap:0; margin:24rpx 28rpx 0; padding:24rpx 12rpx; background:linear-gradient(180deg,#ffffff,#fbfdff); border:1rpx solid rgba(219,230,255,0.92); border-radius:22rpx; box-shadow:0 18rpx 38rpx rgba(79,119,186,0.10); }

@@ -243,8 +243,12 @@ def wechat_prepay(
         order.status = "FAILED"
         db.commit()
         err_body = ""
-        try: err_body = e.read().decode()[:500]
-        except: pass
+        try:
+            reader = getattr(e, 'read', None)
+            if callable(reader):
+                err_body = reader().decode('utf-8', errors='replace')[:500]
+        except Exception as read_error:
+            print(f"[WXPAY] 微信错误体读取失败: {read_error}", flush=True)
         print(f"[WXPAY] 微信返回错误 body={err_body}", flush=True)
         raise HTTPException(status_code=502, detail=f"微信支付接口异常: {err_body or str(e)[:200]}")
     except Exception as e:

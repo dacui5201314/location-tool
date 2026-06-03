@@ -202,5 +202,20 @@ export default {
 .phone-btn { width:100%; background:#07c160; color:#fff; font-size:28rpx; padding:20rpx 0; border-radius:14rpx; font-weight:600; }
 .hint { display:block; font-size:22rpx; color:#94a3b8; margin-top:10rpx; }
 .err { display:block; font-size:24rpx; color:#dc2626; text-align:center; margin-bottom:16rpx; }
-.save-btn { width:100%; background:linear-gradient(135deg,#0f172a,#1e40af); color:#fff; border-radius:16rpx; font-size:30rpx; font-weight:700; padding:22rpx 0; }
+.save-btn {
+  width:100%;
+  height:92rpx;
+  line-height:92rpx;
+  padding:0;
+  margin-top:14rpx;
+  border-radius:18rpx;
+  background:radial-gradient(circle at 14% 18%,rgba(49,91,255,0.10),transparent 28%),linear-gradient(180deg,#ffffff,#f3f8ff);
+  color:#315bff;
+  border:1rpx solid rgba(205,220,248,0.98);
+  font-size:30rpx;
+  font-weight:900;
+  box-shadow:0 14rpx 30rpx rgba(79,119,186,0.12), inset 0 1rpx 0 rgba(255,255,255,0.92);
+}
+.save-btn::after { border:none; }
+.save-btn[disabled] { color:#8b99b6; background:linear-gradient(180deg,#f8fbff,#eef4ff); box-shadow:none; }
 </style>

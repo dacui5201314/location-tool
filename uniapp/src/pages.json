@@ -97,5 +97,6 @@
     "backgroundColor": "#dce4f2",
     "backgroundColorTop": "#dce4f2",
     "backgroundColorBottom": "#dce4f2"
-  }
+  },
+  "lazyCodeLoading": "requiredComponents"
 }

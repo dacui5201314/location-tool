@@ -197,11 +197,13 @@ export default {
 .card-tags { margin-bottom:14rpx; } .tag { display:inline-block; font-size:20rpx; font-weight:700; padding:6rpx 14rpx; border-radius:999rpx; background:#f3f7ff; color:#315bff; margin-right:8rpx; border:1px solid rgba(219,230,255,0.95); }
 .card-footer { display:flex; justify-content:space-between; align-items:center; font-size:22rpx; color:#8b99b6; border-top:1rpx solid rgba(219,230,255,0.78); padding-top:16rpx; }
 .actions { display:flex; gap:14rpx; } .act { color:#315bff; font-size:24rpx; font-weight:800; } .act.lock { color:#d6a84f; }
-.modal-mask { position:fixed; inset:0; background:rgba(0,0,0,0.5); display:flex; align-items:center; justify-content:center; z-index:999; }
-.modal-box { background:#fff; border-radius:22rpx; padding:40rpx; width:560rpx; box-shadow:0 24rpx 70rpx rgba(15,23,42,0.18); }
-.modal-title { font-size:30rpx; font-weight:900; color:#17244e; display:block; margin-bottom:12rpx; }
-.modal-body { font-size:26rpx; color:#64748b; display:block; margin-bottom:24rpx; }
-.modal-actions { display:flex; gap:16rpx; justify-content:flex-end; }
-.ma-cancel { background:#f3f7ff; color:#315bff; border-radius:14rpx; padding:16rpx 32rpx; font-size:26rpx; }
-.ma-confirm { background:#ef4444; color:#fff; border-radius:14rpx; padding:16rpx 32rpx; font-size:26rpx; }
+.modal-mask { position:fixed; inset:0; background:rgba(15,23,42,0.48); display:flex; align-items:center; justify-content:center; z-index:999; }
+.modal-box { width:500rpx; background:#fff; border-radius:20rpx; padding:30rpx 28rpx 28rpx; box-shadow:0 24rpx 64rpx rgba(15,23,42,0.20); box-sizing:border-box; }
+.modal-title { font-size:28rpx; font-weight:900; color:#17244e; display:block; margin-bottom:10rpx; line-height:1.35; }
+.modal-body { font-size:24rpx; color:#64748b; display:block; margin-bottom:24rpx; line-height:1.55; }
+.modal-actions { display:grid; grid-template-columns:1fr 1fr; gap:28rpx; }
+.ma-cancel,.ma-confirm { width:100%; height:68rpx; line-height:68rpx; margin:0; padding:0; border-radius:14rpx; font-size:25rpx; font-weight:900; box-sizing:border-box; }
+.ma-cancel { background:#f3f7ff; color:#315bff; }
+.ma-confirm { background:#ef4444; color:#fff; }
+.ma-cancel::after,.ma-confirm::after { border:none; }
 </style>
