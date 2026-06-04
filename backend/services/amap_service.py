@@ -248,8 +248,14 @@ def is_real_immersive_entertainment(name: str) -> bool:
     return False
 
 # 写字楼脱水
-OFFICE_KEEP = ["大厦", "写字楼", "国际中心", "商务中心", "科创中心", "总部"]
-OFFICE_DROP = ["公司", "厂房", "工业园", "制造", "产业园", "仓库", "物流", "公寓"]
+OFFICE_KEEP = [
+    "办公楼", "写字楼", "大厦", "商务中心", "国际中心", "企业中心",
+    "科创中心", "科技园", "产业园", "创业园", "总部基地", "商务楼", "商办楼",
+]
+OFFICE_DROP = [
+    "公司", "厂房", "工业园", "制造", "仓库", "物流", "公寓",
+    "有限公司", "有限责任公司", "事务所", "工作室", "培训",
+]
 
 def is_real_office(name: str) -> bool:
     for kw in OFFICE_DROP:
@@ -261,8 +267,16 @@ def is_real_office(name: str) -> bool:
     return False
 
 # 购物商场脱水
-SHOPPING_KEEP = ["购物中心", "百货", "商业街", "步行街", "茂", "商场", "奥特莱斯", "购物广场"]
-SHOPPING_DROP = ["建材", "批发", "农贸", "汽配", "五金", "家具", "灯饰", "石材", "印刷", "旧货", "二手"]
+SHOPPING_KEEP = [
+    "购物中心", "百货商场", "百货", "商场", "商城", "商业广场",
+    "购物广场", "万达广场", "吾悦广场", "银泰城", "奥特莱斯", "奥莱",
+    "商业街", "步行街", "购物公园", "MALL",
+]
+SHOPPING_DROP = [
+    "建材", "批发", "农贸", "汽配", "五金", "家具", "灯饰", "石材", "印刷", "旧货", "二手",
+    "便利店", "超市", "专卖店", "服装店", "鞋店", "数码店", "药店", "烟酒店",
+    "水果店", "生鲜店", "母婴店", "维修店", "文具店", "眼镜店",
+]
 
 def is_real_shopping(name: str) -> bool:
     for kw in SHOPPING_DROP:
@@ -272,6 +286,16 @@ def is_real_shopping(name: str) -> bool:
         if kw in name:
             return True
     return False
+
+# 公交站名称去重：去除方向尾缀
+def _normalize_bus_stop_name(name: str) -> str:
+    """标准化公交站名：去除上行/下行/方向尾缀，合并同一站点的多方向"""
+    import re as _re
+    name = _re.sub(r'[（(][^)）]*[)）]$', '', name)
+    # 去除方向/方位尾缀
+    name = _re.sub(r'[-\s]*(上行|下行|内环|外环|东行|西行|南行|北行|东南|东北|西南|西北|往东|往西|往南|往北|[东西南北]站牌|站牌[东西南北]?|东侧|南侧|西侧|北侧|主站|辅站|[东西南北](?:侧|区|口|方向|行)?|内|外)$', '', name)
+    name = name.strip()
+    return name
 
 # 低频目的零售脱水（服装/数码/眼镜/品牌零售，不污染 shopping 大类）
 LOW_FREQ_RETAIL_KEEP = [
@@ -634,6 +658,28 @@ def classify_poi_type(type_code: str) -> str | None:
     return None
 
 
+# ★ 中国已开通地铁城市集合（2026年基准）
+_SUBWAY_CITIES = {
+    "北京", "上海", "广州", "深圳", "成都", "重庆", "杭州", "武汉", "西安",
+    "郑州", "南京", "天津", "苏州", "长沙", "沈阳", "青岛", "宁波", "合肥",
+    "南宁", "昆明", "无锡", "福州", "厦门", "大连", "长春", "南昌", "贵阳",
+    "济南", "兰州", "徐州", "石家庄", "太原", "洛阳", "呼和浩特", "温州",
+    "绍兴", "芜湖", "南通", "佛山", "东莞", "乌鲁木齐", "哈尔滨",
+    "常州", "金华", "嘉兴", "台州", "咸阳", "珠海",
+    "香港", "澳门", "台北", "新北", "桃园", "台中", "高雄",
+}
+
+
+def _city_has_subway(city_name: str) -> bool:
+    """判断城市是否属于已开通地铁城市。city_name 为空或无法匹配时默认 True（不惩罚）。"""
+    if not city_name:
+        return True
+    for sc in _SUBWAY_CITIES:
+        if sc in city_name:
+            return True
+    return False
+
+
 @dataclass
 class LocationData:
     address: str = ""
@@ -674,6 +720,9 @@ class LocationData:
     raw_stats_200m: dict = field(default_factory=dict)
     raw_stats_500m: dict = field(default_factory=dict)
     raw_stats_1000m: dict = field(default_factory=dict)
+    # 城市地铁适用性
+    city_has_subway: bool = True   # 默认 True，发现无地铁时改为 False
+    subway_applicable: bool = True # 默认 True，city_has_subway=False 时改为 False
 
 
 class AmapService:
@@ -935,12 +984,29 @@ class AmapService:
             except Exception:
                 pass
 
-        # 公交站用关键词搜索（类型码搜索不到）
+        # 公交站：类型码 + 多关键词搜索 + 去重
+        bus_seen = {}  # normalized_name → best_entry
         try:
-            bus_pois = await self._fetch_by_keyword(lng, lat, "公交站", radius=1000, max_results=100)
-            all_pois.extend(bus_pois)
+            bus_type_pois = await self._fetch_all_pois(lng, lat, types="150200", radius=1000, max_results=100)
+            for p in bus_type_pois:
+                nname = _normalize_bus_stop_name(p.get("name", ""))
+                key = nname
+                if key not in bus_seen or p["distance"] < bus_seen[key]["distance"]:
+                    bus_seen[key] = p
         except Exception:
             pass
+        bus_keywords = ["公交站", "公交车站", "公交站牌", "公交枢纽", "公交首末站"]
+        for kw in bus_keywords:
+            try:
+                kw_pois = await self._fetch_by_keyword(lng, lat, kw, radius=1000, max_results=80)
+                for p in kw_pois:
+                    nname = _normalize_bus_stop_name(p.get("name", ""))
+                    key = nname
+                    if key not in bus_seen or p["distance"] < bus_seen[key]["distance"]:
+                        bus_seen[key] = p
+            except Exception:
+                pass
+        all_pois.extend(bus_seen.values())
 
         # 合并后去重
         seen = set()
@@ -1204,6 +1270,16 @@ class AmapService:
         stats_200m["subway"] = real_subway_200
         stats_500m["subway"] = real_subway_500
         stats_1000m["subway"] = real_subway_1000
+
+        # ★ 城市地铁适用性：基于城市名判断
+        city_lower = (ld.city or "").strip()
+        subway_applicable_val = _city_has_subway(city_lower)
+        if not subway_applicable_val and real_subway_count > 0:
+            subway_applicable_val = True  # 1000米内已发现地铁→覆盖
+        ld.city_has_subway = subway_applicable_val
+        ld.subway_applicable = subway_applicable_val
+        if not subway_applicable_val:
+            quality_notes.append("该城市暂无地铁系统，地铁不纳入交通扣分项")
 
         # ★ 医院归并后处理：清零 stats + 按 group min_dist 重算三层半径 + 1条计数 + 1条明细
         if _hospital_groups:

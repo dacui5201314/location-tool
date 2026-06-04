@@ -328,6 +328,8 @@ export default {
       countdownTimer: null,
       announcement: '',
       shareConfig: {},
+      homeShareImageLocal: '',
+      _homeShareImageRemote: '',
       favId: null,
       favLoading: false,
       suggestTimer: null,
@@ -447,6 +449,30 @@ export default {
     this._refreshActivePanel()
     // ★ 外部 reLaunch 回到首页时，消费收藏pending
     this._consumePendingAnalysis()
+    // ★ 重新拉取分享配置，确保后台修改后小程序不沿用旧缓存
+    api.fetchShareConfig().then(c => {
+      if (c.ok && c.data) {
+        this.shareConfig = c.data
+        const imgUrl = this.resolveShareImage(c.data.home_share_image_url || c.data.share_image_url || '')
+        if (imgUrl) {
+          this._homeShareImageRemote = imgUrl
+          this._downloadShareImage(imgUrl, 'home')
+        }
+      }
+    }).catch(() => {})
+  },
+  async onPullDownRefresh () {
+    try {
+      await this.initHomeData().catch(() => {})
+      const refMap = { records: 'recordsPanel', favorites: 'favoritesPanel', profile: 'profilePanel' }
+      const refName = refMap[this.activeTab]
+      if (refName && this.$refs[refName] && this.$refs[refName].refresh) {
+        const ret = this.$refs[refName].refresh()
+        if (ret && ret.then) await ret.catch(() => {})
+      }
+    } finally {
+      uni.stopPullDownRefresh()
+    }
   },
   onHide () {
     this.clearAnalyzeTimer()
@@ -468,11 +494,37 @@ export default {
     // ★ 延迟渲染 map 避免首次白块闪烁
     this._mapTimer = setTimeout(() => { this.mapReady = true }, 350)
   },
+  onShareAppMessage () {
+    const cfg = this.shareConfig || {}
+    const imageUrl = this.homeShareImageLocal
+      || this.resolveShareImage(cfg.home_share_image_url || cfg.share_image_url || '')
+      || this._homeShareImageRemote
+    console.log('[share-home] cfg.home_share_image_url:', cfg.home_share_image_url || '(empty)')
+    console.log('[share-home] homeShareImageLocal:', this.homeShareImageLocal || '(empty)')
+    console.log('[share-home] final imageUrl:', imageUrl || '(empty)')
+    return {
+      title: cfg.share_title || '址得选 - 商铺选址分析工具',
+      path: '/pages/home/index',
+      ...(imageUrl ? { imageUrl } : {})
+    }
+  },
   methods: {
     resolveShareImage (url) {
       if (!url) return ''
       if (url.startsWith('/assets/')) return config.API_BASE_URL + url
       return url
+    },
+    _downloadShareImage (url, type) {
+      uni.downloadFile({
+        url,
+        success: (res) => {
+          if (res.statusCode === 200 && res.tempFilePath) {
+            if (type === 'home') this.homeShareImageLocal = res.tempFilePath
+            else if (type === 'report') this.reportShareImageLocal = res.tempFilePath
+          }
+        },
+        fail: (err) => { console.warn('[share] download image failed', (err && err.errMsg) || err) }
+      })
     },
     onSwitchTab (key) {
       const sameTab = this.activeTab === key
@@ -526,8 +578,17 @@ export default {
       }
     },
     async initHomeData () {
-      // 分享配置
-      api.fetchShareConfig().then(c => { if (c.ok && c.data) this.shareConfig = c.data }).catch(() => {})
+      // 分享配置 — 下载分享图到本地临时路径
+      api.fetchShareConfig().then(c => {
+        if (c.ok && c.data) {
+          this.shareConfig = c.data
+          const imgUrl = this.resolveShareImage(c.data.home_share_image_url || c.data.share_image_url || '')
+          if (imgUrl) {
+            this._homeShareImageRemote = imgUrl
+            this._downloadShareImage(imgUrl, 'home')
+          }
+        }
+      }).catch(() => {})
       // 公告独立拉取，不依赖 token
       api.fetchUiConfig().then(a => {
         if (a.ok && a.data && a.data.announcement) this.announcement = a.data.announcement
@@ -942,15 +1003,6 @@ export default {
       if (text.includes('保存失败') || text.includes('DB')) return text
       if (text.includes('数据采集失败') || text.includes('AMAP')) return text
       return text || '分析服务异常，请稍后重试'
-    },
-    onShareAppMessage () {
-      const cfg = this.shareConfig || {}
-      const imageUrl = this.resolveShareImage(cfg.home_share_image_url || cfg.share_image_url || '')
-      return {
-        title: cfg.share_title || '址得选 - 商铺选址分析工具',
-        path: '/pages/home/index',
-        ...(imageUrl ? { imageUrl } : {})
-      }
     },
     async _recoverRecentReport () {
       // 超时/失败兜底：查询最近一条记录，若在本次分析提交后生成则跳转

@@ -129,7 +129,8 @@ def build_system_prompt(business_type: str = "", config: dict = None) -> str:
 - 学校数据：已剔除培训、教育中心、画室、托管、驾校，仅保留小学/中学/高中/大学/学院/幼儿园。
 - 判定规则：如果周边医院数主要来自诊所(已剔除后为零或极少)，绝不允许输出"医院客流占比高"，必须判定为"缺乏大型医疗机构引流"。同理，学校数为零时必须如实反映，不可编造学区概念。
 - 500米步行圈内地铁≥1个站 或 公交≥5条线路 → 必须判为交通优势
-- 500米内地铁和公交全为零 → 必须判为交通短板
+- **仅当 subway_applicable=true 时**，500米内地铁和公交全为零才可判为交通短板。
+- **当 subway_applicable=false 时，不得因无地铁扣分或写成短板**。此时交通评分应主要参考公交、道路、停车、主路可达性。可表述为："该城市暂无地铁系统，地铁不纳入本次交通扣分项。"
 
 # 竞争格局判定标准（三档互斥，绝无交集）
 - 200米贴身圈内同品类 ≤3 家 → 必须判为品类空白优势（仅0/1/2/3触发）
@@ -509,14 +510,18 @@ def build_analysis_prompt(address: str, lng: float, lat: float,
         pre_disadvantages.append(f"贴身200米内聚集了{comp_200}家同类店，分流风险极大——贴身肉搏级别的红海")
     # 中性段：不写入任何列表
 
-    # === 维度2：地铁 (if/elif/else) ===
+    # === 维度2：地铁 (if/elif/else) — 需 subway_applicable 判断 ===
     subway_500 = _int(s500.get('subway', 0))
+    subway_applicable = ld.get('subway_applicable', True)
     s_sub = sg.get("500m_subway_gte")
     rf_sub = rf.get("500m_subway_eq")
-    if s_sub is not None and subway_500 >= _int(s_sub):
+    if subway_applicable and s_sub is not None and subway_500 >= _int(s_sub):
         pre_advantages.append(f"500米内覆盖{subway_500}个地铁站，公共交通导入能力强，年轻及商务客群可达性高")
-    elif rf_sub is not None and subway_500 == _int(rf_sub):
+    elif subway_applicable and rf_sub is not None and subway_500 == _int(rf_sub):
         pre_disadvantages.append(f"500米步行圈内无任何地铁站覆盖，客群导入高度依赖步行和自驾——公共交通是明显短板")
+    elif not subway_applicable:
+        # 无地铁城市不把"无地铁"当短板
+        pass
     # else: 中性
 
     # === 维度3：公交 (if/elif/else) ===
@@ -524,9 +529,16 @@ def build_analysis_prompt(address: str, lng: float, lat: float,
     s_bus = sg.get("500m_bus_gte")
     rf_bus = rf.get("500m_bus_lt")
     if s_bus is not None and bus_500 >= _int(s_bus):
-        pre_advantages.append(f"500米内公交线路达{bus_500}条，地面公交网络密集，补充了地铁覆盖")
-    elif rf_bus is not None and bus_500 < _int(rf_bus) and subway_500 == 0:
-        pre_disadvantages.append(f"500米内地铁和公交全面缺失，顾客只能步行或自驾到店——交通条件对{label}极为不利")
+        if subway_applicable:
+            pre_advantages.append(f"500米内公交线路达{bus_500}条，地面公交网络密集，补充了地铁覆盖")
+        else:
+            pre_advantages.append(f"500米内公交线路达{bus_500}条，地面公交网络较密，可支撑基础可达性")
+    elif rf_bus is not None and bus_500 < _int(rf_bus):
+        # ★ 无地铁城市：公交少时只归因公交，不提地铁缺失
+        if not subway_applicable:
+            pre_disadvantages.append(f"500米内公交线路仅{bus_500}条，地面公交覆盖不足——交通条件对{label}不利")
+        elif subway_500 == 0:
+            pre_disadvantages.append(f"500米内地铁和公交全面缺失，顾客只能步行或自驾到店——交通条件对{label}极为不利")
     # else: 中性
 
     # === 维度4：学校 (if/elif/else) ===
@@ -614,6 +626,8 @@ def build_analysis_prompt(address: str, lng: float, lat: float,
                       "每条事实只能出现在对应的列表中，绝不可跨列表引用。\n" \
                       "⚠️ 系统预判只提供类别和数量信息，不提供具体 POI 名称。" \
                       "禁止基于预判内容自行补写具体学校名、小区名、医院名、商场名、酒店名等实体名称。\n"
+    if not subway_applicable:
+        pre_judged += "\n🚇 该城市暂无地铁系统，地铁不纳入本次交通评分。交通评分请重点依据公交线路、道路可达性、停车设施等地面交通因素。\n"
 
     parts.append(pre_judged)
     parts.append(f"""

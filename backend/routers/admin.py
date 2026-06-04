@@ -236,6 +236,34 @@ def add_credits(
     return {"ok": True, "user_id": user_id, "balance_credits": user.balance_credits}
 
 
+@router.post("/users/{user_id}/reset-wechat-identity")
+def reset_wechat_identity(
+    user_id: int,
+    admin: dict = Depends(get_current_admin),
+    db: Session = Depends(get_db),
+):
+    """重置用户微信登录：清空 wx_mini_openid，用户需重新登录小程序。
+    不删除用户、报告、订单、点数、会员状态。"""
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="用户不存在")
+
+    old_prefix = (user.wx_mini_openid or "")[:8]
+    user.wx_mini_openid = None
+
+    db.add(OperationLog(
+        admin_id=admin.get("user_id", 0),
+        user_id=user_id,
+        type="reset_wechat_identity",
+        change_amount=f"清空 wx_mini_openid",
+        reason=f"重置用户 {user_id} 微信登录标识（原 openid 前缀: {old_prefix}）",
+    ))
+    db.commit()
+
+    print(f"[AUDIT] RESET_WECHAT_IDENTITY admin={admin.get('user_id', 0)} user={user_id}", flush=True)
+    return {"ok": True}
+
+
 @router.get("/orders")
 def list_orders(
     admin: dict = Depends(get_current_admin),

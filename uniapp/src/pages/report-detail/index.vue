@@ -222,6 +222,8 @@ export default {
   data () {
     return {
       loading: true, errorMsg: '', record: {}, isShared: false, shareConfig: {},
+      reportShareImageLocal: '',
+      _reportShareImageRemote: '',
       poiExpanded: false,
       rptScore: 0, rptDisclaimer: '', rptWarning: '', rptSummary: '',
       rptAdv: [], rptDis: [], rptDims: [], rptAction: [],
@@ -275,8 +277,17 @@ export default {
     }
   },
   onLoad (options) {
-    // 加载分享配置
-    api.fetchShareConfig().then(c => { if (c.ok && c.data) this.shareConfig = c.data }).catch(() => {})
+    // 加载分享配置 — 下载分享图到本地临时路径
+    api.fetchShareConfig().then(c => {
+      if (c.ok && c.data) {
+        this.shareConfig = c.data
+        const imgUrl = this.resolveShareImage(c.data.report_share_image_url || c.data.share_image_url || '')
+        if (imgUrl) {
+          this._reportShareImageRemote = imgUrl
+          this._downloadShareImage(imgUrl)
+        }
+      }
+    }).catch(() => {})
     const shareToken = options.share
     const recordId = options.id
     this.isShared = !!shareToken
@@ -312,18 +323,34 @@ export default {
     }).catch(() => { this.loading = false; this.errorMsg = '网络异常，请重试' })
   },
   onShareAppMessage () {
-    // ★ 同步返回，不依赖 Promise。token 已在 _prefetchShareToken 中预生成
     const cfg = this.shareConfig || {}
     const addr = this.record.address || this.record.brand_desc || '门店'
     const titleTpl = cfg.report_share_title_template || '{address}选址分析报告'
     const title = titleTpl.replace('{address}', addr)
-    const imageUrl = this.resolveShareImage(cfg.report_share_image_url || cfg.share_image_url || '')
+    const imageUrl = this.getReportShareImageUrl()
+    console.log('[share-report] cfg.report_share_image_url:', cfg.report_share_image_url || '(empty)')
+    console.log('[share-report] cfg.share_image_url:', cfg.share_image_url || '(empty)')
+    console.log('[share-report] reportShareImageLocal:', this.reportShareImageLocal || '(empty)')
+    console.log('[share-report] final imageUrl:', imageUrl || '(empty)')
     const token = this._shareToken || ''
-    if (token) {
-      return { title, path: `/pages/report-detail/index?share=${token}`, ...(imageUrl ? { imageUrl } : {}) }
-    }
-    // token 未就绪 → 分享首页，不返回 Promise。下次从报告页分享时 token 已准备好
-    return { title, path: '/pages/home/index' }
+    const payload = token
+      ? { title, path: `/pages/report-detail/index?share=${token}` }
+      : { title, path: '/pages/home/index' }
+    if (imageUrl) payload.imageUrl = imageUrl
+    return payload
+  },
+  onShow () {
+    // 重新拉取分享配置，确保后台修改后小程序不用旧缓存
+    api.fetchShareConfig().then(c => {
+      if (c.ok && c.data) {
+        this.shareConfig = c.data
+        const imgUrl = this.resolveShareImage(c.data.report_share_image_url || c.data.share_image_url || '')
+        if (imgUrl) {
+          this._reportShareImageRemote = imgUrl
+          this._downloadShareImage(imgUrl)
+        }
+      }
+    }).catch(() => {})
   },
   methods: {
     sc: scoreColor, fmtTime: formatTime,
@@ -331,6 +358,29 @@ export default {
       if (!url) return ''
       if (url.startsWith('/assets/')) return config.API_BASE_URL + url
       return url
+    },
+    getReportShareImageUrl () {
+      const cfg = this.shareConfig || {}
+      const raw = cfg.report_share_image_url || cfg.share_image_url || ''
+      const resolved = this.resolveShareImage(raw) || this._reportShareImageRemote
+      console.log('[share-report] raw cfg url:', raw || '(empty)')
+      console.log('[share-report] resolved url:', resolved || '(empty)')
+      return this.reportShareImageLocal || resolved
+    },
+    _downloadShareImage (url) {
+      console.log('[share-report] downloadFile start:', url)
+      uni.downloadFile({
+        url,
+        success: (res) => {
+          if (res.statusCode === 200 && res.tempFilePath) {
+            this.reportShareImageLocal = res.tempFilePath
+            console.log('[share-report] downloadFile success:', res.tempFilePath)
+          } else {
+            console.warn('[share-report] downloadFile status:', res.statusCode)
+          }
+        },
+        fail: (err) => { console.warn('[share-report] downloadFile failed:', (err && err.errMsg) || err) }
+      })
     },
     statIcon (key) {
       const map = {

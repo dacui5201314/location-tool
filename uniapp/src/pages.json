@@ -5,7 +5,9 @@
       "style": {
         "navigationBarTitleText": "址得选",
         "navigationBarBackgroundColor": "#0b3fbd",
-        "navigationBarTextStyle": "white"
+        "navigationBarTextStyle": "white",
+        "enablePullDownRefresh": true,
+        "backgroundTextStyle": "dark"
       }
     },
     {
@@ -13,7 +15,9 @@
       "style": {
         "navigationBarTitleText": "分析记录",
         "navigationBarBackgroundColor": "#0b3fbd",
-        "navigationBarTextStyle": "white"
+        "navigationBarTextStyle": "white",
+        "enablePullDownRefresh": true,
+        "backgroundTextStyle": "dark"
       }
     },
     {
@@ -21,7 +25,9 @@
       "style": {
         "navigationBarTitleText": "我的收藏",
         "navigationBarBackgroundColor": "#0b3fbd",
-        "navigationBarTextStyle": "white"
+        "navigationBarTextStyle": "white",
+        "enablePullDownRefresh": true,
+        "backgroundTextStyle": "dark"
       }
     },
     {
@@ -30,7 +36,7 @@
     },
     {
       "path": "pages/profile/recharge",
-      "style": { "navigationBarTitleText": "充值中心", "navigationBarBackgroundColor": "#0b3fbd", "navigationBarTextStyle": "white" }
+      "style": { "navigationBarTitleText": "充值中心", "navigationBarBackgroundColor": "#0b3fbd", "navigationBarTextStyle": "white", "enablePullDownRefresh": true, "backgroundTextStyle": "dark" }
     },
     {
       "path": "pages/profile/contact",
@@ -57,7 +63,9 @@
       "style": {
         "navigationBarTitleText": "我的",
         "navigationBarBackgroundColor": "#0b3fbd",
-        "navigationBarTextStyle": "white"
+        "navigationBarTextStyle": "white",
+        "enablePullDownRefresh": true,
+        "backgroundTextStyle": "dark"
       }
     },
     {

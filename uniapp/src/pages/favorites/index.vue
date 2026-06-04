@@ -136,6 +136,9 @@ export default {
     if (this.isLoggedIn) this.loadFavorites()
     else { this.list = []; this.errMsg = '' }
   },
+  onPullDownRefresh () {
+    this.loadFavorites().finally(() => { uni.stopPullDownRefresh() })
+  },
   methods: {
     fmtTime: formatTime,
     favTitle (f) { return f.custom_name || f.report_brand_desc || f.address?.slice(0, 30) || '收藏地址' },

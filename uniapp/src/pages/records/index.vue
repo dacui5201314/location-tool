@@ -108,6 +108,9 @@ export default {
     this.isLoggedIn = auth.isLoggedIn()
     if (this.isLoggedIn) this.loadRecords()
   },
+  onPullDownRefresh () {
+    this.loadRecords().finally(() => { uni.stopPullDownRefresh() })
+  },
   methods: {
     sc: scoreColor,
     fmtTime: formatTime,

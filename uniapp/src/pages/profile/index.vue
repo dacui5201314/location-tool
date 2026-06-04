@@ -16,6 +16,18 @@ export default {
       }
     })
   },
+  async onPullDownRefresh () {
+    try {
+      await this.$nextTick()
+      const panel = this.$refs.profilePanel
+      if (panel && panel.refresh) {
+        const ret = panel.refresh()
+        if (ret && ret.then) await ret.catch(() => {})
+      }
+    } finally {
+      uni.stopPullDownRefresh()
+    }
+  },
   methods: {
     goTab (tab) {
       uni.reLaunch({ url: '/pages/home/index?tab=' + tab })

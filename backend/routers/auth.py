@@ -157,6 +157,26 @@ def _find_or_create_user(
         if updated:
             db.commit()
             db.refresh(user)
+
+        # ★ 小程序重新登录时，刷新过期的 wx_mini_openid
+        if channel == "mini_program" and wx_mini_openid:
+            existing_oid = (user.wx_mini_openid or "").strip()
+            if existing_oid and existing_oid != wx_mini_openid:
+                other = db.query(User).filter(
+                    User.wx_mini_openid == wx_mini_openid,
+                    User.id != user.id,
+                ).first()
+                if not other:
+                    user.wx_mini_openid = wx_mini_openid
+                    db.commit()
+                    db.refresh(user)
+                    print(f"[AUTH] refresh wx_mini_openid for user_id={user.id}, prefix={wx_mini_openid[:8]}", flush=True)
+                else:
+                    raise HTTPException(
+                        status_code=409,
+                        detail="微信身份已绑定其他账号，请联系客服处理",
+                    )
+
         return user, False, ""
 
     # ── 新用户创建 ──

@@ -14,6 +14,10 @@ function request ({ url, method = 'GET', data = {}, auth = true }) {
       data,
       header,
       success (res) {
+        // ★ Global 401 handler: clear expired token so user is prompted to re-login
+        if (res.statusCode === 401 && auth) {
+          uni.removeStorageSync('token')
+        }
         resolve({ ok: res.statusCode >= 200 && res.statusCode < 300, statusCode: res.statusCode, data: res.data })
       },
       fail (err) { reject(err) }

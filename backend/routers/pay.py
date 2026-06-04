@@ -5,6 +5,7 @@ API_V3_KEY 必须是 32 字节（AES-256-GCM 要求）。
 """
 import os, json, time, base64, secrets
 from datetime import datetime, timedelta
+from urllib.error import HTTPError, URLError
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
@@ -115,6 +116,18 @@ def _prepay_configured(db=None):
     return bool(has_key and has_pk) and len(key) == 32
 
 
+def _get_sys_config_str(db, key: str, default: str = "") -> str:
+    """从 SystemConfig 表中读取字符串配置"""
+    try:
+        from models.db_models import SystemConfig
+        row = db.query(SystemConfig).filter(SystemConfig.key == key).first()
+        if row and row.value:
+            return row.value.strip()
+    except Exception:
+        pass
+    return default
+
+
 def _notify_configured(db=None):
     """notify 额外需要平台证书（DB PEM 或 env 路径）"""
     if not _prepay_configured(db):
@@ -186,6 +199,15 @@ def wechat_prepay(
             detail="请先在微信中登录并授权后，再进行支付"
         )
 
+    # ★ AppID 一致性校验：支付 AppID 必须与小程序登录 AppID 一致
+    mini_appid = _get_sys_config_str(db, "wx_mini_appid", os.getenv("WECHAT_MINI_APPID", ""))
+    if mini_appid and appid != mini_appid:
+        raise HTTPException(status_code=400, detail="支付 AppID 与小程序登录 AppID 不一致，请在系统参数中统一配置")
+
+    # ★ notify_url HTTPS 校验
+    if notify_url and not notify_url.startswith("https://"):
+        raise HTTPException(status_code=400, detail="微信支付回调地址必须使用 HTTPS")
+
     # SKU 校验（用户可见套餐）
     skus, _ = get_user_skus(user_id, db)
     sku = next((s for s in skus if s.get("id") == body.sku_id and s.get("visible", True)), None)
@@ -233,24 +255,27 @@ def wechat_prepay(
         "amount": {"total": total_fen, "currency": "CNY"},
         "payer": {"openid": openid},
     }
-    # 调试日志
-    wx_body_dbg = {k:v for k,v in wx_body.items()}
-    if 'amount' in wx_body_dbg: wx_body_dbg['amount'] = wx_body['amount']
-    print(f"[WXPAY] 下单参数: appid={appid}, mchid={mchid}, openid={openid[:8]}***, notify_url={notify_url[:50]}", flush=True)
+    # 诊断日志（不打印完整 openid/密钥/私钥）
+    print(f"[WXPAY] appid={appid} mini_openid_prefix={openid[:8]}*** mchid={mchid} notify={notify_url}", flush=True)
     try:
         wx_resp = _wx_post("/v3/pay/transactions/jsapi", wx_body, mchid, appid, api_v3_key, cert_serial, private_key)
-    except urllib.error.HTTPError as e:
+    except HTTPError as e:
         order.status = "FAILED"
         db.commit()
         err_body = ""
         try:
-            reader = getattr(e, 'read', None)
+            reader = getattr(e, "read", None)
             if callable(reader):
-                err_body = reader().decode('utf-8', errors='replace')[:500]
-        except Exception as read_error:
-            print(f"[WXPAY] 微信错误体读取失败: {read_error}", flush=True)
-        print(f"[WXPAY] 微信返回错误 body={err_body}", flush=True)
+                err_body = reader().decode("utf-8", errors="replace")[:500]
+        except Exception:
+            pass
+        print(f"[WXPAY] 微信返回错误 body={err_body[:200]}", flush=True)
         raise HTTPException(status_code=502, detail=f"微信支付接口异常: {err_body or str(e)[:200]}")
+    except URLError as e:
+        order.status = "FAILED"
+        db.commit()
+        print(f"[WXPAY] 微信支付网络异常: {str(e)[:120]}", flush=True)
+        raise HTTPException(status_code=502, detail="微信支付网络异常，请稍后重试")
     except Exception as e:
         order.status = "FAILED"
         db.commit()

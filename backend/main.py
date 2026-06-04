@@ -419,6 +419,8 @@ async def analyze_location(req: AnalyzeRequest, user: dict = Depends(get_current
                     "irrelevant_excluded": ld.irrelevant_excluded,
                     "data_quality_notes": ld.data_quality_notes,
                     "rigor_enabled": bool(get_rigor_for_config_key(config_key)),
+                    "city_has_subway": ld.city_has_subway,
+                    "subway_applicable": ld.subway_applicable,
                 }
                 # ★ P0修复：AMap 采集成功 → 计费确认
                 try:
@@ -470,6 +472,7 @@ async def analyze_location(req: AnalyzeRequest, user: dict = Depends(get_current
                         "competitors_200m": 0, "competitors_500m": 0, "competitors_1000m": 0,
                         "competitor_list": [], "poi_lists": {},
                         "direct_competitors_200m": 0, "direct_competitors_500m": 0, "direct_competitors_1000m": 0,
+                        "city_has_subway": True, "subway_applicable": True,
                         "direct_competitor_list": [],
                         "data_quality_notes": ["数据采集失败：后端AMap服务不可用，报告数据不完整"],
                         "rigor_enabled": False,

@@ -36,6 +36,7 @@ def build_fallback_report(real_data: dict, address: str = "",
     parking_500 = _int(s5.get("parking", 0))
     shopping_500 = _int(s5.get("shopping", 0))
     hotel_1000 = _int(s10.get("hotels", 0))
+    subway_applicable = real_data.get("subway_applicable", True)
 
     # ── 场景判断（仅用于内部描述，不写入报告正文） ──
     if office_500 >= 20 and shopping_500 >= 5:
@@ -59,7 +60,7 @@ def build_fallback_report(real_data: dict, address: str = "",
         advantages.append(f"200米范围内{dh_count(dc_200, '同业态商户')}，竞争压力较小")
     if res_500 >= 10:
         advantages.append(f"500米半径覆盖{dh_count(res_500, '个住宅小区')}，常住人口基数充足")
-    if subway_500 >= 1:
+    if subway_applicable and subway_500 >= 1:
         advantages.append(f"500米内有{sn_count(subway_500, '个地铁站')}，公共交通可导入客群")
     if bus_500 >= 5:
         advantages.append(f"500米内{dh_count(bus_500, '条公交线路')}，地面公交网络较密")
@@ -78,10 +79,12 @@ def build_fallback_report(real_data: dict, address: str = "",
     disadvantages = []
     if dc_200 > 15:
         disadvantages.append(f"200米范围内{dh_count(dc_200, '家同业态商户')}，竞争较激烈")
-    if subway_500 == 0 and bus_500 == 0:
+    if subway_applicable and subway_500 == 0 and bus_500 == 0:
         disadvantages.append("500米内无地铁和公交覆盖，出行主要依赖步行和自驾")
-    elif subway_500 == 0:
+    elif subway_applicable and subway_500 == 0:
         disadvantages.append("500米内无地铁站，公共交通以公交为主")
+    elif not subway_applicable and bus_500 == 0:
+        disadvantages.append("500米内无公交线路覆盖，出行依赖步行和自驾")
     if res_500 < 5:
         disadvantages.append(f"500米内仅{sn_count(res_500, '个住宅小区')}，常住人口基数偏小")
     if parking_500 == 0:
@@ -94,7 +97,7 @@ def build_fallback_report(real_data: dict, address: str = "",
     # ── warning（保守措辞） ──
     if dc_200 > 15:
         warning = "200米内同业态商户密集"
-    elif subway_500 == 0 and bus_500 <= 2:
+    elif subway_applicable and subway_500 == 0 and bus_500 <= 2:
         warning = "公共交通条件较弱"
     else:
         warning = "需线下实地核验"
@@ -112,8 +115,8 @@ def build_fallback_report(real_data: dict, address: str = "",
          "score": _clamp(20, 85, 30 + res_500),
          "text": f"500米内{res_500}个住宅小区、{office_500}栋办公建筑，人口密度{'偏高' if res_500 >= 10 else '中等' if res_500 >= 5 else '偏低'}"},
         {"key": "traffic_accessibility", "label": "交通可达性",
-         "score": _clamp(15, 85, 25 + subway_500 * 15 + bus_500 * 3),
-         "text": f"500米内{subway_500}个地铁站、{bus_500}条公交线路，交通{'较便利' if (subway_500 + bus_500) >= 5 else '一般' if (subway_500 + bus_500) > 0 else '偏弱'}"},
+         "score": _traffic_score(subway_500, bus_500, subway_applicable),
+         "text": _traffic_text(subway_500, bus_500, subway_applicable)},
         {"key": "traffic_flow", "label": "客流特征",
          "score": _clamp(25, 75, 30 + res_500 // 2 + office_500),
          "text": "基于居住和办公人口推算，具体客流需线下实测"},
@@ -137,7 +140,7 @@ def build_fallback_report(real_data: dict, address: str = "",
     # ── details（避免"周边""附近""竞品""锚点"） ──
     details = {
         "population_density": f"500米半径内{res_500}个住宅小区、{office_500}栋办公建筑、{school_500}所教育机构、{hospital_500}家医院。数据来自高德POI采集。评分：{dims[0]['score']}",
-        "traffic_accessibility": f"500米内{subway_500}个地铁站、{bus_500}条公交线路、{parking_500}个停车设施。评分：{dims[1]['score']}",
+        "traffic_accessibility": _traffic_detail(subway_500, bus_500, parking_500, subway_applicable, dims[1]['score']),
         "traffic_flow": "日均客流量需线下实测确认。评分：" + str(dims[2]['score']),
         "consumer_profile": f"数据摘要，不替代现场消费层次核验。评分：{dims[3]['score']}",
         "competition": f"200米内{dc_200}家同业态商户，500米内{dc_500}家，1000米内{dc_1000}家。替代消费{sn_count(sub_1000, '家')}，流量节点{sn_count(anc_1000, '个')}。评分：{dims[4]['score']}",
@@ -194,3 +197,27 @@ def dh_count(n, word):
 
 def sn_count(n, word):
     return f"{n}{word}"
+
+
+def _traffic_score(subway_n, bus_n, subway_applicable):
+    base = 25
+    if subway_applicable:
+        base += subway_n * 15
+    base += bus_n * 3
+    return _clamp(15, 85, base)
+
+
+def _traffic_text(subway_n, bus_n, subway_applicable):
+    if not subway_applicable:
+        total = bus_n
+        level = "较便利" if total >= 8 else "一般" if total >= 3 else "偏弱"
+        return f"本城市暂无地铁系统，500米内{bus_n}条公交线路，交通评估参考公交可达性，公交{level}"
+    total = subway_n + bus_n
+    level = "较便利" if total >= 5 else "一般" if total > 0 else "偏弱"
+    return f"500米内{subway_n}个地铁站、{bus_n}条公交线路，交通{level}"
+
+
+def _traffic_detail(subway_n, bus_n, parking_n, subway_applicable, score):
+    if not subway_applicable:
+        return f"本城市暂无地铁系统，交通评估参考公交线路、道路可达性和停车设施。500米内{bus_n}条公交线路、{parking_n}个停车设施。评分：{score}"
+    return f"500米内{subway_n}个地铁站、{bus_n}条公交线路、{parking_n}个停车设施。评分：{score}"

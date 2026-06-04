@@ -121,6 +121,14 @@ export default {
       if (r.ok && r.data) { this.csWechat = r.data.cs_wechat || ''; this.csPhone = r.data.cs_phone || '' }
     }).catch(() => {})
   },
+  onPullDownRefresh () {
+    Promise.all([
+      this.loadProfile(),
+      api.fetchSkus().then(r => {
+        if (r.ok && Array.isArray(r.data?.skus)) this.skus = r.data.skus.filter(s => s.visible)
+      }).catch(() => {})
+    ]).finally(() => { uni.stopPullDownRefresh() })
+  },
   methods: {
     async loadProfile () {
       const user = auth.getUser() || {}
@@ -153,7 +161,16 @@ export default {
       try {
         const r = await api.createPrepay(this.selectedSku.id)
         if (!r.ok) {
-          const msg = (r.data && (r.data.detail || r.data.error)) || '创建订单失败'
+          const statusCode = r.statusCode || 0
+          const detail = (r.data && r.data.detail) || ''
+          let msg = ''
+          if (detail) {
+            msg = detail
+          } else if (statusCode === 500 || statusCode === 502) {
+            msg = '支付服务异常，请稍后重试'
+          } else {
+            msg = (r.data && r.data.error) || '创建订单失败'
+          }
           if (msg.includes('微信中登录')) {
             this.payErr = '请先在微信中授权登录后再支付'
           } else if (msg.includes('支付服务暂不可用')) {
