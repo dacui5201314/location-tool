@@ -13,7 +13,7 @@
 - **SSE 实时流式分析** — 四步进度推送，免疫代理缓冲
 - **双重计费系统** — 会员订阅制（月度/季度/年度）+ 点数余额制 + CDK 兑换码激活
 - **管理后台** — key 池管理、业态配置热更新、用户管理、SKU 套餐管理、UI 配置、操作审计日志
-- **微信支付** — JSAPI v3 完整链路（prepay + notify 验签解密 + PaymentOrder 持久化）
+- **微信支付** — JSAPI v3 完整链路（prepay + notify 验签解密 + PaymentOrder 持久化）+ 小程序虚拟支付（wx.requestVirtualPayment 道具直购）
 
 ---
 

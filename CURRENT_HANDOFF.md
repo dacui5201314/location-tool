@@ -1,8 +1,8 @@
 # 址得选 · 当前交接文档
 
 **最后更新**：2026-06-04
-**版本**：v3.7.0
-**阶段**：第一阶段收口，准备微信审核
+**版本**：v3.8.0
+**阶段**：虚拟支付+分享朋友圈，准备微信审核
 
 ---
 
@@ -15,7 +15,7 @@
 | 生产域名 | `https://www.oliver188.top` |
 | 小程序 AppID | `wxc8f7f6a2e29e7bb4` |
 | 上传目录 | `uniapp/dist/build/mp-weixin` |
-| GitHub | `https://github.com/dacui5201314/location-tool` |
+| GitHub | `https://github.com/dacui5201314/location-tool-v2` |
 
 ---
 
