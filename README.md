@@ -47,7 +47,7 @@ location-tool/
 │   ├── ai_providers/                  # 大模型适配层（6 家厂商，统一入口 unified.py）
 │   ├── models/                        # Pydantic 请求模型 + SQLAlchemy ORM（9 张表）
 │   ├── prompts/                       # AI 提示词系统（14 套 Master 业态规则）
-│   ├── routers/                       # RESTful API 路由（9 个模块）
+│   ├── routers/                       # RESTful API 路由（10 个模块，含虚拟支付）
 │   ├── services/                      # 业务服务（amap/billing/runtime_config/storage/poi_name_guard）
 │   ├── tests/                         # 测试套件（industry 2168 PASS / fact guard 147 PASS）
 │   └── storage/                       # 运行时文件存储（reports/assets）
@@ -157,6 +157,8 @@ http://localhost:8000/docs           # Swagger API 文档（调试用）
 
 ## 版本历史
 
+- **v3.8.0** (2026-06-04) — 虚拟支付 + 分享朋友圈：接入微信小程序官方虚拟支付（wx.requestVirtualPayment 道具直购），服务端签名（paySig/signature）、回调通知、幂等发货；首页+报告页支持分享到朋友圈；session_key 服务端保存；数据库迁移 pay_channel/wx_session_key；新 GitHub 仓库 location-tool-v2
+- **v3.7.0** (2026-06-04) — 上线前收口：支付 500 修复、AppID 一致性校验、openid 自动刷新、分享图预加载+下载、下拉刷新 5 页面、管理后台重置微信登录、公交措辞修正、data_quality_notes 修复、401 全局 token 清理
 - **v1.15.1** (2026-06-01) — Codex UI 精细收口：管理后台仪表盘交互折线图、分享图拆分首页/报告独立封面、用户列表会员友好化、业态按类目分组、操作记录美化；前端 ProfilePanel 图标改用 PNG、首页和报告分享封面独立配置
 - **v1.15.0** (2026-06-01) — C-4 报告幻觉专项 + 管理后台 SaaS 闭环：POI 名称校验 retry 白名单收窄、retry prompt 注入强约束、模板去诱导；后台新增订单管理+点数流水、业态 CRUD、SKU/CDK/二维码/Key池接口对齐；fact guard 175 PASS
 - **v1.14.0** (2026-06-01) — 上线闭环与安全加固：支付 queryOrder 确认闭环、.gitignore 防护、管理后台 search→phone 修复、innerHTML XSS 转义、匿名设备 ID 去硬编码、退款幂等保护、location key 池完整重试、文档统一
@@ -202,7 +204,7 @@ Nginx (HTTPS, 宝塔面板)
 
 ```bash
 # 在宝塔"文件"页面或通过 SFTP，将整个项目上传到
-/www/wwwroot/zdx-api/
+/www/wwwroot/location-tool/
 ```
 
 ## 第二步：Python 环境
@@ -211,14 +213,14 @@ Nginx (HTTPS, 宝塔面板)
 
 | 配置项 | 值 |
 |--------|-----|
-| 项目路径 | `/www/wwwroot/zdx-api/backend` |
+| 项目路径 | `/www/wwwroot/location-tool/backend` |
 | 启动文件 | `main.py` |
 | 运行端口 | `8000` |
 | 框架 | FastAPI |
 
 或手动启动：
 ```bash
-cd /www/wwwroot/zdx-api/backend
+cd /www/wwwroot/location-tool/backend
 pip install -r requirements.txt
 nohup python main.py > /tmp/zdx-api.log 2>&1 &
 ```
@@ -262,7 +264,7 @@ server {
 
 ## 第四步：配置环境变量
 
-编辑 `/www/wwwroot/zdx-api/backend/.env`，填入真实的 Key 和密码：
+编辑 `/www/wwwroot/location-tool/backend/.env`，填入真实的 Key 和密码：
 
 ```env
 LLM_PROVIDER=deepseek
@@ -284,7 +286,7 @@ ADMIN_PASSWORD=<设置强密码>
 ## 第六步：uni-app 小程序发布
 
 ```bash
-cd /www/wwwroot/zdx-api/uniapp
+cd /www/wwwroot/location-tool/uniapp
 npm install
 npm run build:mp-weixin
 ```
@@ -300,7 +302,7 @@ npm run build:mp-weixin
 SQLite 数据库位于 `backend/location_tool.db`，建议定期备份：
 
 ```bash
-cp /www/wwwroot/zdx-api/backend/location_tool.db \
+cp /www/wwwroot/location-tool/backend/location_tool.db \
    /www/backup/zdx-$(date +%Y%m%d).db
 ```
 
@@ -315,13 +317,13 @@ WAL 模式会自动生成 `-wal` 和 `-shm` 文件，备份时一起复制。
 tail -f /tmp/zdx-api.log
 
 # 重启后端
-pkill -f "python main.py" && cd /www/wwwroot/zdx-api/backend && nohup python main.py > /tmp/zdx-api.log 2>&1 &
+pkill -f "python main.py" && cd /www/wwwroot/location-tool/backend && nohup python main.py > /tmp/zdx-api.log 2>&1 &
 
 # 验证后端健康
 curl http://localhost:8000/api/health
 
 # 运行测试
-cd /www/wwwroot/zdx-api/backend
+cd /www/wwwroot/location-tool/backend
 python -m compileall .
 python tests/check_industry_rigor_rules.py
 python tests/check_report_fact_guard.py
