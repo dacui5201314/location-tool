@@ -52,33 +52,79 @@ export default {
       })
     },
     removeImg (i) { this.images.splice(i, 1) },
+    async uploadOne (filePath) {
+      const token = uni.getStorageSync('token')
+      return new Promise((resolve, reject) => {
+        uni.uploadFile({
+          url: config.API_BASE_URL + '/api/feedback/upload',
+          name: 'file',
+          filePath,
+          header: token ? { Authorization: 'Bearer ' + token } : {},
+          success: (res) => {
+            try {
+              const d = JSON.parse(res.data)
+              if (res.statusCode >= 200 && res.statusCode < 300 && d.ok) {
+                resolve(d.url)
+              } else {
+                reject(new Error(d.detail || '图片上传失败'))
+              }
+            } catch (e) { reject(new Error('图片上传解析失败')) }
+          },
+          fail: (e) => { reject(new Error(e.errMsg || '图片上传网络异常')) }
+        })
+      })
+    },
     async onSubmit () {
       if (this.submitting) return
       const c = (this.content || '').trim()
       if (c.length < 10) { this.errMsg = '反馈内容至少10个字'; return }
       this.submitting = true; this.errMsg = ''
-      const token = uni.getStorageSync('token')
-      uni.uploadFile({
-        url: config.API_BASE_URL + '/api/feedback',
-        name: 'files',
-        formData: { content: c, contact: (this.contact || '').trim() },
-        filePath: this.images[0] || '',
-        files: this.images.map(p => ({ name: 'files', uri: p })),
-        header: token ? { Authorization: 'Bearer ' + token } : {},
-        success: (res) => {
+
+      try {
+        // 1. 逐个上传图片（小程序不支持 uni.uploadFile 的 files 参数）
+        const urls = []
+        for (const img of this.images) {
           try {
-            const data = JSON.parse(res.data)
-            if (res.statusCode >= 200 && res.statusCode < 300) {
-              uni.showToast({ title: data.message || '提交成功', icon: 'none', duration: 2500 })
-              setTimeout(() => { uni.navigateBack({ delta: 1 }) }, 1800)
-            } else {
-              this.errMsg = data.detail || '提交失败'
-            }
-          } catch (e) { this.errMsg = '提交失败' }
-        },
-        fail: () => { this.errMsg = '网络异常，请重试' },
-        complete: () => { this.submitting = false }
-      })
+            const url = await this.uploadOne(img)
+            urls.push(url)
+          } catch (e) {
+            this.errMsg = (e && e.message) || '图片上传失败'
+            this.submitting = false
+            return
+          }
+        }
+
+        // 2. 提交反馈内容
+        const token = uni.getStorageSync('token')
+        const res = await new Promise((resolve, reject) => {
+          uni.request({
+            url: config.API_BASE_URL + '/api/feedback',
+            method: 'POST',
+            header: {
+              'Content-Type': 'application/x-www-form-urlencoded',
+              ...(token ? { Authorization: 'Bearer ' + token } : {})
+            },
+            data: {
+              content: c,
+              contact: (this.contact || '').trim(),
+              image_urls: JSON.stringify(urls)
+            },
+            success: resolve,
+            fail: reject
+          })
+        })
+        const data = res.data
+        if (res.statusCode >= 200 && res.statusCode < 300) {
+          uni.showToast({ title: data.message || '提交成功', icon: 'none', duration: 2500 })
+          setTimeout(() => { uni.navigateBack({ delta: 1 }) }, 1800)
+        } else {
+          this.errMsg = (data && data.detail) || '提交失败'
+        }
+      } catch (e) {
+        this.errMsg = (e && e.errMsg) || '网络异常，请重试'
+      } finally {
+        this.submitting = false
+      }
     }
   }
 }

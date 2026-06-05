@@ -14,11 +14,29 @@ FEEDBACK_ASSETS = Path(__file__).resolve().parent.parent / "storage" / "assets" 
 FEEDBACK_ASSETS.mkdir(parents=True, exist_ok=True)
 
 
+@router.post("/upload")
+async def upload_feedback_image(
+    file: UploadFile = File(...),
+    user: dict = Depends(get_current_user),
+):
+    """单张反馈截图上传（微信小程序 uni.uploadFile 仅支持单文件）"""
+    raw = await file.read()
+    if len(raw) > 2 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="图片不能超过2MB")
+    ext = (file.filename or "").rsplit(".", 1)[-1].lower() or "jpg"
+    if ext not in ("png", "jpg", "jpeg", "webp"):
+        ext = "jpg"
+    fname = f"fb_{uuid.uuid4().hex[:10]}.{ext}"
+    fpath = FEEDBACK_ASSETS / fname
+    fpath.write_bytes(raw)
+    return {"ok": True, "url": f"/assets/feedback/{fname}"}
+
+
 @router.post("")
 async def submit_feedback(
     content: str = Form(""),
     contact: str = Form(""),
-    files: list[UploadFile] = File(default=[]),
+    image_urls: str = Form(""),
     user: dict = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
@@ -33,19 +51,12 @@ async def submit_feedback(
     if not db_user:
         raise HTTPException(status_code=404, detail="用户不存在")
 
-    # 处理截图上传（最多3张，每张不超过2MB）
-    image_urls = []
-    for f in files[:3]:
-        raw = await f.read()
-        if len(raw) > 2 * 1024 * 1024:
-            continue
-        ext = (f.filename or "").rsplit(".", 1)[-1].lower() or "jpg"
-        if ext not in ("png", "jpg", "jpeg", "webp"):
-            ext = "jpg"
-        fname = f"fb_{uuid.uuid4().hex[:10]}.{ext}"
-        fpath = FEEDBACK_ASSETS / fname
-        fpath.write_bytes(raw)
-        image_urls.append(f"/assets/feedback/{fname}")
+    # 解析前端传入的已上传图片 URL 列表
+    img_list = []
+    try:
+        img_list = json.loads(image_urls) if image_urls else []
+    except (json.JSONDecodeError, TypeError):
+        img_list = []
 
     # 每人每天限1次领积分
     today = datetime.now().date()
@@ -60,7 +71,7 @@ async def submit_feedback(
         user_id=user_id,
         content=content,
         contact=(contact or "").strip()[:120],
-        image_urls=json.dumps(image_urls, ensure_ascii=False),
+        image_urls=json.dumps(img_list, ensure_ascii=False),
         credits_granted=1 if not already_granted else 0,
     )
     db.add(fb)
@@ -78,7 +89,7 @@ async def submit_feedback(
 
     db.commit()
     msg = "感谢反馈！已赠送 1 点分析额度" if not already_granted else "感谢反馈！今日已领取过奖励，明天再来。"
-    return {"ok": True, "message": msg, "credits_granted": 1 if not already_granted else 0, "images": image_urls}
+    return {"ok": True, "message": msg, "credits_granted": 1 if not already_granted else 0, "images": img_list}
 
 
 @router.get("/admin/list")
