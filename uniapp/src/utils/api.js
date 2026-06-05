@@ -251,6 +251,7 @@ function createPrepay (skuId) { return request({ url: '/api/pay/wechat/prepay', 
 function queryOrder (outTradeNo) { return request({ url: `/api/pay/orders/${outTradeNo}` }) }
 function createVirtualPrepay (skuId) { return request({ url: '/api/virtual-pay/prepay', method: 'POST', data: { sku_id: skuId } }) }
 function queryVirtualOrder (orderNo) { return request({ url: `/api/virtual-pay/order/${orderNo}` }) }
+function confirmVirtualPayment (orderNo, signData) { return request({ url: '/api/virtual-pay/confirm', method: 'POST', data: { order_no: orderNo, signData } }) }
 function submitFeedback (content, contact) { return request({ url: '/api/feedback', method: 'POST', data: { content, contact } }) }
 
 // ── Health ──
@@ -259,5 +260,5 @@ function getHealth () { return request({ url: '/api/health', auth: false }) }
 export default {
   request, normalizeError, ensureAnonToken, wechatMiniLogin, bindPhone, phoneLogin,
   fetchProfile, updateProfile, uploadAvatar, fetchRecords, fetchRecordDetail, fetchSharedReport, createShareToken, deleteRecord,
-  fetchFavorites, deleteFavorite, checkFavorite, addFavorite, fetchIndustries, locationSuggest, locationRegeocode, analyzeLocation, fetchUiConfig, fetchShareConfig, fetchCsQr, fetchSkus, activateCdk, createPrepay, queryOrder, createVirtualPrepay, queryVirtualOrder, submitFeedback, getHealth
+  fetchFavorites, deleteFavorite, checkFavorite, addFavorite, fetchIndustries, locationSuggest, locationRegeocode, analyzeLocation, fetchUiConfig, fetchShareConfig, fetchCsQr, fetchSkus, activateCdk, createPrepay, queryOrder, createVirtualPrepay, queryVirtualOrder, confirmVirtualPayment, submitFeedback, getHealth
 }

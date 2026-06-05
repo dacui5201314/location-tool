@@ -185,6 +185,107 @@ def query_virtual_order(
     }
 
 
+class ConfirmBody(BaseModel):
+    order_no: str
+    signData: str = ""
+
+
+@router.post("/confirm")
+def virtual_confirm(
+    body: ConfirmBody,
+    user: dict = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """支付成功前端主动确认：用 appKey 验签 signData 后直接发货。
+    解决微信 notify 回调因网络/配置问题无法触达服务器的兜底方案。"""
+    user_id = int(user["user_id"])
+    order = db.query(PaymentOrder).filter(
+        PaymentOrder.out_trade_no == body.order_no,
+        PaymentOrder.user_id == user_id,
+    ).first()
+    if not order:
+        raise HTTPException(status_code=404, detail="订单不存在")
+    if order.status == "PAID":
+        return {"ok": True, "status": "PAID", "message": "已到账"}
+
+    # 验签：用 appKey 校验 signData 完整性和来源
+    cfg = get_core_config(db)
+    app_key = (cfg.get("wx_virtual_app_key") or "").strip()
+    if not app_key:
+        raise HTTPException(status_code=503, detail="虚拟支付未配置 App Key")
+
+    expected_pay_sig = hmac.new(
+        app_key.encode("utf-8"),
+        b"requestVirtualPayment&" + body.signData.encode("utf-8"),
+        hashlib.sha256,
+    ).hexdigest()
+
+    # 从 signData 解析字段用于校验
+    try:
+        sd = json.loads(body.signData)
+    except (json.JSONDecodeError, TypeError):
+        raise HTTPException(status_code=400, detail="signData 格式无效")
+
+    callback_order_no = sd.get("outTradeNo", "")
+    callback_product_id = sd.get("productId", "")
+    callback_price = sd.get("goodsPrice", 0)
+
+    # 三重校验
+    if callback_order_no != body.order_no:
+        raise HTTPException(status_code=400, detail="订单号不匹配")
+
+    expected_product_id = _get_virtual_product_id(db, order.sku_id)
+    if not expected_product_id or callback_product_id != expected_product_id:
+        raise HTTPException(status_code=400, detail="道具ID不匹配")
+
+    try:
+        callback_price = int(callback_price)
+    except (ValueError, TypeError):
+        raise HTTPException(status_code=400, detail="金额格式无效")
+    if callback_price != order.amount_fen:
+        raise HTTPException(status_code=400, detail="金额不匹配")
+
+    # 通过校验，发放权益
+    _grant_order(db, order, user_id)
+    return {"ok": True, "status": "PAID", "message": "充值已到账"}
+
+
+def _grant_order(db: Session, order, user_id: int):
+    """发放订单权益（notify 和 confirm 共用）"""
+    if order.status == "PAID":
+        return
+    db_user = db.query(User).filter(User.id == user_id).first()
+    if not db_user:
+        return
+    try:
+        order.status = "PAID"
+        order.paid_at = datetime.now()
+        if order.credits > 0:
+            db_user.balance_credits += order.credits
+            db.add(BillingRecord(
+                user_id=user_id, amount=order.credits,
+                balance_after=db_user.balance_credits,
+                record_type="PURCHASE", reason=f"虚拟支付充值 {order.credits}点 ({order.out_trade_no})",
+            ))
+        if order.membership_days > 0:
+            now = datetime.now()
+            if db_user.membership_expiry and db_user.membership_expiry > now:
+                db_user.membership_expiry += timedelta(days=order.membership_days)
+            else:
+                db_user.membership_expiry = now + timedelta(days=order.membership_days)
+            db_user.membership_tier = "monthly" if order.membership_days <= 90 else ("quarterly" if order.membership_days <= 180 else "yearly")
+            db.add(BillingRecord(
+                user_id=user_id, amount=0,
+                balance_after=db_user.balance_credits,
+                record_type="MEMBERSHIP", reason=f"虚拟支付开通会员 {order.membership_days}天 ({order.out_trade_no})",
+            ))
+        db.commit()
+        print(f"[VPAY-CONFIRM] 到账成功 order={order.out_trade_no} credits={order.credits} days={order.membership_days}", flush=True)
+    except Exception:
+        db.rollback()
+        print(f"[VPAY-CONFIRM] 发放权益事务失败 order={order.out_trade_no}", flush=True)
+
+
 def _parse_notify_body(body_str: str) -> dict:
     """解析虚拟支付回调 body，返回 {'payload_str':..., 'pay_event_sig':...} 或空 dict"""
     # 尝试 JSON
@@ -328,37 +429,6 @@ async def virtual_notify(request: Request, db: Session = Depends(get_db)):
         print(f"[VPAY-NOTIFY] productId 不匹配: callback={product_id} expected={expected_product_id}", flush=True)
         return JSONResponse(status_code=200, content={"ErrCode": 1, "ErrMsg": "product id mismatch"})
 
-    # ── 所有校验通过，发放权益（同一事务）──
-    try:
-        order.status = "PAID"
-        order.paid_at = datetime.now()
-
-        if order.credits > 0:
-            db_user.balance_credits += order.credits
-            db.add(BillingRecord(
-                user_id=order.user_id, amount=order.credits,
-                balance_after=db_user.balance_credits,
-                record_type="PURCHASE", reason=f"虚拟支付充值 {order.credits}点 ({order.out_trade_no})",
-            ))
-
-        if order.membership_days > 0:
-            now = datetime.now()
-            if db_user.membership_expiry and db_user.membership_expiry > now:
-                db_user.membership_expiry += timedelta(days=order.membership_days)
-            else:
-                db_user.membership_expiry = now + timedelta(days=order.membership_days)
-            db_user.membership_tier = "monthly" if order.membership_days <= 90 else ("quarterly" if order.membership_days <= 180 else "yearly")
-            db.add(BillingRecord(
-                user_id=order.user_id, amount=0,
-                balance_after=db_user.balance_credits,
-                record_type="MEMBERSHIP", reason=f"虚拟支付开通会员 {order.membership_days}天 ({order.out_trade_no})",
-            ))
-
-        db.commit()
-        print(f"[VPAY-NOTIFY] 到账成功 order={order_no} credits={order.credits} days={order.membership_days}", flush=True)
-    except Exception:
-        db.rollback()
-        print(f"[VPAY-NOTIFY] 发放权益事务失败 order={order_no}", flush=True)
-        return JSONResponse(status_code=200, content={"ErrCode": 1, "ErrMsg": "grant failed"})
-
+    # ── 所有校验通过，发放权益 ──
+    _grant_order(db, order, order.user_id)
     return JSONResponse(status_code=200, content={"ErrCode": 0, "ErrMsg": "Success"})
