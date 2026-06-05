@@ -47,9 +47,9 @@ location-tool/
 │   ├── ai_providers/                  # 大模型适配层（6 家厂商，统一入口 unified.py）
 │   ├── models/                        # Pydantic 请求模型 + SQLAlchemy ORM（9 张表）
 │   ├── prompts/                       # AI 提示词系统（14 套 Master 业态规则）
-│   ├── routers/                       # RESTful API 路由（10 个模块，含虚拟支付）
-│   ├── services/                      # 业务服务（amap/billing/runtime_config/storage/poi_name_guard）
-│   ├── tests/                         # 测试套件（industry 2168 PASS / fact guard 147 PASS）
+│   ├── routers/                       # RESTful API 路由（11 个模块：admin/auth/user/records/favorites/location/pay/virtual_pay/feedback/industries/cdk）
+│   ├── services/                      # 业务服务（amap/billing/runtime_config/storage/poi_name_guard/fallback_report_service）
+│   ├── tests/                         # 测试套件（industry 2168 PASS / fact guard 175 PASS）
 │   └── storage/                       # 运行时文件存储（reports/assets）
 ├── uniapp/                            # uni-app 多端客户端（主力产品）
 │   ├── src/pages/                     # 13 个页面（home/records/favorites/report-detail/profile/legal）
@@ -157,7 +157,7 @@ http://localhost:8000/docs           # Swagger API 文档（调试用）
 
 ## 版本历史
 
-- **v3.8.0** (2026-06-04) — 虚拟支付 + 分享朋友圈：接入微信小程序官方虚拟支付（wx.requestVirtualPayment 道具直购），服务端签名（paySig/signature）、回调通知、幂等发货；首页+报告页支持分享到朋友圈；session_key 服务端保存；数据库迁移 pay_channel/wx_session_key；新 GitHub 仓库 location-tool-v2
+- **v3.8.0** (2026-06-05) — 虚拟支付安全加固 + 小程序审核就绪：notify 回调六重校验（PayEventSig/amount>0/pay_channel/openid/productId/金额匹配/事务安全）；公交优势文案修正（无地铁城市不写"补充地铁覆盖"）；data_quality_notes 覆盖修复；AMap fallback 缩进对齐；wx.showShareMenu 环境保护；用户意见反馈功能（feedback.py + feedback.vue）；充值页 UI 优化
 - **v3.7.0** (2026-06-04) — 上线前收口：支付 500 修复、AppID 一致性校验、openid 自动刷新、分享图预加载+下载、下拉刷新 5 页面、管理后台重置微信登录、公交措辞修正、data_quality_notes 修复、401 全局 token 清理
 - **v1.15.1** (2026-06-01) — Codex UI 精细收口：管理后台仪表盘交互折线图、分享图拆分首页/报告独立封面、用户列表会员友好化、业态按类目分组、操作记录美化；前端 ProfilePanel 图标改用 PNG、首页和报告分享封面独立配置
 - **v1.15.0** (2026-06-01) — C-4 报告幻觉专项 + 管理后台 SaaS 闭环：POI 名称校验 retry 白名单收窄、retry prompt 注入强约束、模板去诱导；后台新增订单管理+点数流水、业态 CRUD、SKU/CDK/二维码/Key池接口对齐；fact guard 175 PASS
