@@ -280,10 +280,39 @@ def _grant_order(db: Session, order, user_id: int):
                 record_type="MEMBERSHIP", reason=f"虚拟支付开通会员 {order.membership_days}天 ({order.out_trade_no})",
             ))
         db.commit()
-        print(f"[VPAY-CONFIRM] 到账成功 order={order.out_trade_no} credits={order.credits} days={order.membership_days}", flush=True)
+        print(f"[VPAY] 到账成功 order={order.out_trade_no} credits={order.credits} days={order.membership_days}", flush=True)
     except Exception:
         db.rollback()
-        print(f"[VPAY-CONFIRM] 发放权益事务失败 order={order.out_trade_no}", flush=True)
+        print(f"[VPAY] 发放权益事务失败 order={order.out_trade_no}", flush=True)
+
+
+def _revoke_order(db: Session, order, db_user):
+    """退款回退权益：扣回点数、取消会员、标记 REFUNDED"""
+    if order.status == "REFUNDED":
+        return
+    try:
+        order.status = "REFUNDED"
+        if order.credits > 0 and db_user.balance_credits >= order.credits:
+            db_user.balance_credits -= order.credits
+        elif order.credits > 0:
+            db_user.balance_credits = 0
+        db.add(BillingRecord(
+            user_id=order.user_id, amount=-order.credits,
+            balance_after=db_user.balance_credits,
+            record_type="REFUND", reason=f"虚拟支付退款，扣回 {order.credits}点 ({order.out_trade_no})",
+        ))
+        if order.membership_days > 0:
+            now = datetime.now()
+            if db_user.membership_expiry and db_user.membership_expiry > now:
+                db_user.membership_expiry -= timedelta(days=order.membership_days)
+                if db_user.membership_expiry <= now:
+                    db_user.membership_expiry = now
+                    db_user.membership_tier = "free"
+        db.commit()
+        print(f"[VPAY] 退款扣回成功 order={order.out_trade_no} credits={order.credits} days={order.membership_days}", flush=True)
+    except Exception:
+        db.rollback()
+        raise
 
 
 def _parse_notify_body(body_str: str) -> dict:
@@ -316,12 +345,16 @@ def _parse_notify_body(body_str: str) -> dict:
 
 
 def _parse_payload_fields(payload_str: str) -> dict:
-    """从 Payload JSON 提取字段，兼容大小写。缺失必要字段返回空 dict。"""
+    """从 Payload JSON 提取字段，兼容大小写。
+    返回 dict 含 is_refund 标志，缺失必要字段返回空 dict。"""
     try:
         p = json.loads(payload_str)
     except (json.JSONDecodeError, TypeError):
         return {}
-    # 提取字段（兼容大小写）
+    # 检查是否为退款事件
+    event_type = p.get("EventType", "") or p.get("eventType", "") or ""
+    is_refund = event_type.upper() in ("REFUND", "CHARGE_BACK")
+
     order_no = p.get("OutTradeNo", "") or p.get("outTradeNo", "") or ""
     openid = p.get("OpenId", "") or p.get("openId", "") or ""
     goods_info = p.get("GoodsInfo", {}) or {}
@@ -329,7 +362,7 @@ def _parse_payload_fields(payload_str: str) -> dict:
         goods_info = {}
     product_id = goods_info.get("ProductId", "") or goods_info.get("productId", "") or ""
     raw_price = goods_info.get("ActualPrice", None) if goods_info.get("ActualPrice", None) is not None else goods_info.get("actualPrice", None)
-    # ActualPrice 必须存在且 > 0
+    # ActualPrice 必须存在且 > 0（退款时金额也是正数，代表已退金额）
     if raw_price is None:
         return {}
     try:
@@ -345,6 +378,7 @@ def _parse_payload_fields(payload_str: str) -> dict:
         "openid": openid,
         "product_id": product_id,
         "actual_price": actual_price,
+        "is_refund": is_refund,
     }
 
 
@@ -429,6 +463,19 @@ async def virtual_notify(request: Request, db: Session = Depends(get_db)):
         print(f"[VPAY-NOTIFY] productId 不匹配: callback={product_id} expected={expected_product_id}", flush=True)
         return JSONResponse(status_code=200, content={"ErrCode": 1, "ErrMsg": "product id mismatch"})
 
-    # ── 所有校验通过，发放权益 ──
+    # ── 退款处理 ──
+    is_refund = fields.get("is_refund", False)
+    if is_refund:
+        if order.status == "REFUNDED":
+            return JSONResponse(status_code=200, content={"ErrCode": 0, "ErrMsg": "Success"})
+        try:
+            _revoke_order(db, order, db_user)
+            return JSONResponse(status_code=200, content={"ErrCode": 0, "ErrMsg": "Success"})
+        except Exception:
+            db.rollback()
+            print(f"[VPAY-NOTIFY] 退款扣回失败 order={order_no}", flush=True)
+            return JSONResponse(status_code=200, content={"ErrCode": 1, "ErrMsg": "refund revoke failed"})
+
+    # ── 支付到账，发放权益 ──
     _grant_order(db, order, order.user_id)
     return JSONResponse(status_code=200, content={"ErrCode": 0, "ErrMsg": "Success"})
