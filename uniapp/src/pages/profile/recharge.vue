@@ -70,6 +70,10 @@
       <text>已有兑换码？立即激活</text>
     </view>
 
+    <view class="cdk-entry" @tap="goOrders" style="margin-top:12rpx">
+      <text>查看充值记录</text>
+    </view>
+
     <text class="pay-err" v-if="payErr">{{ payErr }}</text>
   </view>
 </template>
@@ -146,6 +150,7 @@ export default {
       } catch (e) {}
     },
     goRedeem () { uni.navigateTo({ url: '/pages/profile/redeem' }) },
+    goOrders () { uni.navigateTo({ url: '/pages/profile/orders' }) },
     goContact () { uni.navigateTo({ url: '/pages/profile/contact' }) },
     previewCsQr () { if (this.csQrFullUrl) uni.previewImage({ urls: [this.csQrFullUrl] }) },
     copyText (t) { uni.setClipboardData({ data: t, success: () => uni.showToast({ title: '已复制', icon: 'none' }) }) },

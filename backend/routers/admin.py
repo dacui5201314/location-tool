@@ -315,6 +315,7 @@ def list_orders(
             "amount_yuan": amount_yuan,
             "credits": order.credits or 0,
             "membership_days": order.membership_days or 0,
+            "pay_channel": order.pay_channel or "",
             "status": order.status or "CREATED",
             "paid_at": order.paid_at.isoformat() if order.paid_at else None,
             "created_at": order.created_at.isoformat() if order.created_at else None,

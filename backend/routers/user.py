@@ -1,10 +1,10 @@
 """用户中心 API — JWT 鉴权 + 双轨计费"""
-import os, secrets, time
+import os, secrets, time, json
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from database import get_db
-from models.db_models import User, AnalysisRecord, SavedLocation
+from models.db_models import User, AnalysisRecord, SavedLocation, PaymentOrder
 from services.runtime_config import get_user_skus
 from auth import get_current_user
 
@@ -175,6 +175,38 @@ def get_visible_skus(
         "inherited": inherited,
         "skus": [item for item in skus if item.get("visible", True)],
     }
+
+
+@router.get("/orders")
+def list_my_orders(
+    user: dict = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """当前用户的充值订单列表（最近 50 条）"""
+    user_id = int(user["user_id"])
+    rows = db.query(PaymentOrder).filter(
+        PaymentOrder.user_id == user_id,
+    ).order_by(PaymentOrder.created_at.desc()).limit(50).all()
+    orders = []
+    for o in rows:
+        label = ""
+        try:
+            snap = json.loads(o.sku_snapshot or "{}")
+            label = snap.get("label", "")
+        except Exception:
+            pass
+        orders.append({
+            "out_trade_no": o.out_trade_no,
+            "sku_label": label,
+            "amount_yuan": f"{o.amount_fen / 100:.2f}",
+            "credits": o.credits or 0,
+            "membership_days": o.membership_days or 0,
+            "status": o.status or "CREATED",
+            "pay_channel": o.pay_channel or "",
+            "paid_at": o.paid_at.isoformat() if o.paid_at else None,
+            "created_at": o.created_at.isoformat() if o.created_at else None,
+        })
+    return {"orders": orders}
 
 
 # ── 注意：POST /api/user/consume 已下线 ──
