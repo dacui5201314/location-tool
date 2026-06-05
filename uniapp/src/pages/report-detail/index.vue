@@ -276,6 +276,11 @@ export default {
       return { background: `conic-gradient(${color} 0deg ${deg}deg, #e2e8f0 ${deg}deg 360deg)` }
     }
   },
+  mounted () {
+    if (typeof wx !== 'undefined' && wx.showShareMenu) {
+      wx.showShareMenu({ menus: ['shareAppMessage', 'shareTimeline'] })
+    }
+  },
   onLoad (options) {
     // 加载分享配置 — 下载分享图到本地临时路径
     api.fetchShareConfig().then(c => {
@@ -322,16 +327,22 @@ export default {
       }
     }).catch(() => { this.loading = false; this.errorMsg = '网络异常，请重试' })
   },
+  onShareTimeline () {
+    const addr = (this.record && this.record.address) || '门店'
+    const cfg = this.shareConfig || {}
+    const imageUrl = this.reportShareImageLocal || this.resolveShareImage(cfg.report_share_image_url || cfg.share_image_url || '') || this._reportShareImageRemote
+    const token = this._shareToken || ''
+    const q = token ? 'share=' + token + '&from=timeline' : 'from=timeline'
+    const payload = { title: addr + '选址分析报告', query: q }
+    if (imageUrl) payload.imageUrl = imageUrl
+    return payload
+  },
   onShareAppMessage () {
     const cfg = this.shareConfig || {}
     const addr = this.record.address || this.record.brand_desc || '门店'
     const titleTpl = cfg.report_share_title_template || '{address}选址分析报告'
     const title = titleTpl.replace('{address}', addr)
     const imageUrl = this.getReportShareImageUrl()
-    console.log('[share-report] cfg.report_share_image_url:', cfg.report_share_image_url || '(empty)')
-    console.log('[share-report] cfg.share_image_url:', cfg.share_image_url || '(empty)')
-    console.log('[share-report] reportShareImageLocal:', this.reportShareImageLocal || '(empty)')
-    console.log('[share-report] final imageUrl:', imageUrl || '(empty)')
     const token = this._shareToken || ''
     const payload = token
       ? { title, path: `/pages/report-detail/index?share=${token}` }
@@ -363,20 +374,14 @@ export default {
       const cfg = this.shareConfig || {}
       const raw = cfg.report_share_image_url || cfg.share_image_url || ''
       const resolved = this.resolveShareImage(raw) || this._reportShareImageRemote
-      console.log('[share-report] raw cfg url:', raw || '(empty)')
-      console.log('[share-report] resolved url:', resolved || '(empty)')
       return this.reportShareImageLocal || resolved
     },
     _downloadShareImage (url) {
-      console.log('[share-report] downloadFile start:', url)
       uni.downloadFile({
         url,
         success: (res) => {
           if (res.statusCode === 200 && res.tempFilePath) {
             this.reportShareImageLocal = res.tempFilePath
-            console.log('[share-report] downloadFile success:', res.tempFilePath)
-          } else {
-            console.warn('[share-report] downloadFile status:', res.statusCode)
           }
         },
         fail: (err) => { console.warn('[share-report] downloadFile failed:', (err && err.errMsg) || err) }

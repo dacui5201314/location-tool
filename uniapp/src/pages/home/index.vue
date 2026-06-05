@@ -491,17 +491,26 @@ export default {
       if (r.ok && Array.isArray(r.data?.industries)) this.industryList = r.data.industries
     }).catch(() => { this.industryLoadErr = '业态加载失败，请稍后重试' })
     this.initHomeData()
-    // ★ 延迟渲染 map 避免首次白块闪烁
     this._mapTimer = setTimeout(() => { this.mapReady = true }, 350)
+    // 朋友圈分享
+    if (typeof wx !== 'undefined' && wx.showShareMenu) {
+      wx.showShareMenu({ menus: ['shareAppMessage', 'shareTimeline'] })
+    }
+  },
+  onShareTimeline () {
+    const cfg = this.shareConfig || {}
+    const imageUrl = this.homeShareImageLocal
+      || this.resolveShareImage(cfg.home_share_image_url || cfg.share_image_url || '')
+      || this._homeShareImageRemote
+    const payload = { title: cfg.share_title || '址得选 - 商铺选址分析工具', query: 'from=timeline' }
+    if (imageUrl) payload.imageUrl = imageUrl
+    return payload
   },
   onShareAppMessage () {
     const cfg = this.shareConfig || {}
     const imageUrl = this.homeShareImageLocal
       || this.resolveShareImage(cfg.home_share_image_url || cfg.share_image_url || '')
       || this._homeShareImageRemote
-    console.log('[share-home] cfg.home_share_image_url:', cfg.home_share_image_url || '(empty)')
-    console.log('[share-home] homeShareImageLocal:', this.homeShareImageLocal || '(empty)')
-    console.log('[share-home] final imageUrl:', imageUrl || '(empty)')
     return {
       title: cfg.share_title || '址得选 - 商铺选址分析工具',
       path: '/pages/home/index',

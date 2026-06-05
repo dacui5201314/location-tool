@@ -50,6 +50,26 @@ def init_db():
             conn.execute("ALTER TABLE saved_locations ADD COLUMN latest_report_uuid VARCHAR(32) DEFAULT ''")
             conn.commit()
             print("[DB] 已为 saved_locations 表添加 latest_report_uuid 列", flush=True)
+        # ── 虚拟支付: 为 payment_orders 添加 pay_channel ──
+        cols_po = [r[1] for r in conn.execute("PRAGMA table_info(payment_orders)").fetchall()]
+        if 'pay_channel' not in cols_po:
+            conn.execute("ALTER TABLE payment_orders ADD COLUMN pay_channel VARCHAR(20) DEFAULT 'WECHAT_JSAPI'")
+            conn.commit()
+            print("[DB] 已为 payment_orders 表添加 pay_channel 列", flush=True)
+        # ── 虚拟支付: 为 users 添加 wx_session_key ──
+        if 'wx_session_key' not in cols:
+            conn.execute("ALTER TABLE users ADD COLUMN wx_session_key TEXT")
+            conn.commit()
+            print("[DB] 已为 users 表添加 wx_session_key 列", flush=True)
+        # ── 反馈: 为 feedbacks 添加 image_urls ──
+        try:
+            cols_fb = [r[1] for r in conn.execute("PRAGMA table_info(feedbacks)").fetchall()]
+            if 'image_urls' not in cols_fb:
+                conn.execute("ALTER TABLE feedbacks ADD COLUMN image_urls TEXT DEFAULT '[]'")
+                conn.commit()
+                print("[DB] 已为 feedbacks 表添加 image_urls 列", flush=True)
+        except Exception:
+            pass
         conn.close()
     except Exception as e:
         print(f"[DB] 迁移检查跳过: {e}", flush=True)

@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func, update, or_
 from pydantic import BaseModel, ConfigDict
 from database import get_db
-from models.db_models import User, AnalysisRecord, SavedLocation, RedeemCode, SystemConfig, OperationLog, BillingRecord, PaymentOrder
+from models.db_models import User, AnalysisRecord, SavedLocation, RedeemCode, SystemConfig, OperationLog, BillingRecord, PaymentOrder, Feedback
 from auth import get_current_admin, get_current_user, create_token
 from services.runtime_config import (
     CORE_CONFIG_DEFAULTS,
@@ -117,12 +117,14 @@ def get_stats(
     today_users = db.query(User).filter(func.date(User.created_at) == today).count()
     today_reports = db.query(AnalysisRecord).filter(func.date(AnalysisRecord.created_at) == today).count()
     total_favorites = db.query(SavedLocation).count()
+    today_feedbacks = db.query(Feedback).filter(func.date(Feedback.created_at) == today).count()
 
     return {
         "total_users": total_users,
         "total_reports": total_reports,
         "today_users": today_users,
         "today_reports": today_reports,
+        "today_feedbacks": today_feedbacks,
         "total_favorites": total_favorites,
         "api_remaining": "—",
     }
@@ -378,6 +380,12 @@ class ConfigBody(BaseModel):
     wx_platform_cert_pem: str = ""
     clear_wx_private_key_pem: bool = False
     clear_wx_platform_cert_pem: bool = False
+    # 虚拟支付
+    wx_virtual_pay_enabled: str = "0"
+    wx_virtual_offer_id: str = ""
+    wx_virtual_app_key: str = ""
+    wx_virtual_env: str = "1"
+    wx_virtual_currency_type: str = "CNY"
 
 
 def _mask_core_config(raw: dict) -> dict:
@@ -407,6 +415,13 @@ def _mask_core_config(raw: dict) -> dict:
     else:
         masked["has_wx_platform_cert_pem"] = False
     masked["wx_platform_cert_pem"] = ""
+    # 虚拟支付 appKey 脱敏
+    vk = (raw.get("wx_virtual_app_key") or "").strip()
+    if vk:
+        masked["has_wx_virtual_app_key"] = True
+    else:
+        masked["has_wx_virtual_app_key"] = False
+    masked["wx_virtual_app_key"] = ""
     return masked
 
 
@@ -431,6 +446,12 @@ def save_config(body: ConfigBody, admin: dict = Depends(get_current_admin), db: 
         "wx_api_key": body.wx_api_key,
         "wx_cert_sn": body.wx_cert_sn,
         "wx_notify_url": body.wx_notify_url,
+        # 虚拟支付
+        "wx_virtual_pay_enabled": body.wx_virtual_pay_enabled,
+        "wx_virtual_offer_id": body.wx_virtual_offer_id,
+        "wx_virtual_app_key": body.wx_virtual_app_key,
+        "wx_virtual_env": body.wx_virtual_env,
+        "wx_virtual_currency_type": body.wx_virtual_currency_type,
     }
     # ★ 防空值覆盖：strip() 后为空的值一律跳过，禁止空值覆写 DB 中的真实密钥
     filtered_map = {}
@@ -1511,6 +1532,7 @@ _SYSTEM_CONFIG_DEFAULTS = {
     "wx_mini_secret": ("", "小程序 AppSecret"),
     "wx_service_appid": ("", "服务号 AppID"),
     "wx_service_secret": ("", "服务号 AppSecret"),
+    "wx_virtual_product_map": ("{}", "虚拟支付 SKU productId 映射 JSON"),
 }
 
 

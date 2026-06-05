@@ -4,7 +4,7 @@
       <view class="status-copy">
         <text class="eyebrow">充值中心</text>
         <text class="status-title">充值中心</text>
-        <text class="status-desc">选择套餐，微信支付即时到账</text>
+        <text class="status-desc">选择套餐，购买后即时到账</text>
       </view>
       <view class="status-grid">
         <view class="status-cell">
@@ -57,7 +57,7 @@
         <text class="action-title">{{ selectedSku ? selectedSku.label : '请选择套餐' }}</text>
         <text class="action-desc">{{ selectedSku ? selectedSkuDesc : '请选择套餐后发起支付' }}</text>
       </view>
-      <button class="pay-btn" :class="{ ready: selectedSku }" :disabled="paying" @tap="onPay">{{ paying ? '支付中...' : (selectedSku ? '微信支付 ¥' + selectedSku.price : '请先选择套餐') }}</button>
+      <button class="pay-btn" :class="{ ready: selectedSku }" :disabled="paying" @tap="onPay">{{ paying ? '支付中...' : (selectedSku ? '立即购买 ¥' + selectedSku.price : '请先选择套餐') }}</button>
     </view>
 
     <view class="cs-section" @tap="goContact">
@@ -159,68 +159,77 @@ export default {
       this.paying = true
       this.payErr = ''
       try {
-        const r = await api.createPrepay(this.selectedSku.id)
+        // 1. 服务端预下单
+        const r = await api.createVirtualPrepay(this.selectedSku.id)
         if (!r.ok) {
           const statusCode = r.statusCode || 0
           const detail = (r.data && r.data.detail) || ''
-          let msg = ''
           if (detail) {
-            msg = detail
+            this.payErr = detail
+          } else if (statusCode === 503) {
+            this.payErr = '虚拟支付配置未完成，请联系客服'
           } else if (statusCode === 500 || statusCode === 502) {
-            msg = '支付服务异常，请稍后重试'
+            this.payErr = '支付服务异常，请稍后重试'
           } else {
-            msg = (r.data && r.data.error) || '创建订单失败'
-          }
-          if (msg.includes('微信中登录')) {
-            this.payErr = '请先在微信中授权登录后再支付'
-          } else if (msg.includes('支付服务暂不可用')) {
-            this.payErr = '支付服务未配置，请联系管理员'
-          } else {
-            this.payErr = msg
+            this.payErr = (r.data && r.data.error) || '创建订单失败'
           }
           return
         }
         const pp = r.data
-        // 拉起微信支付
+
+        // 2. 检查 wx.requestVirtualPayment 可用性
+        if (!wx.requestVirtualPayment) {
+          this.payErr = '当前微信版本暂不支持虚拟支付，请升级微信后重试'
+          return
+        }
+
+        // 3. 拉起虚拟支付
         try {
           await new Promise((resolve, reject) => {
-            uni.requestPayment({
-              provider: 'wxpay',
-              timeStamp: String(pp.timeStamp || ''),
-              nonceStr: pp.nonceStr || '',
-              package: pp.package || '',
-              signType: pp.signType || 'RSA',
-              paySign: pp.paySign || '',
+            wx.requestVirtualPayment({
+              mode: pp.mode || 'short_series_goods',
+              signData: pp.signData || '',
+              paySig: pp.paySig || '',
+              signature: pp.signature || '',
               success: resolve,
               fail: reject
             })
           })
         } catch (payErr) {
-          if (payErr && payErr.errMsg && payErr.errMsg.includes('cancel')) {
-            this.payErr = '支付已取消'
+          const errCode = payErr && payErr.errCode
+          const errMsg = (payErr && payErr.errMsg) || ''
+          if (errMsg.includes('cancel')) {
+            this.payErr = '已取消支付'
+          } else if (errCode === -15007 || errCode === -15015) {
+            // session_key 过期
+            uni.removeStorageSync('token')
+            this.payErr = '登录已过期，请重新登录后再购买'
+          } else if (errCode === -15005 || errCode === -15006) {
+            this.payErr = '支付签名错误，请联系客服'
+          } else if (errCode === -15016) {
+            this.payErr = '支付参数格式错误，请联系客服'
           } else {
-            this.payErr = (payErr && (payErr.errMsg || payErr.message)) || '支付失败'
+            this.payErr = errMsg || '支付失败'
           }
           return
         }
-        // requestPayment 成功 → 轮询确认订单已到账
-        const outTradeNo = pp.out_trade_no || ''
-        if (!outTradeNo) {
-          this.payErr = '支付确认中，请稍后刷新或联系客服'
+
+        // 4. 支付成功 → 查询后端订单确认到账
+        const orderNo = pp.order_no || ''
+        if (!orderNo) {
+          this.payErr = '支付处理中，请稍后刷新'
           return
         }
         let paid = false
         for (let i = 0; i < 6; i++) {
           await new Promise(r => setTimeout(r, 1500))
           try {
-            const qr = await api.queryOrder(outTradeNo)
+            const qr = await api.queryVirtualOrder(orderNo)
             if (qr.ok && qr.data && qr.data.status === 'PAID') {
               paid = true
               break
             }
-          } catch (e) {
-            // queryOrder 网络异常不中断轮询
-          }
+          } catch (e) { /* 重试 */ }
         }
         if (paid) {
           uni.showToast({ title: '支付成功', icon: 'success' })
@@ -228,11 +237,10 @@ export default {
           try {
             await this.loadProfile()
           } catch (e) {
-            // loadProfile 失败不影响已确认的支付结果
             this.payErr = '支付成功，资料刷新失败，请稍后下拉刷新'
           }
         } else {
-          this.payErr = '支付确认中，请稍后刷新'
+          this.payErr = '支付处理中，请稍后刷新'
         }
       } catch (e) {
         this.payErr = (e && (e.errMsg || e.message)) || '支付失败'

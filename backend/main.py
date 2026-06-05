@@ -34,6 +34,8 @@ from routers.auth import router as auth_router
 from routers.industries import router as industries_router, public_router as industries_public_router
 from routers.pay import router as pay_router
 from routers.location import router as location_router
+from routers.virtual_pay import router as virtual_pay_router
+from routers.feedback import router as feedback_router
 
 app = FastAPI(title="址得选 API", version="3.7.0", description="址得选 — AI 选址分析 SaaS 平台后端服务")
 app.include_router(auth_router)
@@ -45,6 +47,8 @@ app.include_router(industries_router)
 app.include_router(industries_public_router)
 app.include_router(pay_router)
 app.include_router(location_router)
+app.include_router(virtual_pay_router)
+app.include_router(feedback_router)
 
 
 # ═══════════════════════════════════════════

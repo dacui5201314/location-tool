@@ -40,7 +40,7 @@ label{font-size:12px;font-weight:700;color:#475467;display:block;margin-bottom:6
 .card h4:first-of-type{margin-top:0}
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
 .grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px}
-.grid4{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:16px}
+.grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}.grid5{display:grid;grid-template-columns:repeat(5,1fr);gap:16px}
 .stat{background:var(--panel);border:1px solid var(--line2);border-radius:var(--r);padding:18px 20px;box-shadow:var(--sh);position:relative;overflow:hidden}
 .stat:before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--blue)}
 .stat .num{font-size:28px;font-weight:900;color:var(--blue);line-height:1}
@@ -121,6 +121,7 @@ pre{background:#0f172a;color:#dbeafe;border:1px solid #1e293b;border-radius:var(
       <a data-page="orders" onclick="openOrders(true)"><span class="nav-icon">💳</span><span>订单管理</span></a>
       <a data-page="billing" onclick="openBilling(true)"><span class="nav-icon">🧾</span><span>账户流水</span></a>
       <a data-page="cdk" onclick="navTo('cdk')"><span class="nav-icon">🎫</span><span>兑换码管理</span></a>
+      <a data-page="feedbacks" onclick="navTo('feedbacks')"><span class="nav-icon">📬</span><span>意见反馈</span><span id="fbBadge" class="hidden" style="background:#ef4444;color:#fff;border-radius:99px;padding:2px 7px;font-size:11px;font-weight:900;margin-left:6px"></span></a>
       <div class="sidebar-section">系统运营</div>
       <a data-page="settings" onclick="navTo('settings')"><span class="nav-icon">⚙️</span><span>系统设置</span></a>
       <a data-page="sysparams" onclick="navTo('sysparams')"><span class="nav-icon">🔧</span><span>全局参数</span></a>
@@ -185,7 +186,7 @@ async function navTo(page){
   const renderers={
     dashboard:renderDashboard, users:renderUsers, orders:renderOrders, billing:renderBilling,
     settings:renderSettings, cdk:renderCdk, sysparams:renderSysParams,
-    oplogs:renderOpLogs, industries:renderIndustries
+    oplogs:renderOpLogs, industries:renderIndustries, feedbacks:renderFeedbacks
   };
   if(renderers[page]){c.innerHTML=await renderers[page]();await loaders[page]?.();if(page==='dashboard')setTimeout(drawTrend,200)}
 }
@@ -199,7 +200,7 @@ async function renderDashboard(){
   _trends=tr.ok?tr.data:null;
   const topBiz=(_trends?.top_business_types||[]).slice(0,6);
   const topBrands=(_trends?.top_brands||[]).slice(0,5);
-  return `<div class="grid4 mb">${st('总用户数',s.total_users||0,'#2563eb')}${st('累计报告',s.total_reports||s.total_records||0,'#16a34a')}${st('今日新增',s.today_users||0,'#7c5cff')}${st('今日报告',s.today_reports||s.today_analyzes||0,'#f59e0b')}</div>
+  return `<div class="grid5 mb">${st('总用户数',s.total_users||0,'#2563eb')}${st('累计报告',s.total_reports||s.total_records||0,'#16a34a')}${st('今日新增',s.today_users||0,'#7c5cff')}${st('今日报告',s.today_reports||s.today_analyzes||0,'#f59e0b')}${st('今日反馈',s.today_feedbacks||0,'#ec4899')}</div>
     <div class="grid2"><div class="card"><h3>📈 近15天分析趋势</h3><div class="trend-wrap"><canvas id="trendChart" width="620" height="240"></canvas><div id="trendTip" class="chart-tip hidden"></div></div><div class="trend-meta"><span>按报告生成时间统计</span><span>鼠标悬停查看每日数量</span></div></div>
     <div class="card"><h3>🔥 热门选址业态</h3>${renderBizDonut(topBiz)}<h4 class="mt">🏷️ 高频分析品牌 TOP 5</h4>${renderBrandBars(topBrands)}</div></div>
     <div class="grid2"><div class="card"><h3>快速操作</h3><div class="flex-wrap">${ql('users','👥 用户管理')}${ql('orders','💳 订单管理')}${ql('billing','🧾 账户流水')}${ql('settings','⚙️ 系统设置')}${ql('cdk','🎫 生成 CDK')}${ql('industries','🏭 业态规则')}</div></div>
@@ -317,9 +318,10 @@ function renderCoreSettings(){return `<div class="card"><h3>大模型配置</h3>
   <h4>微信支付</h4><div class="grid2 mb"><div class="form-group"><label>商户号 MCH ID</label><input id="cfg_mchid"></div><div class="form-group"><label>小程序 AppID</label><input id="cfg_wxappid" placeholder="支付用，与全局参数一致"></div><div class="form-group"><label>API v3 Key（32位）</label><input id="cfg_wxkey" type="password"></div><div class="form-group"><label>证书序列号</label><input id="cfg_certsn"></div></div><div class="form-group"><label>支付回调地址</label><input id="cfg_notify" placeholder="https://你的域名/api/pay/wechat/notify"></div>
   <div class="form-group"><label>商户私钥 PEM</label><textarea id="cfg_privkey" rows="3" class="mono"></textarea></div>
   <div class="form-group"><label>平台证书 PEM</label><textarea id="cfg_platcert" rows="3" class="mono"></textarea></div>
+	  <h4>虚拟支付</h4><div class="grid2 mb"><div class="form-group"><label>启用</label><select id="cfg_vpay_enabled"><option value="0">关闭</option><option value="1">开启</option></select></div><div class="form-group"><label>Offer ID</label><input id="cfg_vpay_offer"></div><div class="form-group"><label>App Key</label><input id="cfg_vpay_appkey" type="password"></div><div class="form-group"><label>环境</label><select id="cfg_vpay_env"><option value="1">沙箱</option><option value="0">正式</option></select></div><div class="form-group"><label>货币</label><input id="cfg_vpay_currency" value="CNY"></div></div>
   <button class="btn btn-primary" onclick="saveCoreConfig()">💾 保存全部</button></div>`}
-async function loadCoreSettings(){const r=await af('GET','/api/admin/config');if(r.ok){const d=r.data;sv('cfg_aiprov',d.ai_provider||'');sv('cfg_aikey',d.ai_key||'');sv('cfg_amapkey',d.amap_key||'');sv('corePrompt',d.system_prompt||'');sv('cfg_mchid',d.wx_mch_id||'');sv('cfg_wxkey',d.wx_api_key||'');sv('cfg_certsn',d.wx_cert_sn||'');sv('cfg_wxappid',d.wx_app_id||'');sv('cfg_notify',d.wx_notify_url||'');if(d.has_wx_private_key_pem){sv('cfg_privkey','【已设置，API不返回明文】')}if(d.has_wx_platform_cert_pem){sv('cfg_platcert','【已设置，API不返回明文】')}if(d.wx_api_key)sv('cfg_wxkey',d.wx_api_key);else if(d.has_wx_private_key_pem&&!d.wx_api_key)document.getElementById('cfg_wxkey').placeholder='【已设置，API不返回明文】'}}
-async function saveCoreConfig(){const pk=qv('cfg_privkey'),pc=qv('cfg_platcert');const isPlaceholder=v=>!v||v.startsWith('【已设置');const body={ai_provider:qv('cfg_aiprov')||'deepseek',ai_key:qv('cfg_aikey'),amap_key:qv('cfg_amapkey'),system_prompt:qv('corePrompt'),wx_mch_id:qv('cfg_mchid'),wx_app_id:qv('cfg_wxappid')||'',wx_api_key:qv('cfg_wxkey'),wx_cert_sn:qv('cfg_certsn'),wx_notify_url:qv('cfg_notify'),wx_private_key_pem:isPlaceholder(pk)?'':pk,wx_platform_cert_pem:isPlaceholder(pc)?'':pc};const r=await af('PUT','/api/admin/config',body);toast(r.ok?'已保存':(r.data?.detail||'失败'),r.ok);if(r.ok)loadCoreSettings()}
+async function loadCoreSettings(){const r=await af('GET','/api/admin/config');if(r.ok){const d=r.data;sv('cfg_aiprov',d.ai_provider||'');sv('cfg_aikey',d.ai_key||'');sv('cfg_amapkey',d.amap_key||'');sv('corePrompt',d.system_prompt||'');sv('cfg_mchid',d.wx_mch_id||'');sv('cfg_wxkey',d.wx_api_key||'');sv('cfg_certsn',d.wx_cert_sn||'');sv('cfg_wxappid',d.wx_app_id||'');sv('cfg_notify',d.wx_notify_url||'');sv('cfg_vpay_enabled',d.wx_virtual_pay_enabled||'0');sv('cfg_vpay_offer',d.wx_virtual_offer_id||'');sv('cfg_vpay_env',d.wx_virtual_env||'1');sv('cfg_vpay_currency',d.wx_virtual_currency_type||'CNY');if(d.has_wx_virtual_app_key){sv('cfg_vpay_appkey','【已设置】')}if(d.has_wx_private_key_pem){sv('cfg_privkey','【已设置，API不返回明文】')}if(d.has_wx_platform_cert_pem){sv('cfg_platcert','【已设置，API不返回明文】')}if(d.wx_api_key)sv('cfg_wxkey',d.wx_api_key);else if(d.has_wx_private_key_pem&&!d.wx_api_key)document.getElementById('cfg_wxkey').placeholder='【已设置，API不返回明文】'}}
+async function saveCoreConfig(){const pk=qv('cfg_privkey'),pc=qv('cfg_platcert'),vk=qv('cfg_vpay_appkey');const isPlaceholder=v=>!v||v.startsWith('【已设置');const body={ai_provider:qv('cfg_aiprov')||'deepseek',ai_key:qv('cfg_aikey'),amap_key:qv('cfg_amapkey'),system_prompt:qv('corePrompt'),wx_mch_id:qv('cfg_mchid'),wx_app_id:qv('cfg_wxappid')||'',wx_api_key:qv('cfg_wxkey'),wx_cert_sn:qv('cfg_certsn'),wx_notify_url:qv('cfg_notify'),wx_private_key_pem:isPlaceholder(pk)?'':pk,wx_platform_cert_pem:isPlaceholder(pc)?'':pc,wx_virtual_pay_enabled:qv('cfg_vpay_enabled'),wx_virtual_offer_id:qv('cfg_vpay_offer'),wx_virtual_app_key:isPlaceholder(vk)?'':vk,wx_virtual_env:qv('cfg_vpay_env'),wx_virtual_currency_type:qv('cfg_vpay_currency')};const r=await af('PUT','/api/admin/config',body);toast(r.ok?'已保存':(r.data?.detail||'失败'),r.ok);if(r.ok)loadCoreSettings()}
 function exportPrompt(){const v=qv('corePrompt');if(!v.trim()){toast('内容为空',false);return}const b=new Blob([v],{type:'text/plain;charset=utf-8'});const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='system_prompt.txt';a.click();toast('已导出',true)}
 function importPrompt(inp){const f=inp.files[0];if(!f)return;const r=new FileReader();r.onload=e=>{sv('corePrompt',e.target.result);toast('已导入，请点击保存更新')};r.readAsText(f);inp.value=''}
 
@@ -377,9 +379,9 @@ async function deleteSelectedCdk(){const codes=[...document.querySelectorAll('.c
 // ── SysParams ──
 function renderSysParams(){return `<div class="card"><div class="flex-between mb"><h3>全局参数</h3><button class="btn btn-primary btn-sm" onclick="saveSysParams()">保存</button></div>
   <h4>微信小程序</h4><div class="grid2 mb"><div class="form-group"><label>小程序 AppID</label><input id="sp_miniappid"></div><div class="form-group"><label>小程序 Secret</label><input id="sp_minisecret" type="password"></div></div>
-  <h4 class="mt">注册奖励</h4><div class="grid2"><div class="form-group"><label>赠送永久点数</label><input id="sp_bonus" type="number"></div><div class="form-group"><label>免费体验点数(24h)</label><input id="sp_free" type="number"></div></div></div>`}
-async function loadSysParams(){const r=await af('GET','/api/admin/system-settings');if(!r.ok)return;const cfg=r.data.configs||{};const g=(k,d='')=>cfg[k]?.value||d;sv('sp_miniappid',g('wx_mini_appid'));sv('sp_minisecret',g('wx_mini_secret'));sv('sp_bonus',g('register_bonus','3'));sv('sp_free',g('register_free','1'))}
-async function saveSysParams(){const r=await af('PUT','/api/admin/system-settings',{items:{wx_mini_appid:qv('sp_miniappid'),wx_mini_secret:qv('sp_minisecret'),register_bonus:qv('sp_bonus'),register_free:qv('sp_free')}});toast(r.ok?'已保存':(r.data?.detail||'失败'),r.ok);if(r.ok)loadSysParams()}
+  <h4 class="mt">注册奖励</h4><div class="grid2"><div class="form-group"><label>赠送永久点数</label><input id="sp_bonus" type="number"></div><div class="form-group"><label>免费体验点数(24h)</label><input id="sp_free" type="number"></div></div><h4 class="mt">虚拟支付</h4><div class="form-group"><label>SKU映射 JSON</label><textarea id="sp_vpay_map" rows="3" placeholder='{"1":"product_id"}'></textarea></div></div>`}
+async function loadSysParams(){const r=await af('GET','/api/admin/system-settings');if(!r.ok)return;const cfg=r.data.configs||{};const g=(k,d='')=>cfg[k]?.value||d;sv('sp_miniappid',g('wx_mini_appid'));sv('sp_minisecret',g('wx_mini_secret'));sv('sp_bonus',g('register_bonus','3'));sv('sp_free',g('register_free','1'));sv('sp_vpay_map',g('wx_virtual_product_map','{}'))}
+async function saveSysParams(){const r=await af('PUT','/api/admin/system-settings',{items:{wx_mini_appid:qv('sp_miniappid'),wx_mini_secret:qv('sp_minisecret'),register_bonus:qv('sp_bonus'),register_free:qv('sp_free'),wx_virtual_product_map:qv('sp_vpay_map')}});toast(r.ok?'已保存':(r.data?.detail||'失败'),r.ok);if(r.ok)loadSysParams()}
 
 // ── OpLogs ──
 function renderOpLogs(){return `<div class="card"><div class="flex-between mb"><div><h3>操作记录</h3><div class="text-sm">记录管理员对用户账户、套餐、业态和配置的改动，方便追责和客服核对。</div></div><button class="btn btn-outline btn-sm" onclick="navTo('oplogs')">刷新</button></div><table><thead><tr><th>时间</th><th>操作</th><th>对象</th><th>变更内容</th><th>备注</th></tr></thead><tbody id="oplogTbody"></tbody></table></div>`}
@@ -442,9 +444,12 @@ async function loadBilling(pg){
 }
 
 // ── Register loaders ──
+function renderFeedbacks(){return '<div class="card"><h3>意见反馈</h3><table><thead><tr><th>时间</th><th>用户</th><th>内容</th><th>联系方式</th><th>奖励</th></tr></thead><tbody id="fbTbody"></tbody></table></div>'}
+async function loadFeedbacks(){const r=await af('GET','/api/feedback/admin/list');const fbs=r.ok?(r.data.feedbacks||[]):[];document.getElementById('fbTbody').innerHTML=fbs.map(f=>`<tr><td>${esc(fmtDateTime(f.created_at))}</td><td>${f.user_id} ${esc(f.phone||'')}</td><td class="text-sm">${esc((f.content||'').slice(0,60))}${(f.images||[]).length?`<br>📷${f.images.length}张`:''}</td><td class="text-sm">${esc(f.contact||'-')}</td><td>${f.credits_granted?'+'+f.credits_granted+'点':'-'}</td></tr>`).join('')||'<tr><td colspan="5" class="text-sm">暂无反馈</td></tr>';
+const badge=document.getElementById('fbBadge');if(badge){const today=new Date().toISOString().slice(0,10);const todayCount=fbs.filter(f=>(f.created_at||'').startsWith(today)).length;if(todayCount>0){badge.textContent=todayCount;badge.classList.remove('hidden')}else{badge.classList.add('hidden')}}}
 const loaders={
   users:loadUsers, orders:loadOrders, billing:loadBilling, settings:()=>switchSettingsTab('core'),
-  cdk:loadCdkList, sysparams:loadSysParams, oplogs:loadOpLogs, industries:loadIndustries
+  cdk:loadCdkList, sysparams:loadSysParams, oplogs:loadOpLogs, industries:loadIndustries, feedbacks:loadFeedbacks
 };
 </script>
 </body>

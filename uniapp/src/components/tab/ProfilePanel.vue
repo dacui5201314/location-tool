@@ -116,6 +116,9 @@
       <view class="menu-item" @tap="goEdit">
         <text class="mi-icon">◈</text><view class="mi-body"><text class="mi-label">完善资料</text><text class="mi-desc">头像、昵称和联系信息</text></view><text class="mi-arrow">›</text>
       </view>
+      <view class="menu-item" @tap="openFeedback">
+        <text class="mi-icon">✎</text><view class="mi-body"><text class="mi-label">意见反馈</text><text class="mi-desc">告诉我们你的想法，赠送1点</text></view><text class="mi-arrow">›</text>
+      </view>
       <view class="menu-item" @tap="openContact">
         <text class="mi-icon">☎</text><view class="mi-body"><text class="mi-label">联系客服</text><text class="mi-desc">购买咨询与售后支持</text></view><text class="mi-arrow">›</text>
       </view>
@@ -268,6 +271,7 @@ export default {
       }
       uni.navigateTo({ url: '/pages/profile/recharge' })
     },
+    openFeedback () { uni.navigateTo({ url: '/pages/profile/feedback' }) },
     openContact () { uni.navigateTo({ url: '/pages/profile/contact' }) },
     openRedeem () {
       if (!auth.isLoggedIn()) {

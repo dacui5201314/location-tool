@@ -29,7 +29,7 @@ _nd = lambda rigor, n, c, b="", cat="fast_food": _cr(n, cat, c, rigor, b) != "di
 
 # ===== A. Completeness =====
 print("=== A. Completeness ===")
-check(len(BUSINESS_TYPE_TO_MASTER) == 57, f"57 entries (43 sub + 14 master self-maps): got {len(BUSINESS_TYPE_TO_MASTER)}")
+check(len(BUSINESS_TYPE_TO_MASTER) == 59, f"59 entries (45 sub + 14 master self-maps): got {len(BUSINESS_TYPE_TO_MASTER)}")
 check(len(MASTER_TEMPLATES) == 14, f"14 masters: got {len(MASTER_TEMPLATES)}")
 check(len(INDUSTRY_RIGOR) == 14, f"14 rigor: got {len(INDUSTRY_RIGOR)}")
 check(set(MASTER_TEMPLATES.keys()) == set(INDUSTRY_RIGOR.keys()),

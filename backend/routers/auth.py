@@ -578,7 +578,14 @@ def wechat_mini_login(
         client_ip=client_ip,
     )
 
-    # 3. 签发 JWT（session_key 不返回前端）
+    # ★ 保存 session_key 用于虚拟支付签名（不返回前端）
+    session_key = wx_data.get("session_key", "")
+    if session_key and user.wx_session_key != session_key:
+        user.wx_session_key = session_key
+        db.commit()
+        db.refresh(user)
+
+    # 3. 签发 JWT
     token = create_token(user.id, role="user")
     resp = {
         "token": token,
@@ -784,6 +791,13 @@ def wechat_mini_phone_login(
         channel="mini_program",
         client_ip=client_ip,
     )
+
+    # ★ 保存 session_key 用于虚拟支付签名
+    session_key_p = wx_data.get("session_key", "")
+    if session_key_p and user.wx_session_key != session_key_p:
+        user.wx_session_key = session_key_p
+        db.commit()
+        db.refresh(user)
 
     # 始终回写手机号（已有用户可能之前未绑定）
     # 先检查手机号是否被其他用户占用

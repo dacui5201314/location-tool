@@ -39,6 +39,10 @@
       "style": { "navigationBarTitleText": "充值中心", "navigationBarBackgroundColor": "#0b3fbd", "navigationBarTextStyle": "white", "enablePullDownRefresh": true, "backgroundTextStyle": "dark" }
     },
     {
+      "path": "pages/profile/feedback",
+      "style": { "navigationBarTitleText": "意见反馈", "navigationBarBackgroundColor": "#0b3fbd", "navigationBarTextStyle": "white" }
+    },
+    {
       "path": "pages/profile/contact",
       "style": { "navigationBarTitleText": "联系客服", "navigationBarBackgroundColor": "#0b3fbd", "navigationBarTextStyle": "white" }
     },

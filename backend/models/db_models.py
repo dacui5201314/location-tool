@@ -45,6 +45,7 @@ class User(Base):
     wx_unionid = Column(String(64), unique=True, nullable=True, comment="微信 UnionID（跨应用统一标识）")
     wx_mp_openid = Column(String(64), unique=True, nullable=True, comment="公众号 OpenID")
     wx_mini_openid = Column(String(64), unique=True, nullable=True, comment="小程序 OpenID")
+    wx_session_key = Column(Text, nullable=True, comment="小程序 session_key（虚拟支付签名用，不返回前端）")
     wx_openid = Column(String(64), unique=True, index=True, nullable=True, comment="★ 统一微信 OpenID（当前接入端）")
     phone = Column(String(20), unique=True, index=True, nullable=True, comment="★ 手机号（未来核心主键）")
     channel = Column(String(30), default="web", comment="注册来源 official_account/mini_program/app/web")
@@ -288,6 +289,7 @@ class PaymentOrder(Base):
     credits = Column(Integer, default=0)
     membership_days = Column(Integer, default=0)
     status = Column(String(20), default="CREATED")
+    pay_channel = Column(String(20), default="WECHAT_JSAPI")
     paid_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=func.now())
     updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
@@ -306,6 +308,18 @@ class PaymentOrder(Base):
             "paid_at": self.paid_at.isoformat() if self.paid_at else None,
             "created_at": self.created_at.isoformat() if self.created_at else None,
         }
+
+
+class Feedback(Base):
+    """用户意见反馈"""
+    __tablename__ = "feedbacks"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, index=True, nullable=False)
+    content = Column(Text, nullable=False)
+    contact = Column(String(120), default="")
+    image_urls = Column(Text, default="[]")
+    credits_granted = Column(Integer, default=0)
+    created_at = Column(DateTime, default=func.now())
 
 
 class AmapKey(Base):

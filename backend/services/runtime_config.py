@@ -20,6 +20,12 @@ CORE_CONFIG_DEFAULTS = {
     "wx_notify_url": "",
     "wx_private_key_pem": "",
     "wx_platform_cert_pem": "",
+    # 虚拟支付
+    "wx_virtual_pay_enabled": "0",
+    "wx_virtual_offer_id": "",
+    "wx_virtual_app_key": "",
+    "wx_virtual_env": "1",
+    "wx_virtual_currency_type": "CNY",
 }
 
 PDF_CONFIG_DEFAULTS = {
