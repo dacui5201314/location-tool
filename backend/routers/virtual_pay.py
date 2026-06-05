@@ -148,7 +148,10 @@ def virtual_prepay(
         hashlib.sha256,
     ).hexdigest()
 
-    print(f"[VPAY] prepay user={user_id} sku={body.sku_id} order={out_trade_no} product={product_id}", flush=True)
+    print(f"[VPAY] prepay user={user_id} sku={body.sku_id} order={out_trade_no} product={product_id} env={env_val}", flush=True)
+    print(f"[VPAY-DEBUG] signString=requestVirtualPayment&{sign_data_str}", flush=True)
+    print(f"[VPAY-DEBUG] paySig={pay_sig}", flush=True)
+    print(f"[VPAY-DEBUG] signature={signature}", flush=True)
 
     return {
         "ok": True,
