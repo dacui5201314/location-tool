@@ -16,7 +16,7 @@
         </view>
         <view class="item-bottom">
           <text class="time">{{ fmt(o.created_at) }}</text>
-          <text class="status" :class="{ paid: o.status === 'PAID', created: o.status === 'CREATED' }">{{ o.status === 'PAID' ? '已到账' : o.status === 'CREATED' ? '处理中' : o.status }}</text>
+          <text class="status" :class="{ paid: o.status === 'PAID', created: o.status === 'CREATED', timeout: o.status === 'TIMEOUT' }">{{ o.status === 'PAID' ? '已到账' : o.status === 'CREATED' ? '待支付' : o.status === 'TIMEOUT' ? '已过期' : o.status }}</text>
         </view>
       </view>
     </view>
@@ -65,5 +65,6 @@ export default {
 .status { font-size:23rpx; font-weight:800; }
 .status.paid { color:#16a34a; }
 .status.created { color:#f59e0b; }
+.status.timeout { color:#94a3b8; }
 .empty { text-align:center; padding:100rpx 0; font-size:28rpx; color:#94a3b8; }
 </style>

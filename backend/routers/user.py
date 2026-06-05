@@ -1,5 +1,6 @@
 """用户中心 API — JWT 鉴权 + 双轨计费"""
 import os, secrets, time, json
+from datetime import datetime, timedelta
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
@@ -182,13 +183,19 @@ def list_my_orders(
     user: dict = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    """当前用户的充值订单列表（最近 50 条）"""
+    """当前用户的充值订单列表（最近 50 条）。CREATED 超过 30 分钟自动作废。"""
     user_id = int(user["user_id"])
     rows = db.query(PaymentOrder).filter(
         PaymentOrder.user_id == user_id,
     ).order_by(PaymentOrder.created_at.desc()).limit(50).all()
+
+    cutoff = datetime.now() - timedelta(minutes=30)
     orders = []
     for o in rows:
+        # 超时未支付自动作废
+        status = o.status or "CREATED"
+        if status == "CREATED" and o.created_at and o.created_at < cutoff:
+            status = "TIMEOUT"
         label = ""
         try:
             snap = json.loads(o.sku_snapshot or "{}")
@@ -201,7 +208,7 @@ def list_my_orders(
             "amount_yuan": f"{o.amount_fen / 100:.2f}",
             "credits": o.credits or 0,
             "membership_days": o.membership_days or 0,
-            "status": o.status or "CREATED",
+            "status": status,
             "pay_channel": o.pay_channel or "",
             "paid_at": o.paid_at.isoformat() if o.paid_at else None,
             "created_at": o.created_at.isoformat() if o.created_at else None,
