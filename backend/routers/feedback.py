@@ -1,7 +1,9 @@
 """用户意见反馈 + 截图上传 + 1点奖励"""
 import json, os, uuid
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 from pathlib import Path
+
+CHINA_TZ = timezone(timedelta(hours=8))
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
 from sqlalchemy.orm import Session
 from database import get_db
@@ -58,9 +60,10 @@ async def submit_feedback(
     except (json.JSONDecodeError, TypeError):
         img_list = []
 
-    # 每人每天限1次领积分
-    today = datetime.now().date()
-    today_start = datetime(today.year, today.month, today.day)
+    # 每人每天限1次领积分（北京时间）
+    now_cn = datetime.now(CHINA_TZ)
+    today = now_cn.date()
+    today_start = datetime(today.year, today.month, today.day, tzinfo=CHINA_TZ)
     existing = db.query(Feedback).filter(
         Feedback.user_id == user_id,
         Feedback.created_at >= today_start,
