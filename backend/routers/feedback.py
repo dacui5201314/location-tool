@@ -118,3 +118,17 @@ def list_feedbacks(
             "created_at": fb.created_at.isoformat() if fb.created_at else None,
         })
     return {"feedbacks": result}
+
+
+@router.delete("/admin/{fb_id}")
+def delete_feedback(
+    fb_id: int,
+    admin: dict = Depends(get_current_admin),
+    db: Session = Depends(get_db),
+):
+    fb = db.query(Feedback).filter(Feedback.id == fb_id).first()
+    if not fb:
+        raise HTTPException(status_code=404, detail="反馈不存在")
+    db.delete(fb)
+    db.commit()
+    return {"ok": True}

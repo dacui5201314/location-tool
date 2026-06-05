@@ -444,9 +444,10 @@ async function loadBilling(pg){
 }
 
 // ── Register loaders ──
-function renderFeedbacks(){return '<div class="card"><h3>意见反馈</h3><table><thead><tr><th>时间</th><th>用户</th><th>内容</th><th>联系方式</th><th>奖励</th></tr></thead><tbody id="fbTbody"></tbody></table></div>'}
-async function loadFeedbacks(){const r=await af('GET','/api/feedback/admin/list');const fbs=r.ok?(r.data.feedbacks||[]):[];document.getElementById('fbTbody').innerHTML=fbs.map(f=>`<tr><td>${esc(fmtDateTime(f.created_at))}</td><td>${f.user_id} ${esc(f.phone||'')}</td><td class="text-sm">${esc((f.content||'').slice(0,60))}${(f.images||[]).length?`<br>📷${f.images.length}张`:''}</td><td class="text-sm">${esc(f.contact||'-')}</td><td>${f.credits_granted?'+'+f.credits_granted+'点':'-'}</td></tr>`).join('')||'<tr><td colspan="5" class="text-sm">暂无反馈</td></tr>';
+function renderFeedbacks(){return '<div class="card"><h3>意见反馈</h3><table><thead><tr><th>时间</th><th>用户</th><th>内容</th><th>联系方式</th><th>奖励</th><th>操作</th></tr></thead><tbody id="fbTbody"></tbody></table></div>'}
+async function loadFeedbacks(){const r=await af('GET','/api/feedback/admin/list');const fbs=r.ok?(r.data.feedbacks||[]):[];document.getElementById('fbTbody').innerHTML=fbs.map(f=>`<tr><td>${esc(fmtDateTime(f.created_at))}</td><td>${f.user_id} ${esc(f.phone||'')}</td><td class="text-sm">${esc((f.content||'').slice(0,60))}${(f.images||[]).length?`<br>📷${f.images.length}张`:''}</td><td class="text-sm">${esc(f.contact||'-')}</td><td>${f.credits_granted?'+'+f.credits_granted+'点':'-'}</td><td><button onclick="delFeedback(${f.id})" style="color:#ef4444;cursor:pointer;font-size:12px;border:none;background:none;padding:2px 6px">删除</button></td></tr>`).join('')||'<tr><td colspan="6" class="text-sm">暂无反馈</td></tr>';
 const badge=document.getElementById('fbBadge');if(badge){const today=new Date().toISOString().slice(0,10);const todayCount=fbs.filter(f=>(f.created_at||'').startsWith(today)).length;if(todayCount>0){badge.textContent=todayCount;badge.classList.remove('hidden')}else{badge.classList.add('hidden')}}}
+async function delFeedback(id){if(!confirm('确认删除该反馈？'))return;const r=await af('DELETE','/api/feedback/admin/'+id);if(r.ok){await loadFeedbacks();toast('已删除',1)}}
 const loaders={
   users:loadUsers, orders:loadOrders, billing:loadBilling, settings:()=>switchSettingsTab('core'),
   cdk:loadCdkList, sysparams:loadSysParams, oplogs:loadOpLogs, industries:loadIndustries, feedbacks:loadFeedbacks
