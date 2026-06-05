@@ -52,40 +52,44 @@ def save_report(record_id: int, report_data: dict, address: str = "", brand_name
 
     html = _build_report_html(record_id, report_data, address, brand_name)
 
-    if mode == "local":
-        STORAGE_DIR.mkdir(parents=True, exist_ok=True)
-        filepath = STORAGE_DIR / safe_name
-        filepath.write_text(html, encoding="utf-8")
-        return str(filepath)
-    else:
-        # 云端模式：上传到 OSS/S3
-        return _upload_to_cloud(cfg, safe_name, html)
+    # 始终先存本地（兜底）
+    STORAGE_DIR.mkdir(parents=True, exist_ok=True)
+    local_path = STORAGE_DIR / safe_name
+    local_path.write_text(html, encoding="utf-8")
+
+    # 云端模式：同时上传到 COS
+    cloud_url = ""
+    if mode == "cloud":
+        try:
+            from services.cloud_storage import get_cloud_client, upload_to_cloud, get_cloud_url
+            _, client_data = get_cloud_client()
+            if client_data:
+                cloud_key = f"reports/{safe_name}"
+                if upload_to_cloud(str(local_path), cloud_key, client_data):
+                    cloud_url = get_cloud_url(cloud_key, client_data)
+        except Exception as e:
+            print(f"[StorageService] 云端报告上传失败: {e}", flush=True)
+
+    return cloud_url or str(local_path)
 
 
 def get_report_content(record_id: int, report_file: str = "", report_url: str = "") -> bytes:
-    """获取报告文件内容，支持存储模式热切换下的 Try-Fallback：
-    - 云端模式优先从云端拉取，失败/404 时回退本地文件
-    - 本地模式直接读本地文件，不存在则尝试云端 URL
-    - 全部失败返回空字节，调用方应返回友好 404
-    """
-    mode = get_storage_mode()
+    """获取报告文件内容，支持本地+云端 Try-Fallback"""
+    # 本地文件优先
+    if report_file and os.path.exists(report_file):
+        return Path(report_file).read_bytes()
 
-    if mode == "cloud" and report_url:
-        content = _download_from_cloud(report_url)
-        if content:
-            return content
-        # Fallback: 云端未找到，尝试本地路径
-        if report_file and os.path.exists(report_file):
-            return Path(report_file).read_bytes()
-
-    elif mode == "local":
-        if report_file and os.path.exists(report_file):
-            return Path(report_file).read_bytes()
-        # Fallback: 本地不存在，尝试云端 URL（可能刚从 OSS 迁移过来）
-        if report_url:
-            content = _download_from_cloud(report_url)
-            if content:
-                return content
+    # 云端模式：从 COS 下载
+    if report_url:
+        try:
+            from services.cloud_storage import get_cloud_client
+            import httpx
+            # 先尝试直接 HTTP 下载
+            r = httpx.get(report_url, timeout=15)
+            if r.status_code == 200:
+                return r.content
+        except Exception:
+            pass
 
     return b""
 
@@ -311,39 +315,3 @@ def _build_report_html(record_id: int, report_data: dict, address: str, brand_na
 </html>"""
 
 
-def _upload_to_cloud(cfg: dict, filename: str, content: str) -> str:
-    """上传到 OSS/S3 兼容存储，返回 URL"""
-    import httpx
-    endpoint = cfg.get("oss_endpoint", "").rstrip("/")
-    bucket = cfg.get("oss_bucket", "")
-    key_id = cfg.get("oss_access_key_id", "")
-    key_secret = cfg.get("oss_access_key_secret", "")
-    if not endpoint or not bucket:
-        return ""
-    # 简单 S3 兼容 PUT 上传
-    url = f"{endpoint}/{bucket}/reports/{filename}"
-    try:
-        r = httpx.put(url, content=content.encode("utf-8"),
-                       headers={"Content-Type": "text/html; charset=utf-8"},
-                       auth=(key_id, key_secret), timeout=30)
-        if r.status_code in (200, 201):
-            return url
-    except Exception:
-        import traceback
-        print(f"[CRITICAL] 云端 OSS 上传失败: {filename}", flush=True)
-        traceback.print_exc()
-    return ""
-
-
-def _download_from_cloud(url: str) -> bytes:
-    """从云端下载报告"""
-    import httpx
-    try:
-        r = httpx.get(url, timeout=15)
-        if r.status_code == 200:
-            return r.content
-    except Exception:
-        import traceback
-        print(f"[CRITICAL] 云端 OSS 下载失败: {url}", flush=True)
-        traceback.print_exc()
-    return b""
