@@ -947,7 +947,20 @@ def upload_share_image(
     filepath = assets_dir / filename
     filepath.write_bytes(raw)
 
-    url = f"/assets/share/{filename}"
+    # 云存储上传（COS/Oss 兜底）
+    cloud_url = ""
+    try:
+        from services.cloud_storage import get_cloud_client, upload_to_cloud, get_cloud_url
+        mode, client_data = get_cloud_client(db)
+        if mode == "cloud" and client_data:
+            cloud_key = f"share/{filename}"
+            if upload_to_cloud(str(filepath), cloud_key, client_data):
+                cloud_url = get_cloud_url(cloud_key, client_data)
+                print(f"[Admin] 分享图已上传至云存储: {cloud_url}", flush=True)
+    except Exception as e:
+        print(f"[Admin] 云存储上传异常: {e}", flush=True)
+
+    url = cloud_url or f"/assets/share/{filename}"
     return {"url": url, "filename": filename}
 
 
