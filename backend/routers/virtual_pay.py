@@ -185,73 +185,8 @@ def query_virtual_order(
     }
 
 
-class ConfirmBody(BaseModel):
-    order_no: str
-    signData: str = ""
-
-
-@router.post("/confirm")
-def virtual_confirm(
-    body: ConfirmBody,
-    user: dict = Depends(get_current_user),
-    db: Session = Depends(get_db),
-):
-    """支付成功前端主动确认：用 appKey 验签 signData 后直接发货。
-    解决微信 notify 回调因网络/配置问题无法触达服务器的兜底方案。"""
-    user_id = int(user["user_id"])
-    order = db.query(PaymentOrder).filter(
-        PaymentOrder.out_trade_no == body.order_no,
-        PaymentOrder.user_id == user_id,
-    ).first()
-    if not order:
-        raise HTTPException(status_code=404, detail="订单不存在")
-    if order.status == "PAID":
-        return {"ok": True, "status": "PAID", "message": "已到账"}
-
-    # 验签：用 appKey 校验 signData 完整性和来源
-    cfg = get_core_config(db)
-    app_key = (cfg.get("wx_virtual_app_key") or "").strip()
-    if not app_key:
-        raise HTTPException(status_code=503, detail="虚拟支付未配置 App Key")
-
-    expected_pay_sig = hmac.new(
-        app_key.encode("utf-8"),
-        b"requestVirtualPayment&" + body.signData.encode("utf-8"),
-        hashlib.sha256,
-    ).hexdigest()
-
-    # 从 signData 解析字段用于校验
-    try:
-        sd = json.loads(body.signData)
-    except (json.JSONDecodeError, TypeError):
-        raise HTTPException(status_code=400, detail="signData 格式无效")
-
-    callback_order_no = sd.get("outTradeNo", "")
-    callback_product_id = sd.get("productId", "")
-    callback_price = sd.get("goodsPrice", 0)
-
-    # 三重校验
-    if callback_order_no != body.order_no:
-        raise HTTPException(status_code=400, detail="订单号不匹配")
-
-    expected_product_id = _get_virtual_product_id(db, order.sku_id)
-    if not expected_product_id or callback_product_id != expected_product_id:
-        raise HTTPException(status_code=400, detail="道具ID不匹配")
-
-    try:
-        callback_price = int(callback_price)
-    except (ValueError, TypeError):
-        raise HTTPException(status_code=400, detail="金额格式无效")
-    if callback_price != order.amount_fen:
-        raise HTTPException(status_code=400, detail="金额不匹配")
-
-    # 通过校验，发放权益
-    _grant_order(db, order, user_id)
-    return {"ok": True, "status": "PAID", "message": "充值已到账"}
-
-
 def _grant_order(db: Session, order, user_id: int):
-    """发放订单权益（notify 和 confirm 共用）"""
+    """发放订单权益（仅 notify 验签通过后调用）"""
     if order.status == "PAID":
         return
     db_user = db.query(User).filter(User.id == user_id).first()
@@ -397,23 +332,29 @@ async def virtual_notify(request: Request, db: Session = Depends(get_db)):
         return JSONResponse(status_code=200, content={"ErrCode": 1, "ErrMsg": "body parse failed"})
 
     payload_str = parsed["payload_str"]
-    pay_event_sig = parsed.get("pay_event_sig", "")
+    pay_event_sig = parsed.get("pay_event_sig", "").strip()
 
-    # ★ 验签：保守策略 — 签名无法验证时拒绝发放
+    # ★ 硬阻断：app_key 未配置
     cfg = get_core_config(db)
     app_key = (cfg.get("wx_virtual_app_key") or "").strip()
-    if app_key:
-        expected_sig = hmac.new(
-            app_key.encode("utf-8"),
-            payload_str.encode("utf-8"),
-            hashlib.sha256,
-        ).hexdigest()
-        if pay_event_sig and pay_event_sig != expected_sig:
-            print(f"[VPAY-NOTIFY] PayEventSig 验签失败", flush=True)
-            return JSONResponse(status_code=200, content={"ErrCode": 1, "ErrMsg": "signature verification failed"})
-    # 没有 appKey 配置时不验签，但打印告警
-    if not pay_event_sig and not app_key:
-        print(f"[VPAY-NOTIFY] ⚠ 未配置 appKey 且 PayEventSig 为空，签名校验跳过（非生产勿依赖）", flush=True)
+    if not app_key:
+        print(f"[VPAY-NOTIFY] app_key 未配置，拒绝回调", flush=True)
+        return JSONResponse(status_code=200, content={"ErrCode": 1, "ErrMsg": "app key missing"})
+
+    # ★ 硬阻断：PayEventSig 为空
+    if not pay_event_sig:
+        print(f"[VPAY-NOTIFY] PayEventSig 为空，拒绝回调", flush=True)
+        return JSONResponse(status_code=200, content={"ErrCode": 1, "ErrMsg": "signature missing"})
+
+    # ★ 验签：hmac.compare_digest 防时序攻击
+    expected_sig = hmac.new(
+        app_key.encode("utf-8"),
+        payload_str.encode("utf-8"),
+        hashlib.sha256,
+    ).hexdigest()
+    if not hmac.compare_digest(pay_event_sig, expected_sig):
+        print(f"[VPAY-NOTIFY] PayEventSig 验签失败", flush=True)
+        return JSONResponse(status_code=200, content={"ErrCode": 1, "ErrMsg": "signature verification failed"})
 
     # 解析 Payload 字段
     fields = _parse_payload_fields(payload_str)

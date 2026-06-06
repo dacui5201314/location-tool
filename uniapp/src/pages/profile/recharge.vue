@@ -214,19 +214,29 @@ export default {
           return
         }
 
-        // 4. 支付成功 → 主动确认到账（不依赖微信 notify 回调）
+        // 4. 支付成功 → 轮询后端订单状态（仅 notify 验签后发货）
         const orderNo = pp.order_no || ''
         if (!orderNo) {
           this.payErr = '支付处理中，请稍后刷新'
           return
         }
-        try {
-          const cr = await api.confirmVirtualPayment(orderNo, pp.signData || '')
-          uni.showToast({ title: cr.ok && cr.data && cr.data.status === 'PAID' ? '支付成功' : '处理中', icon: 'success' })
+        let paid = false
+        for (let i = 0; i < 6; i++) {
+          await new Promise(r => setTimeout(r, 1500))
+          try {
+            const qr = await api.queryVirtualOrder(orderNo)
+            if (qr.ok && qr.data && qr.data.status === 'PAID') {
+              paid = true
+              break
+            }
+          } catch (e) { /* 重试 */ }
+        }
+        if (paid) {
+          uni.showToast({ title: '支付成功', icon: 'success' })
           this.selectedSku = null
           await this.loadProfile()
-        } catch (e) {
-          this.payErr = '支付处理中，请稍后刷新'
+        } else {
+          this.payErr = '支付处理中，请稍后下拉刷新'
         }
       } catch (e) {
         this.payErr = (e && (e.errMsg || e.message)) || '支付失败'
