@@ -26,6 +26,7 @@ CORE_CONFIG_DEFAULTS = {
     "wx_virtual_app_key": "",
     "wx_virtual_env": "1",
     "wx_virtual_currency_type": "CNY",
+    "wx_virtual_notify_token": "",
 }
 
 PDF_CONFIG_DEFAULTS = {

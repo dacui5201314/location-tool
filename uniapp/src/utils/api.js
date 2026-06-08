@@ -247,8 +247,25 @@ function fetchShareConfig () { return request({ url: '/api/admin/share-config/pu
 function fetchCsQr () { return request({ url: '/api/admin/customer-service-qrcode', auth: false }) }
 function fetchSkus () { return request({ url: '/api/user/skus' }) }
 function activateCdk (code) { return request({ url: '/api/admin/cdk/activate', method: 'POST', data: { code } }) }
+function refreshWxLogin () {
+  return new Promise((resolve) => {
+    uni.login({
+      success: (res) => {
+        if (res.code) {
+          wechatMiniLogin(res.code).then(r => resolve(r)).catch(() => resolve({ ok: false, data: { detail: '微信登录态刷新失败' } }))
+        } else {
+          resolve({ ok: false, data: { detail: '微信登录态刷新失败' } })
+        }
+      },
+      fail: () => resolve({ ok: false, data: { detail: '微信登录态刷新失败' } })
+    })
+  })
+}
 function createVirtualPrepay (skuId) { return request({ url: '/api/virtual-pay/prepay', method: 'POST', data: { sku_id: skuId } }) }
+function payExistingOrder (orderNo) { return request({ url: `/api/virtual-pay/pay-existing/${orderNo}`, method: 'POST' }) }
 function queryVirtualOrder (orderNo) { return request({ url: `/api/virtual-pay/order/${orderNo}` }) }
+function reconcileVirtualOrder (orderNo) { return request({ url: `/api/virtual-pay/reconcile/${orderNo}`, method: 'POST' }) }
+function refundRequestVirtual (orderNo) { return request({ url: `/api/virtual-pay/refund-request/${orderNo}`, method: 'POST' }) }
 function fetchMyOrders () { return request({ url: '/api/user/orders' }) }
 function submitFeedback (content, contact) { return request({ url: '/api/feedback', method: 'POST', data: { content, contact } }) }
 
@@ -256,7 +273,7 @@ function submitFeedback (content, contact) { return request({ url: '/api/feedbac
 function getHealth () { return request({ url: '/api/health', auth: false }) }
 
 export default {
-  request, normalizeError, ensureAnonToken, wechatMiniLogin, bindPhone, phoneLogin,
+  request, normalizeError, ensureAnonToken, wechatMiniLogin, refreshWxLogin, bindPhone, phoneLogin,
   fetchProfile, updateProfile, uploadAvatar, fetchRecords, fetchRecordDetail, fetchSharedReport, createShareToken, deleteRecord,
-  fetchFavorites, deleteFavorite, checkFavorite, addFavorite, fetchIndustries, locationSuggest, locationRegeocode, analyzeLocation, fetchUiConfig, fetchShareConfig, fetchCsQr, fetchSkus, activateCdk, fetchMyOrders, createVirtualPrepay, queryVirtualOrder, submitFeedback, getHealth
+  fetchFavorites, deleteFavorite, checkFavorite, addFavorite, fetchIndustries, locationSuggest, locationRegeocode, analyzeLocation, fetchUiConfig, fetchShareConfig, fetchCsQr, fetchSkus, activateCdk, fetchMyOrders, createVirtualPrepay, payExistingOrder, queryVirtualOrder, reconcileVirtualOrder, refundRequestVirtual, submitFeedback, getHealth
 }

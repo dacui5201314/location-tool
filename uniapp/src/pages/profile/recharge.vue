@@ -159,6 +159,10 @@ export default {
       this.paying = true
       this.payErr = ''
       try {
+        // 0. 刷新微信登录态，避免 session_key 过期导致签名错误
+        const lr = await api.refreshWxLogin()
+        if (!lr.ok || !(lr.data && lr.data.token)) { this.payErr = '微信登录态刷新失败，请重新进入小程序后再试'; return }
+        uni.setStorageSync('token', lr.data.token)
         // 1. 服务端预下单
         const r = await api.createVirtualPrepay(this.selectedSku.id)
         if (!r.ok) {
@@ -198,7 +202,10 @@ export default {
         } catch (payErr) {
           const errCode = payErr && payErr.errCode
           const errMsg = (payErr && payErr.errMsg) || ''
-          if (errMsg.includes('cancel')) {
+          console.warn('[VPAY-CLIENT] fail errCode='+errCode+' errMsg='+errMsg)
+          if (errMsg.includes('App Store') || errMsg.includes('app store')) {
+            this.payErr = 'App Store 暂无法完成充值，请稍后再试或联系客服'
+          } else if (errMsg.includes('cancel')) {
             this.payErr = '已取消支付'
           } else if (errCode === -15007 || errCode === -15015) {
             // session_key 过期
@@ -214,7 +221,7 @@ export default {
           return
         }
 
-        // 4. 支付成功 → 轮询后端订单状态（仅 notify 验签后发货）
+        // 4. 支付成功 → 轮询后端订单状态 → 仍不成则服务端补偿查询
         const orderNo = pp.order_no || ''
         if (!orderNo) {
           this.payErr = '支付处理中，请稍后刷新'
@@ -225,11 +232,15 @@ export default {
           await new Promise(r => setTimeout(r, 1500))
           try {
             const qr = await api.queryVirtualOrder(orderNo)
-            if (qr.ok && qr.data && qr.data.status === 'PAID') {
-              paid = true
-              break
-            }
-          } catch (e) { /* 重试 */ }
+            if (qr.ok && qr.data && qr.data.status === 'PAID') { paid = true; break }
+          } catch (e) { /* retry */ }
+        }
+        // 轮询不到 → 服务端主动查单补偿
+        if (!paid) {
+          try {
+            const rc = await api.reconcileVirtualOrder(orderNo)
+            if (rc.ok && rc.data && rc.data.status === 'PAID') { paid = true }
+          } catch (e) { /* reconcile failed, fall through */ }
         }
         if (paid) {
           uni.showToast({ title: '支付成功', icon: 'success' })

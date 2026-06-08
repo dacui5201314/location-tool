@@ -1,14 +1,15 @@
 """微信小程序虚拟支付 — 道具直购 (short_series_goods)"""
-import os, json, time, hmac, hashlib, secrets
+import os, json, time, hmac, hashlib, secrets, httpx
 from datetime import datetime, timedelta
-from fastapi import APIRouter, Depends, HTTPException, Request
-from fastapi.responses import JSONResponse
+from urllib.parse import urlencode
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi.responses import JSONResponse, PlainTextResponse
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from database import get_db
 from models.db_models import User, BillingRecord, PaymentOrder, SystemConfig
 from services.runtime_config import get_user_skus, get_core_config
-from auth import get_current_user
+from auth import get_current_user, get_current_admin
 
 router = APIRouter(prefix="/api/virtual-pay", tags=["虚拟支付"])
 
@@ -46,6 +47,14 @@ def _get_virtual_product_id(db: Session, sku_id: int) -> str:
         return ""
 
 
+def _get_virtual_env(cfg) -> int:
+    """读取虚拟支付环境配置，仅允许 0 或 1，非法值抛异常"""
+    raw = (cfg.get("wx_virtual_env") or "").strip()
+    if raw in ("0", "1"):
+        return int(raw)
+    raise HTTPException(status_code=503, detail="虚拟支付环境未正确配置，请联系客服")
+
+
 class PrepayBody(BaseModel):
     sku_id: int
 
@@ -63,7 +72,7 @@ def virtual_prepay(
     cfg = get_core_config(db)
     offer_id = (cfg.get("wx_virtual_offer_id") or "").strip()
     app_key = (cfg.get("wx_virtual_app_key") or "").strip()
-    env_val = int(cfg.get("wx_virtual_env", "1") or "1")
+    env_val = _get_virtual_env(cfg)
     currency = (cfg.get("wx_virtual_currency_type") or "CNY").strip() or "CNY"
 
     user_id = int(user["user_id"])
@@ -148,7 +157,7 @@ def virtual_prepay(
         hashlib.sha256,
     ).hexdigest()
 
-    print(f"[VPAY] prepay user={user_id} sku={body.sku_id} order={out_trade_no} product={product_id} env={env_val}", flush=True)
+    print(f"[VPAY-PREPAY] user={user_id} sku={body.sku_id} order={out_trade_no} env={env_val} offer_id={offer_id} product_id={product_id} goods_price={total_fen} has_session_key={bool(session_key)} mode=short_series_goods", flush=True)
 
     return {
         "ok": True,
@@ -158,6 +167,66 @@ def virtual_prepay(
         "paySig": pay_sig,
         "signature": signature,
     }
+
+
+@router.post("/pay-existing/{order_no}")
+def pay_existing_order(
+    order_no: str,
+    user: dict = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """继续支付未完成的 CREATED 订单，返回 prepay 参数。不创建新订单。"""
+    user_id = int(user["user_id"])
+    order = db.query(PaymentOrder).filter(
+        PaymentOrder.out_trade_no == order_no,
+        PaymentOrder.user_id == user_id,
+    ).first()
+    if not order:
+        raise HTTPException(status_code=404, detail="订单不存在")
+    if order.pay_channel != "WECHAT_VIRTUAL":
+        raise HTTPException(status_code=400, detail="仅支持虚拟支付订单")
+    if order.status == "PAID":
+        raise HTTPException(status_code=400, detail="订单已完成，无需重复支付")
+    if order.status != "CREATED":
+        if order.status in ("TIMEOUT", "CANCELLED", "FAILED"):
+            raise HTTPException(status_code=400, detail="订单已关闭，请重新购买")
+        raise HTTPException(status_code=400, detail=f"订单状态 {order.status} 不可支付")
+    # auto-timeout orders older than 30 minutes
+    if order.created_at and order.created_at < datetime.now() - timedelta(minutes=30):
+        order.status = "TIMEOUT"
+        db.commit()
+        raise HTTPException(status_code=400, detail="订单已关闭，请重新购买")
+
+    cfg = get_core_config(db)
+    offer_id = (cfg.get("wx_virtual_offer_id") or "").strip()
+    app_key = (cfg.get("wx_virtual_app_key") or "").strip()
+    env_val = _get_virtual_env(cfg)
+    currency = (cfg.get("wx_virtual_currency_type") or "CNY").strip() or "CNY"
+
+    db_user = db.query(User).filter(User.id == user_id).first()
+    if not db_user:
+        raise HTTPException(status_code=404, detail="用户不存在")
+    openid = db_user.wx_mini_openid or ""
+    session_key = db_user.wx_session_key or ""
+    if not openid or not session_key:
+        raise HTTPException(status_code=400, detail="请重新登录后再支付")
+
+    product_id = _get_virtual_product_id(db, order.sku_id)
+    if not product_id:
+        raise HTTPException(status_code=400, detail="该套餐未配置虚拟支付道具")
+
+    sign_data = {
+        "offerId": offer_id, "buyQuantity": 1, "env": env_val,
+        "currencyType": currency, "productId": product_id,
+        "goodsPrice": order.amount_fen or 0, "outTradeNo": order.out_trade_no,
+        "attach": json.dumps({"user_id": user_id, "sku_id": order.sku_id, "order_no": order.out_trade_no}, ensure_ascii=False),
+    }
+    sign_data_str = json.dumps(sign_data, ensure_ascii=False, separators=(",", ":"))
+    pay_sig = hmac.new(app_key.encode("utf-8"), b"requestVirtualPayment&" + sign_data_str.encode("utf-8"), hashlib.sha256).hexdigest()
+    signature = hmac.new(session_key.encode("utf-8"), sign_data_str.encode("utf-8"), hashlib.sha256).hexdigest()
+
+    print(f"[VPAY-PREPAY] pay-existing user={user_id} order={order_no} env={env_val} offer_id={offer_id} product_id={product_id} goods_price={order.amount_fen} has_session_key={bool(session_key)} mode=short_series_goods", flush=True)
+    return {"ok": True, "order_no": order.out_trade_no, "mode": "short_series_goods", "signData": sign_data_str, "paySig": pay_sig, "signature": signature}
 
 
 @router.get("/order/{order_no}")
@@ -175,13 +244,25 @@ def query_virtual_order(
     if not order:
         raise HTTPException(status_code=404, detail="订单不存在")
 
+    label = ""
+    try:
+        snap = json.loads(order.sku_snapshot or "{}")
+        label = snap.get("label", "")
+    except Exception:
+        pass
+
     return {
         "order_no": order.out_trade_no,
-        "status": order.status or "CREATED",
+        "out_trade_no": order.out_trade_no,
+        "sku_label": label,
+        "amount_yuan": f"{order.amount_fen / 100:.2f}",
+        "amount_fen": order.amount_fen,
         "credits": order.credits or 0,
         "membership_days": order.membership_days or 0,
+        "pay_channel": order.pay_channel or "",
+        "status": order.status or "CREATED",
+        "created_at": order.created_at.isoformat() if order.created_at else None,
         "paid_at": order.paid_at.isoformat() if order.paid_at else None,
-        "amount_fen": order.amount_fen,
     }
 
 
@@ -222,20 +303,72 @@ def _grant_order(db: Session, order, user_id: int):
 
 
 def _revoke_order(db: Session, order, db_user):
-    """退款回退权益：扣回点数、取消会员、标记 REFUNDED"""
-    if order.status == "REFUNDED":
-        return
+    """Deduct points and mark REFUNDED. Idempotent: skip if negative REFUND or REFUND_SHORTFALL already recorded."""
+    if order.status in ("REFUNDED", "CLOSED"):
+        existing = db.query(BillingRecord).filter(
+            BillingRecord.user_id == order.user_id,
+            BillingRecord.record_type.in_(["REFUND", "REFUND_SHORTFALL"]),
+            BillingRecord.reason.contains(order.out_trade_no),
+        ).first()
+        if existing and (existing.amount < 0 or existing.record_type == "REFUND_SHORTFALL"):
+            return
+        print(f"[VPAY-REVOKE] status is {order.status} but no negative refund record, will fix", flush=True)
+
+    prev_balance = db_user.balance_credits
     try:
+        print(f"[VPAY-REVOKE] start order={order.out_trade_no} status={order.status} credits={order.credits} balance={prev_balance}", flush=True)
+
+        existing_refund = db.query(BillingRecord).filter(
+            BillingRecord.user_id == order.user_id,
+            BillingRecord.record_type.in_(["REFUND", "REFUND_SHORTFALL"]),
+            BillingRecord.reason.contains(order.out_trade_no),
+        ).first()
+        if existing_refund:
+            if existing_refund.amount < 0 or existing_refund.record_type == "REFUND_SHORTFALL":
+                print(f"[VPAY-REVOKE] existing refund record type={existing_refund.record_type} amount={existing_refund.amount}, skip", flush=True)
+                order.status = "REFUNDED"
+                db.commit()
+                return
+            else:
+                print(f"[VPAY-REVOKE] CRITICAL existing refund amount={existing_refund.amount} is NOT negative, will fix", flush=True)
+
+        deduct = order.credits or 0
+        shortfall = 0
+        if deduct > 0 and db_user.balance_credits >= deduct:
+            db_user.balance_credits -= deduct
+        elif deduct > 0:
+            shortfall = deduct - db_user.balance_credits
+            if db_user.balance_credits > 0:
+                db_user.balance_credits = 0
+                print(f"[VPAY-REVOKE] partial deducted before={prev_balance} deduct={deduct} shortfall={shortfall}", flush=True)
+            else:
+                print(f"[VPAY-REVOKE] no balance to deduct before=0 deduct={deduct} shortfall={shortfall}", flush=True)
+
+        actual_deduct = deduct - shortfall
+        # actual_deduct > 0: normal/partial deduction
+        # actual_deduct == 0: no balance at all
+        if actual_deduct > 0:
+            reason = f"虚拟支付退款，扣回 {deduct}点 ({order.out_trade_no})"
+            if shortfall > 0:
+                reason += f" 余额不足欠扣{shortfall}点 需人工处理"
+            db.add(BillingRecord(
+                user_id=order.user_id, amount=-actual_deduct,
+                balance_after=db_user.balance_credits,
+                record_type="REFUND",
+                reason=reason,
+            ))
+        else:
+            # deduct > 0 but balance was 0: record as shortfall only, amount=0
+            reason = f"虚拟支付退款 欠扣{deduct}点 余额为0 需人工处理 ({order.out_trade_no})"
+            db.add(BillingRecord(
+                user_id=order.user_id, amount=0,
+                balance_after=db_user.balance_credits,
+                record_type="REFUND_SHORTFALL",
+                reason=reason,
+            ))
+
         order.status = "REFUNDED"
-        if order.credits > 0 and db_user.balance_credits >= order.credits:
-            db_user.balance_credits -= order.credits
-        elif order.credits > 0:
-            db_user.balance_credits = 0
-        db.add(BillingRecord(
-            user_id=order.user_id, amount=-order.credits,
-            balance_after=db_user.balance_credits,
-            record_type="REFUND", reason=f"虚拟支付退款，扣回 {order.credits}点 ({order.out_trade_no})",
-        ))
+
         if order.membership_days > 0:
             now = datetime.now()
             if db_user.membership_expiry and db_user.membership_expiry > now:
@@ -243,86 +376,161 @@ def _revoke_order(db: Session, order, db_user):
                 if db_user.membership_expiry <= now:
                     db_user.membership_expiry = now
                     db_user.membership_tier = "free"
+
         db.commit()
-        print(f"[VPAY] 退款扣回成功 order={order.out_trade_no} credits={order.credits} days={order.membership_days}", flush=True)
+        print(f"[VPAY-REVOKE] completed status=REFUNDED order={order.out_trade_no} before={prev_balance} deduct={deduct} actual_deduct={actual_deduct} shortfall={shortfall} after={db_user.balance_credits}", flush=True)
     except Exception:
         db.rollback()
         raise
 
 
 def _parse_notify_body(body_str: str) -> dict:
-    """解析虚拟支付回调 body，返回 {'payload_str':..., 'pay_event_sig':...} 或空 dict"""
-    # 尝试 JSON
+    """解析虚拟支付回调 body，兼容两种格式：
+    A. {"MiniGame":{"Payload":"...","PayEventSig":"..."}}  → auth_mode="pay_event_sig"
+    B. {"Event":"xpay_goods_deliver_notify","OutTradeNo":"...","OpenId":"..."} → auth_mode="message_signature"
+    """
     try:
         data = json.loads(body_str)
-        if isinstance(data, dict):
-            payload_str = data.get("MiniGame", {}).get("Payload", "")
-            pay_event_sig = data.get("MiniGame", {}).get("PayEventSig", "")
-            if payload_str:
-                return {"payload_str": payload_str, "pay_event_sig": pay_event_sig or ""}
     except (json.JSONDecodeError, TypeError):
-        pass
-    # 尝试 XML
-    try:
-        import xml.etree.ElementTree as ET
-        root = ET.fromstring(body_str)
-        result = {"payload_str": "", "pay_event_sig": ""}
-        for child in root.iter():
-            if child.tag == "Payload" and child.text:
-                result["payload_str"] = child.text
-            if child.tag == "PayEventSig" and child.text:
-                result["pay_event_sig"] = child.text
-        if result["payload_str"]:
-            return result
-    except ET.ParseError:
-        pass
+        return {}
+
+    if not isinstance(data, dict):
+        return {}
+
+    # 格式 A：MiniGame 嵌套
+    mini = data.get("MiniGame", {})
+    if isinstance(mini, dict) and mini.get("Payload"):
+        return {
+            "payload_str": mini["Payload"],
+            "pay_event_sig": (mini.get("PayEventSig") or "").strip(),
+            "auth_mode": "pay_event_sig",
+        }
+
+    # 格式 B：扁平 JSON event（发货/退款/取消/失败均支持）
+    event = data.get("Event", "") or ""
+    _supported = (
+        "xpay_goods_deliver_notify", "xpay_goods_refund_notify",
+        "xpay_goods_cancel_notify", "xpay_goods_deliver_fail_notify",
+    )
+    if event in _supported:
+        payload_str = json.dumps(data, separators=(",", ":"), ensure_ascii=False)
+        return {
+            "payload_str": payload_str,
+            "pay_event_sig": "",
+            "auth_mode": "message_signature",
+        }
+
     return {}
 
 
 def _parse_payload_fields(payload_str: str) -> dict:
-    """从 Payload JSON 提取字段，兼容大小写。
-    返回 dict 含 is_refund 标志，缺失必要字段返回空 dict。"""
+    """从 Payload JSON 提取字段，兼容新旧格式。
+    返回 dict 含 is_refund，缺失 order_no 返回空 dict。"""
     try:
         p = json.loads(payload_str)
     except (json.JSONDecodeError, TypeError):
         return {}
-    # 检查是否为退款事件
-    event_type = p.get("EventType", "") or p.get("eventType", "") or ""
-    is_refund = event_type.upper() in ("REFUND", "CHARGE_BACK")
 
-    order_no = p.get("OutTradeNo", "") or p.get("outTradeNo", "") or ""
-    openid = p.get("OpenId", "") or p.get("openId", "") or ""
+    # ── 判断退款 / 取消 / 关闭 ──
+    event_val = p.get("Event", "") or p.get("EventType", "") or p.get("eventType", "") or ""
+    event_upper = event_val.upper()
+    is_refund = event_upper in ("REFUND", "CHARGE_BACK", "XPAY_GOODS_REFUND_NOTIFY")
+    is_cancel = event_upper in (
+        "XPAY_GOODS_CANCEL_NOTIFY", "XPAY_GOODS_DELIVER_FAIL_NOTIFY",
+        "CANCEL", "CLOSE", "FAIL",
+    )
+
+    # ── order_no ──
+    order_no = (p.get("OutTradeNo") or p.get("outTradeNo") or p.get("out_trade_no") or "").strip()
+
+    # ── openid ──
+    openid = (p.get("OpenId") or p.get("openId") or p.get("openid") or p.get("FromUserName") or "").strip()
+
+    # ── product_id ──
     goods_info = p.get("GoodsInfo", {}) or {}
     if not isinstance(goods_info, dict):
         goods_info = {}
-    product_id = goods_info.get("ProductId", "") or goods_info.get("productId", "") or ""
-    raw_price = goods_info.get("ActualPrice", None) if goods_info.get("ActualPrice", None) is not None else goods_info.get("actualPrice", None)
-    # ActualPrice 必须存在且 > 0（退款时金额也是正数，代表已退金额）
-    if raw_price is None:
+    product_id = (goods_info.get("ProductId") or goods_info.get("productId") or
+                  p.get("ProductId") or p.get("productId") or p.get("product_id") or
+                  p.get("GoodsId") or p.get("goodsId") or "").strip()
+
+    # ── actual_price ──
+    raw_price = None
+    if goods_info.get("ActualPrice") is not None:
+        raw_price = goods_info["ActualPrice"]
+    elif goods_info.get("actualPrice") is not None:
+        raw_price = goods_info["actualPrice"]
+    elif p.get("ActualPrice") is not None:
+        raw_price = p["ActualPrice"]
+    elif p.get("actualPrice") is not None:
+        raw_price = p["actualPrice"]
+    elif p.get("GoodsPrice") is not None:
+        raw_price = p["goodsPrice"]
+    elif p.get("goodsPrice") is not None:
+        raw_price = p["goodsPrice"]
+    elif p.get("Price") is not None:
+        raw_price = p["Price"]
+    elif p.get("price") is not None:
+        raw_price = p["price"]
+    elif p.get("Amount") is not None:
+        raw_price = p["Amount"]
+    elif p.get("amount") is not None:
+        raw_price = p["amount"]
+
+    actual_price = 0
+    if raw_price is not None:
+        try:
+            actual_price = int(raw_price)
+        except (ValueError, TypeError):
+            actual_price = 0
+
+    if not order_no or not openid:
         return {}
-    try:
-        actual_price = int(raw_price)
-    except (ValueError, TypeError):
-        return {}
-    if actual_price <= 0:
-        return {}
-    if not order_no or not openid or not product_id:
-        return {}
+
     return {
         "order_no": order_no,
         "openid": openid,
         "product_id": product_id,
         "actual_price": actual_price,
         "is_refund": is_refund,
+        "is_cancel": is_cancel,
+        "event": event_val,
     }
+
+
+@router.get("/notify")
+def virtual_notify_verify(
+    signature: str = Query(""),
+    timestamp: str = Query(""),
+    nonce: str = Query(""),
+    echostr: str = Query(""),
+    db: Session = Depends(get_db),
+):
+    """微信服务器 URL 有效性验证（Token 校验）。
+    微信虚拟支付后台在配置回调URL时会发起GET请求验证。"""
+    if not signature or not timestamp or not nonce or not echostr:
+        raise HTTPException(status_code=400, detail="missing params")
+
+    row = db.query(SystemConfig).filter(SystemConfig.key == "wx_virtual_notify_token").first()
+    token = (row.value or "").strip() if row and row.value else ""
+    if not token:
+        raise HTTPException(status_code=503, detail="token not configured")
+
+    sorted_arr = sorted([token, timestamp, nonce])
+    expected_sig = hashlib.sha1("".join(sorted_arr).encode("utf-8")).hexdigest()
+
+    if not hmac.compare_digest(expected_sig, signature):
+        raise HTTPException(status_code=403, detail="signature invalid")
+
+    return PlainTextResponse(echostr)
 
 
 @router.post("/notify")
 async def virtual_notify(request: Request, db: Session = Depends(get_db)):
-    """虚拟支付发货回调通知。
-    校验：签名 + pay_channel + openid + productId + amount 一致后才发放权益。
-    幂等：已 PAID 直接返回成功。
-    签名无法验证时直接拒绝，不做 TODO 验签后放行。"""
+    """虚拟支付发货回调通知。兼容两种格式：
+    A. MiniGame.Payload + PayEventSig 验签（旧格式）
+    B. 扁平 JSON Event + URL query signature 验签（新格式）
+    安全校验：pay_channel + openid + order_no，productId/amount 存在则必须匹配。"""
     body_bytes = await request.body()
     body_str = body_bytes.decode("utf-8", errors="replace")
 
@@ -333,63 +541,70 @@ async def virtual_notify(request: Request, db: Session = Depends(get_db)):
 
     payload_str = parsed["payload_str"]
     pay_event_sig = parsed.get("pay_event_sig", "").strip()
+    auth_mode = parsed.get("auth_mode", "pay_event_sig")
 
-    # ★ 硬阻断：app_key 未配置
     cfg = get_core_config(db)
-    app_key = (cfg.get("wx_virtual_app_key") or "").strip()
-    if not app_key:
-        print(f"[VPAY-NOTIFY] app_key 未配置，拒绝回调", flush=True)
-        return JSONResponse(status_code=200, content={"ErrCode": 1, "ErrMsg": "app key missing"})
 
-    # ★ 硬阻断：PayEventSig 为空
-    if not pay_event_sig:
-        print(f"[VPAY-NOTIFY] PayEventSig 为空，拒绝回调", flush=True)
-        return JSONResponse(status_code=200, content={"ErrCode": 1, "ErrMsg": "signature missing"})
+    # ═══ 验签：按 auth_mode 选择策略 ═══
+    if auth_mode == "message_signature":
+        # B 格式：微信消息推送签名校验
+        qp = request.query_params
+        r_sig = qp.get("signature", "").strip()
+        r_ts = qp.get("timestamp", "").strip()
+        r_nonce = qp.get("nonce", "").strip()
+        if not r_sig or not r_ts or not r_nonce:
+            print(f"[VPAY-NOTIFY] 消息签名参数缺失 sig={bool(r_sig)} ts={bool(r_ts)} nonce={bool(r_nonce)}", flush=True)
+            return JSONResponse(status_code=200, content={"ErrCode": 1, "ErrMsg": "signature missing"})
 
-    # ★ 验签：hmac.compare_digest 防时序攻击
-    expected_sig = hmac.new(
-        app_key.encode("utf-8"),
-        payload_str.encode("utf-8"),
-        hashlib.sha256,
-    ).hexdigest()
-    if not hmac.compare_digest(pay_event_sig, expected_sig):
-        print(f"[VPAY-NOTIFY] PayEventSig 验签失败", flush=True)
-        return JSONResponse(status_code=200, content={"ErrCode": 1, "ErrMsg": "signature verification failed"})
+        row = db.query(SystemConfig).filter(SystemConfig.key == "wx_virtual_notify_token").first()
+        msg_token = (row.value or "").strip() if row and row.value else ""
+        if not msg_token:
+            print(f"[VPAY-NOTIFY] 消息签名 token 未配置", flush=True)
+            return JSONResponse(status_code=200, content={"ErrCode": 1, "ErrMsg": "token not configured"})
 
-    # 解析 Payload 字段
+        expected = hashlib.sha1("".join(sorted([msg_token, r_ts, r_nonce])).encode("utf-8")).hexdigest()
+        if not hmac.compare_digest(expected, r_sig):
+            print(f"[VPAY-NOTIFY] 消息签名校验失败", flush=True)
+            return JSONResponse(status_code=200, content={"ErrCode": 1, "ErrMsg": "signature invalid"})
+
+    else:
+        # A 格式：PayEventSig 验签
+        app_key = (cfg.get("wx_virtual_app_key") or "").strip()
+        if not app_key:
+            print(f"[VPAY-NOTIFY] app_key 未配置，拒绝回调", flush=True)
+            return JSONResponse(status_code=200, content={"ErrCode": 1, "ErrMsg": "app key missing"})
+        if not pay_event_sig:
+            print(f"[VPAY-NOTIFY] PayEventSig 为空，拒绝回调", flush=True)
+            return JSONResponse(status_code=200, content={"ErrCode": 1, "ErrMsg": "signature missing"})
+        expected = hmac.new(app_key.encode("utf-8"), payload_str.encode("utf-8"), hashlib.sha256).hexdigest()
+        if not hmac.compare_digest(pay_event_sig, expected):
+            print(f"[VPAY-NOTIFY] PayEventSig 验签失败", flush=True)
+            return JSONResponse(status_code=200, content={"ErrCode": 1, "ErrMsg": "signature verification failed"})
+
+    # ═══ 解析字段 ═══
     fields = _parse_payload_fields(payload_str)
     if not fields:
-        print(f"[VPAY-NOTIFY] Payload 字段缺失或 actual_price<=0: {payload_str[:200]}", flush=True)
+        print(f"[VPAY-NOTIFY] Payload 字段缺失 (order_no/openid): keys={list(json.loads(payload_str).keys())[:10]}", flush=True)
         return JSONResponse(status_code=200, content={"ErrCode": 1, "ErrMsg": "payload fields invalid"})
 
     order_no = fields["order_no"]
     openid = fields["openid"]
-    product_id = fields["product_id"]
-    actual_price = fields["actual_price"]
+    product_id = fields.get("product_id", "")
+    actual_price = fields.get("actual_price", 0)
 
-    print(f"[VPAY-NOTIFY] order={order_no} openid={openid[:8]}*** product={product_id} price={actual_price}", flush=True)
+    print(f"[VPAY-NOTIFY] order={order_no} openid={openid[:8]}*** product={product_id or '(无)'} price={actual_price or '(无)'} mode={auth_mode}", flush=True)
 
-    # 查订单
+    # ═══ 查订单 ═══
     order = db.query(PaymentOrder).filter(PaymentOrder.out_trade_no == order_no).first()
     if not order:
         print(f"[VPAY-NOTIFY] 订单不存在: {order_no}", flush=True)
         return JSONResponse(status_code=200, content={"ErrCode": 1, "ErrMsg": "order not found"})
 
-    # ★ 校验 pay_channel
     if order.pay_channel != "WECHAT_VIRTUAL":
         print(f"[VPAY-NOTIFY] pay_channel 不匹配: {order.pay_channel}", flush=True)
         return JSONResponse(status_code=200, content={"ErrCode": 1, "ErrMsg": "invalid pay channel"})
 
-    # 幂等
-    if order.status == "PAID":
-        return JSONResponse(status_code=200, content={"ErrCode": 0, "ErrMsg": "Success"})
-
-    # ★ 金额校验：ActualPrice 必须严格等于订单金额（actual_price 已保证 >0）
-    if actual_price != order.amount_fen:
-        print(f"[VPAY-NOTIFY] 金额不匹配: callback={actual_price} order={order.amount_fen}", flush=True)
-        return JSONResponse(status_code=200, content={"ErrCode": 1, "ErrMsg": "amount mismatch"})
-
-    # ★ 校验 openid：回调 OpenId 必须等于订单用户的 wx_mini_openid
+    # ═══ openid 校验 ═══
     db_user = db.query(User).filter(User.id == order.user_id).first()
     if not db_user:
         return JSONResponse(status_code=200, content={"ErrCode": 1, "ErrMsg": "user not found"})
@@ -398,25 +613,566 @@ async def virtual_notify(request: Request, db: Session = Depends(get_db)):
         print(f"[VPAY-NOTIFY] openid 不匹配: callback={openid[:8]}*** user={user_openid[:8]}***", flush=True)
         return JSONResponse(status_code=200, content={"ErrCode": 1, "ErrMsg": "openid mismatch"})
 
-    # ★ 校验 productId：必须与 sku_id 映射的 productId 一致
-    expected_product_id = _get_virtual_product_id(db, order.sku_id)
-    if not expected_product_id or product_id != expected_product_id:
-        print(f"[VPAY-NOTIFY] productId 不匹配: callback={product_id} expected={expected_product_id}", flush=True)
-        return JSONResponse(status_code=200, content={"ErrCode": 1, "ErrMsg": "product id mismatch"})
-
-    # ── 退款处理 ──
+    # ═══ ★ 退款 / 取消 优先处理（不受 PAID 幂等拦截）═══
     is_refund = fields.get("is_refund", False)
-    if is_refund:
-        if order.status == "REFUNDED":
+    is_cancel = fields.get("is_cancel", False)
+    if is_refund or is_cancel:
+        if order.status in ("REFUNDED", "CANCELLED", "CLOSED"):
             return JSONResponse(status_code=200, content={"ErrCode": 0, "ErrMsg": "Success"})
         try:
-            _revoke_order(db, order, db_user)
+            if is_refund:
+                _revoke_order(db, order, db_user)
+            else:
+                order.status = "CANCELLED"
+                db.commit()
+                print(f"[VPAY] 订单取消 order={order_no}", flush=True)
             return JSONResponse(status_code=200, content={"ErrCode": 0, "ErrMsg": "Success"})
         except Exception:
             db.rollback()
-            print(f"[VPAY-NOTIFY] 退款扣回失败 order={order_no}", flush=True)
-            return JSONResponse(status_code=200, content={"ErrCode": 1, "ErrMsg": "refund revoke failed"})
+            print(f"[VPAY-NOTIFY] 退款/取消处理失败 order={order_no}", flush=True)
+            return JSONResponse(status_code=200, content={"ErrCode": 1, "ErrMsg": "grant failed"})
 
-    # ── 支付到账，发放权益 ──
+    # ═══ 支付到账幂等 ═══
+    if order.status == "PAID":
+        return JSONResponse(status_code=200, content={"ErrCode": 0, "ErrMsg": "Success"})
+
+    # ═══ productId 校验（存在则必须匹配）═══
+    if product_id:
+        expected_product_id = _get_virtual_product_id(db, order.sku_id)
+        if expected_product_id and product_id != expected_product_id:
+            print(f"[VPAY-NOTIFY] productId 不匹配: callback={product_id} expected={expected_product_id}", flush=True)
+            return JSONResponse(status_code=200, content={"ErrCode": 1, "ErrMsg": "product id mismatch"})
+
+    # ═══ 金额校验（存在则必须匹配）═══
+    if actual_price > 0 and actual_price != order.amount_fen:
+        print(f"[VPAY-NOTIFY] 金额不匹配: callback={actual_price} order={order.amount_fen}", flush=True)
+        return JSONResponse(status_code=200, content={"ErrCode": 1, "ErrMsg": "amount mismatch"})
+
+    # ═══ 支付到账，发放权益 ═══
     _grant_order(db, order, order.user_id)
     return JSONResponse(status_code=200, content={"ErrCode": 0, "ErrMsg": "Success"})
+
+
+# ═══════════════════════════════════════════════════════════
+# 服务端补偿查询：调用微信虚拟支付查单接口确认支付状态
+# ═══════════════════════════════════════════════════════════
+
+def _get_wx_access_token(db: Session) -> str:
+    """获取微信小程序 access_token（带缓存）"""
+    mini_appid = ""
+    mini_secret = ""
+    for k in ["wx_mini_appid", "wx_mini_secret"]:
+        row = db.query(SystemConfig).filter(SystemConfig.key == k).first()
+        if k == "wx_mini_appid" and row and row.value:
+            mini_appid = row.value.strip()
+        if k == "wx_mini_secret" and row and row.value:
+            mini_secret = row.value.strip()
+    if not mini_appid or not mini_secret:
+        return ""
+    try:
+        r = httpx.get(
+            "https://api.weixin.qq.com/cgi-bin/token"
+            f"?grant_type=client_credential&appid={mini_appid}&secret={mini_secret}",
+            timeout=10,
+        )
+        data = r.json()
+        return data.get("access_token", "")
+    except Exception:
+        return ""
+
+
+def _wx_query_virtual_order(db: Session, order) -> str:
+    """调用微信虚拟支付查单接口，返回 'PAID' | 'NOT_PAID' | 'ERROR'"""
+    cfg = get_core_config(db)
+    offer_id = (cfg.get("wx_virtual_offer_id") or "").strip()
+    app_key = (cfg.get("wx_virtual_app_key") or "").strip()
+    if not offer_id or not app_key:
+        return "ERROR"
+
+    db_user = db.query(User).filter(User.id == order.user_id).first()
+    openid = db_user.wx_mini_openid if db_user else ""
+
+    access_token = _get_wx_access_token(db)
+    if not access_token:
+        return "ERROR"
+
+    cfg2 = get_core_config(db)
+    env_val = _get_virtual_env(cfg2)
+    endpoint = "/xpay/query_order"
+    payload = {
+        "openid": openid,
+        "order_id": order.out_trade_no,
+        "env": env_val,
+    }
+    body_str = json.dumps(payload, ensure_ascii=False, separators=(",", ":"))
+    pay_sig = _xpay_sig(endpoint, body_str, app_key)
+    url = f"https://api.weixin.qq.com{endpoint}?access_token={access_token}&pay_sig={pay_sig}"
+    try:
+        r = httpx.post(url, content=body_str.encode("utf-8"), headers={"Content-Type": "application/json"}, timeout=15)
+        result = r.json()
+        print(f"[VPAY-QUERY] endpoint={endpoint} env={env_val} order={order.out_trade_no} http={r.status_code} resp={json.dumps(result,ensure_ascii=False)[:4000]}", flush=True)
+        if result.get("errcode") == 0:
+            pay_info = result.get("pay_info", {}) or {}
+            status = str(pay_info.get("trade_state", "") or result.get("trade_state", ""))
+            if status.upper() in ("SUCCESS", "PAID", "1", "2"):
+                return "PAID"
+            if status.upper() in ("CREATED", "NOTPAY", "0"):
+                return "NOT_PAID"
+        if result.get("ret") == 0:
+            trade_state = str(result.get("trade_state", ""))
+            if trade_state.upper() in ("SUCCESS", "PAID", "1", "2"):
+                return "PAID"
+    except Exception as e:
+        print(f"[VPAY-QUERY] 异常 order={order.out_trade_no}: {e}", flush=True)
+    return "ERROR"
+
+
+@router.post("/reconcile/{order_no}")
+def reconcile_order(
+    order_no: str,
+    user: dict = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """服务端主动查询微信确认支付状态，安全补发权益。
+    只允许查询自己的订单，仅 CREATED + WECHAT_VIRTUAL 可触发同步。"""
+    user_id = int(user["user_id"])
+    order = db.query(PaymentOrder).filter(
+        PaymentOrder.out_trade_no == order_no,
+        PaymentOrder.user_id == user_id,
+    ).first()
+    if not order:
+        raise HTTPException(status_code=404, detail="订单不存在")
+
+    # 幂等：已支付直接返回
+    if order.status == "PAID":
+        return {"ok": True, "status": "PAID", "credits": order.credits, "membership_days": order.membership_days}
+
+    # 只允许虚拟支付 + CREATED
+    if order.pay_channel != "WECHAT_VIRTUAL":
+        raise HTTPException(status_code=400, detail="非虚拟支付订单")
+    if order.status != "CREATED":
+        raise HTTPException(status_code=400, detail=f"订单状态 {order.status} 不可同步")
+
+    # 调用微信查单
+    confirm = _wx_query_virtual_order(db, order)
+    if confirm == "PAID":
+        _grant_order(db, order, user_id)
+        return {"ok": True, "status": "PAID", "credits": order.credits, "membership_days": order.membership_days, "synced": True}
+    elif confirm == "NOT_PAID":
+        return {"ok": True, "status": "CREATED", "message": "微信未确认支付"}
+    else:
+        return {"ok": True, "status": "CREATED", "message": "查单失败请稍后重试"}
+
+
+@router.post("/admin/reconcile/{order_no}")
+def admin_reconcile_order(
+    order_no: str,
+    admin: dict = Depends(get_current_admin),
+    db: Session = Depends(get_db),
+):
+    """管理后台手动同步虚拟支付订单"""
+    order = db.query(PaymentOrder).filter(PaymentOrder.out_trade_no == order_no).first()
+    if not order:
+        raise HTTPException(status_code=404, detail="订单不存在")
+    if order.status == "PAID":
+        return {"ok": True, "status": "PAID", "message": "已完成"}
+    if order.pay_channel != "WECHAT_VIRTUAL":
+        raise HTTPException(status_code=400, detail="非虚拟支付订单")
+
+    confirm = _wx_query_virtual_order(db, order)
+    if confirm == "PAID":
+        _grant_order(db, order, order.user_id)
+        return {"ok": True, "status": "PAID", "credits": order.credits, "synced": True}
+    elif confirm == "NOT_PAID":
+        return {"ok": True, "status": "CREATED", "message": "微信未确认支付"}
+    else:
+        return {"ok": True, "status": "CREATED", "message": "查单失败"}
+
+
+# ═══════════════════════════════════════════════════════════
+# 退款闭环：用户申请 + 管理后台审核 + notify 同步
+# ═══════════════════════════════════════════════════════════
+
+class AdminRefundBody(BaseModel):
+    force: bool = False
+
+
+def _extract_left_fee(query_result):
+    """从 query_order 返回计算真实可退金额：order_fee - refunded_fee"""
+    order = query_result.get("order") or {}
+    order_fee = 0
+    for k in ("order_fee", "OrderFee"):
+        v = order.get(k)
+        if v is not None:
+            try:
+                order_fee = int(v)
+                break
+            except (ValueError, TypeError):
+                pass
+    if order_fee <= 0:
+        # fallback to explicit left_fee
+        for src in (order, query_result):
+            for k in ("left_fee", "LeftFee"):
+                v = src.get(k)
+                if v is not None:
+                    try:
+                        return int(v)
+                    except (ValueError, TypeError):
+                        pass
+        # query_result is missing reliable fields: unknown, not zero
+        return None
+    # sum of already-refunded amounts
+    refunded = 0
+    for k in ("refund_fee", "refunded_fee", "total_refund_fee", "RefundFee", "RefundedFee"):
+        v = order.get(k)
+        if v is not None:
+            try:
+                refunded = max(refunded, int(v))
+            except (ValueError, TypeError):
+                pass
+    return max(order_fee - refunded, 0)
+
+
+def _is_wechat_order_refunded_or_closed(query_result):
+    """判断微信侧是否已退款/已关闭"""
+    order = query_result.get("order") or {}
+    order_fee = int(order.get("order_fee") or order.get("OrderFee") or 0)
+    refunded = 0
+    for k in ("refund_fee", "refunded_fee", "total_refund_fee", "RefundFee", "RefundedFee"):
+        v = order.get(k)
+        if v is not None:
+            try:
+                refunded = max(refunded, int(v))
+            except (ValueError, TypeError):
+                pass
+    if order_fee > 0 and refunded >= order_fee:
+        return True
+    status = order.get("status")
+    if status is not None and str(status) in ("5", "6", "8", "9"):
+        # status 5/6/8/9: refunded/closed by WeChat
+        return True
+    return False
+
+
+def _xpay_sig(endpoint, body_str, app_key):
+    """XPay 签名: HMAC-SHA256(app_key, endpoint + "&" + body_str)"""
+    return hmac.new(app_key.encode("utf-8"), f"{endpoint}&{body_str}".encode("utf-8"), hashlib.sha256).hexdigest()
+
+
+def _rid_query(access_token, rid):
+    """查询微信 rid 详细信息，返回脱敏摘要"""
+    try:
+        r = httpx.post(
+            f"https://api.weixin.qq.com/cgi-bin/openapi/rid/get?access_token={access_token}",
+            json={"rid": rid},
+            timeout=15,
+        )
+        data = r.json()
+        req_url = str(data.get("request_url", "") or "")[:200]
+        req_body = str(data.get("request_body", "") or "")[:200]
+        resp_body = str(data.get("response_body", "") or "")[:200]
+        for secret in [access_token]:
+            if secret:
+                req_url = req_url.replace(secret, "TOKEN***")
+                req_body = req_body.replace(secret, "TOKEN***")
+        print(f"[VPAY-RID] rid={rid} req_url={req_url} req_body={req_body} resp_body={resp_body}", flush=True)
+        return f"rid_req_url={req_url} rid_req_body={req_body} rid_resp={resp_body}"
+    except Exception as e:
+        print(f"[VPAY-RID] 查询失败 rid={rid}: {e}", flush=True)
+        return f"rid_query_failed:{str(e)[:100]}"
+
+
+def _wx_query_order_status(db, order, app_key, offer_id, openid, access_token):
+    """查询虚拟支付订单状态，返回 dict 含 left_fee / trade_state 等"""
+    cfg = get_core_config(db)
+    env_val = _get_virtual_env(cfg)
+    endpoint = "/xpay/query_order"
+    payload = {
+        "openid": openid,
+        "order_id": order.out_trade_no,
+        "env": env_val,
+    }
+    body_str = json.dumps(payload, ensure_ascii=False, separators=(",", ":"))
+    pay_sig = _xpay_sig(endpoint, body_str, app_key)
+    url = f"https://api.weixin.qq.com{endpoint}?access_token={access_token}&pay_sig={pay_sig}"
+    try:
+        r = httpx.post(url, content=body_str.encode("utf-8"), headers={"Content-Type": "application/json"}, timeout=15)
+        result = r.json()
+        print(f"[VPAY-QUERY] endpoint={endpoint} env={env_val} order={order.out_trade_no} http={r.status_code} resp={json.dumps(result,ensure_ascii=False)[:4000]}", flush=True)
+        return result
+    except Exception as e:
+        print(f"[VPAY-QUERY] 异常 order={order.out_trade_no}: {e}", flush=True)
+        return {}
+
+
+def _wx_refund_virtual_order(db: Session, order) -> tuple:
+    """调用微信官方虚拟支付退款接口 POST /xpay/refund_order"""
+    cfg = get_core_config(db)
+    offer_id = (cfg.get("wx_virtual_offer_id") or "").strip()
+    app_key = (cfg.get("wx_virtual_app_key") or "").strip()
+    env_val = _get_virtual_env(cfg)
+    if not offer_id or not app_key:
+        return False, "虚拟支付配置缺失"
+
+    db_user = db.query(User).filter(User.id == order.user_id).first()
+    if not db_user or not db_user.wx_mini_openid:
+        return False, "用户 openid 缺失"
+    openid = db_user.wx_mini_openid
+
+    # 获取 access_token
+    import httpx
+    mini_appid = ""
+    mini_secret = ""
+    for k in ["wx_mini_appid", "wx_mini_secret"]:
+        row = db.query(SystemConfig).filter(SystemConfig.key == k).first()
+        if k == "wx_mini_appid" and row and row.value:
+            mini_appid = row.value.strip()
+        if k == "wx_mini_secret" and row and row.value:
+            mini_secret = row.value.strip()
+    if not mini_appid or not mini_secret:
+        return False, "小程序凭证未配置"
+
+    try:
+        tr = httpx.get(
+            f"https://api.weixin.qq.com/cgi-bin/token?grant_type=client_credential&appid={mini_appid}&secret={mini_secret}",
+            timeout=10,
+        )
+        access_token = tr.json().get("access_token", "")
+    except Exception:
+        return False, "获取 access_token 失败"
+    if not access_token:
+        return False, "获取 access_token 失败"
+
+    amount_fen = order.amount_fen or 0
+    # 先用 query_order 获取 left_fee
+    query_result = _wx_query_order_status(db, order, app_key, offer_id, openid, access_token)
+    left_fee = _extract_left_fee(query_result)
+
+    if _is_wechat_order_refunded_or_closed(query_result):
+        od = query_result.get("order") or {}
+        diag = f"order_fee={od.get('order_fee')} left_fee={left_fee} status={od.get('status')}"
+        print(f"[VPAY-REFUND] WeChat already refunded order={order.out_trade_no} {diag}", flush=True)
+        return "ALREADY_REFUNDED", diag
+    if left_fee is None:
+        return False, "微信查单失败，无法确认可退金额，请稍后重试"
+    if left_fee <= 0:
+        return "ALREADY_REFUNDED", f"left_fee={left_fee}"
+
+    refund_fee = min(amount_fen, left_fee)
+    if refund_fee <= 0:
+        return False, f"退款金额无效 amount_fen={amount_fen} left_fee={left_fee}"
+
+    refund_order_id = f"RF{order.out_trade_no}"[:32]
+    endpoint = "/xpay/refund_order"
+    payload = {
+        "openid": openid,
+        "order_id": order.out_trade_no,
+        "refund_order_id": refund_order_id,
+        "left_fee": left_fee,
+        "refund_fee": refund_fee,
+        "refund_reason": "3",
+        "req_from": "1",
+        "env": env_val,
+    }
+    body_str = json.dumps(payload, ensure_ascii=False, separators=(",", ":"))
+    pay_sig = _xpay_sig(endpoint, body_str, app_key)
+    url = f"https://api.weixin.qq.com{endpoint}?access_token={access_token}&pay_sig={pay_sig}"
+    safe_info = f"openid={openid[:8]}*** order_id={order.out_trade_no} refund_fee={refund_fee} left_fee={left_fee} env={env_val} body_keys={list(payload.keys())}"
+    print(f"[VPAY-REFUND] endpoint={endpoint} env={env_val} order={order.out_trade_no} {safe_info}", flush=True)
+
+    try:
+        r = httpx.post(url, content=body_str.encode("utf-8"), headers={"Content-Type": "application/json"}, timeout=20)
+        status = r.status_code
+        result = r.json()
+        print(f"[VPAY-REFUND] http={status} order={order.out_trade_no} resp={json.dumps(result,ensure_ascii=False)[:500]}", flush=True)
+
+        errcode = result.get("errcode", -1)
+        errmsg = (result.get("errmsg") or result.get("msg") or "").strip()
+        if errcode == 0:
+            return True, "退款已提交"
+
+        # rid 诊断
+        rid = ""
+        if not errmsg:
+            errmsg = f"退款失败 errcode={errcode}"
+        import re
+        rid_match = re.search(r'rid[:\s]*([a-f0-9\-]+)', errmsg, re.I)
+        if rid_match:
+            rid = rid_match.group(1)
+        if rid:
+            rid_info = _rid_query(access_token, rid)
+            errmsg = f"{errmsg[:200]} | rid_diag:{rid_info[:200]}"
+        return False, errmsg[:400]
+    except Exception as e:
+        print(f"[VPAY-REFUND] 异常 order={order.out_trade_no}: {e}", flush=True)
+        return False, f"退款请求异常: {str(e)[:200]}"
+
+
+def _try_sync_refund_after_submit(db, order, db_user, attempts=5, interval=1):
+    """Poll WeChat query_order after refund submission, auto-deduct on confirmed refund."""
+    cfg = get_core_config(db)
+    offer_id = (cfg.get("wx_virtual_offer_id") or "").strip()
+    app_key = (cfg.get("wx_virtual_app_key") or "").strip()
+    openid = db_user.wx_mini_openid or ""
+    if not offer_id or not app_key or not openid:
+        return False
+    access_token = _get_wx_access_token(db)
+    if not access_token:
+        return False
+    for i in range(attempts):
+        time.sleep(interval)
+        query_result = _wx_query_order_status(db, order, app_key, offer_id, openid, access_token)
+        if _is_wechat_order_refunded_or_closed(query_result):
+            _revoke_order(db, order, db_user)
+            return True
+        lf = _extract_left_fee(query_result)
+        if lf is not None and lf <= 0:
+            _revoke_order(db, order, db_user)
+            return True
+        # lf is None: continue polling
+    return False
+
+
+@router.post("/refund-request/{order_no}")
+def refund_request(
+    order_no: str,
+    user: dict = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """User refund request: balance check -> WeChat refund -> poll -> deduct -> REFUNDED"""
+    user_id = int(user["user_id"])
+    order = db.query(PaymentOrder).filter(
+        PaymentOrder.out_trade_no == order_no,
+        PaymentOrder.user_id == user_id,
+    ).first()
+    if not order:
+        raise HTTPException(status_code=404, detail="订单不存在")
+    if order.pay_channel != "WECHAT_VIRTUAL":
+        raise HTTPException(status_code=400, detail="仅支持虚拟支付订单")
+    if order.status not in ("PAID", "REFUND_REQUESTED"):
+        raise HTTPException(status_code=400, detail=f"订单状态 {order.status} 不可申请退款")
+
+    db_user = db.query(User).filter(User.id == user_id).first()
+    if not db_user:
+        raise HTTPException(status_code=404, detail="用户不存在")
+
+    if db_user.balance_credits < (order.credits or 0):
+        raise HTTPException(status_code=400, detail="点数已使用，当前余额不足，无法退款，请联系客服处理")
+
+    prev_status = order.status
+    order.status = "REFUNDING"
+    db.commit()
+
+    success, msg = _wx_refund_virtual_order(db, order)
+    if success == "ALREADY_REFUNDED":
+        _revoke_order(db, order, db_user)
+        return {"ok": True, "status": "REFUNDED", "message": "退款成功，点数已扣回"}
+    if not success:
+        order.status = prev_status
+        db.commit()
+        raise HTTPException(status_code=502, detail=msg)
+
+    if _try_sync_refund_after_submit(db, order, db_user):
+        return {"ok": True, "status": "REFUNDED", "message": "退款成功，点数已扣回"}
+    return {"ok": True, "status": "REFUNDING", "message": "退款已提交，等待系统同步"}
+
+
+@router.post("/admin/refund/{order_no}")
+def admin_refund(
+    order_no: str,
+    body: AdminRefundBody,
+    admin: dict = Depends(get_current_admin),
+    db: Session = Depends(get_db),
+):
+    """Admin refund: balance check -> WeChat refund -> poll -> deduct -> REFUNDED"""
+    order = db.query(PaymentOrder).filter(PaymentOrder.out_trade_no == order_no).first()
+    if not order:
+        raise HTTPException(status_code=404, detail="订单不存在")
+    if order.pay_channel != "WECHAT_VIRTUAL":
+        raise HTTPException(status_code=400, detail="仅支持虚拟支付订单")
+    if order.status not in ("PAID", "REFUND_REQUESTED"):
+        raise HTTPException(status_code=400, detail=f"订单状态 {order.status} 不可退款")
+
+    db_user = db.query(User).filter(User.id == order.user_id).first()
+    if not db_user:
+        raise HTTPException(status_code=404, detail="用户不存在")
+
+    if db_user.balance_credits < (order.credits or 0):
+        raise HTTPException(status_code=400, detail="点数已使用，当前余额不足，无法退款，请联系客服处理")
+
+    prev_status = order.status
+    order.status = "REFUNDING"
+    db.commit()
+
+    success, msg = _wx_refund_virtual_order(db, order)
+    if success == "ALREADY_REFUNDED":
+        _revoke_order(db, order, db_user)
+        return {"ok": True, "status": "REFUNDED", "message": "微信侧已退款，本地已同步"}
+    if not success:
+        order.status = prev_status
+        db.commit()
+        raise HTTPException(status_code=502, detail=msg)
+
+    if _try_sync_refund_after_submit(db, order, db_user):
+        return {"ok": True, "status": "REFUNDED", "message": "退款成功，点数已扣回"}
+    print(f"[VPAY] admin退款已提交 order={order_no}", flush=True)
+    return {"ok": True, "status": "REFUNDING"}
+
+
+@router.post("/admin/refund-sync/{order_no}")
+def admin_refund_sync(
+    order_no: str,
+    admin: dict = Depends(get_current_admin),
+    db: Session = Depends(get_db),
+):
+    """管理后台同步退款状态：查询微信侧确认退款后，本地扣点改 REFUNDED"""
+    order = db.query(PaymentOrder).filter(PaymentOrder.out_trade_no == order_no).first()
+    if not order:
+        raise HTTPException(status_code=404, detail="订单不存在")
+    if order.pay_channel != "WECHAT_VIRTUAL":
+        raise HTTPException(status_code=400, detail="仅支持虚拟支付订单")
+    if order.status not in ("REFUNDING", "REFUND_REQUESTED", "PAID", "REFUNDED"):
+        raise HTTPException(status_code=400, detail=f"订单状态 {order.status} 不可同步")
+
+    cfg = get_core_config(db)
+    offer_id = (cfg.get("wx_virtual_offer_id") or "").strip()
+    app_key = (cfg.get("wx_virtual_app_key") or "").strip()
+    if not offer_id or not app_key:
+        raise HTTPException(status_code=503, detail="虚拟支付配置缺失")
+
+    db_user = db.query(User).filter(User.id == order.user_id).first()
+    if not db_user or not db_user.wx_mini_openid:
+        raise HTTPException(status_code=404, detail="用户 openid 缺失")
+
+    openid = db_user.wx_mini_openid
+    mini_appid = _get_sys_config_str(db, "wx_mini_appid", "")
+    mini_secret = _get_sys_config_str(db, "wx_mini_secret", "")
+    if not mini_appid or not mini_secret:
+        raise HTTPException(status_code=503, detail="小程序凭证未配置")
+
+    try:
+        tr = httpx.get(
+            f"https://api.weixin.qq.com/cgi-bin/token?grant_type=client_credential&appid={mini_appid}&secret={mini_secret}",
+            timeout=10,
+        )
+        access_token = tr.json().get("access_token", "")
+    except Exception:
+        raise HTTPException(status_code=502, detail="获取 access_token 失败")
+    if not access_token:
+        raise HTTPException(status_code=502, detail="获取 access_token 失败")
+
+    query_result = _wx_query_order_status(db, order, app_key, offer_id, openid, access_token)
+    if _is_wechat_order_refunded_or_closed(query_result):
+        _revoke_order(db, order, db_user)
+        print(f"[VPAY] refund-sync REFUNDED order={order_no}", flush=True)
+        return {"ok": True, "status": "REFUNDED", "message": "微信侧已退款，本地已同步"}
+    lf = _extract_left_fee(query_result)
+    if lf is None:
+        return {"ok": True, "status": order.status, "message": "微信查单字段缺失，无法确认退款状态，请稍后重试"}
+    if lf <= 0:
+        _revoke_order(db, order, db_user)
+        print(f"[VPAY] refund-sync REFUNDED order={order_no}", flush=True)
+        return {"ok": True, "status": "REFUNDED", "message": "微信侧已退款，本地已同步"}
+
+    od = query_result.get("order") or {}
+    return {"ok": True, "status": order.status, "message": f"微信侧未退款 order_fee={od.get('order_fee')} left_fee={lf}"}

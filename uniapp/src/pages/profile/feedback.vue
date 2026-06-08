@@ -8,7 +8,7 @@
     <view class="card">
       <view class="form-group">
         <label>反馈内容 <text class="req">*</text></label>
-        <textarea v-model="content" placeholder="请输入至少10个字...&#10;例如：希望增加某个功能、报告哪里不准、遇到了什么问题" :maxlength="1000" />
+        <textarea v-model="content" placeholder="请输入至少10个字（例如：功能建议、报告不准、遇到问题）" :maxlength="1000" />
         <text class="counter">{{ content.length }}/1000</text>
       </view>
       <view class="form-group">

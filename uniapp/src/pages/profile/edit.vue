@@ -208,14 +208,14 @@ export default {
   line-height:92rpx;
   padding:0;
   margin-top:14rpx;
-  border-radius:18rpx;
-  background:radial-gradient(circle at 14% 18%,rgba(49,91,255,0.10),transparent 28%),linear-gradient(180deg,#ffffff,#f3f8ff);
-  color:#315bff;
-  border:1rpx solid rgba(205,220,248,0.98);
+  border-radius:16rpx;
+  background:linear-gradient(135deg,#315bff,#5b4be6);
+  color:#fff;
+  border:none;
   font-size:30rpx;
   font-weight:900;
-  box-shadow:0 14rpx 30rpx rgba(79,119,186,0.12), inset 0 1rpx 0 rgba(255,255,255,0.92);
+  box-shadow:0 18rpx 34rpx rgba(49,91,255,0.22);
 }
 .save-btn::after { border:none; }
-.save-btn[disabled] { color:#8b99b6; background:linear-gradient(180deg,#f8fbff,#eef4ff); box-shadow:none; }
+.save-btn[disabled] { opacity:.6; color:#fff; background:linear-gradient(135deg,#8ba4ff,#9c92ef); box-shadow:none; }
 </style>

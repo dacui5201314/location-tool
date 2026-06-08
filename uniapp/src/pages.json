@@ -6,8 +6,12 @@
         "navigationBarTitleText": "址得选",
         "navigationBarBackgroundColor": "#0b3fbd",
         "navigationBarTextStyle": "white",
+        "navigationStyle": "custom",
         "enablePullDownRefresh": true,
-        "backgroundTextStyle": "dark"
+        "backgroundTextStyle": "light",
+        "backgroundColor": "#dce4f2",
+        "backgroundColorTop": "#ffffff",
+        "backgroundColorBottom": "#dce4f2"
       }
     },
     {
@@ -17,7 +21,7 @@
         "navigationBarBackgroundColor": "#0b3fbd",
         "navigationBarTextStyle": "white",
         "enablePullDownRefresh": true,
-        "backgroundTextStyle": "dark"
+        "backgroundTextStyle": "light"
       }
     },
     {
@@ -27,7 +31,7 @@
         "navigationBarBackgroundColor": "#0b3fbd",
         "navigationBarTextStyle": "white",
         "enablePullDownRefresh": true,
-        "backgroundTextStyle": "dark"
+        "backgroundTextStyle": "light"
       }
     },
     {
@@ -36,15 +40,19 @@
     },
     {
       "path": "pages/profile/recharge",
-      "style": { "navigationBarTitleText": "充值中心", "navigationBarBackgroundColor": "#0b3fbd", "navigationBarTextStyle": "white", "enablePullDownRefresh": true, "backgroundTextStyle": "dark" }
+      "style": { "navigationBarTitleText": "充值中心", "navigationBarBackgroundColor": "#0b3fbd", "navigationBarTextStyle": "white", "enablePullDownRefresh": true, "backgroundTextStyle": "light" }
+    },
+    {
+      "path": "pages/profile/order-detail",
+      "style": { "navigationBarTitleText": "订单详情", "navigationBarBackgroundColor": "#0b3fbd", "navigationBarTextStyle": "white", "enablePullDownRefresh": true, "backgroundTextStyle": "light" }
     },
     {
       "path": "pages/profile/orders",
-      "style": { "navigationBarTitleText": "充值记录", "navigationBarBackgroundColor": "#0b3fbd", "navigationBarTextStyle": "white" }
+      "style": { "navigationBarTitleText": "充值记录", "navigationBarBackgroundColor": "#0b3fbd", "navigationBarTextStyle": "white", "enablePullDownRefresh": true, "backgroundTextStyle": "light" }
     },
     {
       "path": "pages/profile/feedback",
-      "style": { "navigationBarTitleText": "意见反馈", "navigationBarBackgroundColor": "#0b3fbd", "navigationBarTextStyle": "white" }
+      "style": { "navigationBarTitleText": "意见反馈", "navigationBarBackgroundColor": "#0b3fbd", "navigationBarTextStyle": "white", "enablePullDownRefresh": true, "backgroundTextStyle": "light" }
     },
     {
       "path": "pages/profile/contact",
@@ -73,7 +81,7 @@
         "navigationBarBackgroundColor": "#0b3fbd",
         "navigationBarTextStyle": "white",
         "enablePullDownRefresh": true,
-        "backgroundTextStyle": "dark"
+        "backgroundTextStyle": "light"
       }
     },
     {
@@ -111,7 +119,7 @@
   ],
   "globalStyle": {
     "backgroundColor": "#dce4f2",
-    "backgroundColorTop": "#dce4f2",
+    "backgroundColorTop": "#0b3fbd",
     "backgroundColorBottom": "#dce4f2"
   },
   "lazyCodeLoading": "requiredComponents"

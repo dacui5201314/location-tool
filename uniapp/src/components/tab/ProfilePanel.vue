@@ -274,9 +274,31 @@ export default {
       }
       uni.navigateTo({ url: '/pages/profile/recharge' })
     },
-    openOrders () { uni.navigateTo({ url: '/pages/profile/orders' }) },
-    openFeedback () { uni.navigateTo({ url: '/pages/profile/feedback' }) },
-    openContact () { uni.navigateTo({ url: '/pages/profile/contact' }) },
+    requireLogin (content) {
+      if (auth.isLoggedIn()) return true
+      uni.showModal({
+        title: '请先登录',
+        content,
+        confirmText: '去登录',
+        cancelText: '稍后',
+        success: (res) => {
+          if (res.confirm) uni.navigateTo({ url: '/pages/profile/login' })
+        }
+      })
+      return false
+    },
+    openOrders () {
+      if (!this.requireLogin('登录后才能查看充值记录和订单状态')) return
+      uni.navigateTo({ url: '/pages/profile/orders' })
+    },
+    openFeedback () {
+      if (!this.requireLogin('登录后才能提交反馈并同步奖励点数')) return
+      uni.navigateTo({ url: '/pages/profile/feedback' })
+    },
+    openContact () {
+      if (!this.requireLogin('登录后才能联系客服并查看账号相关服务')) return
+      uni.navigateTo({ url: '/pages/profile/contact' })
+    },
     openRedeem () {
       if (!auth.isLoggedIn()) {
         uni.showModal({
@@ -336,7 +358,30 @@ export default {
       const day = String(d.getDate()).padStart(2, '0')
       return y + '-' + mo + '-' + day
     },
-    onLogout () { auth.clearToken(); this.loggedIn = false; this.points = 0; this.reportCount = 0; this.favCount = 0 }
+    onLogout () {
+      uni.showModal({
+        title: '退出登录',
+        content: '确定退出当前账号吗？退出后可重新登录恢复订单和权益。',
+        confirmText: '退出',
+        confirmColor: '#ef4444',
+        cancelText: '取消',
+        success: (res) => {
+          if (!res.confirm) return
+          auth.clearToken()
+          this.loggedIn = false
+          this.points = 0
+          this.reportCount = 0
+          this.favCount = 0
+          this.memberDays = 0
+          this.memberExpiry = ''
+          this.avatarUrl = ''
+          this.userName = ''
+          this.phoneText = ''
+          this.uidText = ''
+          uni.showToast({ title: '已退出登录', icon: 'none' })
+        }
+      })
+    }
   }
 }
 </script>
@@ -344,7 +389,7 @@ export default {
 <style scoped>
 .pp-panel { min-height:100vh; background:linear-gradient(180deg,#dce4f2,#e0e8f6 42%,#dce4f2); padding-bottom:40rpx; }
 .pp-panel.guest { min-height:calc(100vh - 88rpx - env(safe-area-inset-bottom)); }
-.top { background:radial-gradient(circle at 76% 34%,rgba(83,137,255,0.42),transparent 25%),linear-gradient(180deg,#0b3fbd,#0d35ad 28%,#151f8f); padding:58rpx 32rpx 72rpx; text-align:center; color:#fff; position:relative; overflow:hidden; }
+.top { background:radial-gradient(circle at 76% 34%,rgba(83,137,255,0.42),transparent 25%),linear-gradient(180deg,#0b3fbd,#0d35ad 28%,#151f8f); padding:calc(var(--zdx-nav-safe-top,72px) + 18rpx) 32rpx 72rpx; text-align:center; color:#fff; position:relative; overflow:hidden; }
 .top::before { content:''; position:absolute; left:-90rpx; top:-130rpx; width:520rpx; height:260rpx; border-radius:0 0 56% 56%; background:linear-gradient(180deg,rgba(255,255,255,0.15),rgba(255,255,255,0.02)); transform:rotate(8deg); }
 .top-row { display:flex; align-items:center; text-align:left; position:relative; z-index:2; }
 .avatar-img { width:104rpx; height:104rpx; border-radius:50%; border:4rpx solid rgba(255,255,255,0.42); flex-shrink:0; box-shadow:0 14rpx 28rpx rgba(5,22,88,0.22); }

@@ -1,5 +1,5 @@
 """管理后台 API — JWT 鉴权 + Admin 角色校验"""
-import os
+import os, json
 import time as _time
 import threading
 from pathlib import Path
@@ -387,6 +387,7 @@ class ConfigBody(BaseModel):
     wx_virtual_app_key: str = ""
     wx_virtual_env: str = "1"
     wx_virtual_currency_type: str = "CNY"
+    wx_virtual_notify_token: str = ""
 
 
 def _mask_core_config(raw: dict) -> dict:
@@ -453,6 +454,7 @@ def save_config(body: ConfigBody, admin: dict = Depends(get_current_admin), db: 
         "wx_virtual_app_key": body.wx_virtual_app_key,
         "wx_virtual_env": body.wx_virtual_env,
         "wx_virtual_currency_type": body.wx_virtual_currency_type,
+        "wx_virtual_notify_token": body.wx_virtual_notify_token,
     }
     # ★ 防空值覆盖：strip() 后为空的值一律跳过，禁止空值覆写 DB 中的真实密钥
     filtered_map = {}
@@ -1757,3 +1759,213 @@ def _report_amap_key_failure(db: Session, key_str: str, status: str, info: str =
         row.last_checked_at = _dt.utcnow()
         row.fail_count = (row.fail_count or 0) + 1
         db.commit()
+
+
+# ═══════════════════════════════════════════════════════════
+# 报告库 — 运营查看所有已生成报告
+# ═══════════════════════════════════════════════════════════
+
+def _parse_report_type(report_json_str: str) -> str:
+    """从 report_json 安全解析报告类型"""
+    if not report_json_str:
+        return "ai"
+    try:
+        rj = json.loads(report_json_str) if isinstance(report_json_str, str) else report_json_str
+        if isinstance(rj, dict):
+            if rj.get("_fallback_report"):
+                return "fallback"
+            if rj.get("_fact_retry") and rj.get("_fact_retry_passed"):
+                return "retry_ai"
+    except Exception:
+        pass
+    return "ai"
+
+
+class ReportsQuery(BaseModel):
+    page: int = 1
+    page_size: int = 20
+    q: str = ""
+    user_id: int = 0
+    business_type: str = ""
+    score_min: int = 0
+    score_max: int = 100
+    date_from: str = ""
+    date_to: str = ""
+    report_type: str = ""
+
+
+@router.get("/reports")
+def list_reports(
+    admin: dict = Depends(get_current_admin),
+    db: Session = Depends(get_db),
+    page: int = Query(1),
+    page_size: int = Query(20, le=100),
+    q: str = Query(""),
+    user_id: int = Query(0),
+    business_type: str = Query(""),
+    score_min: int = Query(0),
+    score_max: int = Query(100),
+    date_from: str = Query(""),
+    date_to: str = Query(""),
+    report_type: str = Query(""),
+):
+    """报告库列表（分页+筛选），不返回完整 report_json"""
+    query = db.query(AnalysisRecord, User).join(User, AnalysisRecord.user_id == User.id)
+
+    if q:
+        like = f"%{q}%"
+        query = query.filter(
+            or_(
+                AnalysisRecord.brand_desc.ilike(like),
+                AnalysisRecord.address.ilike(like),
+                AnalysisRecord.report_uuid.ilike(like),
+                User.phone.ilike(like),
+                User.phone_number.ilike(like),
+                User.nickname.ilike(like),
+            )
+        )
+    if user_id:
+        query = query.filter(AnalysisRecord.user_id == user_id)
+    if business_type:
+        query = query.filter(AnalysisRecord.business_type == business_type)
+    if score_min > 0:
+        query = query.filter(AnalysisRecord.overall_score >= score_min)
+    if score_max < 100:
+        query = query.filter(AnalysisRecord.overall_score <= score_max)
+    if date_from:
+        query = query.filter(AnalysisRecord.created_at >= date_from)
+    if date_to:
+        query = query.filter(AnalysisRecord.created_at <= date_to + " 23:59:59")
+
+    # 基础查询最多取 1000 条，在 Python 中解析 report_type 过滤后再分页
+    base_rows = query.order_by(AnalysisRecord.created_at.desc()).limit(1000).all()
+
+    all_items = []
+    for record, user in base_rows:
+        rtype = _parse_report_type(record.report_json)
+        if report_type and rtype != report_type:
+            continue
+        has_json = bool(record.report_json)
+        has_file = bool(record.report_file)
+        has_url = bool(record.report_url)
+        if has_json:
+            storage_source = "db_json"
+        elif has_url:
+            storage_source = "cloud_url"
+        elif has_file:
+            storage_source = "local_file"
+        else:
+            storage_source = "missing"
+        all_items.append({
+            "id": record.id,
+            "report_uuid": record.report_uuid,
+            "user_id": record.user_id,
+            "nickname": (user.nickname or "").strip(),
+            "phone": user.phone or user.phone_number or "",
+            "brand_desc": record.brand_desc or "",
+            "address": record.address or getattr(record, "location_address", "") or "",
+            "business_type": record.business_type or "",
+            "overall_score": record.overall_score,
+            "report_type": rtype,
+            "storage_source": storage_source,
+            "has_report_json": has_json,
+            "has_report_file": has_file,
+            "has_report_url": has_url,
+            "created_at": record.created_at.isoformat() if record.created_at else None,
+        })
+
+    total = len(all_items)
+    start = (page - 1) * page_size
+    items = all_items[start:start + page_size]
+
+    return {"total": total, "page": page, "items": items}
+
+
+@router.get("/reports/{report_uuid}")
+def get_report_detail(
+    report_uuid: str,
+    admin: dict = Depends(get_current_admin),
+    db: Session = Depends(get_db),
+):
+    """报告详情：metadata + 解析后的 report_json"""
+    record = db.query(AnalysisRecord).filter(
+        AnalysisRecord.report_uuid == report_uuid
+    ).first()
+    if not record:
+        raise HTTPException(status_code=404, detail="报告不存在")
+
+    user = db.query(User).filter(User.id == record.user_id).first()
+
+    report_file = record.report_file or ""
+    report_url = record.report_url or ""
+    report_json_raw = record.report_json or ""
+
+    meta = {
+        "id": record.id,
+        "report_uuid": record.report_uuid,
+        "user_id": record.user_id,
+        "nickname": (user.nickname or "").strip() if user else "",
+        "phone": (user.phone or user.phone_number or "") if user else "",
+        "brand_desc": record.brand_desc or "",
+        "address": record.address or getattr(record, "location_address", "") or "",
+        "business_type": record.business_type or "",
+        "overall_score": record.overall_score,
+        "report_type": _parse_report_type(report_json_raw),
+        "report_file": report_file,
+        "report_url": report_url,
+        "created_at": record.created_at.isoformat() if record.created_at else None,
+    }
+
+    parsed = None
+    parse_error = ""
+    storage_source = "missing"
+    html_content = ""
+    storage_error = ""
+
+    # 优先级 1：report_json
+    if report_json_raw:
+        try:
+            parsed = json.loads(report_json_raw) if isinstance(report_json_raw, str) else report_json_raw
+            if isinstance(parsed, dict):
+                for k in list(parsed.keys()):
+                    if k.startswith("_"):
+                        parsed.pop(k, None)
+            storage_source = "db_json"
+        except Exception as e:
+            parse_error = str(e)
+
+    # 优先级 2：本地文件或 COS（始终尝试，用于 HTML 预览）
+    if report_file or report_url:
+        try:
+            from services.storage_service import get_report_content
+            content = get_report_content(record.id, report_file, report_url)
+            if content:
+                text = content.decode("utf-8", errors="replace")
+                html_content = text
+                if not parsed:
+                    if report_url:
+                        storage_source = "cloud_url"
+                    elif report_file:
+                        storage_source = "local_file"
+        except Exception as e:
+            storage_error = str(e)
+
+    if not parsed and not html_content:
+        storage_source = "missing"
+    if storage_source == "missing" and parse_error:
+        storage_source = "db_json_parse_error"
+    meta["storage_source"] = storage_source
+
+    result = {"meta": meta}
+    if parsed:
+        result["report"] = parsed
+    if html_content:
+        result["html_content"] = html_content
+    if report_json_raw:
+        result["raw_report_json"] = report_json_raw
+    if parse_error:
+        result["parse_error"] = parse_error
+    if storage_error:
+        result["storage_error"] = storage_error
+
+    return result

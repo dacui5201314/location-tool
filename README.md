@@ -157,8 +157,8 @@ http://localhost:8000/docs           # Swagger API 文档（调试用）
 
 ## 版本历史
 
-- **v3.8.0** (2026-06-05) — 虚拟支付全链路闭环 + 小程序审核就绪：notify 六重校验 + 退款回退权益；confirm 端点兜底到账；iOS 虚拟支付打通（正式 Key + Apple IAP）；用户充值记录页（30min 自动过期）；管理后台订单渠道 + 反馈删除；反馈上传适配小程序；时区修复（UTC+8）；腾讯云 COS 对象存储集成（分享图 + 报告自动上传，本地兜底）；公交文案/data_quality_notes/AMap fallback 修复
-- **已知问题**：存储重构后分析服务需验证（部署后需重启并确认 COS SDK 已安装）
+- **v3.9.0** (2026-06-08) — 退款全链路闭环：用户一键申请 + 自动退款 + 5次轮询 + 自动扣点 REFUNDED；退款余额不足硬拦截（不退钱不退点）；_revoke_order 幂等扣点（负数 REFUND 流水去重 + REFUND_SHORTFALL 兜底）；XPay 退款签名算法修复（endpoint&body HMAC-SHA256）；admin 退款同步兜底；订单管理 REFUNDING 行同步退款按钮；pay-existing 继续支付（超30分自动 TIMEOUT）；prepay 统一 _get_virtual_env 环境读取；前端充值前自动 refreshWxLogin 防 session_key 过期；管理后台 F5 hash 记忆当前页；管理后台报告库（列表筛选 + 三源报告详情 + 抽屉全屏 + 锚点导航）；POI 数据表格化展示；用户端 UI 重写（自定义导航/订单卡片/详情页/登录弹窗/按钮统一）；服务器时区 Asia/Shanghai 全局统一
+- **v3.8.0** (2026-06-05) — 虚拟支付全链路闭环：notify 六重校验 + 退款回退权益；iOS 正式 Key 打通；用户充值记录页；管理后台订单渠道 + 反馈删除；腾讯云 COS 集成
 - **v3.7.0** (2026-06-04) — 上线前收口：支付 500 修复、AppID 一致性校验、openid 自动刷新、分享图预加载+下载、下拉刷新 5 页面、管理后台重置微信登录、公交措辞修正、data_quality_notes 修复、401 全局 token 清理
 - **v1.15.1** (2026-06-01) — Codex UI 精细收口：管理后台仪表盘交互折线图、分享图拆分首页/报告独立封面、用户列表会员友好化、业态按类目分组、操作记录美化；前端 ProfilePanel 图标改用 PNG、首页和报告分享封面独立配置
 - **v1.15.0** (2026-06-01) — C-4 报告幻觉专项 + 管理后台 SaaS 闭环：POI 名称校验 retry 白名单收窄、retry prompt 注入强约束、模板去诱导；后台新增订单管理+点数流水、业态 CRUD、SKU/CDK/二维码/Key池接口对齐；fact guard 175 PASS

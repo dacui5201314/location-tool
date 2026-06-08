@@ -192,10 +192,12 @@ def list_my_orders(
     cutoff = datetime.now() - timedelta(minutes=30)
     orders = []
     for o in rows:
-        # 超时未支付自动作废
+        # 超时未支付自动作废（虚拟支付可服务器补单，不做前端过期）
         status = o.status or "CREATED"
         if status == "CREATED" and o.created_at and o.created_at < cutoff:
-            status = "TIMEOUT"
+            if o.pay_channel != "WECHAT_VIRTUAL":
+                status = "TIMEOUT"
+            # WECHAT_VIRTUAL 的 CREATED 保持原状态，前端显示"待支付"
         label = ""
         try:
             snap = json.loads(o.sku_snapshot or "{}")

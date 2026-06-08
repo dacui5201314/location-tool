@@ -24,25 +24,24 @@ def get_cloud_client(db_session=None):
 
         provider = cfg.get("storage_provider", "tencent_cos")
         if provider == "tencent_cos":
-            endpoint = cfg.get("oss_endpoint", "")
             bucket = cfg.get("oss_bucket", "")
             secret_id = cfg.get("oss_access_key_id", "")
             secret_key = cfg.get("oss_access_key_secret", "")
-            if not all([endpoint, bucket, secret_id, secret_key]):
+            if not all([bucket, secret_id, secret_key]):
                 return "local", None
-            # 从 endpoint 提取 region
-            region = "ap-guangzhou"
-            if "cos." in endpoint and ".myqcloud.com" in endpoint:
-                region = endpoint.split("cos.")[1].split(".myqcloud.com")[0]
+            # 从 bucket 名推断 region（COS 默认使用桶所在区域）
+            region = cfg.get("oss_endpoint", "").strip() or "ap-guangzhou"
+            if "cos." in region and ".myqcloud.com" in region:
+                region = region.split("cos.")[1].split(".myqcloud.com")[0]
+            print(f"[CloudStorage] 初始化 COS region={region} bucket={bucket}", flush=True)
             cos_cfg = CosConfig(
                 Region=region,
                 SecretId=secret_id,
                 SecretKey=secret_key,
                 Scheme="https",
-                Endpoint=endpoint,
             )
             client = CosS3Client(cos_cfg)
-            return "cloud", (client, bucket, endpoint)
+            return "cloud", (client, bucket)
         return "local", None
     except Exception as e:
         print(f"[CloudStorage] 初始化云存储失败: {e}", flush=True)

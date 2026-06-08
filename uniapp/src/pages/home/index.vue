@@ -1,5 +1,5 @@
 <template>
-  <view class="home-page">
+  <view class="home-page" :style="{ '--zdx-nav-safe-top': heroTopPadding + 'px' }">
     <!-- ═══ Home Panel: 选址 ═══ -->
     <view class="tab-panel" v-if="activeTab === 'home'">
     <!-- 欢迎弹层 -->
@@ -23,7 +23,7 @@
     </view>
 
     <!-- ── Hero（Web 对齐：logo lockup + hero copy）── -->
-    <view class="hero">
+    <view class="hero" :style="{ paddingTop: heroTopPadding + 'px' }">
       <view class="hero-top">
         <view class="hero-logo-box">
           <image class="hero-logo" src="/static/brand-logo.png" mode="aspectFit" />
@@ -336,6 +336,7 @@ export default {
       suggestLoading: false,
       suggestions: [],
       industryLoadErr: '',
+      heroTopPadding: 72,
       errors: { address: '', industry: '', brand: '', size: '' },
       industryList: [],
       trusts: [
@@ -435,6 +436,7 @@ export default {
     },
   },
   onLoad (options) {
+    this.initHeroChrome()
     // ★ 支持 ?tab=records|favorites|profile 从外部 reLaunch 进入指定 tab
     if (options.tab && ['home','records','favorites','profile'].includes(options.tab)) {
       this.activeTab = options.tab
@@ -487,6 +489,7 @@ export default {
     if (this.countdownTimer) { clearInterval(this.countdownTimer); this.countdownTimer = null }
   },
   mounted () {
+    this.initHeroChrome()
     api.fetchIndustries().then(r => {
       if (r.ok && Array.isArray(r.data?.industries)) this.industryList = r.data.industries
     }).catch(() => { this.industryLoadErr = '业态加载失败，请稍后重试' })
@@ -518,6 +521,23 @@ export default {
     }
   },
   methods: {
+    initHeroChrome () {
+      let statusBarHeight = 0
+      let capsuleBottom = 0
+      try {
+        const sys = uni.getSystemInfoSync ? uni.getSystemInfoSync() : {}
+        statusBarHeight = sys.statusBarHeight || 0
+      } catch (e) {}
+      // #ifdef MP-WEIXIN
+      try {
+        if (typeof wx !== 'undefined' && wx.getMenuButtonBoundingClientRect) {
+          const rect = wx.getMenuButtonBoundingClientRect()
+          capsuleBottom = rect && rect.bottom ? rect.bottom : 0
+        }
+      } catch (e) {}
+      // #endif
+      this.heroTopPadding = Math.round(Math.max(capsuleBottom + 18, statusBarHeight + 58, 72))
+    },
     resolveShareImage (url) {
       if (!url) return ''
       if (url.startsWith('/assets/')) return config.API_BASE_URL + url
@@ -1072,7 +1092,7 @@ export default {
 .hc-c { right:104rpx; height:190rpx; }
 .hc-d { right:54rpx; height:118rpx; }
 .hc-e { right:4rpx; height:154rpx; }
-.hero-visual { position:absolute; right:20rpx; top:132rpx; width:260rpx; height:252rpx; pointer-events:none; z-index:2; }
+.hero-visual { position:absolute; right:20rpx; top:236rpx; width:260rpx; height:252rpx; pointer-events:none; z-index:2; }
 .hv-plate { position:absolute; left:12rpx; right:8rpx; bottom:22rpx; height:92rpx; border-radius:38rpx; transform:skewX(-13deg); background:linear-gradient(135deg,rgba(239,246,255,0.96),rgba(147,197,253,0.60)); box-shadow:0 22rpx 58rpx rgba(6,18,48,0.32),0 0 34rpx rgba(248,200,97,0.14),inset 0 1rpx 0 rgba(255,255,255,0.70); }
 .hv-ring { position:absolute; border:3rpx solid rgba(37,99,235,0.34); border-radius:50%; transform:skewX(13deg); }
 .ring-a { width:136rpx; height:42rpx; left:48rpx; top:26rpx; }
