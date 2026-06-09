@@ -88,11 +88,28 @@ ADMIN_PASSWORD=your_secure_password
 
 ### 2. 启动后端
 
+**必须从 backend/ 目录启动**（`from models.xxx` 等导入基于此工作目录）。
+
 ```bash
+# 方式一：直接运行
 cd backend
 pip install -r requirements.txt
 python main.py
-# → http://localhost:8000
+
+# 方式二：uvicorn（开发模式，支持热重载）
+cd backend
+uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+
+# 方式三：Windows 一键启动脚本
+start_backend.bat
+```
+
+> **注意**：不要从 `location-tool/` 根目录启动 `uvicorn backend.main:app`——这会导致 `No module named 'models'`。main.py 内置了工作目录自动切换保护，但 uvicorn 的 import 在切换之前就可能失败。最安全的方式始终是 `cd backend` 后再启动。
+
+启动后验证：
+```bash
+curl http://localhost:8000/api/health
+# → {"status":"ok"}
 # Swagger 文档 → http://localhost:8000/docs
 ```
 
@@ -157,6 +174,7 @@ http://localhost:8000/docs           # Swagger API 文档（调试用）
 
 ## 版本历史
 
+- **v3.9.1** (2026-06-09) — 报告生成修复：DB 保存增强（busy_timeout+诊断+兼容迁移）、report_uuid 32位一致性、启动工作目录保护、.env 加载路径固定、竞品清单按半径拆分（200m/500m/1000m 分列避免模型误用）、擀面皮品牌感知分类（面皮同类→direct，米线砂锅水饺→substitute）、prompt s500 环境降噪缓存修复
 - **v3.9.0** (2026-06-08) — 退款全链路闭环：用户一键申请 + 自动退款 + 5次轮询 + 自动扣点 REFUNDED；退款余额不足硬拦截（不退钱不退点）；_revoke_order 幂等扣点（负数 REFUND 流水去重 + REFUND_SHORTFALL 兜底）；XPay 退款签名算法修复（endpoint&body HMAC-SHA256）；admin 退款同步兜底；订单管理 REFUNDING 行同步退款按钮；pay-existing 继续支付（超30分自动 TIMEOUT）；prepay 统一 _get_virtual_env 环境读取；前端充值前自动 refreshWxLogin 防 session_key 过期；管理后台 F5 hash 记忆当前页；管理后台报告库（列表筛选 + 三源报告详情 + 抽屉全屏 + 锚点导航）；POI 数据表格化展示；用户端 UI 重写（自定义导航/订单卡片/详情页/登录弹窗/按钮统一）；服务器时区 Asia/Shanghai 全局统一
 - **v3.8.0** (2026-06-05) — 虚拟支付全链路闭环：notify 六重校验 + 退款回退权益；iOS 正式 Key 打通；用户充值记录页；管理后台订单渠道 + 反馈删除；腾讯云 COS 集成
 - **v3.7.0** (2026-06-04) — 上线前收口：支付 500 修复、AppID 一致性校验、openid 自动刷新、分享图预加载+下载、下拉刷新 5 页面、管理后台重置微信登录、公交措辞修正、data_quality_notes 修复、401 全局 token 清理
@@ -322,8 +340,29 @@ pkill -f "python main.py" && cd /www/wwwroot/location-tool/backend && nohup pyth
 
 # 验证后端健康
 curl http://localhost:8000/api/health
+```
 
-# 运行测试
+### 运行测试
+
+**本地开发（推荐使用项目虚拟环境）**：
+
+```bash
+# 首次：创建虚拟环境并安装依赖
+cd C:\Users\admin\location-tool
+uv venv backend\.venv --python 3.12
+uv pip install --python backend\.venv\Scripts\python.exe -r backend\requirements.txt
+
+# 回归测试（每次改动后必须全部通过）
+cd C:\Users\admin\location-tool\backend
+.venv\Scripts\python.exe -m compileall . -x ".*\\.venv.*"
+.venv\Scripts\python.exe tests\check_report_fact_guard.py
+.venv\Scripts\python.exe tests\check_industry_rigor_rules.py
+.venv\Scripts\python.exe tests\verify_noodle_skin.py
+```
+
+**生产服务器**：
+
+```bash
 cd /www/wwwroot/location-tool/backend
 python -m compileall .
 python tests/check_industry_rigor_rules.py

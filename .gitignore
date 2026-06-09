@@ -26,6 +26,12 @@ backend/c4_test.json
 zhidexuan/
 backend/logs/
 
+# Logo 素材（未跟踪图片，不上传仓库）
+logo-1/
+
+# 阶段性规划文档（本地参考，不上传仓库）
+第二阶段执行计划.md
+
 # 本地数据库（防止 SQLite 入库）
 backend/location_tool.db
 backend/location_tool.db-wal

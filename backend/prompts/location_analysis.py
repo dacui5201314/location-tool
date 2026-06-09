@@ -263,14 +263,13 @@ def build_analysis_prompt(address: str, lng: float, lat: float,
 
     # 场景识别
     pc = ld.get('poi_counts', {})
-    s500 = ld.get('stats_500m', {})
     office_count = pc.get('office', 0)
     residential_count = pc.get('residential', 0)
     shopping_count = pc.get('shopping', 0)
     school_count = pc.get('schools', 0)
     hotel_count = pc.get('hotels', 0)
-    subway_500 = _int(s500.get('subway', 0))
-    bus_500 = _int(s500.get('bus', 0))
+    subway_500 = _int(ld.get('stats_500m', {}).get('subway', 0))
+    bus_500 = _int(ld.get('stats_500m', {}).get('bus', 0))
     hospital_count = pc.get('hospitals', 0)
 
     if office_count >= 20 and shopping_count >= 5:
@@ -394,72 +393,87 @@ def build_analysis_prompt(address: str, lng: float, lat: float,
 ### 人口与密度
 | 类别 | 200米 | 500米 | 1000米 |
 |------|-------|-------|--------|
-| 住宅小区 | {ld.get('stats_200m', {}).get('residential', 0)} | {s500.get('residential', 0)} | {ld.get('stats_1000m', {}).get('residential', 0)} |
-| 写字楼 | {ld.get('stats_200m', {}).get('office', 0)} | {s500.get('office', 0)} | {ld.get('stats_1000m', {}).get('office', 0)} |
-| 学校 | {ld.get('stats_200m', {}).get('schools', 0)} | {s500.get('schools', 0)} | {ld.get('stats_1000m', {}).get('schools', 0)} |
-| 医院 | {ld.get('stats_200m', {}).get('hospitals', 0)} | {s500.get('hospitals', 0)} | {ld.get('stats_1000m', {}).get('hospitals', 0)} |
+| 住宅小区 | {ld.get('stats_200m', {}).get('residential', 0)} | {ld.get('stats_500m', {}).get('residential', 0)} | {ld.get('stats_1000m', {}).get('residential', 0)} |
+| 写字楼 | {ld.get('stats_200m', {}).get('office', 0)} | {ld.get('stats_500m', {}).get('office', 0)} | {ld.get('stats_1000m', {}).get('office', 0)} |
+| 学校 | {ld.get('stats_200m', {}).get('schools', 0)} | {ld.get('stats_500m', {}).get('schools', 0)} | {ld.get('stats_1000m', {}).get('schools', 0)} |
+| 医院 | {ld.get('stats_200m', {}).get('hospitals', 0)} | {ld.get('stats_500m', {}).get('hospitals', 0)} | {ld.get('stats_1000m', {}).get('hospitals', 0)} |
 
 ### 交通与可达性
 | 类别 | 200米 | 500米 | 1000米 |
 |------|-------|-------|--------|
-| 地铁站 | {ld.get('stats_200m', {}).get('subway', 0)} | {s500.get('subway', 0)} | {ld.get('stats_1000m', {}).get('subway', 0)} |
-| 公交站 | {ld.get('stats_200m', {}).get('bus', 0)} | {s500.get('bus', 0)} | {ld.get('stats_1000m', {}).get('bus', 0)} |
-| 停车场 | {ld.get('stats_200m', {}).get('parking', 0)} | {s500.get('parking', 0)} | {ld.get('stats_1000m', {}).get('parking', 0)} |
+| 地铁站 | {ld.get('stats_200m', {}).get('subway', 0)} | {ld.get('stats_500m', {}).get('subway', 0)} | {ld.get('stats_1000m', {}).get('subway', 0)} |
+| 公交站 | {ld.get('stats_200m', {}).get('bus', 0)} | {ld.get('stats_500m', {}).get('bus', 0)} | {ld.get('stats_1000m', {}).get('bus', 0)} |
+| 停车场 | {ld.get('stats_200m', {}).get('parking', 0)} | {ld.get('stats_500m', {}).get('parking', 0)} | {ld.get('stats_1000m', {}).get('parking', 0)} |
 
 ### 商业配套
 | 类别 | 200米 | 500米 | 1000米 |
 |------|-------|-------|--------|
-| 购物商场 | {ld.get('stats_200m', {}).get('shopping', 0)} | {s500.get('shopping', 0)} | {ld.get('stats_1000m', {}).get('shopping', 0)} |
-| 便利店/超市 | {ld.get('stats_200m', {}).get('convenience', 0)} | {s500.get('convenience', 0)} | {ld.get('stats_1000m', {}).get('convenience', 0)} |
-| 酒店住宿 | {ld.get('stats_200m', {}).get('hotels', 0)} | {s500.get('hotels', 0)} | {ld.get('stats_1000m', {}).get('hotels', 0)} |
+| 购物商场 | {ld.get('stats_200m', {}).get('shopping', 0)} | {ld.get('stats_500m', {}).get('shopping', 0)} | {ld.get('stats_1000m', {}).get('shopping', 0)} |
+| 便利店/超市 | {ld.get('stats_200m', {}).get('convenience', 0)} | {ld.get('stats_500m', {}).get('convenience', 0)} | {ld.get('stats_1000m', {}).get('convenience', 0)} |
+| 酒店住宿 | {ld.get('stats_200m', {}).get('hotels', 0)} | {ld.get('stats_500m', {}).get('hotels', 0)} | {ld.get('stats_1000m', {}).get('hotels', 0)} |
 
 ### 餐饮竞争格局
 | 类别 | 200米 | 500米 | 1000米 |
 |------|-------|-------|--------|
-| 所有餐饮 | {ld.get('stats_200m', {}).get('restaurants', 0)} | {s500.get('restaurants', 0)} | {ld.get('stats_1000m', {}).get('restaurants', 0)} |
-| 中餐厅 | {ld.get('stats_200m', {}).get('chinese_restaurants', 0)} | {s500.get('chinese_restaurants', 0)} | {ld.get('stats_1000m', {}).get('chinese_restaurants', 0)} |
-| 快餐厅 | {ld.get('stats_200m', {}).get('fast_food', 0)} | {s500.get('fast_food', 0)} | {ld.get('stats_1000m', {}).get('fast_food', 0)} |
-| 咖啡茶饮 | {ld.get('stats_200m', {}).get('cafe_tea', 0)} | {s500.get('cafe_tea', 0)} | {ld.get('stats_1000m', {}).get('cafe_tea', 0)} |"""]
+| 所有餐饮 | {ld.get('stats_200m', {}).get('restaurants', 0)} | {ld.get('stats_500m', {}).get('restaurants', 0)} | {ld.get('stats_1000m', {}).get('restaurants', 0)} |
+| 中餐厅 | {ld.get('stats_200m', {}).get('chinese_restaurants', 0)} | {ld.get('stats_500m', {}).get('chinese_restaurants', 0)} | {ld.get('stats_1000m', {}).get('chinese_restaurants', 0)} |
+| 快餐厅 | {ld.get('stats_200m', {}).get('fast_food', 0)} | {ld.get('stats_500m', {}).get('fast_food', 0)} | {ld.get('stats_1000m', {}).get('fast_food', 0)} |
+| 咖啡茶饮 | {ld.get('stats_200m', {}).get('cafe_tea', 0)} | {ld.get('stats_500m', {}).get('cafe_tea', 0)} | {ld.get('stats_1000m', {}).get('cafe_tea', 0)} |"""]
 
     # ★ 严谨度开关：仅认 rigor_enabled，不认字段存在
     has_rigor = ld.get('rigor_enabled') is True
 
     if has_rigor:
-        # ── 严谨框架：只注入新口径，绝对不注入旧 competitor_list ──
-        dc_list = ld.get('direct_competitor_list', [])
-        if dc_list:
-            dc_list_text = '\n'.join([f"  - {c['name']}（{c['distance']}米）"
-                                     for c in dc_list[:15]])
-        else:
-            dc_list_text = "（按当前业态严谨口径，1km 内未识别到明确直接竞品）"
+        # ── 严谨框架：按半径拆分竞品清单，避免模型将1000m清单当200m引用 ──
+        dc_list_200m = ld.get('direct_competitor_list_200m', [])
+        dc_list_500m = ld.get('direct_competitor_list_500m', [])
+        dc_list_1000m = ld.get('direct_competitor_list_1000m', [])
+        # fallback: 如果新字段不存在（旧版数据），回退 unified list
+        if not dc_list_200m and not dc_list_500m and not dc_list_1000m:
+            dc_all = ld.get('direct_competitor_list', [])
+            dc_list_200m = [c for c in dc_all if c.get('distance', 999) <= 200]
+            dc_list_500m = [c for c in dc_all if c.get('distance', 999) <= 500]
+            dc_list_1000m = dc_all[:15]
+
+        dc_200_text = '\n'.join([f"  - {c['name']}（{c['distance']}米）" for c in dc_list_200m[:5]]) or "（无）"
+        dc_500_text = '\n'.join([f"  - {c['name']}（{c['distance']}米）" for c in dc_list_500m[:10]]) or "（无）"
+        dc_1000_text = '\n'.join([f"  - {c['name']}（{c['distance']}米）" for c in dc_list_1000m[:15]]) or "（无）"
         parts.append(f"""
-### 🎯 直接竞品（同类业态 · 严谨口径）
-200m: {ld.get('direct_competitors_200m', 0)} 家 | 500m: {ld.get('direct_competitors_500m', 0)} 家 | 1000m: {ld.get('direct_competitors_1000m', 0)} 家
-{dc_list_text}
-**竞争维度的评分必须仅基于以上直接竞品数据。不得回退使用旧口径 competitors_* 或泛POI数量作为竞争评分依据。禁止在报告正文中输出 competitors_200m/competitors_500m/competitors_1000m 等 JSON 字段名。**""")
+### 🎯 直接竞品（同类业态 · 严谨口径 · 按半径分层）
+
+**200米贴身圈：{ld.get('direct_competitors_200m', 0)} 家**
+{dc_200_text}
+
+**500米核心圈：{ld.get('direct_competitors_500m', 0)} 家**
+{dc_500_text}
+
+**1000米辐射圈：{ld.get('direct_competitors_1000m', 0)} 家**
+{dc_1000_text}
+
+**⚠️ 铁律：报告中引用竞品时必须注明半径。例如"200米内无直接竞品""500米内仅2家同类小吃店""1000米辐射圈有8家快餐竞品"。绝对禁止将1000米清单当作200米贴身圈竞品来写。竞争维度的评分必须仅基于以上直接竞品数据。**""")
 
         if ld.get('substitute_competitors_1000m') is not None:
-            sub_text = f"{ld.get('substitute_competitors_1000m', 0)} 家替代业态（如餐饮对便利鲜食/饮品的影响）"
-            sub_list = ld.get('substitute_list', [])
-            if sub_list:
-                sub_text += "\n" + '\n'.join([f"  - {c['name']}（{c['distance']}米）" for c in sub_list[:10]])
-            else:
-                sub_text += "\n（本轮未识别到明确替代消费压力）"
+            sub_text_200 = f"200m: {ld.get('substitute_competitors_200m', 0)} 家"
+            sub_text_500 = f"500m: {ld.get('substitute_competitors_500m', 0)} 家"
+            sub_text_1000 = f"1000m: {ld.get('substitute_competitors_1000m', 0)} 家"
+            sub_list_1000 = ld.get('substitute_list_1000m', ld.get('substitute_list', []))
+            sub_names = '\n'.join([f"  - {c['name']}（{c['distance']}米）" for c in sub_list_1000[:10]]) if sub_list_1000 else "\n（本轮未识别到明确替代消费压力）"
             parts.append(f"""
 ### 🔶 替代消费压力（非同业态 · 不计入直接竞品）
-{sub_text}
+{sub_text_200} | {sub_text_500} | {sub_text_1000}
+{sub_names}
 **替代压力不影响直接竞品数量，仅在优势/劣势中定性提及。**""")
 
         if ld.get('traffic_anchors_1000m') is not None:
-            anc_text = f"{ld.get('traffic_anchors_1000m', 0)} 个客流锚点"
-            anc_list = ld.get('traffic_anchor_list', [])
-            if anc_list:
-                anc_text += "\n" + '\n'.join([f"  - {c['name']}（{c['distance']}米）" for c in anc_list[:10]])
-            else:
-                anc_text += "\n（本轮未识别到明确客流锚点）"
+            anc_text_200 = f"200m: {ld.get('traffic_anchors_200m', 0)} 个"
+            anc_text_500 = f"500m: {ld.get('traffic_anchors_500m', 0)} 个"
+            anc_text_1000 = f"1000m: {ld.get('traffic_anchors_1000m', 0)} 个"
+            anc_list_1000 = ld.get('traffic_anchor_list_1000m', ld.get('traffic_anchor_list', []))
+            anc_names = '\n'.join([f"  - {c['name']}（{c['distance']}米）" for c in anc_list_1000[:10]]) if anc_list_1000 else "\n（本轮未识别到明确客流锚点）"
             parts.append(f"""
 ### 🟢 客流锚点（商业活跃度参考 · 非竞品）
-{anc_text}
+{anc_text_200} | {anc_text_500} | {anc_text_1000}
+{anc_names}
 **客流锚点品牌/业态只表示商业活跃度，绝对不得写成竞争品牌或计入竞争评分。**""")
 
     else:
@@ -511,7 +525,7 @@ def build_analysis_prompt(address: str, lng: float, lat: float,
     # 中性段：不写入任何列表
 
     # === 维度2：地铁 (if/elif/else) — 需 subway_applicable 判断 ===
-    subway_500 = _int(s500.get('subway', 0))
+    subway_500 = _int(ld.get('stats_500m', {}).get('subway', 0))
     subway_applicable = ld.get('subway_applicable', True)
     s_sub = sg.get("500m_subway_gte")
     rf_sub = rf.get("500m_subway_eq")
@@ -525,7 +539,7 @@ def build_analysis_prompt(address: str, lng: float, lat: float,
     # else: 中性
 
     # === 维度3：公交 (if/elif/else) ===
-    bus_500 = _int(s500.get('bus', 0))
+    bus_500 = _int(ld.get('stats_500m', {}).get('bus', 0))
     s_bus = sg.get("500m_bus_gte")
     rf_bus = rf.get("500m_bus_lt")
     if s_bus is not None and bus_500 >= _int(s_bus):
@@ -542,7 +556,7 @@ def build_analysis_prompt(address: str, lng: float, lat: float,
     # else: 中性
 
     # === 维度4：学校 (if/elif/else) ===
-    school_500 = _int(s500.get('schools', 0))
+    school_500 = _int(ld.get('stats_500m', {}).get('schools', 0))
     s_sch = sg.get("500m_schools_gte") or sg.get("200m_schools_gte")
     if s_sch is not None and school_500 >= _int(s_sch):
         pre_advantages.append(f"周边500米内分布{school_500}所学校，学生客流基数庞大，午间及放学时段需求旺盛")
@@ -550,7 +564,7 @@ def build_analysis_prompt(address: str, lng: float, lat: float,
     # else: 中性
 
     # === 维度5：写字楼 (if/elif/else) —— 绝对不拆成两个 if ===
-    office_500 = _int(s500.get('office', 0))
+    office_500 = _int(ld.get('stats_500m', {}).get('office', 0))
     s_off = sg.get("500m_office_gte")
     rf_off = rf.get("500m_office_lt")
     if s_off is not None and office_500 >= _int(s_off):
@@ -560,7 +574,7 @@ def build_analysis_prompt(address: str, lng: float, lat: float,
     # else: 中性
 
     # === 维度6：住宅密度 (if/elif/else) ===
-    residential_500 = _int(s500.get('residential', 0))
+    residential_500 = _int(ld.get('stats_500m', {}).get('residential', 0))
     s_res = sg.get("500m_residential_gte")
     rf_res = rf.get("500m_residential_lt")
     if s_res is not None and residential_500 >= _int(s_res):
@@ -570,7 +584,7 @@ def build_analysis_prompt(address: str, lng: float, lat: float,
     # else: 中性
 
     # === 维度7：停车场 (if/elif/else) ===
-    parking_500 = _int(s500.get('parking', 0))
+    parking_500 = _int(ld.get('stats_500m', {}).get('parking', 0))
     s_park = sg.get("500m_parking_gte")
     rf_park = rf.get("500m_parking_eq")
     if s_park is not None and parking_500 >= _int(s_park):
@@ -588,7 +602,7 @@ def build_analysis_prompt(address: str, lng: float, lat: float,
     # else: 中性
 
     # === 维度9：购物商场 (if/elif/else) ===
-    shopping_500 = _int(s500.get('shopping', 0))
+    shopping_500 = _int(ld.get('stats_500m', {}).get('shopping', 0))
     s_shop = sg.get("500m_shopping_gte")
     rf_shop = rf.get("500m_shopping_eq")
     if s_shop is not None and shopping_500 >= _int(s_shop):

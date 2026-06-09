@@ -532,12 +532,13 @@ def _match_name(name: str, keywords: list) -> bool:
             return True
     return False
 
-def classify_poi_rigor(name: str, cat: str, type_code: str, rigor: dict, business_type: str = "") -> str:
+def classify_poi_rigor(name: str, cat: str, type_code: str, rigor: dict, business_type: str = "", brand_name: str = "") -> str:
     """
     根据业态严谨度规则，将已分类POI进一步标记为：
     'direct' / 'substitute' / 'anchor' / 'irrelevant' / 'pass'
     支持 name_keywords、categories、amap_codes 三维匹配
     支持 subtypes 子业态独立规则（复合集群内不同业态互相不污染）
+    支持 brand_name 品牌感知：当品牌含特定关键词时，收紧 direct 口径
     """
     if not rigor or not name:
         return "pass"
@@ -550,6 +551,14 @@ def classify_poi_rigor(name: str, cat: str, type_code: str, rigor: dict, busines
             if tc.startswith(code):
                 return True
         return False
+
+    # ★ 品牌感知：擀面皮/面皮类品牌 → 收紧 direct 只匹配同类面皮，米线/砂锅/水饺等降为 substitute
+    _brand_is_noodle_skin = False
+    if brand_name:
+        for kw in ["擀面皮", "面皮", "凉皮", "米皮", "烙面皮"]:
+            if kw in brand_name:
+                _brand_is_noodle_skin = True
+                break
 
     # ★ 子业态精准规则：命中第一个 subtype 后稳定锁定。
     # ★ 继承 master 级字段（bool/排除词），subtype 显式覆盖优先
@@ -578,6 +587,20 @@ def classify_poi_rigor(name: str, cat: str, type_code: str, rigor: dict, busines
             if matched:
                 break
 
+    # ★ 品牌感知：擀面皮品牌 → 收紧 direct 关键词 只留面皮同类
+    if _brand_is_noodle_skin:
+        # 面皮同类：擀面皮/面皮/凉皮/米皮/烙面皮/热米皮
+        _skin_kw = ["擀面皮", "面皮", "凉皮", "米皮", "烙面皮", "热米皮"]
+        dc = dict(dc)  # 不污染 master
+        dc["name_keywords"] = _skin_kw
+        dc["substitute_keywords"] = [
+            "米线", "砂锅", "水饺", "饺子", "馄饨", "拉面", "拌面", "刀削面",
+            "泡馍", "水盆", "麻辣烫", "麻辣拌", "冒菜", "酸辣粉", "螺蛳粉",
+            "热干面", "煎饼", "肉夹馍", "锅贴", "生煎", "小笼", "汤面",
+            "干拌", "臊子面", "油泼面", "蘸水面", "饸饹", "biangbiang",
+            "快餐", "便当", "盖浇",
+        ]
+
     # 1. 检查 irrelevant —— 明确无关项
     irr = rules.get("irrelevant_poi_rules", {})
     if _match_name(name, irr.get("name_blacklist", [])):
@@ -589,7 +612,7 @@ def classify_poi_rigor(name: str, cat: str, type_code: str, rigor: dict, busines
     sub = rules.get("substitute_competitor_rules", {})
     sub_first = dc.get("substitute_before_direct", False)
     if sub_first:
-        # subtype 级 substitute_keywords（优先于 master 级）
+        # brand-aware substitute_keywords（优先于 master 级），再 master 级
         sub_kw = dc.get("substitute_keywords", [])
         if sub_kw and _match_name(name, sub_kw):
             return "substitute"
@@ -626,6 +649,9 @@ def classify_poi_rigor(name: str, cat: str, type_code: str, rigor: dict, busines
 
     # 4. 检查 substitute（如已通过 sub_first 检查则跳过）
     if not sub_first:
+        sub_kw2 = dc.get("substitute_keywords", [])
+        if sub_kw2 and _match_name(name, sub_kw2):
+            return "substitute"
         if _match_name(name, sub.get("name_keywords", [])):
             return "substitute"
         if _match_code(sub.get("amap_codes", []), type_code):
@@ -700,14 +726,23 @@ class LocationData:
     direct_competitors_500m: int = 0
     direct_competitors_1000m: int = 0
     direct_competitor_list: list = field(default_factory=list)
+    direct_competitor_list_200m: list = field(default_factory=list)
+    direct_competitor_list_500m: list = field(default_factory=list)
+    direct_competitor_list_1000m: list = field(default_factory=list)
     substitute_competitors_200m: int = 0
     substitute_competitors_500m: int = 0
     substitute_competitors_1000m: int = 0
     substitute_list: list = field(default_factory=list)
+    substitute_list_200m: list = field(default_factory=list)
+    substitute_list_500m: list = field(default_factory=list)
+    substitute_list_1000m: list = field(default_factory=list)
     traffic_anchors_200m: int = 0
     traffic_anchors_500m: int = 0
     traffic_anchors_1000m: int = 0
     traffic_anchor_list: list = field(default_factory=list)
+    traffic_anchor_list_200m: list = field(default_factory=list)
+    traffic_anchor_list_500m: list = field(default_factory=list)
+    traffic_anchor_list_1000m: list = field(default_factory=list)
     irrelevant_excluded: int = 0
     data_quality_notes: list = field(default_factory=list)
     # 旧字段保留兼容
@@ -951,7 +986,8 @@ class AmapService:
     async def collect_all(self, lng: float, lat: float,
                           amap_type: str = "",
                           config_key: str = "",
-                          business_type: str = "") -> LocationData:
+                          business_type: str = "",
+                          brand_name: str = "") -> LocationData:
         ld = LocationData()
         rigor = get_rigor_for_config_key(config_key) if config_key else {}
 
@@ -1038,10 +1074,13 @@ class AmapService:
         # ★ 严谨度框架新字段
         direct_comp_200m = 0; direct_comp_500m = 0; direct_comp_1000m = 0
         direct_comp_list = []
+        direct_comp_list_200m = []; direct_comp_list_500m = []; direct_comp_list_1000m = []
         sub_200m = 0; sub_500m = 0; sub_1000m = 0
         sub_list = []
+        sub_list_200m = []; sub_list_500m = []; sub_list_1000m = []
         anchor_200m = 0; anchor_500m = 0; anchor_1000m = 0
         anchor_list = []
+        anchor_list_200m = []; anchor_list_500m = []; anchor_list_1000m = []
         irrelevant_count = 0
         dewater_excluded = 0  # ★ 被名称脱水规则剔除的POI
         valid_kept = 0  # ★ 每个POI只计1次，避免子类/父类重复
@@ -1140,24 +1179,48 @@ class AmapService:
                     })
 
                 # ★ 严谨度框架：四级POI分类
-                rigor_label = classify_poi_rigor(name, cat, p["type"], rigor, business_type) if rigor else "pass"
+                rigor_label = classify_poi_rigor(name, cat, p["type"], rigor, business_type, brand_name) if rigor else "pass"
                 if rigor_label == "irrelevant":
                     irrelevant_count += 1
                 elif rigor_label == "direct":
                     direct_comp_list.append({"name": name, "distance": dist})
-                    if dist <= 200: direct_comp_200m += 1
-                    if dist <= 500: direct_comp_500m += 1
+                    if dist <= 200:
+                        direct_comp_200m += 1
+                        if len(direct_comp_list_200m) < 15:
+                            direct_comp_list_200m.append({"name": name, "distance": dist})
+                    if dist <= 500:
+                        direct_comp_500m += 1
+                        if len(direct_comp_list_500m) < 15:
+                            direct_comp_list_500m.append({"name": name, "distance": dist})
                     direct_comp_1000m += 1
+                    if len(direct_comp_list_1000m) < 15:
+                        direct_comp_list_1000m.append({"name": name, "distance": dist})
                 elif rigor_label == "substitute":
                     sub_list.append({"name": name, "distance": dist})
-                    if dist <= 200: sub_200m += 1
-                    if dist <= 500: sub_500m += 1
+                    if dist <= 200:
+                        sub_200m += 1
+                        if len(sub_list_200m) < 10:
+                            sub_list_200m.append({"name": name, "distance": dist})
+                    if dist <= 500:
+                        sub_500m += 1
+                        if len(sub_list_500m) < 10:
+                            sub_list_500m.append({"name": name, "distance": dist})
                     sub_1000m += 1
+                    if len(sub_list_1000m) < 10:
+                        sub_list_1000m.append({"name": name, "distance": dist})
                 elif rigor_label == "anchor":
                     anchor_list.append({"name": name, "distance": dist})
-                    if dist <= 200: anchor_200m += 1
-                    if dist <= 500: anchor_500m += 1
+                    if dist <= 200:
+                        anchor_200m += 1
+                        if len(anchor_list_200m) < 10:
+                            anchor_list_200m.append({"name": name, "distance": dist})
+                    if dist <= 500:
+                        anchor_500m += 1
+                        if len(anchor_list_500m) < 10:
+                            anchor_list_500m.append({"name": name, "distance": dist})
                     anchor_1000m += 1
+                    if len(anchor_list_1000m) < 10:
+                        anchor_list_1000m.append({"name": name, "distance": dist})
 
             # 品牌识别
             for brand in KNOWN_BRANDS:
@@ -1338,14 +1401,23 @@ class AmapService:
         ld.direct_competitors_500m = direct_comp_500m
         ld.direct_competitors_1000m = direct_comp_1000m
         ld.direct_competitor_list = direct_comp_list[:15]
+        ld.direct_competitor_list_200m = direct_comp_list_200m
+        ld.direct_competitor_list_500m = direct_comp_list_500m
+        ld.direct_competitor_list_1000m = direct_comp_list_1000m
         ld.substitute_competitors_200m = sub_200m
         ld.substitute_competitors_500m = sub_500m
         ld.substitute_competitors_1000m = sub_1000m
         ld.substitute_list = sub_list[:15]
+        ld.substitute_list_200m = sub_list_200m
+        ld.substitute_list_500m = sub_list_500m
+        ld.substitute_list_1000m = sub_list_1000m
         ld.traffic_anchors_200m = anchor_200m
         ld.traffic_anchors_500m = anchor_500m
         ld.traffic_anchors_1000m = anchor_1000m
         ld.traffic_anchor_list = anchor_list[:20]
+        ld.traffic_anchor_list_200m = anchor_list_200m
+        ld.traffic_anchor_list_500m = anchor_list_500m
+        ld.traffic_anchor_list_1000m = anchor_list_1000m
         ld.irrelevant_excluded = irrelevant_count
         if dewater_excluded > 0:
             quality_notes.append(f"名称脱水剔除 {dewater_excluded} 个POI（公司/厂房/建材/培训/养生/中介等）")
@@ -1368,7 +1440,8 @@ class AmapService:
 async def collect_location_data(lng: float, lat: float,
                                  amap_type: str = "",
                                  config_key: str = "",
-                                 business_type: str = "") -> LocationData:
-    """amap_type: 高德POI类型码 | config_key: 行业集群key | business_type: 业态名称"""
+                                 business_type: str = "",
+                                 brand_name: str = "") -> LocationData:
+    """amap_type: 高德POI类型码 | config_key: 行业集群key | business_type: 业态名称 | brand_name: 品牌描述"""
     service = AmapService()
-    return await service.collect_all(lng, lat, amap_type=amap_type, config_key=config_key, business_type=business_type)
+    return await service.collect_all(lng, lat, amap_type=amap_type, config_key=config_key, business_type=business_type, brand_name=brand_name)

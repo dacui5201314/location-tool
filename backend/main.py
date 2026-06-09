@@ -2,9 +2,19 @@ import json
 import os
 import re
 import asyncio
+import sys
 import uuid
+
+# ★ 启动保护：uvicorn 必须以 backend/ 为工作目录，否则 `from models.xxx` 会报 No module named 'models'
+_this_dir = os.path.dirname(os.path.abspath(__file__))
+if os.getcwd() != _this_dir:
+    print(f"[WARN] 工作目录({os.getcwd()}) ≠ 脚本目录({_this_dir})，自动切换", flush=True)
+    os.chdir(_this_dir)
+    sys.path.insert(0, _this_dir)
+
+# ★ .env 始终从 backend/ 目录加载，无论启动时 CWD 在哪
 from dotenv import load_dotenv
-load_dotenv()
+load_dotenv(os.path.join(_this_dir, ".env"))
 
 from sqlalchemy.orm import Session
 
@@ -384,6 +394,7 @@ async def analyze_location(req: AnalyzeRequest, user: dict = Depends(get_current
                     amap_type=competitor_type,
                     config_key=config_key,
                     business_type=req.business_type,
+                    brand_name=req.brand_name or "",
                 )
                 real_data = {
                     "city": ld.city,
@@ -412,14 +423,23 @@ async def analyze_location(req: AnalyzeRequest, user: dict = Depends(get_current
                     "direct_competitors_500m": ld.direct_competitors_500m,
                     "direct_competitors_1000m": ld.direct_competitors_1000m,
                     "direct_competitor_list": ld.direct_competitor_list,
+                    "direct_competitor_list_200m": ld.direct_competitor_list_200m,
+                    "direct_competitor_list_500m": ld.direct_competitor_list_500m,
+                    "direct_competitor_list_1000m": ld.direct_competitor_list_1000m,
                     "substitute_competitors_200m": ld.substitute_competitors_200m,
                     "substitute_competitors_500m": ld.substitute_competitors_500m,
                     "substitute_competitors_1000m": ld.substitute_competitors_1000m,
                     "substitute_list": ld.substitute_list,
+                    "substitute_list_200m": ld.substitute_list_200m,
+                    "substitute_list_500m": ld.substitute_list_500m,
+                    "substitute_list_1000m": ld.substitute_list_1000m,
                     "traffic_anchors_200m": ld.traffic_anchors_200m,
                     "traffic_anchors_500m": ld.traffic_anchors_500m,
                     "traffic_anchors_1000m": ld.traffic_anchors_1000m,
                     "traffic_anchor_list": ld.traffic_anchor_list,
+                    "traffic_anchor_list_200m": ld.traffic_anchor_list_200m,
+                    "traffic_anchor_list_500m": ld.traffic_anchor_list_500m,
+                    "traffic_anchor_list_1000m": ld.traffic_anchor_list_1000m,
                     "irrelevant_excluded": ld.irrelevant_excluded,
                     "data_quality_notes": ld.data_quality_notes,
                     "rigor_enabled": bool(get_rigor_for_config_key(config_key)),
@@ -853,6 +873,12 @@ async def analyze_location(req: AnalyzeRequest, user: dict = Depends(get_current
                     overall_score=overall,
                     report_json=json.dumps(result, ensure_ascii=False),
                 )
+                # ★ 确保 report_uuid 不为空：SQLite 默认值有时不触发
+                # ★ 必须是 32 位 hex — records.py _get_record_by_uuid() 校验 len==32
+                if not record.report_uuid:
+                    record.report_uuid = uuid.uuid4().hex
+                assert len(record.report_uuid) == 32, \
+                    f"report_uuid must be 32-char hex, got {len(record.report_uuid)}: {record.report_uuid!r}"
                 db.add(record)
                 db.commit()
                 # ★ expire_on_commit 可能使 record 脱管；直接取 id/uuid 不依赖 refresh
@@ -877,9 +903,16 @@ async def analyze_location(req: AnalyzeRequest, user: dict = Depends(get_current
                     import traceback
                     print("[CRITICAL] 报告物理文件保存失败（可用 report_json 动态重建）", flush=True)
                     traceback.print_exc()
-            except Exception:
+            except Exception as _dbe:
                 import traceback
-                print("[CRITICAL] 分析记录数据库保存失败，报告未落库！", flush=True)
+                _db_err_type = type(_dbe).__name__
+                _db_err_msg = str(_dbe)[:300]
+                _safe_json_len = len(json.dumps(result, ensure_ascii=False))
+                print(f"[CRITICAL] 分析记录数据库保存失败，报告未落库！", flush=True)
+                print(f"[DB Diag] type={_db_err_type} msg={_db_err_msg}", flush=True)
+                print(f"[DB Diag] user_id={current_user_id} business_type={req.business_type} "
+                      f"store_size={req.store_size} overall_score={overall} "
+                      f"report_json_len={_safe_json_len}", flush=True)
                 traceback.print_exc()
                 _db_save_error = True  # ★ Phase 13: DB 主记录失败 → 触发退款
             finally:

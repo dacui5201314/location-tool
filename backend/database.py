@@ -9,10 +9,12 @@ DATABASE_URL = f"sqlite:///{DB_PATH}"
 engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False}, echo=False)
 
 # ★ 启用 WAL (Write-Ahead Logging) 模式 — 读写并发不互斥
+# ★ 设置 busy_timeout 减少并发写入时 database is locked
 @event.listens_for(engine, "connect")
 def _set_sqlite_pragma(dbapi_connection, connection_record):
     cursor = dbapi_connection.cursor()
     cursor.execute("PRAGMA journal_mode=WAL;")
+    cursor.execute("PRAGMA busy_timeout = 5000;")
     cursor.close()
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
@@ -70,6 +72,23 @@ def init_db():
                 print("[DB] 已为 feedbacks 表添加 image_urls 列", flush=True)
         except Exception:
             pass
+        # ── 兼容迁移: 为 analysis_records 补齐所有字段 ──
+        cols_ar = [r[1] for r in conn.execute("PRAGMA table_info(analysis_records)").fetchall()]
+        ar_migrations = [
+            ("report_uuid", "VARCHAR(32) DEFAULT ''"),
+            ("report_file", "VARCHAR(500) DEFAULT ''"),
+            ("report_url", "VARCHAR(500) DEFAULT ''"),
+            ("is_pdf_unlocked", "INTEGER DEFAULT 0"),
+            ("share_token", "VARCHAR(64) DEFAULT NULL"),
+        ]
+        for col_name, col_def in ar_migrations:
+            if col_name not in cols_ar:
+                try:
+                    conn.execute(f"ALTER TABLE analysis_records ADD COLUMN {col_name} {col_def}")
+                    conn.commit()
+                    print(f"[DB] 已为 analysis_records 表添加 {col_name} 列", flush=True)
+                except Exception as e:
+                    print(f"[DB] 添加 analysis_records.{col_name} 失败: {e}", flush=True)
         conn.close()
     except Exception as e:
         print(f"[DB] 迁移检查跳过: {e}", flush=True)
