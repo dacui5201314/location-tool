@@ -464,6 +464,89 @@ issues = check_poi_name_hallucination(report, rd)
 check(len(issues) == 0, f"P0F-15 裸泛称通过: {issues}")
 
 # ═══════════════════════════════════════════════════════════════
+# P0-FIX-R9: 量词+POI泛称误杀修复 (id=个住宅小区 假阳性)
+# ═══════════════════════════════════════════════════════════════
+
+# T-R9-1: "个住宅小区" 量词+POI → 不 warning
+print("=== T-R9-1: 个住宅小区泛称 → 通过 ===")
+rd = {"direct_competitor_list": []}
+report = "周边500米内1个住宅小区，常住人口偏少。"
+issues = check_poi_name_hallucination(report, rd)
+check(len(issues) == 0, f"R9-1 个住宅小区不触发: {issues}")
+
+# T-R9-2: 多量词+POI组合 → 全部不 warning
+print("=== T-R9-2: 量词+POI批量组合 → 通过 ===")
+rd = {"direct_competitor_list": []}
+report = "商业配套：500米内1个住宅小区、0栋办公建筑、3所教育机构。"
+issues = check_poi_name_hallucination(report, rd)
+check(len(issues) == 0, f"R9-2 批量量词不触发: {issues}")
+
+# T-R9-3: "家医院" 量词+POI泛称 → 不 warning（精准过滤，不误杀家外家）
+print("=== T-R9-3: 家医院泛称 → 通过 ===")
+rd = {"direct_competitor_list": []}
+report = "500米内2家医院，提供稳定医疗配套客流。"
+issues = check_poi_name_hallucination(report, rd)
+check(len(issues) == 0, f"R9-3 家医院泛称不触发: {issues}")
+
+# T-R9-4: "家诊所" → 不 warning
+print("=== T-R9-4: 家诊所泛称 → 通过 ===")
+rd = {"direct_competitor_list": []}
+report = "200米内3家诊所，就诊人群带来即时客流。"
+issues = check_poi_name_hallucination(report, rd)
+check(len(issues) == 0, f"R9-4 家诊所不触发: {issues}")
+
+# T-R9-5: "条公交线路" → 不 warning
+print("=== T-R9-5: 条公交线路泛称 → 通过 ===")
+rd = {"direct_competitor_list": []}
+report = "500米内8条公交线路，地面公交网络密集。"
+issues = check_poi_name_hallucination(report, rd)
+check(len(issues) == 0, f"R9-5 条公交线路不触发: {issues}")
+
+# T-R9-6: "个地铁站" → 不 warning
+print("=== T-R9-6: 个地铁站泛称 → 通过 ===")
+rd = {"direct_competitor_list": []}
+report = "500米内1个地铁站，公共交通可达性较好。"
+issues = check_poi_name_hallucination(report, rd)
+check(len(issues) == 0, f"R9-6 个地铁站不触发: {issues}")
+
+# T-R9-7: 真实POI名 "幸福花园" → 仍必须触发（回归锁）
+print("=== T-R9-7: 编造幸福花园小区 → 仍触发 ===")
+rd = {"direct_competitor_list": [], "poi_lists": {}}
+report = "周边幸福花园小区住户约2000户，社区消费基本盘扎实。"
+issues = check_poi_name_hallucination(report, rd)
+check(len(issues) >= 1, f"R9-7 幸福花园仍触发: {issues}")
+check(any("幸福花园" in i for i in issues), f"R9-7 包含幸福花园: {issues}")
+
+# T-R9-8: 真实学校名 "育才小学" → 仍必须触发
+print("=== T-R9-8: 编造育才小学 → 仍触发 ===")
+rd = {"direct_competitor_list": [], "poi_lists": {}}
+report = "周边育才小学提供学区客流，午间放学时段需求旺盛。"
+issues = check_poi_name_hallucination(report, rd)
+check(len(issues) >= 1, f"R9-8 育才小学仍触发: {issues}")
+check(any("育才小学" in i for i in issues), f"R9-8 包含育才小学: {issues}")
+
+# T-R9-9: "家外家快捷酒店" 真实POI名 → 不误杀（回归锁：家开头但非量词）
+print("=== T-R9-9: 家外家快捷酒店不误杀 → 通过 ===")
+rd = {"direct_competitor_list": [{"name": "家外家快捷酒店", "distance": 300}]}
+report = "500米内有家外家快捷酒店，构成直接竞争压力。"
+issues = check_poi_name_hallucination(report, rd)
+check(len(issues) == 0, f"R9-9 家外家不误杀: {issues}")
+
+# T-R9-10: "所中学" → 不 warning
+print("=== T-R9-10: 所中学泛称 → 通过 ===")
+rd = {"direct_competitor_list": []}
+report = "500米内3所中学，学区客群稳定。"
+issues = check_poi_name_hallucination(report, rd)
+check(len(issues) == 0, f"R9-10 所中学不触发: {issues}")
+
+# T-R9-11: "家面馆" 真实店名在poi_lists中 → 通过
+print("=== T-R9-11: 家面馆在poi_lists → 通过 ===")
+rd = {"direct_competitor_list": [], "poi_lists": {"restaurants": [{"name": "家面馆", "distance": 200}]}}
+report = "周边有家面馆，快餐品类补充。"
+issues = check_poi_name_hallucination(report, rd)
+check(len(issues) == 0, f"R9-11 家面馆在allowlist通过: {issues}")
+
+# ═══════════════════════════════════════════════════════════════
 # C-4: 报告幻觉专项 — real_data 不含名称时编造必须触发 P0
 # ═══════════════════════════════════════════════════════════════
 

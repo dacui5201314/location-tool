@@ -24,6 +24,8 @@ def build_fallback_report(real_data: dict, address: str = "",
     dc_200 = _int(real_data.get("direct_competitors_200m", 0))
     dc_500 = _int(real_data.get("direct_competitors_500m", 0))
     dc_1000 = _int(real_data.get("direct_competitors_1000m", 0))
+    sub_200 = _int(real_data.get("substitute_competitors_200m", 0))
+    sub_500 = _int(real_data.get("substitute_competitors_500m", 0))
     sub_1000 = _int(real_data.get("substitute_competitors_1000m", 0))
     anc_1000 = _int(real_data.get("traffic_anchors_1000m", 0))
 
@@ -54,10 +56,13 @@ def build_fallback_report(real_data: dict, address: str = "",
     else:
         _scene = "综合社区"
 
-    # ── advantages（避免"周边""同类""竞品""红利""极低"） ──
+    # ── advantages（避免"周边""同类""红利""极低"） ──
     advantages = []
     if dc_200 <= 3:
-        advantages.append(f"200米范围内{dh_count(dc_200, '同业态商户')}，竞争压力较小")
+        if sub_200 > 0 or sub_500 > 0:
+            advantages.append(f"200米范围内{dh_count(dc_200, '家同品类直接竞品')}，直接竞品较少，但替代消费较多，需现场核验分流影响")
+        else:
+            advantages.append(f"200米范围内{dh_count(dc_200, '家同品类直接竞品')}，直接竞争压力较小")
     if res_500 >= 10:
         advantages.append(f"500米半径覆盖{dh_count(res_500, '个住宅小区')}，常住人口基数充足")
     if subway_applicable and subway_500 >= 1:
@@ -78,7 +83,7 @@ def build_fallback_report(real_data: dict, address: str = "",
     # ── disadvantages（避免"分流""极""不足"） ──
     disadvantages = []
     if dc_200 > 15:
-        disadvantages.append(f"200米范围内{dh_count(dc_200, '家同业态商户')}，竞争较激烈")
+        disadvantages.append(f"200米范围内{dh_count(dc_200, '家同品类直接竞品')}，竞争较激烈")
     if subway_applicable and subway_500 == 0 and bus_500 == 0:
         disadvantages.append("500米内无地铁和公交覆盖，出行主要依赖步行和自驾")
     elif subway_applicable and subway_500 == 0:
@@ -96,7 +101,7 @@ def build_fallback_report(real_data: dict, address: str = "",
 
     # ── warning（保守措辞） ──
     if dc_200 > 15:
-        warning = "200米内同业态商户密集"
+        warning = "200米内同品类直接竞品密集"
     elif subway_applicable and subway_500 == 0 and bus_500 <= 2:
         warning = "公共交通条件较弱"
     else:
@@ -104,7 +109,8 @@ def build_fallback_report(real_data: dict, address: str = "",
 
     # ── summary ──
     summary = (
-        f"该{business_type or '门店'}选址数据摘要：200米内{dc_200}家同业态商户，"
+        f"该{business_type or '门店'}选址数据摘要：200米内{dc_200}家同品类直接竞品"
+        f"（替代消费{sn_count(sub_200, '家')}/{sn_count(sub_500, '家')}/{sn_count(sub_1000, '家')}），"
         f"500米内{res_500}个住宅小区、{office_500}栋办公建筑、{school_500}所教育机构。"
         f"本报告为基于采集数据的保守版数据摘要，不替代现场客流、租金和商户经营状态核验。"
     )
@@ -125,13 +131,13 @@ def build_fallback_report(real_data: dict, address: str = "",
          "text": f"居住和办公混合区域，消费层次需线下核验"},
         {"key": "competition", "label": "竞争环境",
          "score": _clamp(10, 85, 85 - dc_200 * 2),
-         "text": f"200米内{dc_200}家同业态商户，竞争{'较激烈' if dc_200 > 10 else '中等' if dc_200 > 3 else '较缓和'}"},
+         "text": f"200米内{dc_200}家同品类直接竞品，替代消费{sn_count(sub_200 + sub_500, '家')}，竞争{'较激烈' if dc_200 > 10 else '中等' if dc_200 > 3 else '直接竞品较少'}"},
         {"key": "complementary_businesses", "label": "互补业态",
          "score": 50,
          "text": "商业配套需线下实地核验补充"},
         {"key": "category_advantage", "label": "品类优势",
          "score": _clamp(10, 85, 85 - dc_200 * 3),
-         "text": f"同业态商户{'较少' if dc_200 <= 3 else '数量中等' if dc_200 <= 15 else '数量较多'}"},
+         "text": f"同品类直接竞品{'较少' if dc_200 <= 3 else '数量中等' if dc_200 <= 15 else '数量较多'}，替代消费需关注"},
         {"key": "cost_estimate", "label": "成本压力",
          "score": 50,
          "text": f"预估月租金需线下询价确认，不替代实际租金谈判"},
@@ -143,7 +149,11 @@ def build_fallback_report(real_data: dict, address: str = "",
         "traffic_accessibility": _traffic_detail(subway_500, bus_500, parking_500, subway_applicable, dims[1]['score']),
         "traffic_flow": "日均客流量需线下实测确认。评分：" + str(dims[2]['score']),
         "consumer_profile": f"数据摘要，不替代现场消费层次核验。评分：{dims[3]['score']}",
-        "competition": f"200米内{dc_200}家同业态商户，500米内{dc_500}家，1000米内{dc_1000}家。替代消费{sn_count(sub_1000, '家')}，流量节点{sn_count(anc_1000, '个')}。评分：{dims[4]['score']}",
+        "competition": (
+            f"同品类直接竞品：200米内{dc_200}家、500米内{dc_500}家、1000米内{dc_1000}家。"
+            f"替代消费：200米内{sub_200}家、500米内{sub_500}家、1000米内{sub_1000}家。"
+            f"流量节点{sn_count(anc_1000, '个')}。评分：{dims[4]['score']}"
+        ),
         "complementary_businesses": "商业配套结构需线下实地核验补充。评分：50",
         "category_advantage": f"{business_type or '该业态'}在本位置供需匹配度需线下判断，数据不替代实地核验。评分：{dims[6]['score']}",
         "cost_estimate": f"门店面积{store_size}㎡，月租金需线下询价确认。评分：50",

@@ -70,7 +70,7 @@
         </view>
         <view class="sc-input-row">
           <text class="sc-icon">定位</text>
-          <input class="sc-field" :value="addressText ? compactAddress : addressKeyword" placeholder="输入地址搜索门店位置" :disabled="analyzing" @input="onAddressInput" @confirm="onSearch" />
+          <input class="sc-field" :value="addressKeyword" placeholder="输入地址搜索门店位置" :disabled="analyzing" @input="onAddressInput" @focus="onAddressFocus" @confirm="onSearch" confirm-type="search" adjust-position="true" :cursor-spacing="80" />
           <button class="sc-action" :disabled="analyzing" @tap="onLocate" v-if="!addressText">定位</button>
           <button class="sc-action fav" :class="{ active: favId }" :disabled="favLoading || analyzing" @tap="toggleFav" v-if="addressText">
             <text class="fav-star">{{ favId ? '★' : '☆' }}</text>
@@ -739,6 +739,11 @@ export default {
       else if (name && typeof name === 'object') this.industry = name.name || name.title || name.label || name.value || ''
       else this.industry = ''
       if (this.industry) this.errors.industry = ''
+    },
+    onAddressFocus () {
+      // ★ Android 修复：用户点击输入框进入编辑态，清除联想错误提示
+      // 不清空 addressKeyword（保留可编辑），不清空经纬度（保留坐标）
+      this.suggestErr = ''
     },
     onAddressInput (e) {
       const value = (e && e.detail) ? String(e.detail.value || '') : ''

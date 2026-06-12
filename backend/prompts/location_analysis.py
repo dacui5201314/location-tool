@@ -133,9 +133,11 @@ def build_system_prompt(business_type: str = "", config: dict = None) -> str:
 - **当 subway_applicable=false 时，不得因无地铁扣分或写成短板**。此时交通评分应主要参考公交、道路、停车、主路可达性。可表述为："该城市暂无地铁系统，地铁不纳入本次交通扣分项。"
 
 # 竞争格局判定标准（三档互斥，绝无交集）
-- 200米贴身圈内同品类 ≤3 家 → 必须判为品类空白优势（仅0/1/2/3触发）
-- 200米贴身圈内同品类 4~15 家 → 中性，既非优势也非劣势
-- 200米贴身圈内同品类 >15 家 → 必须判为竞争劣势（仅16及以上触发，15本身不触发劣势）
+- 200米贴身圈内同品类直接竞品 ≤3 家 → 判为"直接竞品较少"
+- ⚠️ 若 substitute_competitors_200m 或 substitute_competitors_500m > 0，不得写"品类空白""空白红利""空白市场""截流阻力小"，必须提示替代消费分流需现场核验
+- 200米贴身圈内同品类直接竞品 4~15 家 → 中性，既非优势也非劣势
+- 200米贴身圈内同品类直接竞品 >15 家 → 必须判为竞争劣势（仅16及以上触发，15本身不触发劣势）
+- 替代消费不计入直接竞品数量和竞争评分，仅作为分流风险背景定性提示
 
 # 输出格式（JSON，不含markdown代码块）：
 {{
@@ -516,12 +518,23 @@ def build_analysis_prompt(address: str, lng: float, lat: float,
     # === 维度1：竞品密度 (if/elif/else) —— ≤上限→优势，>下限→劣势，中间段→中性 ===
     # ★ 严谨框架下只用 direct_competitors；否则回退旧口径
     comp_200 = _int(ld.get('direct_competitors_200m', 0) if has_rigor else ld.get('competitors_200m', 0))
+    sub_200 = _int(ld.get('substitute_competitors_200m', 0))
+    sub_500 = _int(ld.get('substitute_competitors_500m', 0))
     s_comp = sg.get("200m_competitors_lte")
     rf_comp = rf.get("200m_competitors_gt")
     if s_comp is not None and comp_200 <= _int(s_comp):
-        pre_advantages.append(f"贴身200米内仅{comp_200}家同类店，竞品密度极低，截流阻力小——品类空白红利")
+        if sub_200 > 0 or sub_500 > 0:
+            # ★ 有替代消费 → 保守措辞，半径分列不求和，不得出现"空白""红利""截流阻力小"
+            pre_advantages.append(
+                f"贴身200米内{comp_200}家同品类直接竞品，直接竞品较少；"
+                f"替代消费200米内{sub_200}家、500米内{sub_500}家，需现场核验分流影响"
+            )
+        elif comp_200 <= 1:
+            pre_advantages.append(f"贴身200米内仅{comp_200}家同品类直接竞品，直接竞争极低")
+        else:
+            pre_advantages.append(f"贴身200米内仅{comp_200}家同品类直接竞品，直接竞品较少")
     elif rf_comp is not None and comp_200 > _int(rf_comp):
-        pre_disadvantages.append(f"贴身200米内聚集了{comp_200}家同类店，分流风险极大——贴身肉搏级别的红海")
+        pre_disadvantages.append(f"贴身200米内聚集了{comp_200}家同品类直接竞品，分流风险极大——贴身肉搏级别的红海")
     # 中性段：不写入任何列表
 
     # === 维度2：地铁 (if/elif/else) — 需 subway_applicable 判断 ===
