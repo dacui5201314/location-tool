@@ -720,11 +720,11 @@ export default {
 .comp-sub { margin-top:16rpx; padding-top:16rpx; border-top:1rpx solid #edf2f7; font-size:27rpx; color:#64748b; line-height:1.65; }
 .cs-label { font-weight:900; color:#344256; }
 
-.stats-grid { display:flex; flex-wrap:wrap; gap:12rpx; }
-.sg { width:calc(33.333% - 8rpx); min-height:142rpx; text-align:center; padding:16rpx 8rpx 18rpx; box-sizing:border-box; border-radius:18rpx; background:linear-gradient(180deg,#fbfdff,#f4f7fc); border:1rpx solid #dde7f3; box-shadow:0 8rpx 18rpx rgba(40,76,130,0.05); display:flex; flex-direction:column; align-items:center; justify-content:center; }
+.stats-grid { display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:12rpx; }
+.sg { width:auto; min-width:0; min-height:142rpx; text-align:center; padding:16rpx 8rpx 18rpx; box-sizing:border-box; border-radius:18rpx; background:linear-gradient(180deg,#fbfdff,#f4f7fc); border:1rpx solid #dde7f3; box-shadow:0 8rpx 18rpx rgba(40,76,130,0.05); display:flex; flex-direction:column; align-items:center; justify-content:center; overflow:hidden; }
 .sg-icon { width:46rpx; height:46rpx; line-height:46rpx; border-radius:14rpx; background:#fff; box-shadow:0 6rpx 16rpx rgba(40,76,130,0.07); font-size:26rpx; display:block; margin-bottom:8rpx; }
 .sg-label { font-size:25rpx; color:#7a879e; display:block; line-height:1.4; }
-.sg-val { font-size:30rpx; font-weight:900; color:#17244e; display:block; margin-top:8rpx; line-height:1.22; word-break:break-all; }
+.sg-val { font-size:30rpx; font-weight:900; color:#17244e; display:block; margin-top:8rpx; line-height:1.22; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%; }
 .sg.high .sg-val { color:#dc2626; }
 .sg.good .sg-val { color:#16a34a; }
 .sg.info .sg-val { color:#2563eb; }

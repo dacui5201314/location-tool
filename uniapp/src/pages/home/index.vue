@@ -12,11 +12,6 @@
       </view>
     </view>
 
-    <!-- 免费额度倒计时 -->
-    <view class="free-banner" v-if="freePointBanner">
-      <text>免费分析额度剩余 {{ freePointBanner }} · 请尽快使用</text>
-    </view>
-
     <!-- 全局公告 -->
     <view class="ann-banner" v-if="announcement">
       <text>{{ announcement }}</text>
@@ -1277,7 +1272,6 @@ export default {
 .wm-btn { width:100%; background:linear-gradient(135deg,#315bff,#0b3fbd); color:#fff; border-radius:16rpx; font-size:30rpx; font-weight:900; padding:22rpx 0; margin-top:28rpx; }
 
 /* ── Banners ── */
-.free-banner { background:#fef3c7; padding:16rpx 24rpx; text-align:center; font-size:24rpx; color:#92400e; }
 .ann-banner { background:#dbeafe; padding:16rpx 24rpx; text-align:center; font-size:24rpx; color:#1e40af; }
 
 /* ── Tab panels ── */
