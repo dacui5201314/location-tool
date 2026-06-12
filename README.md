@@ -49,7 +49,7 @@ location-tool/
 │   ├── prompts/                       # AI 提示词系统（14 套 Master 业态规则）
 │   ├── routers/                       # RESTful API 路由（11 个模块：admin/auth/user/records/favorites/location/pay/virtual_pay/feedback/industries/cdk）
 │   ├── services/                      # 业务服务（amap/billing/runtime_config/storage/poi_name_guard/fallback_report_service）
-│   ├── tests/                         # 测试套件（industry 2168 PASS / fact guard 175 PASS）
+│   ├── tests/                         # 测试套件（industry 2168 PASS / fact guard 188 PASS）
 │   └── storage/                       # 运行时文件存储（reports/assets）
 ├── uniapp/                            # uni-app 多端客户端（主力产品）
 │   ├── src/pages/                     # 13 个页面（home/records/favorites/report-detail/profile/legal）
@@ -174,6 +174,7 @@ http://localhost:8000/docs           # Swagger API 文档（调试用）
 
 ## 版本历史
 
+- **v3.9.2** (2026-06-12) — 线上热修复：Android 地址输入框受控 value 解锁（定位后可手动编辑）；P0-NAME guard 量词+POI 泛称误杀修复（个住宅小区/栋办公建筑/所教育机构 等，新增 11 条回归测试）；兜底报告竞争口径修正（同业态→同品类直接竞品 + 替代消费三半径独立展示）；prompt 竞品密度预判文案降级（删除品类空白优势硬规则，substitute>0 时保守提示）；报告页周边数据 stats-grid flex→CSS grid 三列稳定布局；首页移除免费额度顶部提示条（修复 OPPO/vivo/小米/华为/三星状态栏遮挡）
 - **v3.9.1** (2026-06-09) — 报告生成修复：DB 保存增强（busy_timeout+诊断+兼容迁移）、report_uuid 32位一致性、启动工作目录保护、.env 加载路径固定、竞品清单按半径拆分（200m/500m/1000m 分列避免模型误用）、擀面皮品牌感知分类（面皮同类→direct，米线砂锅水饺→substitute）、prompt s500 环境降噪缓存修复
 - **v3.9.0** (2026-06-08) — 退款全链路闭环：用户一键申请 + 自动退款 + 5次轮询 + 自动扣点 REFUNDED；退款余额不足硬拦截（不退钱不退点）；_revoke_order 幂等扣点（负数 REFUND 流水去重 + REFUND_SHORTFALL 兜底）；XPay 退款签名算法修复（endpoint&body HMAC-SHA256）；admin 退款同步兜底；订单管理 REFUNDING 行同步退款按钮；pay-existing 继续支付（超30分自动 TIMEOUT）；prepay 统一 _get_virtual_env 环境读取；前端充值前自动 refreshWxLogin 防 session_key 过期；管理后台 F5 hash 记忆当前页；管理后台报告库（列表筛选 + 三源报告详情 + 抽屉全屏 + 锚点导航）；POI 数据表格化展示；用户端 UI 重写（自定义导航/订单卡片/详情页/登录弹窗/按钮统一）；服务器时区 Asia/Shanghai 全局统一
 - **v3.8.0** (2026-06-05) — 虚拟支付全链路闭环：notify 六重校验 + 退款回退权益；iOS 正式 Key 打通；用户充值记录页；管理后台订单渠道 + 反馈删除；腾讯云 COS 集成
