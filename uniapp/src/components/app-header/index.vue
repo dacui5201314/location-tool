@@ -1,7 +1,7 @@
 <template>
   <view class="app-header">
     <view class="brand">址得选</view>
-    <view class="slogan">AI 选址分析工具</view>
+    <view class="slogan">商业选址分析工具</view>
   </view>
 </template>
 

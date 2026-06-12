@@ -25,7 +25,7 @@
         </view>
         <view class="hero-lockup">
           <text class="hero-brand">址得选</text>
-          <text class="hero-slogan">AI 智能选址</text>
+          <text class="hero-slogan">商业选址分析</text>
         </view>
       </view>
       <view class="hero-copy">
@@ -352,7 +352,7 @@ export default {
       const steps = [
         { step: 1, label: 'POI 数据采集', icon: '01' },
         { step: 2, label: '数据交叉比对', icon: '02' },
-        { step: 3, label: 'AI 商业评估', icon: 'AI' },
+        { step: 3, label: '商业评估', icon: '03' },
         { step: 4, label: '报告生成完毕', icon: 'OK' }
       ]
       return steps.map(s => {

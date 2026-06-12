@@ -98,8 +98,8 @@
             </view>
             <text class="pc-flow-arrow">›</text>
             <view class="pc-flow-step">
-              <text class="pc-flow-icon ai">AI</text>
-              <text class="pc-flow-label">AI分析</text>
+              <text class="pc-flow-icon analyze">析</text>
+              <text class="pc-flow-label">分析</text>
             </view>
             <text class="pc-flow-arrow">›</text>
             <view class="pc-flow-step">
@@ -170,8 +170,8 @@ export default {
         { icon:'∞',label:'无限分析',desc:'次数不限' },
         { icon:'📄',label:'高级报告',desc:'多维评估' },
         { icon:'⌁',label:'盈利预测',desc:'精准估算' },
-        { icon:'◎',label:'高级模型',desc:'多维评估' },
-        { icon:'▥',label:'数据对比',desc:'深度分析' },
+        { icon:'◎',label:'多维评估',desc:'综合评分' },
+        { icon:'▥',label:'数据对比',desc:'多维分析' },
         { icon:'☎',label:'专属客服',desc:'优先服务' }
       ]
     }
@@ -466,7 +466,7 @@ export default {
 .pc-flow { display:flex; align-items:center; justify-content:space-between; gap:8rpx; }
 .pc-flow-step { flex:1; min-width:0; text-align:center; }
 .pc-flow-icon { width:64rpx; height:64rpx; line-height:64rpx; display:block; margin:0 auto; border-radius:50%; background:#fff; color:#315bff; font-size:32rpx; font-weight:900; box-shadow:0 10rpx 22rpx rgba(49,91,255,0.10),inset 0 1rpx 0 rgba(255,255,255,0.9); }
-.pc-flow-icon.ai { border-radius:18rpx; background:linear-gradient(145deg,#2f68ff,#1f49d8); color:#fff; font-size:24rpx; }
+.pc-flow-icon.analyze { border-radius:18rpx; background:linear-gradient(145deg,#2f68ff,#1f49d8); color:#fff; font-size:24rpx; }
 .pc-flow-label { display:block; margin-top:12rpx; font-size:23rpx; line-height:1.2; font-weight:900; color:#5f6f96; white-space:nowrap; }
 .pc-flow-arrow { flex-shrink:0; font-size:44rpx; line-height:1; font-weight:900; color:#8fa2c7; padding-bottom:32rpx; }
 .pc-warn { padding:16rpx; background:#fef2f2; border-radius:14rpx; } .pc-warn text { font-size:24rpx; color:#dc2626; }
