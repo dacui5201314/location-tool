@@ -31,7 +31,7 @@ CORE_CONFIG_DEFAULTS = {
 
 PDF_CONFIG_DEFAULTS = {
     "logo_url": "",
-    "footer_text": "AI 选址分析 · 商业选址初筛参考",
+    "footer_text": "址得选 · 商业选址初筛参考",
 }
 
 DEFAULT_SKUS = [

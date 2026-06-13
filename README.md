@@ -1,18 +1,23 @@
-# 址得选 — AI 驱动的连锁餐饮与零售选址专家系统
+# 址得选 — 商业选址初筛参考工具
 
 ## 产品简介
 
-址得选是面向线下实体商业的 AI 选址分析平台。用户在地图上选定门店位置、填写业态与品牌信息后，系统自动采集周边 POI 数据（200m/500m/1000m 三层半径），调用大模型进行 8 维度商业分析，生成包含综合评分、竞争格局、盈亏测算的专业选址报告。
+址得选是面向线下实体商业的选址分析平台。用户在地图上选定门店位置、填写业态与品牌信息后，系统自动采集周边 POI 数据（200m/500m/1000m 三层半径），进行 8 维度商业分析，生成包含综合评分、竞争格局、盈亏测算的选址初筛报告。
 
 ### 核心能力
 
-- **34 种业态深度适配** — 覆盖餐饮、酒店、零售、生活服务、休闲娱乐五大行业，43 个前台入口 → 14 个 Master 业态集群 → 每集群独立 Rigor 规则引擎（direct/substitute/anchor/irrelevant 四层分类），支持子业态精准分流
+- **43 种业态适配** — 覆盖餐饮、酒店、零售、生活服务、休闲娱乐五大行业，43 个前台入口 → 14 个 Master 业态集群 → 每集群独立 Rigor 规则引擎（direct/substitute/anchor/irrelevant 四层分类），支持子业态精准分流
 - **双层 POI 数据采集** — 高德 Web API 后端代理，28 大类别 6 层数据脱水过滤，最大 550 条周边数据
-- **AI 选址分析引擎** — 动态 System Prompt 拼接 + 14 套 Master 专属规则 + subtype 子业态分流 + Python 层互斥预判 + 维度加权平均锁定总分
-- **报告事实校验 Guard** — P0 POI 名称引用校验 + P2 竞品语境误用检测 + P3 竞品数量膨胀检测 → hard-error → retry → 仍失败退款/不保存
-- **SSE 实时流式分析** — 四步进度推送，免疫代理缓冲
+- **选址分析引擎** — 动态 System Prompt 拼接 + 14 套 Master 专属规则 + subtype 子业态分流 + Python 层互斥预判 + 维度加权平均锁定总分
+- **报告事实校验 Guard** — P0 POI 名称引用校验 + P2 竞品语境误用检测 + P3 竞品数量膨胀检测 → hard-error → retry → fallback 保守版数据摘要
+- **统一首屏决策** — 所有报告（normal / retry / fallback）确定性生成 decision_snapshot：综合判断（可优先现场核验 / 谨慎考察 / 低优先级候选点）、一句话结论、最大优势、最大风险、成立条件、降级条件
+- **现场核验清单** — 5-8 条结构化核验任务，含建议时间、核验动作、记录方式、通过信号、淘汰信号
+- **SSE 实时流式分析** — 四步进度推送，免疫代理缓冲。失败时返回结构化错误（request_id / error_stage / billing_status）
+- **失败体验闭环** — 失败卡片展示扣点状态、退款状态、失败编号，支持复制联系客服
+- **数据充分度评估** — 确定性函数确保 normal / retry / fallback 报告均返回数据质量标签（数据较充分 / 数据一般 / 数据不足）
+- **报告分享** — 分享标题模板支持占位符（{address} / {verdict} / {score}），分享页自动脱敏内部字段
 - **双重计费系统** — 会员订阅制（月度/季度/年度）+ 点数余额制 + CDK 兑换码激活
-- **管理后台** — key 池管理、业态配置热更新、用户管理、SKU 套餐管理、UI 配置、操作审计日志
+- **管理后台** — key 池管理、业态配置热更新、用户管理、SKU 套餐管理、分享配置、操作审计日志
 - **微信支付** — JSAPI v3 完整链路（prepay + notify 验签解密 + PaymentOrder 持久化）+ 小程序虚拟支付（wx.requestVirtualPayment 道具直购）
 
 ---
@@ -24,7 +29,7 @@
 | 客户端 | uni-app (Vue 3 + Vite) → 微信小程序 / 抖音 / App 多端 |
 | 后端 | Python FastAPI + SQLAlchemy ORM + SQLite (WAL 高并发模式) |
 | 地图 | 高德 Web API v3（后端代理，客户端不暴露 Key） |
-| AI | DeepSeek / OpenAI / Gemini / Kimi / MiniMax / 智谱 GLM（`.env` 一键切换） |
+| 大模型 | DeepSeek / OpenAI / Gemini / Kimi / MiniMax / 智谱 GLM（`.env` 一键切换） |
 | 鉴权 | PyJWT HS256 (168h expiry) + Bearer Token + Admin Role 校验 |
 | 实时流 | FastAPI StreamingResponse + SSE (Server-Sent Events) |
 | 部署 | 宝塔面板 + Nginx 反向代理 + uvicorn |
@@ -41,22 +46,20 @@ location-tool/
 │   ├── requirements.txt               # Python 依赖
 │   ├── main.py                        # FastAPI 入口 + SSE 端点 + 全局异常处理
 │   ├── auth.py                        # JWT 鉴权
-│   ├── config.py                      # 统一配置中心
 │   ├── database.py                    # SQLAlchemy 引擎 + WAL 模式
-│   ├── report_fact_guard.py           # 报告事实校验（纯函数）
+│   ├── report_fact_guard.py           # 报告事实校验（纯函数，188 条测试）
 │   ├── ai_providers/                  # 大模型适配层（6 家厂商，统一入口 unified.py）
 │   ├── models/                        # Pydantic 请求模型 + SQLAlchemy ORM（9 张表）
-│   ├── prompts/                       # AI 提示词系统（14 套 Master 业态规则）
-│   ├── routers/                       # RESTful API 路由（11 个模块：admin/auth/user/records/favorites/location/pay/virtual_pay/feedback/industries/cdk）
-│   ├── services/                      # 业务服务（amap/billing/runtime_config/storage/poi_name_guard/fallback_report_service）
-│   ├── tests/                         # 测试套件（industry 2168 PASS / fact guard 188 PASS）
-│   └── storage/                       # 运行时文件存储（reports/assets）
-├── uniapp/                            # uni-app 多端客户端（主力产品）
-│   ├── src/pages/                     # 13 个页面（home/records/favorites/report-detail/profile/legal）
-│   ├── src/components/                # 8 个组件（address-input/industry-picker/report-card/tab panels）
+│   ├── prompts/                       # 提示词系统（14 套 Master 业态规则）
+│   ├── routers/                       # RESTful API 路由（11 个模块）
+│   ├── services/                      # 业务服务（amap / billing / storage / poi_name_guard / fallback_report / report_quality / report_decision / substitute_pharmacy_filter / runtime_config）
+│   ├── tests/                         # 测试套件（industry 2178 PASS / fact guard 188 PASS / fallback / P0.5 回归）
+│   └── storage/                       # 运行时文件存储（reports / assets）
+├── uniapp/                            # uni-app 多端客户端
+│   ├── src/pages/                     # 页面（home / records / favorites / report-detail / profile）
+│   ├── src/components/                # 组件（address-input / industry-picker / tab panels）
 │   ├── src/utils/                     # API 客户端 / 认证 / 格式化工具
 │   └── package.json
-├── miniprogram/                       # 原生微信小程序（登录参考 scaffold）
 └── logo-1/                            # 品牌素材
 ```
 
@@ -131,11 +134,11 @@ npm run dev:h5            # H5 网页
 
 ### 4. 管理后台
 
-独立 HTML 管理后台（`/admin`），8 个导航模块完整功能：
+独立 HTML 管理后台（`/admin`）：
 
 ```bash
-http://localhost:8000/admin          # 管理后台（后台独立页面，非 Swagger）
-http://localhost:8000/docs           # Swagger API 文档（调试用）
+http://localhost:8000/admin          # 管理后台
+http://localhost:8000/docs           # Swagger API 文档
 ```
 
 主要管理接口：
@@ -174,6 +177,7 @@ http://localhost:8000/docs           # Swagger API 文档（调试用）
 
 ## 版本历史
 
+- **v4.0.0** (2026-06-16) — P0.5-final 报告可信度与判断力收口：HTML footer 去 AI 兜底、normal/retry/fallback 统一 deterministic decision_snapshot（三档阈值：可优先现场核验 / 谨慎考察 / 低优先级候选点）、营收测算模型免责、action_plan 与 field_checklist 分开展示、小餐饮替代消费过滤药店/医疗 POI 并同步重算计数、fallback 禁词稳态矩阵（7 场景全量 guard 验证）、公交分类稳健化（7 种中文 type 变体不丢到 None + fetch 层 distance 缺失保留 + BUS_DIAG 诊断日志）、同品牌分店自我分流检测与评分封顶（competition≤45 / category≤40）、低维详情解释增强（为什么低 / 怎么验证 / 什么情况淘汰）、现场核验清单淘汰信号 eliminate_hint、bus_seen distance 兜底 + fetch 层 keep_missing_distance 参数。测试：188 / 2178 / fallback / 28 P0.5 回归全 PASS。
 - **v3.9.3** (2026-06-12) — 微信审核合规：小程序前端所有用户可见 AI 文案替换（AI智能选址→商业选址分析、AI分析→分析、高级模型→多维评估、深度分析→多维分析、AI商业评估→商业评估），manifest/app-header/ProfilePanel/home 共 9 处；编译产物零敏感词匹配
 - **v3.9.2** (2026-06-12) — 线上热修复：Android 地址输入框受控 value 解锁（定位后可手动编辑）；P0-NAME guard 量词+POI 泛称误杀修复（个住宅小区/栋办公建筑/所教育机构 等，新增 11 条回归测试）；兜底报告竞争口径修正（同业态→同品类直接竞品 + 替代消费三半径独立展示）；prompt 竞品密度预判文案降级（删除品类空白优势硬规则，substitute>0 时保守提示）；报告页周边数据 stats-grid flex→CSS grid 三列稳定布局；首页移除免费额度顶部提示条（修复 OPPO/vivo/小米/华为/三星状态栏遮挡）
 - **v3.9.1** (2026-06-09) — 报告生成修复：DB 保存增强（busy_timeout+诊断+兼容迁移）、report_uuid 32位一致性、启动工作目录保护、.env 加载路径固定、竞品清单按半径拆分（200m/500m/1000m 分列避免模型误用）、擀面皮品牌感知分类（面皮同类→direct，米线砂锅水饺→substitute）、prompt s500 环境降噪缓存修复
@@ -203,7 +207,7 @@ http://localhost:8000/docs           # Swagger API 文档（调试用）
 
 # 宝塔面板生产环境部署指南
 
-> 适用版本：宝塔 Linux 面板 9.x | 更新日期：2026-05-30
+> 适用版本：宝塔 Linux 面板 9.x | 更新日期：2026-06-16
 
 ## 部署架构
 
@@ -215,7 +219,8 @@ Nginx (HTTPS, 宝塔面板)
         │
         ├── /api/* → proxy_pass → localhost:8000 (FastAPI + uvicorn)
         ├── /assets/ → proxy_pass → localhost:8000
-        └── /docs → proxy_pass → localhost:8000
+        ├── /docs → proxy_pass → localhost:8000
+        └── /admin → proxy_pass → localhost:8000
                 │
                 ▼
         FastAPI (uvicorn, port 8000) + SQLite (WAL mode)
@@ -346,20 +351,15 @@ curl http://localhost:8000/api/health
 
 ### 运行测试
 
-**本地开发（推荐使用项目虚拟环境）**：
+**本地开发**：
 
 ```bash
-# 首次：创建虚拟环境并安装依赖
-cd C:\Users\admin\location-tool
-uv venv backend\.venv --python 3.12
-uv pip install --python backend\.venv\Scripts\python.exe -r backend\requirements.txt
-
-# 回归测试（每次改动后必须全部通过）
-cd C:\Users\admin\location-tool\backend
+cd backend
 .venv\Scripts\python.exe -m compileall . -x ".*\\.venv.*"
 .venv\Scripts\python.exe tests\check_report_fact_guard.py
 .venv\Scripts\python.exe tests\check_industry_rigor_rules.py
-.venv\Scripts\python.exe tests\verify_noodle_skin.py
+.venv\Scripts\python.exe tests\check_fallback_report.py
+.venv\Scripts\python.exe tests\check_p05_report_quality.py
 ```
 
 **生产服务器**：
@@ -369,6 +369,8 @@ cd /www/wwwroot/location-tool/backend
 python -m compileall .
 python tests/check_industry_rigor_rules.py
 python tests/check_report_fact_guard.py
+python tests/check_fallback_report.py
+python tests/check_p05_report_quality.py
 ```
 
 ---

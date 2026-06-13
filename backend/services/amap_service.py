@@ -671,7 +671,10 @@ def classify_poi_rigor(name: str, cat: str, type_code: str, rigor: dict, busines
     return "pass"
 
 def classify_poi_type(type_code: str) -> str | None:
-    """根据高德POI type字段分类到我们的类别（支持中文名和数字码）"""
+    """根据高德POI type字段分类到我们的类别（支持中文名和数字码）。
+    注意：高德返回的 type 字段格式可能是 '交通设施服务;公交车站' 或 '交通设施服务;公交车站;公交车站相关'，
+    而 TYPE_CLASSIFIERS 仅收录了 '交通设施服务;公交站'，因此额外用关键词兜底。
+    """
     if not type_code:
         return None
     # 处理 | 分隔的多分类（如：餐饮|购物）
@@ -681,6 +684,9 @@ def classify_poi_type(type_code: str) -> str | None:
         for prefix, category in TYPE_CLASSIFIERS:
             if part.startswith(prefix):
                 return category
+        # ★ 公交关键词兜底：高德可能返回 "公交车站" 而非 "公交站"
+        if "公交" in part and "站" in part and "地铁" not in part and "火车站" not in part and "停车场" not in part and "机场" not in part and "长途" not in part:
+            return "bus"
     return None
 
 
@@ -880,8 +886,10 @@ class AmapService:
         }
 
     async def _fetch_all_pois(self, lng: float, lat: float, types: str = "",
-                                radius: int = 1000, max_results: int = 300) -> list[dict]:
-        """分页获取周边全部POI，返回POI dict列表"""
+                                radius: int = 1000, max_results: int = 300,
+                                keep_missing_distance: bool = False,
+                                missing_distance_default: int = 999) -> list[dict]:
+        """分页获取周边全部POI。keep_missing_distance 用于公交等专项，保留 distance 缺失的 POI。"""
         all_pois = []
         seen = set()
         for page in range(1, 20):
@@ -899,11 +907,22 @@ class AmapService:
             if not pois:
                 break
             for p in pois:
-                try:
-                    dist = int(p.get("distance", 0) or 0)
-                except (ValueError, TypeError):
+                raw = p.get("distance")
+                dist = None
+                dist_missing = False
+                if raw is None or raw == "" or (isinstance(raw, str) and not raw.strip().isdigit()):
+                    dist_missing = True
                     dist = 0
-                if dist < 10:
+                else:
+                    try:
+                        dist = int(raw)
+                    except (ValueError, TypeError):
+                        dist_missing = True
+                        dist = 0
+                if dist_missing and keep_missing_distance:
+                    dist = missing_distance_default
+                    p["distance"] = missing_distance_default
+                elif dist < 10:
                     continue
                 name = p.get("name", "")
                 key = f"{name}|{dist}"
@@ -933,8 +952,10 @@ class AmapService:
         return all_pois
 
     async def _fetch_by_keyword(self, lng: float, lat: float, keyword: str,
-                                   radius: int = 1000, max_results: int = 100) -> list[dict]:
-        """分页获取周边关键词POI"""
+                                   radius: int = 1000, max_results: int = 100,
+                                   keep_missing_distance: bool = False,
+                                   missing_distance_default: int = 999) -> list[dict]:
+        """分页获取周边关键词POI。keep_missing_distance 保留 distance 缺失的 POI。"""
         all_pois = []
         seen = set()
         for page in range(1, 10):
@@ -950,11 +971,22 @@ class AmapService:
             if not pois:
                 break
             for p in pois:
-                try:
-                    dist = int(p.get("distance", 0) or 0)
-                except (ValueError, TypeError):
+                raw = p.get("distance")
+                dist = None
+                dist_missing = False
+                if raw is None or raw == "" or (isinstance(raw, str) and not raw.strip().isdigit()):
+                    dist_missing = True
                     dist = 0
-                if dist < 10:
+                else:
+                    try:
+                        dist = int(raw)
+                    except (ValueError, TypeError):
+                        dist_missing = True
+                        dist = 0
+                if dist_missing and keep_missing_distance:
+                    dist = missing_distance_default
+                    p["distance"] = missing_distance_default
+                elif dist < 10:
                     continue
                 name = p.get("name", "")
                 key = f"{name}|{dist}"
@@ -1022,24 +1054,37 @@ class AmapService:
 
         # 公交站：类型码 + 多关键词搜索 + 去重
         bus_seen = {}  # normalized_name → best_entry
+        _bus_dist_missing = 0
+        _bus_type_count = 0
+        _bus_kw_count = 0
         try:
-            bus_type_pois = await self._fetch_all_pois(lng, lat, types="150200", radius=1000, max_results=100)
+            bus_type_pois = await self._fetch_all_pois(lng, lat, types="150200", radius=1000, max_results=100,
+                                                       keep_missing_distance=True, missing_distance_default=999)
+            _bus_type_count = len(bus_type_pois)
             for p in bus_type_pois:
                 nname = _normalize_bus_stop_name(p.get("name", ""))
-                key = nname
-                if key not in bus_seen or p["distance"] < bus_seen[key]["distance"]:
-                    bus_seen[key] = p
+                key = nname or f"{p.get('name','')}|{p.get('distance','?')}"
+                dist = p.get("distance", 0)
+                if dist == 999:
+                    _bus_dist_missing += 1
+                if key not in bus_seen or dist < bus_seen[key].get("distance", 999):
+                    bus_seen[key] = {**p, "distance": dist}
         except Exception:
             pass
         bus_keywords = ["公交站", "公交车站", "公交站牌", "公交枢纽", "公交首末站"]
         for kw in bus_keywords:
             try:
-                kw_pois = await self._fetch_by_keyword(lng, lat, kw, radius=1000, max_results=80)
+                kw_pois = await self._fetch_by_keyword(lng, lat, kw, radius=1000, max_results=80,
+                                                        keep_missing_distance=True, missing_distance_default=999)
+                _bus_kw_count += len(kw_pois)
                 for p in kw_pois:
                     nname = _normalize_bus_stop_name(p.get("name", ""))
-                    key = nname
-                    if key not in bus_seen or p["distance"] < bus_seen[key]["distance"]:
-                        bus_seen[key] = p
+                    key = nname or f"{p.get('name','')}|{p.get('distance','?')}"
+                    dist = p.get("distance", 0)
+                    if dist == 999:
+                        _bus_dist_missing += 1
+                    if key not in bus_seen or dist < bus_seen[key].get("distance", 999):
+                        bus_seen[key] = {**p, "distance": dist}
             except Exception:
                 pass
         all_pois.extend(bus_seen.values())
@@ -1424,6 +1469,15 @@ class AmapService:
         if irrelevant_count > 0:
             quality_notes.append(f"严谨度规则剔除 {irrelevant_count} 个无关POI（会计/律所/广告/中介/SPA等）")
         quality_notes.append(f"原始抓取 {len(all_pois)} 个POI，有效保留 {valid_kept} 个")
+        # ★ P0.5: 公交采集诊断
+        bus_s200 = stats_200m.get("bus", 0)
+        bus_s500 = stats_500m.get("bus", 0)
+        bus_s1000 = stats_1000m.get("bus", 0)
+        bus_cls_count = poi_counts.get("bus", 0)
+        bus_seen_count = len(bus_seen)
+        print(f"[BUS_DIAG] type={_bus_type_count} kw={_bus_kw_count} seen={bus_seen_count} "
+              f"cls={bus_cls_count} s200={bus_s200} s500={bus_s500} s1000={bus_s1000} "
+              f"dist_missing={_bus_dist_missing}", flush=True)
         ld.data_quality_notes = quality_notes
 
         # 品牌排序

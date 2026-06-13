@@ -26,6 +26,50 @@
         </view>
       </view>
 
+      <!-- P0-A: fallback 标识（分享页也展示，但文案使用用户可理解表述） -->
+      <view class="fb-badge" v-if="rptFallbackNote">
+        <text class="fb-badge-icon">📋</text>
+        <text class="fb-badge-text">保守版数据摘要 — 基于采集数据生成，深度分析未展开。建议结合现场核验。</text>
+      </view>
+
+      <!-- P0-B: 决策卡片（优先展示，缺字段时降级到评分卡） -->
+      <view class="decision-card" v-if="rptDecisionSnapshot">
+        <view class="dc-verdict-row">
+          <text class="dc-verdict" :class="verdictClass">{{ rptDecisionSnapshot.verdict || '待核验' }}</text>
+          <text class="dc-score" v-if="rptScore > 0">{{ scorePct }} 分</text>
+        </view>
+        <text class="dc-one-sentence">{{ rptDecisionSnapshot.one_sentence || '' }}</text>
+        <view class="dc-pills">
+          <view class="dc-pill strength" v-if="rptDecisionSnapshot.top_strength">
+            <text class="dc-pill-label">最大优势</text>
+            <text class="dc-pill-text">{{ rptDecisionSnapshot.top_strength }}</text>
+          </view>
+          <view class="dc-pill risk" v-if="rptDecisionSnapshot.top_risk">
+            <text class="dc-pill-label">最大风险</text>
+            <text class="dc-pill-text">{{ rptDecisionSnapshot.top_risk }}</text>
+          </view>
+        </view>
+        <view class="dc-next" v-if="rptDecisionSnapshot.next_action">
+          <text class="dc-next-label">下一步：</text>
+          <text class="dc-next-text">{{ rptDecisionSnapshot.next_action }}</text>
+        </view>
+        <view class="dc-cond fit" v-if="rptDecisionSnapshot.fit_condition">
+          <text class="dc-cond-label">成立条件：</text>
+          <text class="dc-cond-text">{{ rptDecisionSnapshot.fit_condition }}</text>
+        </view>
+        <view class="dc-cond stop" v-if="rptDecisionSnapshot.stop_condition">
+          <text class="dc-cond-label">降级条件：</text>
+          <text class="dc-cond-text">{{ rptDecisionSnapshot.stop_condition }}</text>
+        </view>
+      </view>
+
+      <!-- P0-B: 数据充分度标签 -->
+      <view class="ds-tag" v-if="rptDataSufficiency" :class="'ds-' + rptDataSufficiency.level">
+        <text class="ds-icon">{{ suffIcon }}</text>
+        <text class="ds-label">{{ rptDataSufficiency.label }}</text>
+        <text class="ds-summary" v-if="rptDataSufficiency.summary">{{ rptDataSufficiency.summary }}</text>
+      </view>
+
       <!-- ── 评分卡 ── -->
       <view class="score-card" v-if="rptScore > 0">
         <view class="sc-left">
@@ -46,7 +90,7 @@
             <text class="sct" v-if="record.brand_desc && record.brand_desc !== record.business_type">{{ record.brand_desc }}</text>
             <text class="sct" v-if="record.store_size > 0">{{ record.store_size }}㎡</text>
           </view>
-          <text class="sc-time">{{ fmtTime(record.created_at) || '' }}</text>
+          <text class="sc-time">{{ rptGeneratedAt || fmtTime(record.created_at) || '' }}</text>
         </view>
       </view>
 
@@ -55,7 +99,7 @@
         <view class="radar-head">
           <view class="radar-title-row">
             <text class="radar-mark">📈</text>
-            <text class="radar-main">维度雷达</text>
+            <text class="radar-main">关键维度评分</text>
           </view>
           <text class="radar-sub">从客流、竞争、消费力等维度做初筛参考</text>
         </view>
@@ -177,6 +221,12 @@
         </view>
       </view>
 
+      <!-- P0.5-final: 营收模型免责 -->
+      <view class="section disc-section" v-if="rptDetailTexts.length">
+        <view class="sec-title">📌 营收测算说明</view>
+        <text class="sec-text">以上为模型估算，不代表实际经营结果；需结合现场客流、租金、转让费、出餐能力和外卖能力复核。</text>
+      </view>
+
       <!-- ── 连锁品牌 ── -->
       <view class="section" v-if="rptBrands.length">
         <view class="sec-title">🏷️ 周边连锁品牌</view>
@@ -193,10 +243,81 @@
         <view class="item-sm" v-for="(n,i) in rptIrrList" :key="'irr'+i">{{ n }}</view>
       </view>
 
-      <!-- ── 行动建议 ── -->
+      <!-- ── 经营建议（仅当没有 field_checklist 或两者都有时展示）── -->
       <view class="section" v-if="rptAction.length">
-        <view class="sec-title">行动建议</view>
+        <view class="sec-title">💡 经营建议</view>
         <view class="item" v-for="(ap,i) in rptAction" :key="'ap'+i">{{ i+1 }}. {{ ap }}</view>
+      </view>
+
+      <!-- P0-B: 现场核验清单（优先新旧兼容） -->
+      <view class="section checklist-section" v-if="rptFieldChecklist.length">
+        <view class="sec-title">📋 现场核验清单</view>
+        <view class="cl-hint">以下为建议的现场核验任务，以观察和记录为主，不输出绝对开店阈值。</view>
+        <view class="cl-item" v-for="(item, i) in rptFieldChecklist" :key="'cl'+i">
+          <view class="cl-head">
+            <text class="cl-num">{{ i + 1 }}</text>
+            <view class="cl-head-body">
+              <text class="cl-title">{{ item.title }}</text>
+              <text class="cl-risk" v-if="item.risk_type">风险：{{ item.risk_type }}</text>
+            </view>
+          </view>
+          <view class="cl-body" v-if="item.time_window || item.action">
+            <view class="cl-row" v-if="item.time_window">
+              <text class="cl-row-label">建议时间</text>
+              <text class="cl-row-text">{{ item.time_window }}</text>
+            </view>
+            <view class="cl-row" v-if="item.action">
+              <text class="cl-row-label">核验动作</text>
+              <text class="cl-row-text">{{ item.action }}</text>
+            </view>
+            <view class="cl-row" v-if="item.record_method && item.record_method.length">
+              <text class="cl-row-label">记录方式</text>
+              <view class="cl-tags">
+                <text class="cl-tag" v-for="rm in item.record_method" :key="rm">{{ rm }}</text>
+              </view>
+            </view>
+            <view class="cl-row" v-if="item.pass_hint">
+              <text class="cl-row-label">通过信号</text>
+              <text class="cl-row-text hint">{{ item.pass_hint }}</text>
+            </view>
+            <view class="cl-row" v-if="item.eliminate_hint">
+              <text class="cl-row-label" style="color:#dc2626">淘汰信号</text>
+              <text class="cl-row-text" style="color:#b91c1c">{{ item.eliminate_hint }}</text>
+            </view>
+          </view>
+        </view>
+      </view>
+
+      <!-- P0-B: 竞品口径说明 -->
+      <view class="section" v-if="rptCaliberExplanation">
+        <view class="sec-title">📖 竞品口径说明</view>
+        <text class="sec-text">{{ rptCaliberExplanation }}</text>
+        <view class="ev-grid" v-if="rptEvidenceSummary">
+          <view class="ev-col">
+            <text class="ev-col-title">直接竞品</text>
+            <text class="ev-col-num">{{ evVal('direct_competitors', '200m') }}</text>
+            <text class="ev-col-num">{{ evVal('direct_competitors', '500m') }}</text>
+            <text class="ev-col-num">{{ evVal('direct_competitors', '1000m') }}</text>
+          </view>
+          <view class="ev-col">
+            <text class="ev-col-title">替代消费</text>
+            <text class="ev-col-num">{{ evVal('substitute_consumption', '200m') }}</text>
+            <text class="ev-col-num">{{ evVal('substitute_consumption', '500m') }}</text>
+            <text class="ev-col-num">{{ evVal('substitute_consumption', '1000m') }}</text>
+          </view>
+          <view class="ev-col">
+            <text class="ev-col-title">客流锚点</text>
+            <text class="ev-col-num">{{ evVal('traffic_anchors', '200m') }}</text>
+            <text class="ev-col-num">{{ evVal('traffic_anchors', '500m') }}</text>
+            <text class="ev-col-num">{{ evVal('traffic_anchors', '1000m') }}</text>
+          </view>
+        </view>
+      </view>
+
+      <!-- P0-B: 数据说明与风险边界 -->
+      <view class="section disc-section" v-if="rptDataBoundary">
+        <view class="sec-title">📌 数据说明与风险提示</view>
+        <text class="sec-text">{{ rptDataBoundary }}</text>
       </view>
 
       <!-- Bottom bar -->
@@ -239,7 +360,17 @@ export default {
       rptPoiCats: [],
       rptDirList: [], rptSubList: [], rptAncList: [],
       rptIrrList: [],
-      rptDirMore: 0, rptSubMore: 0, rptAncMore: 0
+      rptDirMore: 0, rptSubMore: 0, rptAncMore: 0,
+      // P0-B: 新报告结构
+      rptType: '',  // normal / retry / fallback
+      rptGeneratedAt: '',  // P0.5: 统一北京时间
+      rptDecisionSnapshot: null,
+      rptFieldChecklist: [],
+      rptCaliberExplanation: '',
+      rptDataSufficiency: null,
+      rptEvidenceSummary: null,
+      rptDataBoundary: '',
+      rptFallbackNote: false
     }
   },
   computed: {
@@ -274,6 +405,19 @@ export default {
       const deg = this.scorePct * 3.6
       const color = this.sc(this.scorePct)
       return { background: `conic-gradient(${color} 0deg ${deg}deg, #e2e8f0 ${deg}deg 360deg)` }
+    },
+    verdictClass () {
+      const v = (this.rptDecisionSnapshot && this.rptDecisionSnapshot.verdict) || ''
+      if (v.includes('继续考察') || v.includes('可优先现场核验')) return 'verdict-ok'
+      if (v.includes('谨慎')) return 'verdict-warn'
+      if (v.includes('低优先级') || v.includes('不建议') || v.includes('优先推进')) return 'verdict-no'
+      return ''
+    },
+    suffIcon () {
+      const level = (this.rptDataSufficiency && this.rptDataSufficiency.level) || ''
+      if (level === 'sufficient') return '✅'
+      if (level === 'insufficient') return '⚠️'
+      return '📊'
     }
   },
   mounted () {
@@ -298,7 +442,8 @@ export default {
     this.isShared = !!shareToken
 
     if (shareToken) {
-      // 分享入口：通过 share_token 读取
+      // ★ 分享入口：保存 token 供二次转发使用
+      this._shareToken = shareToken
       api.fetchSharedReport(shareToken).then(r => {
         this.loading = false
         if (r.ok && r.data && !r.data.error) {
@@ -328,22 +473,19 @@ export default {
     }).catch(() => { this.loading = false; this.errorMsg = '网络异常，请重试' })
   },
   onShareTimeline () {
-    const addr = (this.record && this.record.address) || '门店'
     const cfg = this.shareConfig || {}
     const imageUrl = this.reportShareImageLocal || this.resolveShareImage(cfg.report_share_image_url || cfg.share_image_url || '') || this._reportShareImageRemote
     const token = this._shareToken || ''
     const q = token ? 'share=' + token + '&from=timeline' : 'from=timeline'
-    const payload = { title: addr + '选址分析报告', query: q }
+    const title = this.buildReportShareTitle()
+    const payload = { title, query: q }
     if (imageUrl) payload.imageUrl = imageUrl
     return payload
   },
   onShareAppMessage () {
-    const cfg = this.shareConfig || {}
-    const addr = this.record.address || this.record.brand_desc || '门店'
-    const titleTpl = cfg.report_share_title_template || '{address}选址分析报告'
-    const title = titleTpl.replace('{address}', addr)
     const imageUrl = this.getReportShareImageUrl()
     const token = this._shareToken || ''
+    const title = this.buildReportShareTitle()
     const payload = token
       ? { title, path: `/pages/report-detail/index?share=${token}` }
       : { title, path: '/pages/home/index' }
@@ -406,6 +548,31 @@ export default {
     },
     goBack () { uni.navigateBack({ delta: 1 }).catch(() => uni.reLaunch({ url: '/pages/home/index?tab=records' })) },
     goToHome () { uni.reLaunch({ url: '/pages/home/index' }) },
+    evVal (group, radius) {
+      const es = this.rptEvidenceSummary
+      if (!es || !es[group] || typeof es[group] !== 'object') return 0
+      const v = es[group][radius]
+      return (v !== undefined && v !== null) ? v : 0
+    },
+    compactAddress (addr, maxLen = 18) {
+      if (!addr) return '门店'
+      return addr.length > maxLen ? addr.slice(0, maxLen) + '...' : addr
+    },
+    buildReportShareTitle () {
+      const cfg = this.shareConfig || {}
+      const tpl = cfg.report_share_title_template || '{address}选址初筛：{verdict}'
+      const address = this.compactAddress(this.record.address || this.record.brand_desc || '门店', 18)
+      const businessType = this.record.business_type || ''
+      const brandDesc = this.record.brand_desc || ''
+      const verdict = (this.rptDecisionSnapshot && this.rptDecisionSnapshot.verdict) || '初筛参考'
+      const score = this.rptScore > 0 ? String(this.scorePct) : ''
+      return tpl
+        .replace(/\{address\}/g, address)
+        .replace(/\{business_type\}/g, businessType)
+        .replace(/\{brand_desc\}/g, brandDesc)
+        .replace(/\{verdict\}/g, verdict)
+        .replace(/\{score\}/g, score)
+    },
     _prefetchShareToken (uuid) {
       if (!uuid || this._shareToken) return
       api.createShareToken(uuid).then(r => {
@@ -422,6 +589,10 @@ export default {
        'rptStats','rptDirList','rptSubList','rptAncList','rptIrrList',
        'rptDirMore','rptSubMore','rptAncMore','rptDetailTexts','rptPoiCats'
       ].forEach(k => { this[k] = Array.isArray(this[k]) ? [] : (typeof this[k] === 'number' ? 0 : '') })
+      // P0-B: 重置新字段
+      this.rptType = ''; this.rptGeneratedAt = ''; this.rptDecisionSnapshot = null; this.rptFieldChecklist = []
+      this.rptCaliberExplanation = ''; this.rptDataSufficiency = null
+      this.rptEvidenceSummary = null; this.rptDataBoundary = ''; this.rptFallbackNote = false
       this.poiExpanded = false
 
       let rpt = null
@@ -628,6 +799,79 @@ export default {
         if (!names.length) return null
         return { ...cat, names, total: items.length }
       }).filter(Boolean)
+
+      // ═══ P0-B: 新报告结构解析 ═══
+      this.rptType = rpt.report_type || ''
+      this.rptFallbackNote = (this.rptType === 'fallback')
+      this.rptGeneratedAt = rpt.generated_at || ''
+
+      // decision_snapshot
+      const ds = rpt.decision_snapshot
+      if (ds && typeof ds === 'object') {
+        this.rptDecisionSnapshot = {
+          verdict: ds.verdict || '',
+          one_sentence: ds.one_sentence || '',
+          score: ds.score ?? this.rptScore,
+          top_strength: ds.top_strength || '',
+          top_risk: ds.top_risk || '',
+          next_action: ds.next_action || '',
+          fit_condition: ds.fit_condition || '',
+          stop_condition: ds.stop_condition || ''
+        }
+      }
+
+      // field_checklist (兼容新旧格式)
+      const fc = rpt.field_checklist
+      if (Array.isArray(fc) && fc.length) {
+        this.rptFieldChecklist = fc.map(item => {
+          if (typeof item === 'string') {
+            return { title: item, time_window: '', action: '', record_method: [], risk_type: '', pass_hint: '', eliminate_hint: '' }
+          }
+          if (typeof item === 'object' && item !== null) {
+            return {
+              title: item.title || item.text || '',
+              time_window: item.time_window || '',
+              action: item.action || '',
+              record_method: Array.isArray(item.record_method) ? item.record_method : [],
+              risk_type: item.risk_type || '',
+              pass_hint: item.pass_hint || '',
+              eliminate_hint: item.eliminate_hint || ''
+            }
+          }
+          return null
+        }).filter(Boolean)
+      }
+
+      // caliber_explanation
+      this.rptCaliberExplanation = rpt.caliber_explanation || ''
+
+      // data_sufficiency
+      const suff = rpt.data_sufficiency
+      if (suff && typeof suff === 'object') {
+        this.rptDataSufficiency = {
+          level: suff.level || 'moderate',
+          label: suff.label || '数据一般',
+          summary: suff.summary || '',
+          reasons: Array.isArray(suff.reasons) ? suff.reasons : [],
+          flags: suff.flags || {}
+        }
+      }
+
+      // evidence_summary (安全归一化，避免缺子字段崩模板)
+      const ev = rpt.evidence_summary || {}
+      this.rptEvidenceSummary = {
+        direct_competitors: (ev.direct_competitors && typeof ev.direct_competitors === 'object') ? ev.direct_competitors : {},
+        substitute_consumption: (ev.substitute_consumption && typeof ev.substitute_consumption === 'object') ? ev.substitute_consumption : {},
+        traffic_anchors: (ev.traffic_anchors && typeof ev.traffic_anchors === 'object') ? ev.traffic_anchors : {}
+      }
+
+      // data_boundary
+      this.rptDataBoundary = rpt.data_boundary || ''
+
+      // report_type fallback 提示
+      if (this.rptFallbackNote && !this.rptDataBoundary) {
+        this.rptDataBoundary = '本报告为保守版数据摘要，仅基于采集数据生成，不包含完整深度分析。建议结合现场核验。'
+      }
     }
   }
 }
@@ -757,4 +1001,73 @@ export default {
 .share-cta { margin:28rpx 24rpx 40rpx; background:linear-gradient(135deg,#172554,#0b3fbd); border-radius:16rpx; padding:32rpx 24rpx; text-align:center; box-shadow:0 18rpx 38rpx rgba(21,31,143,0.18); }
 .share-cta-title { display:block; color:rgba(255,255,255,0.88); font-size:26rpx; margin-bottom:20rpx; }
 .share-cta-btn { width:100%; background:#fff; color:#0b3fbd; border-radius:16rpx; font-size:30rpx; font-weight:900; padding:20rpx 0; }
+
+/* P0-A: fallback badge */
+.fb-badge { margin:16rpx 24rpx; padding:20rpx 24rpx; background:#fef3c7; border-radius:14rpx; display:flex; align-items:center; gap:12rpx; }
+.fb-badge-icon { font-size:36rpx; }
+.fb-badge-text { font-size:26rpx; color:#92400e; line-height:1.5; flex:1; }
+
+/* P0-B: decision card */
+.decision-card { margin:16rpx 24rpx; padding:28rpx; background:#fff; border-radius:18rpx; box-shadow:0 6rpx 22rpx rgba(0,0,0,0.06); }
+.dc-verdict-row { display:flex; justify-content:space-between; align-items:center; margin-bottom:12rpx; }
+.dc-verdict { font-size:36rpx; font-weight:900; }
+.verdict-ok { color:#16a34a; }
+.verdict-warn { color:#d97706; }
+.verdict-no { color:#dc2626; }
+.dc-score { font-size:48rpx; font-weight:900; color:#1e293b; }
+.dc-one-sentence { font-size:28rpx; color:#475569; line-height:1.6; margin-bottom:16rpx; }
+.dc-pills { display:flex; flex-direction:column; gap:10rpx; }
+.dc-pill { padding:16rpx; border-radius:12rpx; }
+.dc-pill.strength { background:#f0fdf4; border-left:6rpx solid #16a34a; }
+.dc-pill.risk { background:#fef2f2; border-left:6rpx solid #dc2626; }
+.dc-pill-label { font-size:22rpx; font-weight:700; display:block; margin-bottom:4rpx; color:#64748b; }
+.dc-pill-text { font-size:26rpx; color:#1e293b; line-height:1.4; }
+.dc-next { margin-top:16rpx; padding:14rpx; background:#eff6ff; border-radius:10rpx; }
+.dc-next-label { font-size:24rpx; color:#3b82f6; font-weight:700; }
+.dc-next-text { font-size:26rpx; color:#1e40af; }
+.dc-cond { margin-top:10rpx; padding:10rpx 14rpx; border-radius:8rpx; }
+.dc-cond.fit { background:#f0fdf4; }
+.dc-cond.stop { background:#fef2f2; }
+.dc-cond-label { font-size:22rpx; font-weight:700; }
+.dc-cond.fit .dc-cond-label { color:#16a34a; }
+.dc-cond.stop .dc-cond-label { color:#dc2626; }
+.dc-cond-text { font-size:24rpx; color:#475569; }
+
+/* P0-B: data sufficiency tag */
+.ds-tag { margin:12rpx 24rpx; padding:16rpx 20rpx; border-radius:12rpx; display:flex; align-items:center; gap:10rpx; flex-wrap:wrap; }
+.ds-sufficient { background:#f0fdf4; }
+.ds-moderate { background:#f8fafc; }
+.ds-insufficient { background:#fef2f2; }
+.ds-icon { font-size:28rpx; }
+.ds-label { font-size:24rpx; font-weight:700; }
+.ds-sufficient .ds-label { color:#16a34a; }
+.ds-moderate .ds-label { color:#64748b; }
+.ds-insufficient .ds-label { color:#dc2626; }
+.ds-summary { font-size:24rpx; color:#64748b; }
+
+/* P0-B: checklist */
+.checklist-section { margin:20rpx 24rpx; padding:28rpx; background:#fff; border-radius:18rpx; }
+.cl-hint { font-size:24rpx; color:#94a3b8; margin-bottom:20rpx; }
+.cl-item { margin-bottom:20rpx; border-bottom:1rpx solid #f1f5f9; padding-bottom:16rpx; }
+.cl-item:last-child { border-bottom:none; margin-bottom:0; }
+.cl-head { display:flex; align-items:flex-start; gap:12rpx; margin-bottom:10rpx; }
+.cl-num { width:44rpx; height:44rpx; border-radius:50%; background:#eff6ff; color:#3b82f6; font-size:26rpx; font-weight:900; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+.cl-head-body { flex:1; }
+.cl-title { font-size:28rpx; font-weight:700; color:#1e293b; display:block; }
+.cl-risk { font-size:22rpx; color:#dc2626; background:#fef2f2; padding:2rpx 10rpx; border-radius:6rpx; margin-top:4rpx; display:inline-block; }
+.cl-body { padding-left:56rpx; }
+.cl-row { display:flex; gap:8rpx; margin-bottom:6rpx; }
+.cl-row-label { font-size:22rpx; color:#94a3b8; min-width:100rpx; flex-shrink:0; }
+.cl-row-text { font-size:24rpx; color:#475569; line-height:1.5; flex:1; }
+.cl-row-text.hint { color:#64748b; font-style:italic; }
+.cl-tags { display:flex; gap:6rpx; flex-wrap:wrap; }
+.cl-tag { font-size:20rpx; padding:2rpx 10rpx; background:#f1f5f9; color:#64748b; border-radius:6rpx; }
+
+/* P0-B: evidence grid */
+.ev-grid { display:flex; gap:12rpx; margin-top:16rpx; }
+.ev-col { flex:1; text-align:center; padding:12rpx 6rpx; background:#f8fafc; border-radius:10rpx; }
+.ev-col-title { font-size:22rpx; color:#94a3b8; display:block; margin-bottom:6rpx; }
+.ev-col-num { font-size:24rpx; font-weight:700; color:#334155; display:block; padding:4rpx 0; }
+
+.disc-section { margin:20rpx 24rpx; }
 </style>

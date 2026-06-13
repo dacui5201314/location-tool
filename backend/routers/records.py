@@ -182,6 +182,11 @@ def download_report_file(
         from services.storage_service import _build_report_html
         try:
             data = json.loads(record.report_json)
+            # ★ 注入 record 侧字段，确保 HTML 不出现 "-"
+            if not data.get("business_type"):
+                data["business_type"] = record.business_type or ""
+            if not data.get("generated_at"):
+                data["generated_at"] = data.get("created_at") or str(record.created_at or "")[:16]
             # ★ 存在 report_json 时优先动态重建，确保 rigor 等新口径生效
             html = _build_report_html(record.id, data, record.address, record.brand_desc)
             content = html.encode("utf-8")

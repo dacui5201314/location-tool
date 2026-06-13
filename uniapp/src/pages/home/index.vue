@@ -207,6 +207,22 @@
       <text class="field-err" v-if="errors.size">{{ errors.size }}</text>
     </view>
 
+    <!-- ── P0-B: 生成前预期说明 ── -->
+    <view class="usage-notice" v-if="!analyzing && !analyzeErr">
+      <view class="un-row">
+        <text class="un-icon">💡</text>
+        <text class="un-text">本次预计消耗 1 分析点；会员有效期内不额外扣点；生成失败将按规则自动退回。</text>
+      </view>
+      <view class="un-row">
+        <text class="un-icon">📋</text>
+        <text class="un-text">报告包含：选址决策参考、关键数据摘要、竞品分析、现场核验清单。适用于商铺选址初筛，不替代实地考察与投资决策。地址、业态、品牌/特色填写越准确，报告越有参考价值。</text>
+      </view>
+      <view class="un-row" v-if="userCredits !== null && userCredits < 1 && !canAnalyzeFree">
+        <text class="un-icon">⚠️</text>
+        <text class="un-text warn">当前分析点不足，请先充值后再生成报告。</text>
+      </view>
+    </view>
+
     <!-- ── CTA ── -->
     <view class="cta-zone">
       <button class="cta-btn" :class="{ dim: !canAnalyze }" :disabled="analyzing" @tap="onAnalyze">
@@ -236,7 +252,48 @@
           </view>
         </view>
       </view>
-      <text class="field-err analyze-err" v-if="analyzeErr">{{ analyzeErr }}</text>
+      <!-- P0-A: 结构化失败卡片 -->
+      <view class="fail-card" v-if="analyzeErr">
+        <view class="fc-head">
+          <text class="fc-icon">⚠️</text>
+          <text class="fc-title">报告生成未完成</text>
+        </view>
+        <text class="fc-reason">{{ analyzeErr }}</text>
+        <view class="fc-detail" v-if="analyzeFailRequestId || analyzeFailBillingSource || analyzeFailBillingStatus">
+          <view class="fc-row" v-if="analyzeFailBillingStatus === 'not_charged'">
+            <text class="fc-label">扣点状态：</text>
+            <text class="fc-green">本次未扣点</text>
+          </view>
+          <view class="fc-row" v-if="analyzeFailBillingStatus === 'member_no_charge'">
+            <text class="fc-label">扣点状态：</text>
+            <text>会员权益内，未额外扣点</text>
+          </view>
+          <view class="fc-row" v-if="analyzeFailBillingStatus === 'refund_pending'">
+            <text class="fc-label">退点状态：</text>
+            <text>如已扣点，系统将自动退回</text>
+          </view>
+          <view class="fc-row" v-if="analyzeFailBillingStatus === 'refunded'">
+            <text class="fc-label">退点状态：</text>
+            <text class="fc-green">已自动退还</text>
+          </view>
+          <view class="fc-row" v-if="analyzeFailBillingStatus === 'unknown'">
+            <text class="fc-label">扣点状态：</text>
+            <text>请核对点数余额，如有疑问联系客服</text>
+          </view>
+          <view class="fc-row" v-if="analyzeFailRequestId">
+            <text class="fc-label">失败编号：</text>
+            <text class="fc-mono" @tap="copyRequestId">{{ analyzeFailRequestId }}</text>
+            <text class="fc-copy-hint">（点击复制）</text>
+          </view>
+          <view class="fc-row">
+            <text class="fc-label">联系客服：</text>
+            <text>请提供上方失败编号以便快速定位问题</text>
+          </view>
+        </view>
+        <view class="fc-retry" v-if="!analyzing">
+          <text class="fc-retry-text">您可以调整参数后重试，或联系客服处理。</text>
+        </view>
+      </view>
     </view>
 
     <!-- ── Feature tiles ── -->
@@ -311,6 +368,12 @@ export default {
       analyzing: false,
       analyzeSteps: [],
       analyzeErr: '',
+      // P0-A: 结构化失败信息
+      analyzeFailRequestId: '',
+      analyzeFailErrorStage: '',
+      analyzeFailBillingSource: '',
+      analyzeFailBillingStatus: null,
+      analyzeFailShowDetail: false,
       analyzeStatus: '',
       currentStep: 0,
       stepTimer: null,
@@ -772,6 +835,20 @@ export default {
       else if (typeof e === 'string') this.storeSize = e
     },
     onLocate () {
+      const token = uni.getStorageSync('token')
+      if (!token) {
+        uni.showModal({
+          title: '请先登录',
+          content: '登录后才能使用服务',
+          cancelText: '稍后',
+          confirmText: '去登录',
+          success: (res) => {
+            if (res.confirm) uni.navigateTo({ url: '/pages/profile/login' })
+          }
+        })
+        return
+      }
+
       const doGetLocation = () => {
         uni.getLocation({
           type: 'gcj02',
@@ -1003,6 +1080,11 @@ export default {
             this.analyzeSteps = steps
             this.currentStep = Math.max(...steps.map(s => typeof s.step === 'number' ? s.step : 0))
           }
+          // P0-A: 捕获结构化失败信息
+          this.analyzeFailRequestId = r.requestId || ''
+          this.analyzeFailErrorStage = r.errorStage || ''
+          this.analyzeFailBillingSource = r.billingSource || ''
+          this.analyzeFailBillingStatus = r.billingStatus || ''
           if (r.statusCode === 401) {
             this.analyzeErr = '登录已过期，请去「我的」页面重新登录后再试'
           } else if (r.statusCode === 402) {
@@ -1021,17 +1103,40 @@ export default {
         if (!recovered) {
           const msg = typeof e === 'string' ? e : (e.message || e.errMsg || '分析服务暂不可用，请稍后重试')
           this.analyzeErr = this.friendlyAnalyzeError(msg)
+          this.analyzeFailRequestId = ''
+          this.analyzeFailBillingStatus = ''
         }
         this.analyzing = false
       }
     },
     friendlyAnalyzeError (msg) {
       const text = typeof msg === 'string' ? msg : ''
-      if (text.includes('事实校验') || text.includes('FACT_GUARD')) return text
-      if (text.includes('数据解析异常') || text.includes('JSON')) return text
-      if (text.includes('保存失败') || text.includes('DB')) return text
-      if (text.includes('数据采集失败') || text.includes('AMAP')) return text
+      // Map backend technical errors to user-friendly messages
+      if (text.includes('数据采集失败') || text.includes('AMAP')) {
+        return '数据采集失败，请稍后重试'
+      }
+      if (text.includes('保存失败') || text.includes('DB')) {
+        return '报告保存失败，如已扣点系统将自动退回，请稍后重试'
+      }
+      if (text.includes('报告生成异常') || text.includes('未保存')) {
+        return text
+      }
+      if (text.includes('解析异常') || text.includes('JSON') || text.includes('解析失败')) {
+        return '分析结果解析异常，请稍后重试'
+      }
+      if (text.includes('暂不可用') || text.includes('超时') || text.includes('连接失败')) {
+        return text
+      }
+      if (text.includes('事实校验') || text.includes('FACT_GUARD') || text.includes('异常报告')) {
+        return '报告生成异常，本次未保存；如已扣点系统将自动退回，请稍后重试'
+      }
       return text || '分析服务异常，请稍后重试'
+    },
+    copyRequestId () {
+      if (!this.analyzeFailRequestId) return
+      uni.setClipboardData({ data: this.analyzeFailRequestId, success: () => {
+        uni.showToast({ title: '已复制失败编号', icon: 'success' })
+      }})
     },
     async _recoverRecentReport () {
       // 超时/失败兜底：查询最近一条记录，若在本次分析提交后生成则跳转
@@ -1287,6 +1392,31 @@ export default {
 .ctb-icon { width:36rpx; height:36rpx; display:block; }
 .ctb-label { font-size:22rpx; color:#8b99b6; line-height:1; font-weight:800; }
 .ctb-item.active .ctb-label { color:#315bff; font-weight:900; }
+
+/* P0-B: 生成前预期说明 */
+.usage-notice { margin:16rpx 24rpx; padding:20rpx 24rpx; background:#f8fafc; border-radius:14rpx; border:1rpx solid #e2e8f0; }
+.un-row { display:flex; align-items:flex-start; gap:10rpx; margin-bottom:12rpx; }
+.un-row:last-child { margin-bottom:0; }
+.un-icon { font-size:28rpx; flex-shrink:0; }
+.un-text { font-size:24rpx; color:#64748b; line-height:1.5; flex:1; }
+.un-text.warn { color:#dc2626; font-weight:600; }
+
+/* P0-A: 失败卡片 */
+.fail-card { margin:16rpx 24rpx; padding:24rpx; background:#fff; border-radius:16rpx; border-left:6rpx solid #dc2626; box-shadow:0 6rpx 22rpx rgba(0,0,0,0.06); }
+.fc-head { display:flex; align-items:center; gap:10rpx; margin-bottom:12rpx; }
+.fc-icon { font-size:36rpx; }
+.fc-title { font-size:30rpx; font-weight:900; color:#1e293b; }
+.fc-reason { font-size:26rpx; color:#475569; line-height:1.5; display:block; margin-bottom:16rpx; }
+.fc-detail { background:#f8fafc; padding:16rpx; border-radius:10rpx; }
+.fc-row { display:flex; flex-wrap:wrap; gap:4rpx; margin-bottom:6rpx; }
+.fc-row:last-child { margin-bottom:0; }
+.fc-label { font-size:24rpx; color:#94a3b8; }
+.fc-row text { font-size:24rpx; color:#475569; }
+.fc-green { color:#16a34a; font-weight:700; }
+.fc-mono { font-family:monospace; background:#f1f5f9; padding:2rpx 8rpx; border-radius:6rpx; font-size:22rpx; color:#3b82f6; }
+.fc-copy-hint { color:#94a3b8; font-size:22rpx; }
+.fc-retry { margin-top:16rpx; }
+.fc-retry-text { font-size:24rpx; color:#94a3b8; }
 </style>
 
 <style>

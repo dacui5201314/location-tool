@@ -1,8 +1,10 @@
 """报告存储服务 — 本地文件 / 云端对象存储"""
 import os
 import html
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 from pathlib import Path
+
+CHINA_TZ = timezone(timedelta(hours=8))
 from database import SessionLocal
 from models.db_models import SystemConfig
 from services.runtime_config import get_config_value, get_pdf_config
@@ -106,9 +108,16 @@ def _build_report_html(record_id: int, report_data: dict, address: str, brand_na
     dimension_scores = report_data.get("dimension_scores") or []
     action_plan = report_data.get("action_plan") or []
     real_data = report_data.get("real_data") or {}
+    decision_snapshot = report_data.get("decision_snapshot") or {}
+    field_checklist = report_data.get("field_checklist") or []
+    data_sufficiency = report_data.get("data_sufficiency") or {}
     pdf_cfg = get_pdf_config()
     brand_qr = get_config_value("OFFICIAL_QRCODE_URL", "")
-    footer_text = pdf_cfg.get("footer_text") or "AI 选址分析 · 商业选址初筛参考"
+    footer_text = pdf_cfg.get("footer_text") or "商业选址初筛参考"
+    # 旧后台配置兜底替换：不把 AI 字样带到用户可见页面
+    for old, new in [("AI 选址分析", "址得选"), ("AI选址分析", "址得选"),
+                     ("AI 多维度分析", "选址规则分析")]:
+        footer_text = footer_text.replace(old, new)
 
     def _esc(value):
         return html.escape(str(value or ""))
@@ -121,10 +130,14 @@ def _build_report_html(record_id: int, report_data: dict, address: str, brand_na
 
     score_num = _score_int(score)
     score_color = "#18bf82" if score_num >= 70 else "#f59e0b" if score_num >= 50 else "#ef4444"
-    score_note = exec_summary.get("verdict") or ("可重点核验" if score_num >= 70 else "需线下验证" if score_num >= 45 else "需谨慎评估")
+    score_note = decision_snapshot.get("verdict") or exec_summary.get("verdict") or ("可重点核验" if score_num >= 70 else "需线下验证" if score_num >= 45 else "需谨慎评估")
     city_line = " ".join(str(real_data.get(k) or "").strip() for k in ["city", "district", "township"]).strip()
-    business_type = report_data.get("business_type") or report_data.get("industry") or report_data.get("category") or "-"
-    created_date = datetime.now().strftime("%Y-%m-%d")
+    business_type = report_data.get("business_type") or report_data.get("industry") or report_data.get("category") or ""
+    generated_raw = report_data.get("generated_at") or report_data.get("created_at") or ""
+    if generated_raw:
+        generated_display = generated_raw[:16] if len(generated_raw) >= 16 else generated_raw
+    else:
+        generated_display = datetime.now(CHINA_TZ).strftime("%Y-%m-%d %H:%M")  # 仅兜底
 
     def _list_html(items):
         rows = [str(i).strip() for i in (items or []) if str(i).strip()]
@@ -141,6 +154,37 @@ def _build_report_html(record_id: int, report_data: dict, address: str, brand_na
 
     def _dimension_name(item):
         return str(item.get("label") or item.get("name") or item.get("key") or "指标")
+
+    # ── P0.5: 决策快照卡片 ──
+    decision_html = ""
+    if decision_snapshot:
+        ds_verdict = _esc(decision_snapshot.get("verdict") or "")
+        ds_one = _esc(decision_snapshot.get("one_sentence") or "")
+        ds_strength = _esc(decision_snapshot.get("top_strength") or "")
+        ds_risk = _esc(decision_snapshot.get("top_risk") or "")
+        ds_next = _esc(decision_snapshot.get("next_action") or "")
+        ds_fit = _esc(decision_snapshot.get("fit_condition") or "")
+        ds_stop = _esc(decision_snapshot.get("stop_condition") or "")
+        decision_html = f"""
+  <section class="section">
+    <h2>📌 选址决策参考</h2>
+    <div class="info-box" style="background:#fff;border:2px solid #1f4aa8;">
+      <div class="info-row"><b>综合判断</b><span style="font-weight:900;color:{score_color}">{ds_verdict or '待核验'}</span></div>
+      <div class="info-row"><b>一句话结论</b>{ds_one}</div>
+      {f'<div class="info-row"><b>最大优势</b>{ds_strength}</div>' if ds_strength else ''}
+      {f'<div class="info-row"><b>最大风险</b>{ds_risk}</div>' if ds_risk else ''}
+      {f'<div class="info-row"><b>下一步</b>{ds_next}</div>' if ds_next else ''}
+      {f'<div class="info-row" style="color:#16a34a"><b>成立条件</b>{ds_fit}</div>' if ds_fit else ''}
+      {f'<div class="info-row" style="color:#dc2626"><b>降级条件</b>{ds_stop}</div>' if ds_stop else ''}
+    </div>
+  </section>"""
+
+    # ── 数据充分度 ──
+    suff_html = ""
+    if data_sufficiency:
+        suff_level = data_sufficiency.get("label") or ""
+        suff_summary = _esc(data_sufficiency.get("summary") or "")
+        suff_html = f'<div class="notice" style="background:#f0fdf4;color:#047857;border:1px solid #bbf7d0;margin-bottom:28px;">📊 数据充分度：{_esc(suff_level)} — {suff_summary}</div>'
 
     dim_cards = ""
     for item in (dimension_scores or [])[:8]:
@@ -191,11 +235,26 @@ def _build_report_html(record_id: int, report_data: dict, address: str, brand_na
             ("🏦", "银行", "banks"), ("🅿️", "停车场", "parking"),
         ]
         for icon, label, key in poi_defs:
-            s200 = (real_data.get("stats_200m") or {}).get(key, 0)
-            s500 = (real_data.get("stats_500m") or {}).get(key, 0)
-            s1000 = (real_data.get("stats_1000m") or {}).get(key, 0)
-            raw = (real_data.get("raw_stats_1000m") or {}).get(key)
-            total = raw if raw is not None and key not in {"parking", "banks"} else s1000
+            s2 = real_data.get("stats_200m") or {}
+            s5 = real_data.get("stats_500m") or {}
+            s10 = real_data.get("stats_1000m") or {}
+            s200 = s2.get(key, 0)
+            s500 = s5.get(key, 0)
+            s1000 = s10.get(key, 0)
+            # 旧报告兼容：只有当三层字段均缺失时才回退 raw/poi_counts（保护：值=0 的新报告不误触）
+            has_triple = (key in s2) or (key in s5) or (key in s10)
+            if not has_triple:
+                raw_val = (real_data.get("raw_stats_1000m") or {}).get(key)
+                cnt_val = (real_data.get("poi_counts") or {}).get(key)
+                fallback = raw_val if raw_val is not None else (cnt_val if cnt_val is not None else 0)
+                if fallback > 0:
+                    poi_cards += f"""
+            <div class="poi-card poi-zero">
+              <div class="poi-label">{icon} {_esc(label)}</div>
+              <div class="poi-value">数据源记录 {fallback}</div>
+              <div class="poi-sub">旧版数据（无三层半径明细）</div>
+            </div>"""
+                    continue
             zero_class = " poi-zero" if s200 == 0 and s500 == 0 and s1000 == 0 else ""
             warn_class = " poi-warn" if key == "subway" and s1000 == 0 else ""
             poi_cards += f"""
@@ -203,7 +262,6 @@ def _build_report_html(record_id: int, report_data: dict, address: str, brand_na
               <div class="poi-label">{icon} {_esc(label)}</div>
               <div class="poi-value">{s200} / {s500} / {s1000}</div>
               <div class="poi-sub">200m / 500m / 1000m</div>
-              {f'<div class="poi-total">合计 {total}</div>' if total not in (None, s1000) else ''}
             </div>"""
 
     comp_html = ""
@@ -222,12 +280,44 @@ def _build_report_html(record_id: int, report_data: dict, address: str, brand_na
     if notes:
         notes_html = '<div class="note-line">注：' + "；".join(_esc(n) for n in notes) + "</div>"
 
+    # ── P0.5: 现场核验清单 ──
+    checklist_html = ""
+    if field_checklist:
+        cl_rows = ""
+        for idx, item in enumerate(field_checklist[:8], 1):
+            # 字符串兼容
+            if isinstance(item, str):
+                cl_rows += f"<p>{idx}. {_esc(item)}</p>"
+                continue
+            if not isinstance(item, dict):
+                continue
+            title = _esc(item.get("title") or item.get("text") or "")
+            time_win = _esc(item.get("time_window") or "")
+            action = _esc(item.get("action") or "")
+            risk = _esc(item.get("risk_type") or "")
+            p_hint = _esc(item.get("pass_hint") or "")
+            e_hint = _esc(item.get("eliminate_hint") or "")
+            cl_rows += f"""<div class="detail-block" style="border-left-color:#3b82f6;margin-bottom:14px;">
+              <h3>{idx}. {title}</h3>
+              {f'<p><b>建议时间：</b>{time_win}</p>' if time_win else ''}
+              {f'<p><b>核验动作：</b>{action}</p>' if action else ''}
+              {f'<p><b>风险类型：</b>{risk}</p>' if risk else ''}
+              {f'<p style="color:#047857"><b>通过信号：</b>{p_hint}</p>' if p_hint else ''}
+              {f'<p style="color:#b91c1c"><b>淘汰信号：</b>{e_hint}</p>' if e_hint else ''}
+            </div>"""
+        checklist_html = f"""
+  <section class="section">
+    <h2>📋 现场核验清单</h2>
+    {cl_rows}
+  </section>"""
+
     warning_html = f'<div class="risk-banner">🚨 风险提示：{_esc(warning)}</div>' if warning else ""
     adv_html = _list_html(exec_summary.get("top_strengths") or advantages)
     dis_html = _list_html(exec_summary.get("top_risks") or disadvantages)
     action_html = _ordered_html(action_plan)
     summary_text = exec_summary.get("summary") or summary or "暂无摘要，建议结合现场客流、租金和商户经营状态核验。"
-    score_desc = exec_summary.get("score_explanation") or summary_text
+    # 优先使用 decision_snapshot.one_sentence 作为评分描述
+    score_desc = decision_snapshot.get("one_sentence") or exec_summary.get("score_explanation") or summary_text
     qr_html = f'<img class="qr" src="{_esc(brand_qr)}" alt="二维码">' if brand_qr else '<div class="qr empty"></div>'
 
     return f"""<!DOCTYPE html>
@@ -235,7 +325,7 @@ def _build_report_html(record_id: int, report_data: dict, address: str, brand_na
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>址得选 · AI选址分析报告 - {_esc(brand_name or address)}</title>
+<title>址得选 · 商业选址初筛报告 - {_esc(brand_name or address)}</title>
 <style>
   * {{ box-sizing: border-box; }}
   body {{ margin:0; background:#f7f9fc; color:#475569; font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",Arial,sans-serif; }}
@@ -279,7 +369,6 @@ def _build_report_html(record_id: int, report_data: dict, address: str, brand_na
   .poi-label {{ font-size:12px; color:#64748b; font-weight:800; margin-bottom:6px; }}
   .poi-value {{ font-size:18px; line-height:1.15; color:#0f172a; font-weight:900; font-variant-numeric:tabular-nums; }}
   .poi-sub {{ font-size:10px; color:#a8b0bd; margin-top:4px; }}
-  .poi-total {{ margin-top:4px; font-size:11px; color:#64748b; }}
   .note-line {{ text-align:center; color:#94a3b8; font-size:11px; margin-top:14px; }}
   .chain-card {{ background:#f0fdf4; border:1px solid #bbf7d0; border-radius:10px; margin-top:18px; padding:16px; text-align:center; }}
   .chain-card h3 {{ color:#047857; font-size:17px; }}
@@ -296,20 +385,22 @@ def _build_report_html(record_id: int, report_data: dict, address: str, brand_na
 </head>
 <body>
 <main class="page">
-  <h1 class="title">址得选 · AI选址分析报告</h1>
-  <div class="subtitle">商业选址数据决策平台 | 基于实时 POI 数据 + AI 多维度分析 | {datetime.now().strftime("%Y/%m/%d %H:%M")}</div>
+  <h1 class="title">址得选 · 商业选址初筛报告</h1>
+  <div class="subtitle">商业选址初筛参考 | 基于周边 POI 数据与选址规则 | 生成时间：{_esc(generated_display)}</div>
   <div class="rule"></div>
 
   <section class="info-box">
     <div class="info-row"><b>📍 分析地址</b>{_esc(address)}</div>
     <div class="info-row"><b>🏷️ 分析品牌</b>{_esc(brand_name or "-")}</div>
-    <div class="info-row"><b>🏪 选址业态</b>{_esc(business_type)}</div>
-    <div class="info-row"><b>📅 生成日期</b>{created_date}</div>
+    <div class="info-row"><b>🏪 选址业态</b>{_esc(business_type or "-")}</div>
+    <div class="info-row"><b>📅 生成时间</b>{_esc(generated_display)}</div>
     <div class="info-row"><b>🗺️ 所属区域</b>{_esc(city_line or "-")}</div>
   </section>
 
-  <div class="notice notice-yellow">⚠️ 本工具不提供“推荐/不推荐”结论，各维度评分仅供参考，最终决策请结合实地考察</div>
+  <div class="notice notice-yellow">⚠️ 本报告为选址初筛参考，不提供投资建议，各维度评分仅供参考，后续判断请结合实地考察</div>
   {warning_html}
+  {decision_html}
+  {suff_html}
 
   <section class="score-panel">
     <div>
@@ -328,17 +419,21 @@ def _build_report_html(record_id: int, report_data: dict, address: str, brand_na
     <div class="soft-card bad"><h2>⚠️ 主要风险</h2>{dis_html}</div>
   </section>
 
-  {f'<section class="section"><h2>📊 指标雷达与维度评分</h2><div class="dimension-wrap"><div></div><div class="metrics">{dim_cards}</div></div></section>' if dim_cards else ''}
+  {f'<section class="section"><h2>📊 关键维度评分</h2><div class="dimension-wrap"><div></div><div class="metrics">{dim_cards}</div></div></section>' if dim_cards else ''}
 
   {f'<section class="section"><h2>📊 周边真实数据（200m / 500m / 1000m 三层半径采集）</h2><div class="poi-grid">{poi_cards}</div>{notes_html}{comp_html}</section>' if poi_cards else ''}
 
   {f'<section class="section"><h2>📝 各维度详细分析</h2>{detail_blocks}</section>' if detail_blocks else ''}
 
-  {f'<section class="section"><h2>📋 选址分析与运营策略</h2><div class="detail-block" style="border-left-color:#ef4444">{action_html}</div></section>' if action_plan else ''}
+  {f'<section class="section disc-section"><h2>📌 营收测算说明</h2><p>以上为模型估算，不代表实际经营结果；需结合现场客流、租金、转让费、出餐能力和外卖能力复核。</p></section>' if detail_blocks else ''}
+
+  {checklist_html}
+
+  {f'<section class="section"><h2>💡 经营建议</h2><div class="detail-block" style="border-left-color:#ef4444">{action_html}</div></section>' if action_plan else ''}
 
   <section class="footer">
     <div>
-      <strong>址得选 · AI 选址分析报告</strong>
+      <strong>址得选 · 商业选址初筛报告</strong>
       <p>{_esc(footer_text)}<br>本报告由系统自动生成，仅供商业决策参考，不构成投资建议。</p>
     </div>
     <div>{qr_html}<div style="font-size:11px;text-align:center;color:#1f4aa8;font-weight:900;margin-top:8px;">扫码获取更多测算</div></div>

@@ -138,8 +138,14 @@ function _parseAnalyzeBody (bodyText) {
   let recordId = ''
   let sseError = ''
   let detail = ''
+  // P0-A 结构化错误字段
+  let sseRequestId = ''
+  let sseErrorStage = ''
+  let sseBillingSource = ''
+  let sseBillingStatus = ''  // not_charged / refund_pending / refunded / member_no_charge / unknown
 
-  if (!bodyText) return { steps, result, recordId, sseError, detail }
+  if (!bodyText) return { steps, result, recordId, sseError, detail,
+    sseRequestId, sseErrorStage, sseBillingSource, sseBillingStatus }
 
   // 尝试直接 JSON parse（非 SSE 错误响应如 402 会返回纯 JSON）
   if (bodyText.trim().startsWith('{')) {
@@ -151,12 +157,20 @@ function _parseAnalyzeBody (bodyText) {
         recordId = obj.result.record_id || ''
       }
       if (obj.step && obj.msg) {
-        if (obj.step === 'error') sseError = obj.msg
-        else steps.push({ step: obj.step, msg: obj.msg })
+        if (obj.step === 'error') {
+          sseError = obj.msg
+          sseRequestId = obj.request_id || ''
+          sseErrorStage = obj.error_stage || ''
+          sseBillingSource = obj.billing_source || ''
+          if (obj.billing_status) sseBillingStatus = obj.billing_status
+          else if (typeof obj.refunded === 'boolean') sseBillingStatus = obj.refunded ? 'refunded' : 'unknown'
+        } else {
+          steps.push({ step: obj.step, msg: obj.msg })
+        }
       }
-      // 如果有 detail 但无 SSE 结构，立即返回让上层处理
       if (detail && !result && steps.length === 0 && !sseError) {
-        return { steps, result, recordId, sseError, detail }
+        return { steps, result, recordId, sseError, detail,
+          sseRequestId, sseErrorStage, sseBillingSource, sseBillingStatus }
       }
     } catch (e) { /* 不是合法 JSON，继续 SSE 解析 */ }
   }
@@ -169,6 +183,11 @@ function _parseAnalyzeBody (bodyText) {
       const evt = JSON.parse(line.slice(6))
       if (evt.step === 'error') {
         sseError = evt.msg || '分析服务异常'
+        sseRequestId = evt.request_id || ''
+        sseErrorStage = evt.error_stage || ''
+        sseBillingSource = evt.billing_source || ''
+        if (evt.billing_status) sseBillingStatus = evt.billing_status
+        else if (typeof evt.refunded === 'boolean') sseBillingStatus = evt.refunded ? 'refunded' : 'unknown'
       } else if (typeof evt.step === 'number' && evt.msg) {
         steps.push({ step: evt.step, msg: evt.msg })
       }
@@ -179,7 +198,8 @@ function _parseAnalyzeBody (bodyText) {
     } catch (e) { /* skip non-JSON SSE lines */ }
   }
 
-  return { steps, result, recordId, sseError, detail }
+  return { steps, result, recordId, sseError, detail,
+    sseRequestId, sseErrorStage, sseBillingSource, sseBillingStatus }
 }
 
 function analyzeLocation (payload) {
@@ -196,12 +216,12 @@ function analyzeLocation (payload) {
       timeout: 120000,
       success (res) {
         const bodyText = _toTextBody(res.data)
-        const { steps, result, recordId, sseError, detail } = _parseAnalyzeBody(bodyText)
+        const { steps, result, recordId, sseError, detail,
+          sseRequestId, sseErrorStage, sseBillingSource, sseBillingStatus } = _parseAnalyzeBody(bodyText)
 
         if (res.statusCode === 401) {
           resolve({ ok: false, statusCode: 401, error: '登录已过期，请去「我的」重新登录', steps: [] })
         } else if (res.statusCode === 422) {
-          // ★ 422 Unprocessable Entity：FastAPI 参数校验失败
           let msg = '分析参数校验失败'
           try {
             const d = JSON.parse(bodyText || '{}').detail
@@ -223,19 +243,23 @@ function analyzeLocation (payload) {
         } else if (res.statusCode === 402) {
           const d = detail || '余额不足，请充值后重试'
           resolve({ ok: false, statusCode: 402, error: d, steps: [] })
+        } else if (sseError && !result) {
+          resolve({ ok: false, statusCode: res.statusCode, error: sseError, steps,
+            requestId: sseRequestId, errorStage: sseErrorStage,
+            billingSource: sseBillingSource, billingStatus: sseBillingStatus })
         } else if (res.statusCode >= 500) {
           resolve({ ok: false, statusCode: res.statusCode, error: '分析服务暂不可用，请稍后重试', steps: [] })
-        } else if (sseError && !result) {
-          resolve({ ok: false, statusCode: res.statusCode, error: sseError, steps })
         } else if (result) {
           resolve({ ok: true, statusCode: res.statusCode, steps, result, recordId, error: '' })
         } else {
-          resolve({ ok: false, statusCode: res.statusCode, error: sseError || '分析返回为空，请重试', steps })
+          resolve({ ok: false, statusCode: res.statusCode, error: sseError || '分析返回为空，请重试', steps,
+            requestId: sseRequestId, errorStage: sseErrorStage,
+            billingSource: sseBillingSource, billingStatus: sseBillingStatus })
         }
       },
       fail (err) {
         const msg = err.errMsg || err.message || ''
-        reject(msg.includes('timeout') ? '分析请求超时，请稍后重试' : '分析服务暂不可用，请稍后重试')
+        reject(msg.includes('timeout') ? '分析请求超时，请稍后重试' : (msg || '分析服务暂不可用，请稍后重试'))
       }
     })
   })

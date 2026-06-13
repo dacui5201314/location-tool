@@ -4,6 +4,8 @@ import re
 import asyncio
 import sys
 import uuid
+from datetime import datetime, timezone, timedelta
+CHINA_TZ = timezone(timedelta(hours=8))
 
 # ★ 启动保护：uvicorn 必须以 backend/ 为工作目录，否则 `from models.xxx` 会报 No module named 'models'
 _this_dir = os.path.dirname(os.path.abspath(__file__))
@@ -32,6 +34,9 @@ from database import init_db, SessionLocal, get_db
 from models.db_models import AnalysisRecord, User, BusinessIndustry
 from services.storage_service import save_report
 from services.billing_service import check_billing_access, refund_credits
+from services.report_quality_service import assess_data_sufficiency
+from services.report_decision_service import compute_decision_snapshot
+from services.substitute_pharmacy_filter import filter_substitute_pharmacy
 from services.runtime_config import get_config_value as get_runtime_config_value, get_llm_config, normalize_report_result
 from auth import get_current_user
 
@@ -47,7 +52,7 @@ from routers.location import router as location_router
 from routers.virtual_pay import router as virtual_pay_router
 from routers.feedback import router as feedback_router
 
-app = FastAPI(title="址得选 API", version="3.7.0", description="址得选 — AI 选址分析 SaaS 平台后端服务")
+app = FastAPI(title="址得选 API", version="3.7.0", description="址得选 — 选址分析 SaaS 平台后端服务")
 app.include_router(auth_router)
 app.include_router(records_router)
 app.include_router(favorites_router)
@@ -64,6 +69,49 @@ app.include_router(feedback_router)
 # ═══════════════════════════════════════════
 # 公开只读分享接口 — 替代 PDF 分享
 # ═══════════════════════════════════════════
+
+_REPORT_SHARE_STRIP_KEYS = {
+    "error", "provider", "request_id",
+    "fact_errors", "retry_errors", "fallback_errors",
+    "debug", "raw_prompt", "raw_response",
+    "token", "access_token", "refresh_token",
+    "openid", "open_id", "unionid", "wx_openid", "wx_unionid",
+    "phone", "phone_number", "mobile",
+    "billing", "billing_source", "billing_status",
+    "admin", "admin_id",
+    "user_id",
+}
+
+
+def _sanitize_report_for_share(report_json_str: str) -> str:
+    """脱敏报告 JSON：递归移除 _ 开头的 key、敏感字段。"""
+    try:
+        data = json.loads(report_json_str)
+    except (json.JSONDecodeError, TypeError):
+        return "{}"
+
+    def _clean(obj, depth=0):
+        if depth > 20:
+            return obj
+        if isinstance(obj, dict):
+            cleaned = {}
+            for k, v in obj.items():
+                # 移除 _ 开头的内部字段
+                if k.startswith("_"):
+                    continue
+                # 移除指定敏感 key
+                if k in _REPORT_SHARE_STRIP_KEYS:
+                    continue
+                cleaned[k] = _clean(v, depth + 1)
+            return cleaned
+        if isinstance(obj, list):
+            return [_clean(v, depth + 1) for v in obj]
+        return obj
+
+    cleaned = _clean(data) if isinstance(data, dict) else {}
+    return json.dumps(cleaned, ensure_ascii=False)
+
+
 @app.get("/api/reports/share/{share_token}")
 def get_shared_report(
     share_token: str,
@@ -92,7 +140,7 @@ def get_shared_report(
         "brand_desc": record.brand_desc or "",
         "overall_score": record.overall_score,
         "created_at": str(record.created_at) if record.created_at else "",
-        "report_json": record.report_json or "{}",
+        "report_json": _sanitize_report_for_share(record.report_json or "{}"),
     }
 
 
@@ -283,6 +331,18 @@ def _sse(step, msg, result=None):
     return f"data: {json.dumps(payload, ensure_ascii=False)}\n\n"
 
 
+def _sse_error(msg, request_id="", error_stage="", billing_source="",
+               billing_status="unknown", detail=""):
+    """构建 SSE 错误事件 — billing_status:
+    not_charged / refund_pending / refunded / member_no_charge / unknown"""
+    payload = {"step": "error", "msg": msg, "request_id": request_id,
+               "error_stage": error_stage, "billing_source": billing_source,
+               "billing_status": billing_status}
+    if detail:
+        payload["detail"] = detail
+    return f"data: {json.dumps(payload, ensure_ascii=False)}\n\n"
+
+
 def _filter_json_artifact_errors(fact_errors: list) -> list:
     """过滤因 JSON 序列化标点/数字泄露到分句产生的假阳性 fact_errors。
     JSON keys/values 在 json.dumps 后混入中文逗号分句中，导致
@@ -313,11 +373,17 @@ def _filter_json_artifact_errors(fact_errors: list) -> list:
 from report_fact_guard import validate_report_fact_consistency
 
 
+def _int_guard(v, default=0):
+    try: return int(v)
+    except: return default
+
+
 @app.post("/api/analyze")
 async def analyze_location(req: AnalyzeRequest, user: dict = Depends(get_current_user)):
     """SSE 流式选址分析 — 四步进度推送 + 最终报告 JSON"""
     current_user_id = user["user_id"]
     refund_idem_key = uuid.uuid4().hex[:16]  # 单次分析请求粒度幂等键
+    request_id = uuid.uuid4().hex[:12]  # 本次请求追踪ID
 
     # ── 前置计费校验（流开始前必须通过，失败直接返回 402）──
     billing = None
@@ -334,6 +400,7 @@ async def analyze_location(req: AnalyzeRequest, user: dict = Depends(get_current
         if not billing.allowed:
             db_billing.close()
             raise HTTPException(status_code=402, detail=billing.reason)
+        billing_source = billing.source  # "points" / "membership"
         # ★ P0修复：计费扣点延后到 AMap 采集成功后 commit，避免崩溃丢点
         # db_billing 在 event_stream 内 AMap 成功后 commit，失败则 rollback
     except HTTPException:
@@ -389,6 +456,11 @@ async def analyze_location(req: AnalyzeRequest, user: dict = Depends(get_current
                     config_key = BUSINESS_TYPE_TO_MASTER.get(req.business_type, "")
                 # competitor_type 也来自同一份 cfg
                 competitor_type = cfg.get("competitor_amap_types", "") or BUSINESS_TYPE_TO_AMAP.get(req.business_type, "")
+                rigor_enabled = bool(get_rigor_for_config_key(config_key))
+                print(f"[REQ] {request_id} user={current_user_id} bt={req.business_type} "
+                      f"industry_id={req.industry_id} brand={req.brand_name or '-'} "
+                      f"size={req.store_size or 0} lng={req.location.lng:.5f} lat={req.location.lat:.5f} "
+                      f"config_key={config_key} rigor={rigor_enabled}", flush=True)
                 ld = await collect_location_data(
                     req.location.lng, req.location.lat,
                     amap_type=competitor_type,
@@ -446,6 +518,22 @@ async def analyze_location(req: AnalyzeRequest, user: dict = Depends(get_current
                     "city_has_subway": ld.city_has_subway,
                     "subway_applicable": ld.subway_applicable,
                 }
+                # AMap 采集完成日志
+                print(f"[AMAP] {request_id} done "
+                      f"dc_200m={_int_guard(ld.direct_competitors_200m)} "
+                      f"dc_500m={_int_guard(ld.direct_competitors_500m)} "
+                      f"dc_1000m={_int_guard(ld.direct_competitors_1000m)} "
+                      f"sub_200m={_int_guard(ld.substitute_competitors_200m)} "
+                      f"sub_500m={_int_guard(ld.substitute_competitors_500m)} "
+                      f"anc_1000m={_int_guard(ld.traffic_anchors_1000m)} "
+                      f"res_500m={_int_guard(ld.stats_500m.get('residential', 0))} "
+                      f"school_500m={_int_guard(ld.stats_500m.get('schools', 0))} "
+                      f"office_500m={_int_guard(ld.stats_500m.get('office', 0))} "
+                      f"bus_500m={_int_guard(ld.stats_500m.get('bus', 0))} "
+                      f"subway_500m={_int_guard(ld.stats_500m.get('subway', 0))} "
+                      f"total_poi_1km={_int_guard(sum(ld.stats_1000m.values()))}", flush=True)
+                # ★ P0.5-final: 小餐饮替代消费过滤药店/医疗 POI
+                real_data = filter_substitute_pharmacy(real_data, req.business_type or "")
                 # ★ P0修复：AMap 采集成功 → 计费确认
                 try:
                     db_billing.commit()
@@ -513,7 +601,7 @@ async def analyze_location(req: AnalyzeRequest, user: dict = Depends(get_current
             # ═══════════════════════════════════════════
             if _amap_failed and not os.getenv("ALLOW_CLIENT_REALDATA_FALLBACK", "").strip().lower() in ("1", "true", "yes"):
                 raise RuntimeError("AMAP_DATA_COLLECTION_FAILED: 后端高德数据采集失败，无法生成有效分析报告。请检查 AMAP_WEB_KEY 配置。")
-            yield _sse(3, "🧠 AI 消费水平测算中，正在构建商业评估模型...")
+            yield _sse(3, "🧠 消费水平测算中，正在构建商业评估模型...")
             await asyncio.sleep(0)
 
             runtime_llm = get_llm_config()
@@ -618,7 +706,6 @@ async def analyze_location(req: AnalyzeRequest, user: dict = Depends(get_current
                     json.dumps(result.get("advantages", []), ensure_ascii=False) + " " +
                     json.dumps(result.get("disadvantages", []), ensure_ascii=False) + " " +
                     json.dumps(result.get("executive_summary", {}) or {}, ensure_ascii=False) + " " +
-                    json.dumps(result.get("action_plan", []), ensure_ascii=False) + " " +
                     str(result.get("summary", ""))
                 )
 
@@ -648,7 +735,7 @@ async def analyze_location(req: AnalyzeRequest, user: dict = Depends(get_current
                         fact_errors.append(f"[P3-COUNT] {issue}")
 
                 if fact_errors:
-                    print(f"[SSE Guard] 事实校验失败: {'; '.join(fact_errors)}", flush=True)
+                    print(f"[SSE Guard] {request_id} 事实校验失败 ({len(fact_errors)}条): {'; '.join(fact_errors[:10])}", flush=True)
                     _fact_guard_first_fail = True  # ★ C-4 统计
                     # ★ 内部免费重试一次：用同一份 real_data + fact_errors 摘要，要求 LLM 修正数字
                     _retry_attempted = True  # ★ C-4 统计
@@ -733,7 +820,6 @@ async def analyze_location(req: AnalyzeRequest, user: dict = Depends(get_current
                                     json.dumps(retry_result.get("advantages", []), ensure_ascii=False) + " " +
                                     json.dumps(retry_result.get("disadvantages", []), ensure_ascii=False) + " " +
                                     json.dumps(retry_result.get("executive_summary", {}) or {}, ensure_ascii=False) + " " +
-                                    json.dumps(retry_result.get("action_plan", []), ensure_ascii=False) + " " +
                                     str(retry_result.get("summary", ""))
                                 )
                                 retry_p0 = check_poi_name_hallucination(retry_full_text, real_data, strict=True)
@@ -765,7 +851,7 @@ async def analyze_location(req: AnalyzeRequest, user: dict = Depends(get_current
                                 result["_direct_competitor_count_warnings"] = retry_p3
                                 fact_errors = []
                             else:
-                                print(f"[SSE Guard] 重试仍失败: {'; '.join(retry_fe[:3])}", flush=True)
+                                print(f"[SSE Guard] {request_id} 重试仍失败 ({len(retry_fe)}条): {'; '.join(retry_fe[:10])}", flush=True)
                                 result["_fact_retry_failed"] = True
                                 result["_fact_errors_after_retry"] = retry_fe
                                 fact_errors = retry_fe  # ★ 最终 raise 使用 retry 后的错误
@@ -787,7 +873,7 @@ async def analyze_location(req: AnalyzeRequest, user: dict = Depends(get_current
                     if fact_errors:  # 重试未通过 → 进入兜底报告
                         _fact_guard_failed = True
                         print(f"[SSE Guard] LLM重试仍失败，启用兜底报告: {'; '.join(fact_errors[:3])}", flush=True)
-                        yield _sse("error", "AI报告未通过事实校验，正在生成数据摘要报告...")
+                        yield _sse("error", "报告生成异常，正在为您生成数据摘要...")
                         await asyncio.sleep(0)
 
                         from services.fallback_report_service import build_fallback_report
@@ -814,7 +900,6 @@ async def analyze_location(req: AnalyzeRequest, user: dict = Depends(get_current
                             json.dumps(fallback_result.get("advantages", []), ensure_ascii=False) + " " +
                             json.dumps(fallback_result.get("disadvantages", []), ensure_ascii=False) + " " +
                             json.dumps(fallback_result.get("executive_summary", {}) or {}, ensure_ascii=False) + " " +
-                            json.dumps(fallback_result.get("action_plan", []), ensure_ascii=False) + " " +
                             str(fallback_result.get("summary", ""))
                         )
                         fb_issues = validate_report_fact_consistency(fallback_result, real_data)
@@ -851,10 +936,29 @@ async def analyze_location(req: AnalyzeRequest, user: dict = Depends(get_current
                                     print("[CRITICAL] 兜底报告退款失败！", flush=True)
                                     traceback.print_exc()
                         else:
-                            print(f"[SSE Guard] 兜底报告未通过guard: {'; '.join(fb_issues[:3])}", flush=True)
+                            print(f"[SSE Guard] {request_id} 兜底报告未通过guard ({len(fb_issues)}条): {'; '.join(fb_issues[:10])}", flush=True)
                             _fact_guard_failed = True
-                            raise ValueError(f"REPORT_FACT_GUARD_FAILED: {'; '.join(fact_errors[:3])}")
+                            raise ValueError(f"REPORT_FACT_GUARD_FAILED: fallback_failed: {'; '.join(fb_issues[:5])}")
 
+            # ★ P0-B: 注入数据充分度 + 报告类型
+            _report_type = "fallback" if _fallback_triggered else ("retry" if _retry_success else "normal")
+            result["report_type"] = _report_type
+            result["business_type"] = req.business_type or result.get("business_type") or ""
+            result["generated_at"] = datetime.now(CHINA_TZ).strftime("%Y-%m-%d %H:%M")
+            result["data_sufficiency"] = assess_data_sufficiency(
+                real_data, business_type=req.business_type or "",
+                config_key=config_key, rigor_enabled=bool(get_rigor_for_config_key(config_key)),
+                is_fallback=_fallback_triggered)
+            # ★ P0.5-final: normal/retry 补齐 decision_snapshot（fallback 已有）
+            if not result.get("decision_snapshot") or not isinstance(result.get("decision_snapshot"), dict) or not result["decision_snapshot"].get("verdict"):
+                result["decision_snapshot"] = compute_decision_snapshot(
+                    result.get("score", 0), real_data,
+                    business_type=req.business_type or "",
+                    brand_name=req.brand_name or "",
+                    advantages=result.get("advantages"),
+                    disadvantages=result.get("disadvantages"),
+                    action_plan=result.get("action_plan"),
+                    is_fallback=_fallback_triggered)
             # 保存到数据库
             _db_save_ok = False
             db = SessionLocal()
@@ -957,65 +1061,113 @@ async def analyze_location(req: AnalyzeRequest, user: dict = Depends(get_current
         except json.JSONDecodeError:
             _llm_parse_error = True
             print("[SSE Error] JSON 解析失败，标记可退款", flush=True)
-            yield _sse("error", "AI 数据解析异常，请稍后重试")
+            _bs = "member_no_charge" if billing_source != "points" else "refund_pending"
+            yield _sse_error("分析结果解析异常，请稍后重试", request_id=request_id,
+                             error_stage="json_parse_failed",
+                             billing_source=billing_source,
+                             billing_status=_bs)
             await asyncio.sleep(0)
         except RuntimeError as e:
             msg = str(e)
             if msg.startswith("AMAP_DATA_COLLECTION_FAILED"):
                 print(f"[SSE Error] {msg}", flush=True)
-                yield _sse("error", "数据采集失败，请稍后重试")
+                yield _sse_error("数据采集失败，请稍后重试", request_id=request_id,
+                                 error_stage="amap_failed",
+                                 billing_source=billing_source,
+                                 billing_status="not_charged")
             elif msg.startswith("DB_SAVE_FAILED"):
+                _db_save_error = True
                 print(f"[SSE Error] {msg}", flush=True)
-                yield _sse("error", "报告保存失败，点数已自动退还")
+                _bs = "member_no_charge" if billing_source != "points" else "refund_pending"
+                yield _sse_error("报告保存失败，如已扣点系统将自动退回", request_id=request_id,
+                                 error_stage="db_save_failed",
+                                 billing_source=billing_source,
+                                 billing_status=_bs)
             else:
                 print(f"[SSE Error] RuntimeError: {msg}", flush=True)
-                yield _sse("error", "分析服务异常，请稍后重试")
+                yield _sse_error("分析服务异常，请稍后重试", request_id=request_id,
+                                 error_stage="unknown",
+                                 billing_source=billing_source,
+                                 billing_status="unknown")
             await asyncio.sleep(0)
         except ValueError as e:
             msg = str(e)
+            _bs = "member_no_charge" if billing_source != "points" else "refund_pending"
             if msg.startswith("REPORT_FACT_GUARD_FAILED:"):
                 _fact_guard_failed = True
                 print(f"[SSE Error] {msg}", flush=True)
-                yield _sse("error", "报告未通过事实校验，未保存异常报告；如已扣点会自动退还，请稍后重试")
+                yield _sse_error("报告生成异常，本次未保存；如已扣点系统将自动退回，请稍后重试",
+                                 request_id=request_id,
+                                 error_stage="fact_guard_failed",
+                                 billing_source=billing_source,
+                                 billing_status=_bs)
             elif msg.startswith("REPORT_PAYLOAD_INVALID:"):
                 _llm_parse_error = True
                 print(f"[SSE Error] {msg}", flush=True)
-                yield _sse("error", "AI 数据解析异常，请稍后重试")
+                yield _sse_error("分析结果解析异常，请稍后重试", request_id=request_id,
+                                 error_stage="payload_invalid",
+                                 billing_source=billing_source,
+                                 billing_status=_bs)
             elif msg.startswith("REPORT_JSON_PARSE_FAILED:"):
                 _llm_parse_error = True
                 print(f"[SSE Error] JSON 解析失败: {msg}", flush=True)
-                yield _sse("error", "AI 数据解析异常，请稍后重试")
+                yield _sse_error("分析结果解析异常，请稍后重试", request_id=request_id,
+                                 error_stage="json_parse_failed",
+                                 billing_source=billing_source,
+                                 billing_status=_bs)
             else:
                 _llm_parse_error = True
                 print(f"[SSE Error] 报告结构校验失败: {e}", flush=True)
-                yield _sse("error", "AI 数据解析异常，请稍后重试")
+                yield _sse_error("分析结果解析异常，请稍后重试", request_id=request_id,
+                                 error_stage="payload_invalid",
+                                 billing_source=billing_source,
+                                 billing_status=_bs)
             await asyncio.sleep(0)
         except Exception as e:
             ename = type(e).__name__
             emsg = str(e)[:200]
-            # 安全错误分类：不泄露 key/请求内容
+            _bs_pts = "member_no_charge" if billing_source != "points" else "refund_pending"
             if ename == "HTTPStatusError" and hasattr(e, 'response'):
                 sc = e.response.status_code if hasattr(e.response, 'status_code') else 0
                 if 400 <= sc < 500:
                     _llm_parse_error = True
                     print(f"[SSE Error] LLM HTTP {sc}", flush=True)
-                    yield _sse("error", "AI 服务配置异常，请联系管理员")
+                    yield _sse_error("分析服务配置异常，本次未生成报告；如已扣点系统将自动退回，请联系管理员",
+                                     request_id=request_id,
+                                     error_stage="llm_http_error",
+                                     billing_source=billing_source,
+                                     billing_status=_bs_pts)
                 elif sc >= 500:
                     _llm_server_error = True
                     print(f"[SSE Error] LLM 服务端 {sc}", flush=True)
-                    yield _sse("error", "AI 服务暂不可用，请稍后重试")
+                    yield _sse_error("分析服务暂不可用，请稍后重试", request_id=request_id,
+                                     error_stage="llm_http_error",
+                                     billing_source=billing_source,
+                                     billing_status=_bs_pts)
                 else:
                     print(f"[SSE Error] LLM HTTP {sc}", flush=True)
-                    yield _sse("error", "分析服务异常，请稍后重试")
+                    yield _sse_error("分析服务异常，请稍后重试", request_id=request_id,
+                                     error_stage="unknown",
+                                     billing_source=billing_source,
+                                     billing_status="unknown")
             elif "timeout" in emsg.lower() or ename == "TimeoutException":
                 print(f"[SSE Error] LLM timeout", flush=True)
-                yield _sse("error", "AI 服务响应超时，请稍后重试")
+                yield _sse_error("分析服务响应超时，请稍后重试", request_id=request_id,
+                                 error_stage="llm_timeout",
+                                 billing_source=billing_source,
+                                 billing_status=_bs_pts)
             elif "connect" in emsg.lower() or ename == "ConnectError":
                 print(f"[SSE Error] LLM connect failed", flush=True)
-                yield _sse("error", "AI 服务连接失败，请检查网络或配置")
+                yield _sse_error("分析服务连接失败，请检查网络或配置", request_id=request_id,
+                                 error_stage="llm_connect_error",
+                                 billing_source=billing_source,
+                                 billing_status=_bs_pts)
             else:
                 print(f"[SSE Error] {ename}: {emsg}", flush=True)
-                yield _sse("error", "分析服务异常，请稍后重试")
+                yield _sse_error("分析服务异常，请稍后重试", request_id=request_id,
+                                 error_stage="unknown",
+                                 billing_source=billing_source,
+                                 billing_status="unknown")
             await asyncio.sleep(0)
         finally:
             # ★ 退款收口：LLM/JSON/DB/Fact Guard 失败 → 点数模式退款（幂等保护）
