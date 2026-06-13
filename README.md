@@ -46,6 +46,7 @@ location-tool/
 │   ├── requirements.txt               # Python 依赖
 │   ├── main.py                        # FastAPI 入口 + SSE 端点 + 全局异常处理
 │   ├── auth.py                        # JWT 鉴权
+│   ├── config.py                      # 统一配置中心
 │   ├── database.py                    # SQLAlchemy 引擎 + WAL 模式
 │   ├── report_fact_guard.py           # 报告事实校验（纯函数，188 条测试）
 │   ├── ai_providers/                  # 大模型适配层（6 家厂商，统一入口 unified.py）
@@ -60,6 +61,7 @@ location-tool/
 │   ├── src/components/                # 组件（address-input / industry-picker / tab panels）
 │   ├── src/utils/                     # API 客户端 / 认证 / 格式化工具
 │   └── package.json
+├── miniprogram/                       # 原生微信小程序（登录参考 scaffold）
 └── logo-1/                            # 品牌素材
 ```
 
@@ -351,9 +353,15 @@ curl http://localhost:8000/api/health
 
 ### 运行测试
 
-**本地开发**：
+**本地开发（推荐使用项目虚拟环境）**：
 
 ```bash
+# 首次：创建虚拟环境并安装依赖
+cd C:\Users\admin\location-tool
+uv venv backend\.venv --python 3.12
+uv pip install --python backend\.venv\Scripts\python.exe -r backend\requirements.txt
+
+# 回归测试（每次改动后必须全部通过）
 cd backend
 .venv\Scripts\python.exe -m compileall . -x ".*\\.venv.*"
 .venv\Scripts\python.exe tests\check_report_fact_guard.py
