@@ -1,0 +1,44 @@
+# 址得选 位置基本面 YAML Schema v2026-06-15
+
+schema_version: "2026-06-15.v1"
+
+required_top_fields:
+  - model_version
+  - location_types
+  - labels
+  - school_anchor_breakdown
+
+location_profile_output:
+  required:
+    - primary_type
+    - secondary_tags
+    - label
+    - summary
+    - core_anchors
+    - strengths
+    - weaknesses
+    - evidence
+  optional:
+    - suitable_business_families
+    - cautious_business_families
+
+evidence:
+  required:
+    - schools_500m
+    - residential_500m
+    - office_500m
+    - bus_500m
+    - subway_500m
+    - school_anchor_breakdown
+
+school_anchor_breakdown_output:
+  required:
+    - total
+    - breakdown
+  breakdown_keys:
+    - elementary
+    - kindergarten
+    - middle_high
+    - university
+    - training
+    - unknown

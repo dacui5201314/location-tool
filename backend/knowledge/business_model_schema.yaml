@@ -1,0 +1,59 @@
+# 址得选 生意模型 YAML Schema v2026-06-15
+# 所有 backend/knowledge/business_models/*.yaml 必须通过此 schema 校验
+
+schema_version: "2026-06-15.v1"
+
+required_top_fields:
+  - model_id
+  - model_version
+  - display_name
+  - coverage
+  - competition
+  - demand_sources
+  - key_time_windows
+  - hard_gates
+  - fit_signals
+  - red_flags
+  - revenue_model
+  - data_blind_spots
+  - forbidden_misreadings
+  - sources
+  - last_reviewed
+  - owner
+
+competition:
+  required:
+    - type
+    - zero_competitor_policy
+    - hidden_competitor_risk
+  type_enum:
+    - "排斥型"
+    - "半聚集型"
+    - "聚集型"
+    - "中性型"
+    - "暗竞品型"
+
+coverage:
+  required:
+    - backend_rule_groups
+    - keywords
+  optional:
+    - frontend_business_types
+
+demand_sources_item:
+  required:
+    - name
+    - weight
+    - trigger
+
+revenue_model:
+  required:
+    - unit_logic
+    - disclaimer
+    - no_estimate_disclaimer
+
+sources_item:
+  required:
+    - id
+    - type
+    - confidence

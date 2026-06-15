@@ -81,7 +81,7 @@ def test_school_classification():
         ("宝鸡中学", "middle_high"),
         ("宝鸡文理学院", "university"),
         ("新东方培训中心", "training"),
-        ("某某学校", "unknown_school"),
+        ("某某学校", "unknown"),
         ("未知机构", "unknown"),
     ]
     for name, expected in cases:

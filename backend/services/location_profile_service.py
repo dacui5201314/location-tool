@@ -47,9 +47,6 @@ def _classify_school(name: str) -> str:
     for kw in _TRAINING_KW:
         if kw in n:
             return "training"
-    # 兜底：包含"学校"但无法细分的
-    if "学校" in n or "校" in n:
-        return "unknown_school"
     return "unknown"
 
 

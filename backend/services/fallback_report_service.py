@@ -118,7 +118,7 @@ def build_fallback_report(real_data: dict, address: str = "",
         # P1: 小吃快餐 200m 0竞品但远场多时，不能机械写竞争压力小
         if family_adv == "snack_fast_food" and dc_200 == 0 and (dc_1000 >= 8 or restaurants_1k >= 40):
             advantages.append(
-                f"200m 内同品类供给较少，但 1000m 同类门店 {dc_200} 家、餐饮 {restaurants_1k} 家，"
+                f"200m 内同品类供给较少，但 1000m 同类门店 {dc_1000} 家、餐饮 {restaurants_1k} 家，"
                 f"需核验近场空档是否由低客流导致；只有低租金小档口模型才有继续考察价值"
             )
         # P1: 教育托管 0 竞品 → 不能写"竞争压力小"，必须提示暗竞品
@@ -452,18 +452,20 @@ def build_fallback_report(real_data: dict, address: str = "",
         rigor_enabled=bool(real_data.get("rigor_enabled", False)),
         is_fallback=True, brand_name=brand_name, category=_category)
 
-    # ── P0-A: data_boundary ──
+    # ── P0-A: data_boundary（含保守版价值说明）──
     data_boundary = (
         "数据来源：高德地图POI采集 + 系统规则分析。"
         "覆盖范围：以选址点为中心1000米半径。"
         "数据可能存在更新延迟，店铺经营状态以实际为准。"
         "本报告仅用于选址初筛参考，不替代现场调研、租金测算和实际商业判断。"
+        " 虽为保守版，但已基于周边真实数据给出初筛判断和现场核验任务；"
+        "深度经营测算需补充租金、生源、合规和经营数据后生成。"
     )
 
-    # ── P1: revenue_disclaimer ──
-    from services.report_enrichment_service import _build_revenue_disclaimer
+    # ── P1: revenue_disclaimer（fallback 无实际营收测算，使用 no_estimate 口径）──
+    from services.report_enrichment_service import _build_no_estimate_disclaimer
     rev_family = classify_business_model_family(business_type, brand_name, _category)
-    revenue_disclaimer = _build_revenue_disclaimer(rev_family)
+    revenue_disclaimer = _build_no_estimate_disclaimer(rev_family)
 
     return {
         # 旧字段（兼容）

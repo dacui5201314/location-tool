@@ -347,6 +347,13 @@ def test_snack_food_summary_sync_and_top_strength():
     assert "近场" in cn or "空档" in cn or "低客流" in cn or "远场" in cn, \
         f"competitor_note 应与 top_strength 口径一致: {cn[:100]}"
 
+    # 5. 显示数字必须用 dc_1000=12，不得误用 dc_200=0
+    advantage_text = " ".join(str(a) for a in (report.get("advantages") or []))
+    assert "同类门店 12 家" in advantage_text or "同类门店 12" in advantage_text, \
+        f"advantages应显示dc_1000=12，实际: {advantage_text[:120]}"
+    assert "同类门店 0 家" not in advantage_text, \
+        f"advantages不得显示dc_200=0: {advantage_text[:120]}"
+
     print("T5b snack food summary sync + top_strength aligned: PASS")
 
 
@@ -682,26 +689,30 @@ def test_enrichment_all_modules():
 def test_revenue_disclaimer_per_family():
     from services.fallback_report_service import build_fallback_report
 
-    # 小吃快餐: 应包含出餐/外卖
+    # 小吃快餐 fallback → 无实际测算，使用 no_estimate 口径
     r1 = build_fallback_report(_base_rd(
         direct_competitors_500m=3, direct_competitors_1000m=8,
     ), address="test", business_type="小吃快餐", brand_name="砂锅小吃", store_size=50)
     assert "revenue_disclaimer" in r1
-    assert "出餐" in r1["revenue_disclaimer"] or "外卖" in r1["revenue_disclaimer"]
+    rd1 = r1["revenue_disclaimer"]
+    assert "以上为模型估算" not in rd1, f"fallback无测算不应写模型估算: {rd1[:60]}"
+    assert "未生成营收测算" in rd1, f"应包含未生成营收测算: {rd1[:60]}"
 
-    # 教育托管: 不应包含出餐/外卖
+    # 教育托管 fallback → 无实际测算，使用 no_estimate 口径
     r2 = build_fallback_report(_base_rd(**_EDUCATION_RD), address="test",
                                business_type="教育培训", brand_name="小学生托管", store_size=100)
     assert "revenue_disclaimer" in r2
-    assert "出餐" not in r2["revenue_disclaimer"]
-    assert "外卖" not in r2["revenue_disclaimer"]
-    assert "目标小学" in r2["revenue_disclaimer"] or "生源" in r2["revenue_disclaimer"]
+    rd2 = r2["revenue_disclaimer"]
+    assert "以上为模型估算" not in rd2, f"fallback无测算不应写模型估算: {rd2[:60]}"
+    assert "未生成营收测算" in rd2, f"应包含未生成营收测算: {rd2[:60]}"
+    assert "出餐" not in rd2
+    assert "外卖" not in rd2
 
-    # 酒店
+    # 酒店 fallback → 无实际测算
     r3 = build_fallback_report(_base_rd(), address="test",
                                business_type="酒店", brand_name="汉庭", store_size=2000)
     assert "revenue_disclaimer" in r3
-    assert "入住率" in r3["revenue_disclaimer"] or "ADR" in r3["revenue_disclaimer"] or "OTA" in r3["revenue_disclaimer"]
+    assert "未生成营收测算" in r3["revenue_disclaimer"]
 
     print("T16 revenue_disclaimer per family: PASS")
 
