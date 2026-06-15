@@ -133,9 +133,16 @@ def test_conservative_note_no_duplicate():
 def test_source_card_schema():
     schema = _load_yaml(os.path.join(KNOWLEDGE_DIR, "source_card_schema.yaml"))
     required = schema["required_fields"]
-    _validate_required(schema, ["schema_version","required_fields","source_type_enum","confidence_enum"], "source_card_schema.yaml")
+    _validate_required(schema, ["schema_version","required_fields","source_type_enum",
+                                "confidence_enum","internal_source_types",
+                                "external_source_types","external_compliance_fields"],
+                       "source_card_schema.yaml")
     assert "source_id" in required
     assert "source_type" in required
+    # 外部来源类型必须是 source_type_enum 子集
+    ext_types = set(schema["external_source_types"])
+    all_types = set(schema["source_type_enum"])
+    assert ext_types.issubset(all_types), f"external types not subset: {ext_types - all_types}"
     print("T5 source_card_schema.yaml validates: PASS")
 
 
@@ -270,6 +277,74 @@ def test_distilled_rules_traceable():
     print("T11 distilled rules traceable to YAMLs: PASS")
 
 
+# ═══════════════ T12: 外部来源类型必须有合规字段 ═══════════════
+def test_external_source_compliance():
+    schema = _load_yaml(os.path.join(KNOWLEDGE_DIR, "source_card_schema.yaml"))
+    external_types = set(schema["external_source_types"])
+    compliance_fields = set(schema["external_compliance_fields"])
+    sources_dir = os.path.join(KNOWLEDGE_DIR, "sources")
+    cards = [f for f in os.listdir(sources_dir)
+             if f.endswith(".yaml") and f != "source_manifest.yaml"]
+
+    for fname in sorted(cards):
+        card = _load_yaml(os.path.join(sources_dir, fname))
+        st = card.get("source_type", "")
+        if st not in external_types:
+            continue  # internal source, skip
+        has_compliance = any(
+            card.get(field) for field in compliance_fields
+        )
+        assert has_compliance, (
+            f"sources/{fname}: external type '{st}' must have one of {compliance_fields}"
+        )
+
+    # 现有 internal_sample/product_review 卡应继续通过
+    internal_families = set(schema["internal_source_types"])
+    for fname in cards:
+        card = _load_yaml(os.path.join(sources_dir, fname))
+        st = card.get("source_type", "")
+        # 确保 internal 类型不需要合规字段也能通过
+        if st in internal_families:
+            pass  # 无合规要求，通过
+
+    print("T12 external source compliance: PASS")
+
+
+# ═══════════════ T13: source_id 一致性 ─═
+def test_source_id_uniqueness():
+    manifest = _load_yaml(os.path.join(KNOWLEDGE_DIR, "sources", "source_manifest.yaml"))
+    sources_dir = os.path.join(KNOWLEDGE_DIR, "sources")
+    cards = [f for f in os.listdir(sources_dir)
+             if f.endswith(".yaml") and f != "source_manifest.yaml"]
+
+    manifest_ids = set()
+    for src in manifest.get("sources", []):
+        sid = src.get("source_id", "")
+        assert sid, "manifest entry missing source_id"
+        assert sid not in manifest_ids, f"duplicate source_id in manifest: {sid}"
+        manifest_ids.add(sid)
+
+    card_ids = set()
+    for fname in cards:
+        card = _load_yaml(os.path.join(sources_dir, fname))
+        sid = card.get("source_id", "")
+        assert sid, f"sources/{fname} missing source_id"
+        assert sid not in card_ids, f"duplicate source_id among cards: {sid}"
+        card_ids.add(sid)
+
+    # manifest 中引用的 source_id 必须在独立卡中存在，或标记 inline_manifest_only
+    for src in manifest.get("sources", []):
+        sid = src["source_id"]
+        in_cards = sid in card_ids
+        inline_only = src.get("inline_manifest_only", False)
+        assert in_cards or inline_only, (
+            f"source_id '{sid}' in manifest not found in any card file; "
+            f"add inline_manifest_only: true or create card file"
+        )
+
+    print(f"T13 source_id uniqueness: manifest={len(manifest_ids)}, cards={len(card_ids)} PASS")
+
+
 if __name__ == "__main__":
     test_location_profiles_yaml()
     test_business_model_yamls()
@@ -282,5 +357,7 @@ if __name__ == "__main__":
     test_missing_fields_on_new_yamls()
     test_distilled_source_cards()
     test_distilled_rules_traceable()
+    test_external_source_compliance()
+    test_source_id_uniqueness()
     print()
     print("ALL KNOWLEDGE SCHEMA TESTS PASSED")

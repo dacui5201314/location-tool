@@ -1,6 +1,7 @@
 # 址得选 来源卡 Schema v2026-06-15
+# Phase 1.5: 新增外部来源合规字段
 
-schema_version: "2026-06-15.v1"
+schema_version: "2026-06-15.v2"
 
 required_fields:
   - source_id
@@ -15,8 +16,9 @@ source_type_enum:
   - "rule_seed"
   - "product_review"
   - "report_summary"
+  - "book"
+  - "official_public"
   - "interview"
-  - "official_doc"
 
 confidence_enum:
   - "A"
@@ -26,3 +28,25 @@ confidence_enum:
 extracted_rules_required:
   - demand_sources
   - red_flags
+
+# ── Phase 1.5: 外部来源合规字段 ──
+# internal_source_types: 内部来源，不需要合规字段
+internal_source_types:
+  - "internal_sample"
+  - "rule_seed"
+  - "product_review"
+
+# external_source_types: 外部来源，必须填写合规说明
+external_source_types:
+  - "report_summary"
+  - "book"
+  - "official_public"
+  - "interview"
+
+# 外部来源必须至少包含以下之一：
+external_compliance_fields:
+  - "copyright_note"        # 版权来源说明（书名/作者/出版社/URL/文号）
+  - "derived_rule_only"     # 仅保留自己提炼的抽象规则，不含原文
+
+# source_quote_policy: 可选，说明摘录边界
+# evidence_level: 可选，A=可量化验证 / B=行业通行 / C=单来源推测

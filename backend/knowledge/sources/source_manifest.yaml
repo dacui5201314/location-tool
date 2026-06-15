@@ -20,6 +20,7 @@ sources:
     source_type: "internal_sample"
     title: "宝鸡九悦香都小学生托管报告复盘"
     confidence: "A"
+    inline_manifest_only: true
     applicable_models: ["education_childcare"]
     extracted_rules:
       demand_sources:
@@ -31,6 +32,7 @@ sources:
     source_type: "rule_seed"
     title: "茶饮咖啡选址抽象规则"
     confidence: "B"
+    inline_manifest_only: true
     applicable_models: ["beverage_dessert"]
     extracted_rules:
       demand_sources:
@@ -43,6 +45,7 @@ sources:
     source_type: "rule_seed"
     title: "便利超市选址抽象规则"
     confidence: "B"
+    inline_manifest_only: true
     applicable_models: ["retail_convenience"]
     extracted_rules:
       demand_sources:
@@ -54,6 +57,7 @@ sources:
     source_type: "rule_seed"
     title: "美业健身宠物选址抽象规则"
     confidence: "B"
+    inline_manifest_only: true
     applicable_models: ["service_beauty"]
     extracted_rules:
       demand_sources:
