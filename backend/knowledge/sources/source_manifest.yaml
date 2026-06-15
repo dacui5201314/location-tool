@@ -1,6 +1,6 @@
 # 址得选 来源清单 v2026-06-15
-# 仅收录 internal_sample / rule_seed / product_review 来源
-# 不伪造外部书籍或报告来源
+# 收录 internal_sample / rule_seed / product_review 及已合规蒸馏的外部来源
+# 外部来源仅保留 derived_rule_only 规则，不保存原文或下载来源元数据
 
 manifest_version: "2026-06-15.v1"
 

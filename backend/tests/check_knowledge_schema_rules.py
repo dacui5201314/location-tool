@@ -154,7 +154,10 @@ def test_source_manifest():
     type_enum = schema["source_type_enum"]
     conf_enum = schema["confidence_enum"]
     for src in manifest.get("sources", []):
-        _validate_required(src, required, f"source/{src.get('source_id','?')}")
+        inline_only = src.get("inline_manifest_only", False)
+        # inline_manifest_only 条目的完整数据在独立 card 文件中，manifest 只存元数据
+        req = required if not inline_only else ["source_id","source_type","title","confidence","inline_manifest_only"]
+        _validate_required(src, req, f"source/{src.get('source_id','?')}")
         assert src["source_type"] in type_enum, f"{src['source_id']}: type '{src['source_type']}'"
         assert src["confidence"] in conf_enum, f"{src['source_id']}: confidence '{src['confidence']}'"
     print(f"T6 source_manifest: {len(manifest['sources'])} sources all valid PASS")
@@ -220,10 +223,12 @@ def test_missing_fields_on_new_yamls():
     print("T9 missing fields on new YAMLs correctly fails: PASS")
 
 
-# ═══════════════ T10: 蒸馏来源卡满足 schema ═══════════════
+# ═══════════════ T10: 蒸馏来源卡满足 schema + 合规校验 ═══════════════
 def test_distilled_source_cards():
     schema = _load_yaml(os.path.join(KNOWLEDGE_DIR, "source_card_schema.yaml"))
     required = schema["required_fields"]
+    external_types = set(schema["external_source_types"])
+    compliance_fields = set(schema["external_compliance_fields"])
     sources_dir = os.path.join(KNOWLEDGE_DIR, "sources")
     cards = [f for f in os.listdir(sources_dir)
              if f.endswith(".yaml") and f != "source_manifest.yaml"]
@@ -231,21 +236,41 @@ def test_distilled_source_cards():
 
     for fname in sorted(cards):
         card = _load_yaml(os.path.join(sources_dir, fname))
+        st = card.get("source_type", "")
         _validate_required(card, required, f"sources/{fname}")
-        assert card["source_type"] in schema["source_type_enum"], \
-            f"sources/{fname}: type '{card['source_type']}' invalid"
-        assert card["confidence"] in schema["confidence_enum"], \
-            f"sources/{fname}: confidence '{card['confidence']}' invalid"
-        # 每条规则：dict 必须有 'rule' 键；str 直接作为 rule 内容
+        assert st in schema["source_type_enum"], f"sources/{fname}: type '{st}'"
+
+        # 外部来源：必须 derived_rule_only=true 或 copyright_note 非空
+        if st in external_types:
+            has_compliance = any(card.get(f) for f in compliance_fields)
+            assert has_compliance, (
+                f"sources/{fname}: external type '{st}' missing {compliance_fields}"
+            )
+            # derived_rule_only 如存在必须为 true
+            if "derived_rule_only" in card:
+                assert card["derived_rule_only"] is True, (
+                    f"sources/{fname}: derived_rule_only must be true, got {card['derived_rule_only']}"
+                )
+
+        # 所有规则：dict 必须有 'rule' 键；str 直接作为 rule 内容
         rules = card.get("extracted_rules", {})
-        for section in ["red_flags", "data_blind_spots"]:
+        for section in ["red_flags", "data_blind_spots", "demand_sources",
+                        "fit_signals", "field_checklist_additions", "forbidden_misreadings"]:
             for item in rules.get(section, []):
                 if isinstance(item, dict):
                     assert "rule" in item, f"sources/{fname}/{section}: dict missing 'rule'"
-                elif not isinstance(item, str):
-                    assert False, f"sources/{fname}/{section}: item must be dict or str"
+                    # 不得出现长段原文（rule + caveat 合计不超过 300 字）
+                    full_text = item.get("rule", "") + item.get("caveat", "")
+                    assert len(full_text) < 300, (
+                        f"sources/{fname}/{section}: rule text too long ({len(full_text)} chars), "
+                        f"可能是原文复制"
+                    )
+                elif isinstance(item, str):
+                    assert len(item) < 300, (
+                        f"sources/{fname}/{section}: str item too long ({len(item)} chars)"
+                    )
 
-    print(f"T10 {len(cards)} distilled source cards satisfy schema: PASS")
+    print(f"T10 {len(cards)} distilled source cards satisfy schema + compliance: PASS")
 
 
 # ═══════════════ T11: 蒸馏规则可追溯回已有 YAML ═══════════════
