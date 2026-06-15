@@ -277,37 +277,58 @@ def test_distilled_rules_traceable():
     print("T11 distilled rules traceable to YAMLs: PASS")
 
 
-# ═══════════════ T12: 外部来源类型必须有合规字段 ═══════════════
+# ═══════════════ T12: 外部来源（独立卡 + manifest inline）合规 ═══════════════
 def test_external_source_compliance():
     schema = _load_yaml(os.path.join(KNOWLEDGE_DIR, "source_card_schema.yaml"))
     external_types = set(schema["external_source_types"])
     compliance_fields = set(schema["external_compliance_fields"])
     sources_dir = os.path.join(KNOWLEDGE_DIR, "sources")
+
+    # (a) 独立 source card 文件
     cards = [f for f in os.listdir(sources_dir)
              if f.endswith(".yaml") and f != "source_manifest.yaml"]
-
     for fname in sorted(cards):
         card = _load_yaml(os.path.join(sources_dir, fname))
         st = card.get("source_type", "")
         if st not in external_types:
-            continue  # internal source, skip
-        has_compliance = any(
-            card.get(field) for field in compliance_fields
-        )
+            continue
+        has_compliance = any(card.get(f) for f in compliance_fields)
         assert has_compliance, (
             f"sources/{fname}: external type '{st}' must have one of {compliance_fields}"
         )
 
-    # 现有 internal_sample/product_review 卡应继续通过
-    internal_families = set(schema["internal_source_types"])
-    for fname in cards:
-        card = _load_yaml(os.path.join(sources_dir, fname))
-        st = card.get("source_type", "")
-        # 确保 internal 类型不需要合规字段也能通过
-        if st in internal_families:
-            pass  # 无合规要求，通过
+    # (b) source_manifest 中的 inline_manifest_only 来源
+    manifest = _load_yaml(os.path.join(sources_dir, "source_manifest.yaml"))
+    for src in manifest.get("sources", []):
+        st = src.get("source_type", "")
+        if st not in external_types:
+            continue
+        has_compliance = any(src.get(f) for f in compliance_fields)
+        assert has_compliance, (
+            f"manifest source_id={src.get('source_id','?')}: "
+            f"external type '{st}' must have one of {compliance_fields}"
+        )
 
-    print("T12 external source compliance: PASS")
+    # (c) 构造型负向测试：manifest 中的外部来源缺合规必失败
+    broken_manifest = {
+        "source_id": "test_book_001",
+        "source_type": "book",
+        "title": "测试书籍来源",
+        "confidence": "B",
+        "applicable_models": ["snack_fast_food"],
+        "extracted_rules": {"demand_sources": [], "red_flags": []},
+    }
+    failed = False
+    try:
+        st = broken_manifest["source_type"]
+        if st in external_types:
+            if not any(broken_manifest.get(f) for f in compliance_fields):
+                raise AssertionError("missing compliance for external type")
+    except AssertionError:
+        failed = True
+    assert failed, "book type without copyright_note/derived_rule_only should fail"
+
+    print("T12 external source compliance (cards + manifest inline + negative): PASS")
 
 
 # ═══════════════ T13: source_id 一致性 ─═
