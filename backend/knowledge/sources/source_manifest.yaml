@@ -1,0 +1,73 @@
+# 址得选 来源清单 v2026-06-15
+# 仅收录 internal_sample / rule_seed / product_review 来源
+# 不伪造外部书籍或报告来源
+
+manifest_version: "2026-06-15.v1"
+
+sources:
+  - source_id: "internal_sample_001"
+    source_type: "internal_sample"
+    title: "宝鸡九悦香都砂锅小吃报告复盘"
+    confidence: "A"
+    applicable_models: ["snack_fast_food"]
+    extracted_rules:
+      demand_sources:
+        - "学校午市可作为核心需求，但必须检查寒暑假断崖风险"
+      red_flags:
+        - "高租金+弱晚餐+弱外卖同时出现时不应作为优先候选点"
+
+  - source_id: "internal_sample_002"
+    source_type: "internal_sample"
+    title: "宝鸡九悦香都小学生托管报告复盘"
+    confidence: "A"
+    applicable_models: ["education_childcare"]
+    extracted_rules:
+      demand_sources:
+        - "托管核心竞争力是周边小学距离、放学动线和家长接送条件"
+      red_flags:
+        - "POI 0 竞品不等于没有暗竞品，家庭式托管/小饭桌大多未收录"
+
+  - source_id: "rule_seed_001"
+    source_type: "rule_seed"
+    title: "茶饮咖啡选址抽象规则"
+    confidence: "B"
+    applicable_models: ["beverage_dessert"]
+    extracted_rules:
+      demand_sources:
+        - "茶饮咖啡重度依赖步行客流和门头曝光"
+        - "外卖平台品牌势能和月销是关键竞争维度"
+      red_flags:
+        - "步行客流不足且外卖已有多家强势品牌时不应推进"
+
+  - source_id: "rule_seed_002"
+    source_type: "rule_seed"
+    title: "便利超市选址抽象规则"
+    confidence: "B"
+    applicable_models: ["retail_convenience"]
+    extracted_rules:
+      demand_sources:
+        - "便利超市做社区最后一公里，核心看住宅密度和主出入口动线"
+      red_flags:
+        - "住宅数量高但入住率低或动线不经过时不应推荐"
+
+  - source_id: "rule_seed_003"
+    source_type: "rule_seed"
+    title: "美业健身宠物选址抽象规则"
+    confidence: "B"
+    applicable_models: ["service_beauty"]
+    extracted_rules:
+      demand_sources:
+        - "美业/宠物/健身做 3km 内会员储值生意，核心看中高消费力住宅"
+      red_flags:
+        - "0 POI 竞品可能是低收录导致，工作室/个人店大多未被 POI 收录"
+
+  - source_id: "product_review_001"
+    source_type: "product_review"
+    title: "址得选 v4.1 P1 报告产品复盘"
+    confidence: "A"
+    applicable_models: ["snack_fast_food", "education_childcare"]
+    extracted_rules:
+      demand_sources: []
+      red_flags:
+        - "不能把餐饮门店多作为所有业态通用优势"
+        - "不能把 0 竞品机械写成强优势"

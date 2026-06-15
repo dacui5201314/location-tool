@@ -1,0 +1,87 @@
+# 址得选 茶饮烘焙生意模型 v2026-06-15
+model_id: beverage_dessert
+model_version: "2026-06-15.v1"
+display_name: "茶饮 / 咖啡 / 烘焙"
+
+coverage:
+  backend_rule_groups: ["精品茶饮咖啡", "烘焙甜品"]
+  keywords:
+    - "奶茶"
+    - "咖啡"
+    - "茶饮"
+    - "饮品"
+    - "果饮"
+    - "柠檬"
+    - "烘焙"
+    - "面包"
+    - "蛋糕"
+    - "甜点"
+    - "甜品"
+    - "冰淇淋"
+    - "星巴克"
+    - "瑞幸"
+    - "喜茶"
+    - "蜜雪冰城"
+
+competition:
+  type: "半聚集型"
+  zero_competitor_policy: "近场无同类不代表强优势；茶饮/咖啡属于半聚集型，同类聚集可验证品类需求。0 竞品需核验步行人流是否不足、外卖平台是否已有强势品牌覆盖。"
+  hidden_competitor_risk: "便利店饮品、超市冷藏柜、快餐店饮品为替代消费；外卖平台竞争关系需单独评估。"
+
+demand_sources:
+  - name: "步行客流"
+    weight: "critical"
+    trigger: "门店位于核心步行动线上"
+  - name: "地铁/公交枢纽客流"
+    weight: "high"
+    trigger: "stats_500m.subway >= 1 or stats_500m.bus >= 5"
+  - name: "学校/写字楼午间客流"
+    weight: "high"
+    trigger: "stats_500m.schools >= 2 or stats_500m.office >= 5"
+  - name: "外卖平台覆盖"
+    weight: "medium"
+    trigger: "delivery_condition_verified"
+
+key_time_windows:
+  - label: "全天高峰"
+    value: "工作日 8:00-20:00 分段观察"
+  - label: "下午茶时段"
+    value: "工作日 14:00-17:00"
+
+hard_gates:
+  - "食品经营许可（含自制饮品）"
+  - "门头展示面 ≥ 2m 且位于主流动线上"
+
+fit_signals:
+  - "步行客流实测达标"
+  - "品牌势能支持外卖平台竞争"
+  - "租金可控且门头曝光好"
+
+red_flags:
+  - "步行客流实测明显不足"
+  - "外卖平台已有 3+ 强势品牌月销远超一般门店可达水平"
+  - "门头严重遮挡或偏离主流动线"
+
+revenue_model:
+  unit_logic: "日均杯量 x 客单价 x 30 天；外卖占比 30-50%"
+  area_range_sqm: [10, 40]
+  rent_ratio_limit: 0.20
+  disclaimer: "以上为模型估算，不代表实际经营结果；需结合现场步行客流、租金、外卖平台竞争和品牌势能复核。"
+  no_estimate_disclaimer: "本报告未生成营收测算，仅提供测算所需核验项；需补充日均杯量、客单价、租金、人工和食材成本后再测算。"
+
+data_blind_spots:
+  - "高德 POI 对茶饮/咖啡馆收录较完整，但外卖平台月销和品牌势能无法从 POI 推导。"
+  - "门店实际门头曝光度和步行动线方向需现场观察。"
+
+forbidden_misreadings:
+  - "不能把 200m 无同类直接写成市场空白。"
+  - "不能把便利店饮料当成直接竞品。"
+  - "不能输出推荐开店、值得投资、可以放心等决策语言。"
+
+sources:
+  - id: "rule_seed_001"
+    type: "rule_seed"
+    confidence: "B"
+
+last_reviewed: "2026-06-15"
+owner: "product"

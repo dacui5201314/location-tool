@@ -1,0 +1,87 @@
+# 址得选 美业健身宠物生意模型 v2026-06-15
+model_id: service_beauty
+model_version: "2026-06-15.v1"
+display_name: "美容 / 美发 / 宠物 / 健身"
+
+coverage:
+  backend_rule_groups: ["专业生活服务"]
+  keywords:
+    - "美容"
+    - "美发"
+    - "美甲"
+    - "SPA"
+    - "宠物"
+    - "宠物店"
+    - "猫舍"
+    - "犬舍"
+    - "健身"
+    - "瑜伽"
+    - "舞蹈"
+    - "普拉提"
+    - "皮肤管理"
+    - "造型"
+
+competition:
+  type: "暗竞品型"
+  zero_competitor_policy: "美业/宠物/健身行业中，大量小型工作室、个人店可能未被高德 POI 收录。0 家 POI 竞品不能作为强优势，需现场走访确认是否存在未被收录的暗竞品。"
+  hidden_competitor_risk: "小型工作室/个人店/家庭式美容/社区私教大多未被 POI 收录。综合商场内的快剪和美容美发柜台也可能被归入商场 POI 而未单独收录。"
+
+demand_sources:
+  - name: "周边中高消费力住宅"
+    weight: "critical"
+    trigger: "周边住宅以中高档小区为主"
+  - name: "办公人群午间/下班消费"
+    weight: "medium"
+    trigger: "stats_500m.office >= 5"
+  - name: "会员储值与复购"
+    weight: "high"
+    trigger: "会员制模式可行"
+
+key_time_windows:
+  - label: "工作日晚间"
+    value: "工作日 18:00-21:00"
+  - label: "周末全天"
+    value: "周末 10:00-20:00"
+
+hard_gates:
+  - "营业执照含对应服务类目"
+  - "美容/美发需公共卫生许可；宠物需动物防疫条件"
+
+fit_signals:
+  - "周边中高消费力住宅充足"
+  - "停车方便或公共交通便捷"
+  - "门头清晰可见且临街"
+  - "同类门店客单价匹配目标定位"
+
+red_flags:
+  - "周边以老旧小区/城中村为主，消费力不匹配"
+  - "已有 3+ 家同类同定位门店且同质化严重"
+  - "门头严重遮挡或位于非临街位置"
+  - "停车不便且公共交通稀疏"
+
+revenue_model:
+  unit_logic: "到店频次 x 项目客单价 x 会员转化率；复购周期决定现金流稳定性"
+  area_range_sqm: [40, 300]
+  rent_ratio_limit: 0.20
+  disclaimer: "以上为模型估算，不代表实际经营结果；需结合周边消费力、会员转化率、复购频次、技师/人员能力和租金复核。"
+  no_estimate_disclaimer: "本报告未生成营收测算，仅提供测算所需核验项；需补充项目客单价、会员转化率、复购频次、人员成本和租金后再测算。"
+
+data_blind_spots:
+  - "小型工作室/个人店大量未被高德 POI 收录。"
+  - "周边社区实际消费力和消费习惯需现场访谈。"
+  - "宠物/健身/美发等业态的会员储值模式无法从 POI 数据推导。"
+
+forbidden_misreadings:
+  - "不能把 0 POI 竞品直接写成强优势或市场空白。"
+  - "不能把便利店、餐饮门店作为美业/健身的直接竞品。"
+  - "不能把低消费力社区的 0 竞品当成品类机会。"
+  - "不能输出推荐开店、值得投资、可以放心等决策语言。"
+  - "不得使用外卖骑手、出餐速度、上座率、排队、午晚高峰堂食等餐饮核验项。"
+
+sources:
+  - id: "rule_seed_003"
+    type: "rule_seed"
+    confidence: "B"
+
+last_reviewed: "2026-06-15"
+owner: "product"

@@ -1,13 +1,49 @@
 """
 P1 分业态生意模型服务 — 确定性函数，不依赖 LLM。
 为不同业态提供差异化商业判断模板，解决"餐饮逻辑套用所有业态"的问题。
+Phase 1: 支持 YAML 模型加载，business_model_version 注入快照。
 """
 import re as _re
+import os as _os
+import yaml as _yaml
+
+_KNOWLEDGE_DIR = _os.path.join(_os.path.dirname(__file__), "..", "knowledge")
+_MODELS_DIR = _os.path.join(_KNOWLEDGE_DIR, "business_models")
+
+# 模型缓存
+_model_cache = {}
 
 
 def _int(v, default=0):
     try: return int(v)
     except: return default
+
+
+def load_business_model(model_id: str) -> dict:
+    """从 backend/knowledge/business_models/*.yaml 加载生意模型。"""
+    if model_id in _model_cache:
+        return _model_cache[model_id]
+    # 按 model_id 匹配文件
+    for fname in _os.listdir(_MODELS_DIR) if _os.path.isdir(_MODELS_DIR) else []:
+        if not fname.endswith(".yaml"):
+            continue
+        path = _os.path.join(_MODELS_DIR, fname)
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                data = _yaml.safe_load(f)
+            if data and data.get("model_id") == model_id:
+                _model_cache[model_id] = data
+                return data
+        except Exception:
+            pass
+    return {}
+
+
+def get_model_version(model_id: str) -> str:
+    """获取模型版本字符串，例如 snack_fast_food@2026-06-15.v1。"""
+    model = load_business_model(model_id)
+    version = (model or {}).get("model_version", "unknown")
+    return f"{model_id}@{version}"
 
 
 # ═══════════════════════════════════════════════════════════
@@ -260,7 +296,11 @@ def compute_business_model_snapshot(real_data: dict, business_type: str,
         "generic": _snapshot_generic,
     }
     handler = handlers.get(family, _snapshot_generic)
-    return handler(real_data, business_type, brand_name, store_size)
+    result = handler(real_data, business_type, brand_name, store_size)
+    # 注入模型版本
+    if "business_model_version" not in result:
+        result["business_model_version"] = get_model_version(family)
+    return result
 
 
 def _snapshot_education_childcare(real_data, business_type, brand_name, store_size):

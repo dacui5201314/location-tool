@@ -1,0 +1,78 @@
+# 址得选 便利超市生意模型 v2026-06-15
+model_id: retail_convenience
+model_version: "2026-06-15.v1"
+display_name: "便利店 / 超市 / 生鲜"
+
+coverage:
+  backend_rule_groups: ["高频刚需零售"]
+  keywords:
+    - "便利店"
+    - "超市"
+    - "小超市"
+    - "生鲜"
+    - "水果店"
+    - "菜店"
+    - "烟酒"
+    - "日用"
+    - "百货"
+    - "杂货"
+
+competition:
+  type: "排斥型"
+  zero_competitor_policy: "近场无同类可作为积极信号，但必须确认周边住宅密度和小区出入口动线；低入住率社区的 0 竞品可能是需求不足导致。"
+  hidden_competitor_risk: "社区团购、生鲜电商（美团优选/多多买菜/叮咚买菜）未在 POI 中体现，但构成实质性竞争。"
+
+demand_sources:
+  - name: "周边住宅密度"
+    weight: "critical"
+    trigger: "stats_500m.residential >= 5"
+  - name: "小区主出入口动线"
+    weight: "critical"
+    trigger: "门店位于小区主出入口步行路径上"
+  - name: "办公午间消费"
+    weight: "medium"
+    trigger: "stats_500m.office >= 5"
+
+key_time_windows:
+  - label: "早高峰"
+    value: "工作日 7:00-9:00"
+  - label: "晚高峰"
+    value: "工作日 17:00-20:00"
+
+hard_gates:
+  - "食品经营许可（含预包装食品）或烟草专卖许可"
+
+fit_signals:
+  - "周边 500m 住宅 ≥ 5 个且入住率高"
+  - "位于小区主出入口步行动线上"
+  - "近场竞品 ≤ 2 家"
+
+red_flags:
+  - "周边住宅入住率低或小区主出入口动线不经过"
+  - "已有 3+ 家同类门店且客流一般"
+  - "月租金超过预估月营收 20%"
+
+revenue_model:
+  unit_logic: "日均客流 x 转化率 x 客单价 x 30 天；毛利率 20-30%"
+  area_range_sqm: [30, 200]
+  rent_ratio_limit: 0.15
+  disclaimer: "以上为模型估算，不代表实际经营结果；需结合周边社区客流、客单价、复购率、租金和供货能力复核。"
+  no_estimate_disclaimer: "本报告未生成营收测算，仅提供测算所需核验项；需补充日均客流、客单价、毛利率、租金和供货成本后再测算。"
+
+data_blind_spots:
+  - "社区团购和生鲜电商竞争无法从 POI 数据推导。"
+  - "住宅实际入住率和小区主出入口方向需现场观察。"
+  - "烟酒专卖许可和供货渠道需独立评估。"
+
+forbidden_misreadings:
+  - "不能只因住宅数量高就直接写推荐。"
+  - "不能把餐饮门店作为便利超市的直接竞品。"
+  - "不能输出推荐开店、值得投资、可以放心等决策语言。"
+
+sources:
+  - id: "rule_seed_002"
+    type: "rule_seed"
+    confidence: "B"
+
+last_reviewed: "2026-06-15"
+owner: "product"

@@ -45,6 +45,16 @@ def enrich_report_business_context(report: dict, real_data: dict,
         report["business_model_snapshot"] = compute_business_model_snapshot(
             rd, business_type, brand_name, store_size, category=category)
 
+    # ── business_model_version 同步 ──
+    if not report.get("business_model_version"):
+        snap_ver = report.get("business_model_snapshot", {}) or {}
+        version = snap_ver.get("business_model_version", "")
+        if not version:
+            family = classify_business_model_family(business_type, brand_name, category)
+            from services.business_model_service import get_model_version
+            version = get_model_version(family)
+        report["business_model_version"] = version
+
     # ── 竞品口径说明 ──
     if not report.get("caliber_explanation") or not isinstance(report.get("caliber_explanation"), str) or len(report.get("caliber_explanation", "")) < 20:
         report["caliber_explanation"] = build_business_caliber_explanation(

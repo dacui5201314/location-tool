@@ -114,6 +114,82 @@ def test_snack_food_fit_stop():
     print("T6 snack food fit/stop: PASS")
 
 
+# T7: beverage_dessert 半聚集型语义
+def test_beverage_dessert_semantics():
+    from services.business_model_service import load_business_model, compute_business_model_snapshot
+
+    model = load_business_model("beverage_dessert")
+    assert model, "beverage_dessert model not loaded"
+    assert model["competition"]["type"] == "半聚集型", f"should be 半聚集型, got {model['competition']['type']}"
+
+    rd = _base_rd(direct_competitors_200m=0, direct_competitors_500m=0, direct_competitors_1000m=0)
+    snap = compute_business_model_snapshot(rd, "奶茶店", "茶百道", 20)
+    assert snap["model_type"] == "beverage_dessert"
+    assert "business_model_version" in snap
+    assert snap["business_model_version"].startswith("beverage_dessert@")
+
+    # field_checklist 不得套用小吃快餐的"出餐速度、午市刚需"作为核心
+    from services.business_model_service import build_business_field_checklist
+    fc = build_business_field_checklist(rd, "奶茶店", "茶百道", 20)
+    titles = " ".join(item.get("title","") for item in fc)
+    assert "出餐速度" not in titles, f"茶饮checklist不应含出餐速度: {titles}"
+    assert "午市刚需" not in titles
+    assert "上座率" not in titles
+    # 应包含步行/外卖/动线
+    assert "步行" in titles or "动线" in titles or "外卖" in titles, f"应含步行/外卖/动线: {titles}"
+
+    print(f"T7 beverage_dessert 半聚集型: version={snap['business_model_version']} PASS")
+
+
+# T8: retail_convenience 排斥型语义
+def test_retail_convenience_semantics():
+    from services.business_model_service import load_business_model, compute_business_model_snapshot
+
+    model = load_business_model("retail_convenience")
+    assert model
+    assert model["competition"]["type"] == "排斥型"
+
+    rd = _base_rd(direct_competitors_200m=0, direct_competitors_500m=0, direct_competitors_1000m=0)
+    snap = compute_business_model_snapshot(rd, "便利店", "全家", 60)
+    assert snap["model_type"] == "retail_convenience"
+
+    from services.business_model_service import build_business_field_checklist
+    fc = build_business_field_checklist(rd, "便利店", "全家", 60)
+    titles = " ".join(item.get("title","") for item in fc)
+    # 应包含小区入住率/出入口动线
+    assert "住宅" in titles or "入住" in titles or "小区" in titles, f"应含住宅相关: {titles}"
+    assert "动线" in titles, f"应含动线: {titles}"
+    # 不应只为住宅数量高就推荐
+    assert "推荐" not in titles
+
+    print(f"T8 retail_convenience 排斥型: model_type={snap['model_type']} PASS")
+
+
+# T9: service_beauty 暗竞品型语义
+def test_service_beauty_semantics():
+    from services.business_model_service import load_business_model, compute_business_model_snapshot
+
+    model = load_business_model("service_beauty")
+    assert model
+    assert model["competition"]["type"] == "暗竞品型"
+
+    rd = _base_rd(direct_competitors_200m=0, direct_competitors_500m=0, direct_competitors_1000m=0)
+    snap = compute_business_model_snapshot(rd, "美容美发", "", 40)
+    assert snap["model_type"] == "service_beauty"
+
+    from services.business_model_service import build_business_field_checklist
+    fc = build_business_field_checklist(rd, "美容美发", "", 40)
+    titles = " ".join(item.get("title","") for item in fc)
+    # 不应出现餐饮核验项
+    for w in ["外卖骑手","出餐速度","上座率","排队","午晚高峰堂食"]:
+        assert w not in titles, f"美业checklist不应出现 '{w}'"
+    # 应包含消费力/停车/门头/客单价
+    assert "消费" in titles or "停车" in titles or "门头" in titles or "客单价" in titles, \
+        f"应含消费力/停车/门头相关: {titles}"
+
+    print(f"T9 service_beauty 暗竞品型: model_type={snap['model_type']} PASS")
+
+
 if __name__ == "__main__":
     test_snack_food_no_strong_advantage_zero_comp()
     test_edu_childcare_no_inflated_comp_score()
@@ -121,5 +197,8 @@ if __name__ == "__main__":
     test_edu_childcare_hidden_competitor_text()
     test_edu_childcare_no_food_in_checklist()
     test_snack_food_fit_stop()
+    test_beverage_dessert_semantics()
+    test_retail_convenience_semantics()
+    test_service_beauty_semantics()
     print()
     print("ALL BUSINESS MODEL TESTS PASSED")

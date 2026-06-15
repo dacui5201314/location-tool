@@ -1,0 +1,28 @@
+# 址得选 来源卡 Schema v2026-06-15
+
+schema_version: "2026-06-15.v1"
+
+required_fields:
+  - source_id
+  - source_type
+  - title
+  - confidence
+  - applicable_models
+  - extracted_rules
+
+source_type_enum:
+  - "internal_sample"
+  - "rule_seed"
+  - "product_review"
+  - "report_summary"
+  - "interview"
+  - "official_doc"
+
+confidence_enum:
+  - "A"
+  - "B"
+  - "C"
+
+extracted_rules_required:
+  - demand_sources
+  - red_flags
