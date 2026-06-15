@@ -95,12 +95,14 @@ def enrich_report_business_context(report: dict, real_data: dict,
         family = classify_business_model_family(business_type, brand_name, category)
         report["revenue_disclaimer"] = _build_revenue_disclaimer(family)
 
-    # ── P1: 保守版价值说明（fallback 时追加）──
-    if is_fallback and "保守版数据摘要" not in (report.get("data_boundary") or ""):
-        report["data_boundary"] = (report.get("data_boundary") or "") + (
-            " 虽为保守版，但已基于周边真实数据给出初筛判断和现场核验任务；"
-            "深度经营测算需补充租金、生源、合规和经营数据后生成。"
-        )
+    # ── P1: 保守版价值说明（fallback 时追加，幂等）──
+    if is_fallback:
+        db = report.get("data_boundary") or ""
+        if "虽为保守版" not in db and "已基于周边真实数据给出初筛判断" not in db:
+            report["data_boundary"] = db + (
+                " 虽为保守版，但已基于周边真实数据给出初筛判断和现场核验任务；"
+                "深度经营测算需补充租金、生源、合规和经营数据后生成。"
+            )
 
     # ── P1: 无实际营收测算时，替换免责文案 ──
     has_revenue = False
