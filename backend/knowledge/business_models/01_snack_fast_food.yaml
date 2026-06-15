@@ -1,0 +1,79 @@
+# 址得选 小吃快餐生意模型 v2026-06-15
+model_id: snack_fast_food
+model_version: "2026-06-15.v1"
+display_name: "小吃快餐"
+
+coverage:
+  backend_rule_groups: ["刚需快餐小吃"]
+  frontend_business_types: ["小吃快餐", "小吃店", "快餐店", "小餐饮"]
+  keywords: ["麻辣烫","砂锅","米线","面馆","面皮","擀面皮","粉店","炸鸡","包子","饺子","馄饨","便当","盖浇饭","肉夹馍","凉皮","酸辣粉","螺蛳粉","热干面","锅贴","生煎","小笼","煎饼","烤冷面","手抓饼","鸡蛋灌饼","卤味","鸭脖","鸡排","麻辣拌","冒菜"]
+
+competition:
+  type: "排斥型"
+  zero_competitor_policy: "近场 200m 无同类可作为机会线索，但必须结合需求侧支撑和远场供给判断；远场同类多/餐饮总量高时近场空档可能是低客流空白。"
+  hidden_competitor_risk: "企业食堂、学校食堂、小摊贩、档口可能未被 POI 收录。"
+  score_caps:
+    weak_demand_zero_competitor: 60
+    far_field_many_competitors: 70
+    far_field_threshold_dc_1000m: 8
+    far_field_threshold_restaurants_1k: 40
+
+demand_sources:
+  - name: "学校午市"
+    weight: "high"
+    trigger: "stats_500m.schools >= 1"
+  - name: "办公午市"
+    weight: "medium"
+    trigger: "stats_500m.office >= 1"
+  - name: "社区晚餐"
+    weight: "medium"
+    trigger: "stats_500m.residential >= 5"
+  - name: "外卖补充"
+    weight: "low"
+    trigger: "delivery_condition_verified"
+
+key_time_windows:
+  - label: "午高峰"
+    value: "工作日 11:30-13:00"
+  - label: "晚高峰"
+    value: "工作日 17:30-20:00"
+
+hard_gates:
+  - "食品经营许可和排烟条件可办理"
+
+fit_signals:
+  - "午高峰实测目标客群达标"
+  - "租金低"
+  - "小档口 1-2 人可运营"
+  - "外卖可补晚餐缺口"
+
+red_flags:
+  - "两个高峰实测客流均明显不足"
+  - "月租金超过预估月营收 25%"
+  - "1000m 同类供给较多且自身无差异化"
+  - "寒暑假客流断崖且无外卖补充"
+
+revenue_model:
+  unit_logic: "日均单量 x 客单价 x 毛利率"
+  area_range_sqm: [15, 60]
+  rent_ratio_limit: 0.20
+  # 有实际测算时用此免责，无测算时用 no_estimate_disclaimer
+  disclaimer: "以上为模型估算，不代表实际经营结果；需结合现场客流、租金、转让费、出餐能力和外卖能力复核。"
+  no_estimate_disclaimer: "本报告未生成营收测算，仅提供测算所需核验项；需补充日均单量、客单价、租金、人工和食材成本后再测算。"
+
+data_blind_spots:
+  - "高德 POI 对小摊贩、档口、内部食堂收录不全。"
+  - "外卖单量无法从 POI 数据直接推导。"
+  - "寒暑假对学区型点位影响需线下确认。"
+
+forbidden_misreadings:
+  - "不能把 200m 无竞品直接写成市场空白红利。"
+  - "不能输出推荐开店、值得投资、可以放心等决策语言。"
+
+sources:
+  - id: "internal_sample_001"
+    type: "internal_sample"
+    confidence: "A"
+
+last_reviewed: "2026-06-15"
+owner: "product"

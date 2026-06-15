@@ -11,6 +11,10 @@ from services.business_model_service import (
     build_business_field_checklist,
     build_business_caliber_explanation,
 )
+from services.location_profile_service import (
+    compute_location_profile,
+    get_dining_not_advantage_families,
+)
 
 
 def _int(v, default=0):
@@ -31,6 +35,10 @@ def enrich_report_business_context(report: dict, real_data: dict,
     # ── 地点基本面（同一地址不同业态共享）──
     if not report.get("location_fundamentals") or not isinstance(report.get("location_fundamentals"), dict) or not report["location_fundamentals"].get("label"):
         report["location_fundamentals"] = compute_location_fundamentals(rd)
+
+    # ── P1: location_profile（新增结构化位置基本面）──
+    if not report.get("location_profile") or not isinstance(report.get("location_profile"), dict) or not report["location_profile"].get("primary_type"):
+        report["location_profile"] = compute_location_profile(rd)
 
     # ── 生意模型快照 ──
     if not report.get("business_model_snapshot") or not isinstance(report.get("business_model_snapshot"), dict) or not report["business_model_snapshot"].get("model_type"):
@@ -87,6 +95,45 @@ def enrich_report_business_context(report: dict, real_data: dict,
         family = classify_business_model_family(business_type, brand_name, category)
         report["revenue_disclaimer"] = _build_revenue_disclaimer(family)
 
+    # ── P1: 保守版价值说明（fallback 时追加）──
+    if is_fallback and "保守版数据摘要" not in (report.get("data_boundary") or ""):
+        report["data_boundary"] = (report.get("data_boundary") or "") + (
+            " 虽为保守版，但已基于周边真实数据给出初筛判断和现场核验任务；"
+            "深度经营测算需补充租金、生源、合规和经营数据后生成。"
+        )
+
+    # ── P1: 无实际营收测算时，替换免责文案 ──
+    has_revenue = False
+    details = report.get("details", {}) or {}
+    rev_detail = details.get("revenue_estimation") or ""
+    if rev_detail and len(str(rev_detail)) > 50:
+        if "未提供" not in str(rev_detail) and "仅提供测算所需" not in str(rev_detail):
+            has_revenue = True
+    if not has_revenue and is_fallback:
+        family = classify_business_model_family(business_type, brand_name, category)
+        report["revenue_disclaimer"] = _build_no_estimate_disclaimer(family)
+
+    # ── location_fundamentals 净化：教育/托管等业态不把餐饮供给作为优势 ──
+    dining_families = get_dining_not_advantage_families()
+    lf_family = classify_business_model_family(business_type, brand_name, category)
+    if lf_family in dining_families:
+        lf = report.get("location_fundamentals")
+        if lf and isinstance(lf, dict):
+            strengths = lf.get("strengths") or []
+            filtered = [s for s in strengths if "餐饮" not in str(s) and "饭店" not in str(s)]
+            if filtered != strengths:
+                lf = dict(lf)
+                lf["strengths"] = filtered
+                report["location_fundamentals"] = lf
+        lp = report.get("location_profile")
+        if lp and isinstance(lp, dict):
+            strengths_p = lp.get("strengths") or []
+            filtered_p = [s for s in strengths_p if "餐饮" not in str(s) and "饭店" not in str(s)]
+            if filtered_p != strengths_p:
+                lp = dict(lp)
+                lp["strengths"] = filtered_p
+                report["location_profile"] = lp
+
     # ── field_checklist 业态纠偏：如果 normal/retry 生成的 checklist 仍有餐饮词 ──
     fc = report.get("field_checklist")
     if fc and isinstance(fc, list):
@@ -113,7 +160,7 @@ def enrich_report_business_context(report: dict, real_data: dict,
 
 
 def _build_revenue_disclaimer(family: str) -> str:
-    """按生意模型族群生成营收模型免责。"""
+    """按生意模型族群生成营收模型免责（有实际测算时）。"""
     base = "以上为模型估算，不代表实际经营结果；需结合"
     disclaimers = {
         "education_childcare": base + "周边小学距离、生源数、托管服务组合、合规资质和租金复核。",
@@ -130,3 +177,23 @@ def _build_revenue_disclaimer(family: str) -> str:
         "generic": base + "现场客流、租金和实际经营条件复核。",
     }
     return disclaimers.get(family, disclaimers["generic"])
+
+
+def _build_no_estimate_disclaimer(family: str) -> str:
+    """无实际营收测算时的免责文案（仅提供测算所需核验项）。"""
+    disclaimers = {
+        "education_childcare": (
+            "本报告未生成营收测算，仅提供测算所需核验项；"
+            "需补充生源数、月收费、租金、人工、餐食成本和合规成本后再测算。"
+        ),
+        "education_training": (
+            "本报告未生成营收测算，仅提供测算所需核验项；"
+            "需补充生源数、课程单价、续费率、满班率、租金和人工后再测算。"
+        ),
+        "snack_fast_food": (
+            "本报告未生成营收测算，仅提供测算所需核验项；"
+            "需补充日均单量、客单价、租金、人工和食材成本后再测算。"
+        ),
+    }
+    generic = "本报告未生成营收测算，仅提供测算所需核验项；需补充关键经营数据后再测算。"
+    return disclaimers.get(family, generic)

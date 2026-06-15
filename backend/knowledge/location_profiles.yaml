@@ -1,0 +1,60 @@
+# 址得选 位置基本面规则 v2026-06-15
+# 只看 real_data，不看业态。同一地址不同业态必须输出一致的位置基本面。
+model_version: "2026-06-15.v1"
+
+# 餐饮供给不作为通用优势的业态族群
+dining_not_an_advantage_for:
+  - education_childcare
+  - education_training
+  - service_beauty
+  - service_basic
+  - hotel
+
+# 位置类型判定规则（按优先级）
+location_types:
+  - primary_type: "学区及周边"
+    rule: "schools_500m >= 8"
+  - primary_type: "商务商业复合区"
+    rule: "office_500m >= 20 and shopping_500m >= 5"
+  - primary_type: "商务办公区"
+    rule: "office_500m >= 15"
+  - primary_type: "高密度居住区"
+    rule: "residential_500m >= 50"
+  - primary_type: "核心商圈"
+    rule: "shopping_500m >= 8"
+  - primary_type: "学区社区混合型"
+    rule: "schools_500m >= 3 and residential_500m >= 5"
+  - primary_type: "学区弱交通社区型"
+    rule: "schools_500m >= 3 and residential_500m >= 3 and bus_500m <= 3 and subway_500m == 0"
+  - primary_type: "弱交通住宅区 / 低密度边缘"
+    rule: "residential_500m < 5 and office_500m < 5 and schools_500m < 3"
+  - primary_type: "社区底商 / 居住配套"
+    rule: "residential_500m >= 10"
+  - primary_type: "综合混合型"
+    rule: "default"
+
+# 标签判定
+labels:
+  - label: "低密度边缘位置"
+    rule: "residential_500m < 5 and office_500m < 3 and schools_500m < 3"
+  - label: "学区弱交通社区型"
+    rule: "schools_500m >= 3 and bus_500m <= 3 and subway_500m == 0"
+  - label: "学区边缘位置"
+    rule: "schools_500m >= 5"
+  - label: "办公商圈位置"
+    rule: "office_500m >= 15"
+  - label: "成熟居住区位置"
+    rule: "residential_500m >= 30"
+  - label: "商业中心位置"
+    rule: "shopping_500m >= 5"
+  - label: "社区混合位置"
+    rule: "default"
+
+# 学校锚点细分规则（轻量，不做复杂归并）
+school_anchor_breakdown:
+  elementary_keywords: ["小学", "实验学校", "中心小学", "第一小学", "第二小学", "第三小学", "第四小学", "第五小学", "第六小学", "外国语学校"]
+  kindergarten_keywords: ["幼儿园", "幼稚园", "托儿所", "保育院"]
+  middle_high_keywords: ["中学", "高中", "初中", "完全中学", "高级中学", "初级中学", "第一中学", "第二中学", "第三中学", "第四中学", "第五中学", "第六中学", "附属中学"]
+  university_keywords: ["大学", "学院", "职业技术学院", "高等专科", "师范", "理工"]
+  training_keywords: ["培训", "教育", "补习", "辅导", "琴行", "画室", "托管", "早教"]
+  # 无法归类的标为 unknown

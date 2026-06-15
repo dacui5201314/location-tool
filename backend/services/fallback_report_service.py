@@ -118,8 +118,14 @@ def build_fallback_report(real_data: dict, address: str = "",
         # P1: 小吃快餐 200m 0竞品但远场多时，不能机械写竞争压力小
         if family_adv == "snack_fast_food" and dc_200 == 0 and (dc_1000 >= 8 or restaurants_1k >= 40):
             advantages.append(
-                f"200m 内同品类供给较少，但 1000m 同类门店 {dc_1000} 家、餐饮 {restaurants_1k} 家，"
+                f"200m 内同品类供给较少，但 1000m 同类门店 {dc_200} 家、餐饮 {restaurants_1k} 家，"
                 f"需核验近场空档是否由低客流导致；只有低租金小档口模型才有继续考察价值"
+            )
+        # P1: 教育托管 0 竞品 → 不能写"竞争压力小"，必须提示暗竞品
+        elif family_adv == "education_childcare" and dc_200 == 0 and dc_500 == 0 and dc_1000 == 0:
+            advantages.append(
+                f"POI 暂未检出明确托管供给，但该行业低收录率，"
+                f"需实地排查周边是否存在暗竞品、小饭桌或家庭式托管"
             )
         elif sub_200 > 0 or sub_500 > 0:
             advantages.append(f"200m 直接竞品 {dc_200} 家，直接竞品较少，但替代消费较多，需现场核验分流影响")
@@ -629,11 +635,18 @@ def _competition_score(dc_200, dc_500, dc_1000, same_brand_risk,
     base = 85 - dc_200 * 2 - dc_500 * 1 - dc_1000 // 2
     if dc_1000 >= 4:
         base = min(base, 60)
-    # P1: 教育托管/小饭桌/生活服务等业态，需求侧弱时竞争评分封顶
-    if business_family in ("education_childcare", "education_training", "service_beauty"):
+    # P1: 教育托管/小饭桌/生活服务等业态，暗竞品型/低收录行业 0 POI 不能高分
+    if business_family == "education_childcare":
+        # 教育托管：0 POI 竞品 → 封顶 50（暗竞品型，POI 收录率低）
+        if dc_1000 == 0:
+            base = min(base, 50)
+        # 需求侧弱时进一步封顶
+        pop = res_500 + school_500 + office_500
+        if pop < 8:
+            base = min(base, 40)
+    elif business_family in ("education_training", "service_beauty"):
         pop = res_500 + school_500 + office_500
         if pop < 8 and dc_1000 == 0:
-            # 需求弱且无POI竞品 → 不能高分，因为可能是低需求导致无供给
             base = min(base, 50)
         elif pop < 5:
             base = min(base, 60)
@@ -690,8 +703,13 @@ def _category_advantage_score(dc_200, dc_500, dc_1000, same_brand_risk,
         base += 5
     elif pop_support < 5:
         base -= 10
-    # P1: 教育托管/生活服务弱需求时封顶
-    if business_family in ("education_childcare", "education_training", "service_beauty"):
+    # P1: 教育托管暗竞品型 0 POI 封顶
+    if business_family == "education_childcare":
+        if dc_1000 == 0:
+            base = min(base, 50)
+        if pop_support < 8:
+            base = min(base, 40)
+    elif business_family in ("education_training", "service_beauty"):
         if pop_support < 8 and dc_1000 == 0:
             base = min(base, 50)
         elif pop_support < 5:

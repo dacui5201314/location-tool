@@ -1,0 +1,102 @@
+# 址得选 教育托管生意模型 v2026-06-15
+# 教育托管从教育培训拆出独立模型，与普通培训判断逻辑完全不同
+model_id: education_childcare
+model_version: "2026-06-15.v1"
+display_name: "教育托管 / 小饭桌"
+
+coverage:
+  backend_rule_groups: ["社区基础服务"]
+  frontend_business_types: []
+  keywords:
+    # 托管核心词 — 从教育培训中拆分
+    - "托管"
+    - "小饭桌"
+    - "午托"
+    - "晚托"
+    - "课后托管"
+    - "作业辅导"
+    - "小学生托管"
+    - "学生托管"
+    - "课后服务"
+    - "接送"
+    - "托辅"
+    - "儿童之家"
+
+competition:
+  type: "暗竞品型"
+  zero_competitor_policy: "POI 未检出托管/小饭桌不等于无竞品。托管行业大量为家庭式、非标准收录，需走访学校门口和周边小区确认暗竞品。"
+  hidden_competitor_risk: "家庭式托管/小饭桌/作业辅导大多未被高德 POI 收录，合规托管也可能以非托管名义注册（餐饮、家政等）。"
+  score_caps:
+    zero_poi_competitor: 50
+    weak_demand_zero_competitor: 40
+    # 目标小学/住宅弱 + 0 竞品时封顶
+    weak_demand_threshold: "residential_500m < 8 and schools_500m < 3"
+
+demand_sources:
+  - name: "周边小学低年级"
+    weight: "critical"
+    trigger: "周边有小学且距离可步行"
+  - name: "周边幼儿园"
+    weight: "medium"
+    trigger: "周边有幼儿园"
+  - name: "双职工家庭密度"
+    weight: "high"
+    trigger: "stats_500m.residential >= 5"
+  - name: "家长接送便利"
+    weight: "high"
+    trigger: "门店附近有临停条件"
+
+key_time_windows:
+  - label: "放学时段"
+    value: "工作日 15:30-17:00"
+  - label: "午托时段"
+    value: "工作日 11:30-14:00"
+
+hard_gates:
+  - "消防双通道"
+  - "食品经营许可或托管备案"
+  - "空间可分区（活动区、就餐区、作业区、卫生间）"
+  - "安全出口和疏散通道合规"
+
+fit_signals:
+  - "小学步行 5 分钟内可达且动线安全"
+  - "周边低年级家庭密度足够"
+  - "家长接送临停方便"
+  - "空间满足 3+ 分区"
+  - "消防/食品/托管合规可办理"
+  - "周边家长有明确托管需求"
+
+red_flags:
+  - "目标小学距离偏远或动线不安全"
+  - "周边已有 3+ 家成熟托管且无差异化空间"
+  - "消防/食品条件不满足且无法改造"
+  - "周边家庭密度不足或低年级生源太少"
+  - "合规资质无法办理"
+
+revenue_model:
+  unit_logic: "生源数 x 月收费 x 服务组合（午托/晚托/作业辅导/晚餐）"
+  area_range_sqm: [60, 200]
+  rent_ratio_limit: 0.20
+  disclaimer: "以上为模型估算，不代表实际经营结果；需结合周边小学距离、生源数、托管服务组合、合规资质和租金复核。"
+  no_estimate_disclaimer: "本报告未生成营收测算，仅提供测算所需核验项；需补充生源数、月收费、租金、人工、餐食成本和合规成本后再测算。"
+
+data_blind_spots:
+  - "托管/小饭桌大量未被高德 POI 收录，0 家竞品不能作为强优势。"
+  - "托管合规资质、消防条件和食品许可需现场核验。"
+  - "放学动线、家长接送条件、实际生源需求无法仅靠地图 POI 推导。"
+  - "周边小学低年级学生数量需走访学校或社区确认。"
+
+forbidden_misreadings:
+  - "不能把多所大学学院当成多所小学抬高学区判断。"
+  - "不能把幼儿园/中学/大学学生当成小学生托管客源。"
+  - "不能把餐饮门店多作为托管核心优势。"
+  - "不能输出推荐开店、值得投资、可以放心等决策语言。"
+  - "不能出现外卖骑手、出餐速度、上座率、午晚高峰堂食等餐饮核验项。"
+
+sources:
+  - id: "internal_sample_002"
+    type: "internal_sample"
+    confidence: "A"
+
+last_reviewed: "2026-06-15"
+owner: "product"
