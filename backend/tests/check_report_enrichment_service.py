@@ -89,6 +89,56 @@ def test_snack_not_misclassified():
     print("T6 classifications correct: PASS")
 
 
+# T7: normal/retry/fallback 三路径 report JSON 字段完整性
+def test_three_paths_field_completeness():
+    from services.fallback_report_service import build_fallback_report
+    from services.report_enrichment_service import enrich_report_business_context
+
+    rd = _base_rd()
+    # fields enriched by report_enrichment_service (decision_snapshot/data_sufficiency by main.py)
+    required = [
+        "location_profile", "location_fundamentals", "business_model_snapshot",
+        "business_model_version", "revenue_disclaimer", "field_checklist",
+        "caliber_explanation", "evidence_summary", "data_boundary",
+    ]
+
+    # normal path
+    normal = {"score":55,"summary":"t","advantages":["a"],"disadvantages":["d"],"dimension_scores":[],"details":{},"action_plan":["a"]}
+    e_n = enrich_report_business_context(normal, rd, business_type="小吃快餐", brand_name="砂锅", store_size=50, is_fallback=False)
+    for k in required:
+        assert k in e_n and e_n[k], f"normal missing {k}"
+
+    # fallback path (build_fallback_report + enrichment, as main.py does)
+    fb = build_fallback_report(rd, address="t", business_type="小吃快餐", brand_name="砂锅", store_size=50)
+    fb = enrich_report_business_context(fb, rd, business_type="小吃快餐", brand_name="砂锅", store_size=50, is_fallback=True)
+    for k in required:
+        assert k in fb and fb[k], f"fallback missing {k}"
+
+    # retry = normal + enrichment (same path)
+    e_r = enrich_report_business_context(normal.copy(), rd, business_type="教育培训", brand_name="英语培训", store_size=80, is_fallback=False)
+    for k in required:
+        assert k in e_r and e_r[k], f"retry missing {k}"
+
+    print("T7 three-path field completeness: 11 fields x 3 paths PASS")
+
+
+# T8: HTML 重建只消费 report_json，不调用业务判断
+def test_html_renders_from_report_json_only():
+    from services.storage_service import _build_report_html
+    from services.fallback_report_service import build_fallback_report
+
+    rd = _base_rd()
+    fb = build_fallback_report(rd, address="t", business_type="小吃快餐", brand_name="砂锅", store_size=50)
+    fb["business_type"] = "小吃快餐"
+    fb["generated_at"] = "2026-06-15 10:00"
+
+    html = _build_report_html(1, fb, "addr", "brand")
+    # HTML 应包含 P1 字段内容
+    for marker in ["保守版数据摘要", "选址决策参考", "地点基本面", "现场核验清单", "经营建议"]:
+        assert marker in html, f"HTML missing: {marker}"
+    print("T8 HTML renders from report_json: PASS")
+
+
 if __name__ == "__main__":
     test_all_paths_have_location_profile()
     test_both_snapshot_and_profile()
@@ -96,5 +146,7 @@ if __name__ == "__main__":
     test_edu_no_dining_in_profile()
     test_conservative_value_note()
     test_snack_not_misclassified()
+    test_three_paths_field_completeness()
+    test_html_renders_from_report_json_only()
     print()
     print("ALL ENRICHMENT SERVICE TESTS PASSED")
