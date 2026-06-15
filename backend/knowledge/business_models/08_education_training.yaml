@@ -1,0 +1,109 @@
+# 址得选 教育培训生意模型 v2026-06-15
+# 必须与 education_childcare 区分：培训 ≠ 托管
+model_id: education_training
+model_version: "2026-06-15.v1"
+display_name: "教育培训 / 艺术 / 职业技能"
+
+coverage:
+  backend_rule_groups: ["社区基础服务"]
+  keywords:
+    - "培训"
+    - "教育"
+    - "补习"
+    - "琴行"
+    - "画室"
+    - "早教"
+    - "英语"
+    - "美术"
+    - "音乐"
+    - "舞蹈培训"
+    - "书法"
+    - "驾校"
+    - "职业技能"
+    - "学科"
+    - "奥数"
+    - "语言"
+  exclude_keywords:
+    - "托管"
+    - "小饭桌"
+    - "午托"
+    - "晚托"
+    - "课后服务"
+    - "接送"
+    - "作业辅导"
+
+competition:
+  type: "聚集型"
+  zero_competitor_policy: "教育培训少量竞品不代表强优势。0 POI 竞品需核验：周边是否有足够生源密度、同类培训的满班率和续费率、该区域家庭消费力是否匹配培训品类定位、是否存在未被收录的小型培训班。"
+  hidden_competitor_risk: "小型培训班/个人工作室/上门家教大多未被 POI 收录。学校内部的课后兴趣班和社区活动中心构成实质性竞争。"
+
+demand_sources:
+  - name: "周边家庭密度"
+    weight: "critical"
+    trigger: "stats_500m.residential >= 10"
+  - name: "周边学校密度"
+    weight: "high"
+    trigger: "stats_500m.schools >= 3"
+  - name: "周末和放学后流量"
+    weight: "high"
+    trigger: "线下实测"
+  - name: "家庭消费力匹配"
+    weight: "high"
+    trigger: "周边住宅以中档以上小区为主"
+
+key_time_windows:
+  - label: "放学后时段"
+    value: "工作日 15:30-18:00"
+  - label: "周末全天"
+    value: "周末 9:00-18:00"
+
+hard_gates:
+  - "办学许可或教育培训营业执照"
+  - "消防验收"
+  - "教室面积和通风采光满足教学要求"
+
+fit_signals:
+  - "周边家庭密度和生源基数达标"
+  - "同类培训满班率高且仍有差异化空间"
+  - "停车和公共交通满足家长接送需求"
+  - "教师资源和课程体系可支撑运营"
+
+red_flags:
+  - "周边家庭密度或生源基数严重不足"
+  - "已有 3+ 家同品类培训且满班率低"
+  - "办学许可或消防条件不满足且无法改造"
+  - "月租金超过预估月营收 20%"
+  - "同类培训客单价持续走低且转租转让频繁"
+
+revenue_model:
+  unit_logic: "生源数 x 课程单价 x 续费率；周末和寒暑假为收入高峰"
+  area_range_sqm: [60, 300]
+  rent_ratio_limit: 0.20
+  disclaimer: "以上为模型估算，不代表实际经营结果；需结合生源数、课程单价、续费率、满班率和租金复核。"
+  no_estimate_disclaimer: "本报告未生成营收测算，仅提供测算所需核验项；需补充生源数、课程单价、续费率、满班率、租金和人工后再测算。"
+
+data_blind_spots:
+  - "小型培训班和个人工作室大量未被 POI 收录。"
+  - "满班率、续费率和客单价无法从 POI 数据推导。"
+  - "办学许可和消防条件因地区和面积差异较大，需逐一核验。"
+  - "周末和放学后实际客流需线下实测，POI 数据无法反映时段分布。"
+
+forbidden_misreadings:
+  - "不能把 0 POI 竞品直接写成强优势或市场空白。"
+  - "不能把幼儿园/中学/大学生源当成培训客源而不做品类匹配。"
+  - "不能出现午托、小饭桌、接送、餐食成本等托管逻辑。"
+  - "不能输出推荐开店、值得投资、可以放心等决策语言。"
+  - "不能出现外卖骑手、出餐速度、上座率、午晚高峰堂食等餐饮核验项。"
+
+source_refs:
+  - source_id: "book_002"
+    applies_to: ["red_flags"]
+    rule_key: "rent_ratio_cap_training"
+
+sources:
+  - id: "rule_seed_005"
+    type: "rule_seed"
+    confidence: "B"
+
+last_reviewed: "2026-06-15"
+owner: "product"

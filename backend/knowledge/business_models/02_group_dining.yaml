@@ -1,0 +1,114 @@
+# 址得选 正餐聚餐生意模型 v2026-06-15
+model_id: food_service
+model_version: "2026-06-15.v1"
+display_name: "中餐 / 火锅 / 烧烤 / 异国正餐"
+
+coverage:
+  backend_rule_groups: ["中餐正餐", "火锅_烧烤", "异国_中高端正餐"]
+  keywords:
+    - "中餐"
+    - "正餐"
+    - "酒楼"
+    - "火锅"
+    - "烧烤"
+    - "烤鱼"
+    - "西餐"
+    - "日料"
+    - "海鲜"
+    - "牛排"
+    - "私房"
+    - "公馆"
+    - "湘菜"
+    - "川菜"
+    - "粤菜"
+    - "西北菜"
+    - "东北菜"
+
+competition:
+  type: "半聚集型"
+  zero_competitor_policy: "近场无同类不代表强优势；正餐属于半聚集型，同类聚集可验证商圈餐饮需求成熟度。0 竞品需核验晚市客流是否不足、停车是否便利、周边是否有足够消费力支撑。"
+  hidden_competitor_risk: "外卖平台对正餐的分流影响（尤其快餐式正餐如麻辣香锅/烤鱼外卖）、周边商场美食广场的替代消费。"
+
+demand_sources:
+  - name: "晚市聚餐"
+    weight: "critical"
+    trigger: "晚间 18:00-21:00 实测客流"
+  - name: "周末/节假日聚餐"
+    weight: "high"
+    trigger: "周末全天客流"
+  - name: "商务宴请"
+    weight: "medium"
+    trigger: "stats_500m.office >= 10"
+  - name: "停车便利客流"
+    weight: "high"
+    trigger: "门店步行 3 分钟内有充足停车位"
+
+key_time_windows:
+  - label: "晚市高峰"
+    value: "工作日 18:00-20:00"
+  - label: "周末全天"
+    value: "周末 11:00-14:00, 17:00-21:00"
+
+hard_gates:
+  - "食品经营许可"
+  - "排烟系统和消防验收"
+  - "电力容量满足后厨设备需求"
+  - "至少 2 个包厢或独立用餐区域"
+
+fit_signals:
+  - "晚市和周末客流实测达标"
+  - "停车便利度满足聚餐客群需求"
+  - "包厢数和面积匹配目标客单价"
+  - "品类与周边消费力匹配"
+
+red_flags:
+  - "晚市和周末客流实测均明显不足"
+  - "停车条件极差且公共交通稀疏"
+  - "月租金超过预估月营收 15%（正餐租售比红线）"
+  - "排烟/消防/电力不满足且无法改造"
+  - "周边 1000m 同类正餐供给过多且无差异化空间"
+  # Phase 1.5 吸收: book_001 千分选址
+  - "门头在 50m 外不可见或被完全遮挡"
+  - "午晚双高峰各自客流峰谷差异过大，单一高峰支撑"
+
+revenue_model:
+  unit_logic: "桌数 x 翻台率 x 人均消费 x 月营业天数；晚市占 60%+ 营收"
+  area_range_sqm: [80, 500]
+  rent_ratio_limit: 0.15
+  disclaimer: "以上为模型估算，不代表实际经营结果；需结合现场客流、租金、停车条件、翻台率和食材成本复核。"
+  no_estimate_disclaimer: "本报告未生成营收测算，仅提供测算所需核验项；需补充桌数、翻台率、人均消费、租金和食材成本后再测算。"
+
+data_blind_spots:
+  - "高德 POI 对商场内部餐饮和美食广场收录可能不完整。"
+  - "停车位实际可用数量和高峰时段占用率需现场观察。"
+  - "排烟、消防、电力等硬件条件需逐一核验，无法从 POI 推导。"
+  # Phase 1.5 吸收: book_001/book_002
+  - "门头可视性（50m 无障碍）需现场观察确认。"
+  - "午晚双高峰的峰谷差异需线下实测，无法仅靠 POI 推断。"
+
+forbidden_misreadings:
+  - "不能把 200m 无竞品直接写成市场空白。"
+  - "不能把快餐/小吃作为正餐的直接竞品。"
+  - "不能输出推荐开店、值得投资、可以放心等决策语言。"
+  # Phase 1.5 吸收: book_001
+  - "不能把金角银边绝对化：窄街的银边可能优于宽马路的金角。"
+  - "不能只看晚市忽略午市：晚市强但午市极弱的点位可能因周边无办公支撑。"
+
+source_refs:
+  - source_id: "book_001"
+    applies_to: ["red_flags", "data_blind_spots", "forbidden_misreadings"]
+    rule_key: "storefront_visibility_50m"
+  - source_id: "book_001"
+    applies_to: ["red_flags"]
+    rule_key: "peak_hour_dual_validation"
+  - source_id: "book_002"
+    applies_to: ["red_flags"]
+    rule_key: "rent_ratio_cap_group_dining"
+
+sources:
+  - id: "rule_seed_004"
+    type: "rule_seed"
+    confidence: "B"
+
+last_reviewed: "2026-06-15"
+owner: "product"

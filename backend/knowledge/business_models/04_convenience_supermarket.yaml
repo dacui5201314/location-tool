@@ -82,5 +82,13 @@ sources:
     type: "rule_seed"
     confidence: "B"
 
+source_refs:
+  - source_id: "book_002"
+    applies_to: ["red_flags", "data_blind_spots"]
+    rule_key: "vacancy_rate_20pct_retail"
+  - source_id: "report_summary_001"
+    applies_to: ["red_flags", "data_blind_spots", "forbidden_misreadings"]
+    rule_key: "hema_model_not_for_convenience"
+
 last_reviewed: "2026-06-15"
 owner: "product"

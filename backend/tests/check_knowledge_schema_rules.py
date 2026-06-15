@@ -430,6 +430,45 @@ def test_absorbed_rules_traceable():
     print(f"T14 absorbed rules traceable: {sorted(absorbed_sources_found)} PASS")
 
 
+# ═══════════════ T15: source_refs 中 source_id 可追溯 ═══════════════
+def test_source_refs_valid():
+    """校验 YAML 中 source_refs.source_id 在 source cards 或 manifest 中存在。"""
+    sources_dir = os.path.join(KNOWLEDGE_DIR, "sources")
+    all_source_ids = set()
+    for fname in os.listdir(sources_dir):
+        if not fname.endswith(".yaml") or fname == "source_manifest.yaml":
+            continue
+        card = _load_yaml(os.path.join(sources_dir, fname))
+        sid = card.get("source_id", "")
+        if sid:
+            all_source_ids.add(sid)
+    manifest = _load_yaml(os.path.join(sources_dir, "source_manifest.yaml"))
+    for src in manifest.get("sources", []):
+        sid = src.get("source_id", "")
+        if sid:
+            all_source_ids.add(sid)
+
+    models_dir = os.path.join(KNOWLEDGE_DIR, "business_models")
+    refs_checked = 0
+    for fname in os.listdir(models_dir):
+        if not fname.endswith(".yaml"):
+            continue
+        model = _load_yaml(os.path.join(models_dir, fname))
+        source_refs = model.get("source_refs", [])
+        for ref in source_refs:
+            sid = ref.get("source_id", "")
+            assert sid, f"{fname}: source_refs item missing source_id"
+            assert sid in all_source_ids, (
+                f"{fname}: source_refs.source_id '{sid}' not found in any source card or manifest"
+            )
+            assert ref.get("applies_to"), f"{fname}: source_refs missing applies_to"
+            assert ref.get("rule_key"), f"{fname}: source_refs missing rule_key"
+            refs_checked += 1
+
+    assert refs_checked >= 4, f"expected at least 4 source_refs entries, found {refs_checked}"
+    print(f"T15 source_refs valid: {refs_checked} refs across models PASS")
+
+
 if __name__ == "__main__":
     test_location_profiles_yaml()
     test_business_model_yamls()
@@ -445,5 +484,6 @@ if __name__ == "__main__":
     test_external_source_compliance()
     test_source_id_uniqueness()
     test_absorbed_rules_traceable()
+    test_source_refs_valid()
     print()
     print("ALL KNOWLEDGE SCHEMA TESTS PASSED")

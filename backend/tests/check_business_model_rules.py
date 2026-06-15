@@ -227,6 +227,52 @@ def test_retail_convenience_absorbed_rules():
     print("T11 retail_convenience absorbed rules: PASS")
 
 
+# T12: group_dining 半聚集型语义
+def test_group_dining_semantics():
+    from services.business_model_service import load_business_model, compute_business_model_snapshot
+    model = load_business_model("food_service")
+    assert model, "food_service not loaded"
+    assert model["competition"]["type"] == "半聚集型"
+    rd = _base_rd(direct_competitors_200m=0, direct_competitors_500m=0, direct_competitors_1000m=0)
+    snap = compute_business_model_snapshot(rd, "中餐", "湘菜馆", 120)
+    assert snap["model_type"] == "food_service"
+    rf_text = " ".join(model.get("red_flags", []))
+    assert "停车" in rf_text or "排烟" in rf_text or "消防" in rf_text, f"missing: {rf_text[:100]}"
+    assert "门头" in rf_text and "50m" in rf_text, f"missing 门头: {rf_text[:100]}"
+    refs = model.get("source_refs", [])
+    assert len(refs) >= 2, f"source_refs: {len(refs)}"
+    print(f"T12 group_dining PASS: source_refs={len(refs)}")
+
+
+# T13: education_training 聚集型
+def test_education_training_semantics():
+    from services.business_model_service import load_business_model, compute_business_model_snapshot
+    model = load_business_model("education_training")
+    assert model and model["competition"]["type"] == "聚集型"
+    rd = _base_rd(direct_competitors_200m=0)
+    snap = compute_business_model_snapshot(rd, "教育培训", "英语培训", 80)
+    assert snap["model_type"] == "education_training"
+    fm = " ".join(model.get("forbidden_misreadings", []))
+    assert "托管" in fm or "午托" in fm or "小饭桌" in fm or "餐食" in fm, f"禁止托管: {fm[:100]}"
+    snap2 = compute_business_model_snapshot(rd, "教育培训", "小学生托管", 100)
+    assert snap2["model_type"] == "education_childcare"
+    print("T13 education_training PASS")
+
+
+# T14: laundry_clinic 暗竞品型
+def test_laundry_clinic_semantics():
+    from services.business_model_service import load_business_model, compute_business_model_snapshot
+    model = load_business_model("service_basic")
+    assert model and model["competition"]["type"] == "暗竞品型"
+    snap = compute_business_model_snapshot(_base_rd(), "洗衣店", "", 30)
+    assert snap["model_type"] == "service_basic"
+    fm = " ".join(model.get("forbidden_misreadings", []))
+    assert "外卖骑手" in fm or "上座率" in fm, f"禁止餐饮: {fm[:100]}"
+    rf = " ".join(model.get("red_flags", []))
+    assert "合规" in rf or "资质" in rf, f"合规: {rf[:100]}"
+    print("T14 laundry_clinic PASS")
+
+
 if __name__ == "__main__":
     test_snack_food_no_strong_advantage_zero_comp()
     test_edu_childcare_no_inflated_comp_score()
@@ -239,5 +285,8 @@ if __name__ == "__main__":
     test_service_beauty_semantics()
     test_snack_food_absorbed_rules()
     test_retail_convenience_absorbed_rules()
+    test_group_dining_semantics()
+    test_education_training_semantics()
+    test_laundry_clinic_semantics()
     print()
     print("ALL BUSINESS MODEL TESTS PASSED")

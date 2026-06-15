@@ -57,3 +57,12 @@ sources_item:
     - id
     - type
     - confidence
+
+# Phase 1.5: 结构化追溯
+source_refs:
+  optional: true
+  description: "可解析的结构化来源追溯，替代注释"
+  item_required:
+    - source_id
+    - applies_to
+    - rule_key

@@ -1,0 +1,90 @@
+# 址得选 社区基础服务生意模型 v2026-06-15
+# 覆盖洗衣、诊所、维修、家政等社区刚需服务
+model_id: service_basic
+model_version: "2026-06-15.v1"
+display_name: "洗衣 / 诊所 / 维修 / 家政"
+
+coverage:
+  backend_rule_groups: ["社区基础服务"]
+  keywords:
+    - "洗衣"
+    - "干洗"
+    - "诊所"
+    - "门诊"
+    - "卫生所"
+    - "家政"
+    - "维修"
+    - "开锁"
+    - "疏通"
+
+competition:
+  type: "暗竞品型"
+  zero_competitor_policy: "社区基础服务行业中，大量小型工作室、社区服务点、流动服务人员未被 POI 收录。0 家 POI 竞品不能作为强优势，需现场走访社区确认实际供给。"
+  hidden_competitor_risk: "社区洗衣点/诊所/维修店可能以非标准名称注册（如日用百货、生活服务），或作为小区的配套服务未独立收录。流动维修、上门家政完全不在 POI 收录范围。"
+
+demand_sources:
+  - name: "周边住宅密度"
+    weight: "critical"
+    trigger: "stats_500m.residential >= 5"
+  - name: "社区人口结构"
+    weight: "high"
+    trigger: "周边以家庭住户为主"
+  - name: "步行动线可达"
+    weight: "high"
+    trigger: "门店位于小区主出入口 200m 内"
+
+key_time_windows:
+  - label: "工作日晚间"
+    value: "工作日 17:00-20:00"
+  - label: "周末全天"
+    value: "周末 9:00-18:00"
+
+hard_gates:
+  - "营业执照含对应服务类目"
+  - "诊所需医疗机构执业许可证"
+  - "洗衣需排水和环保许可"
+
+fit_signals:
+  - "周边住宅密度足够且入住率高"
+  - "同类服务在步行可达范围内未饱和"
+  - "门店位于社区主出入口动线上"
+
+red_flags:
+  - "周边住宅密度不足或入住率低"
+  - "已有 2+ 家同类服务商且服务范围重叠"
+  - "合规资质无法办理（诊所/洗衣）"
+  - "月租金超过预估月营收 20%"
+  # Phase 1.5 吸收: book_002
+  - "周边 500m 空铺率超过 20%"
+
+revenue_model:
+  unit_logic: "到店频次 x 服务客单价 x 复购率；社区口碑和转介绍为增长核心"
+  area_range_sqm: [20, 150]
+  rent_ratio_limit: 0.20
+  disclaimer: "以上为模型估算，不代表实际经营结果；需结合社区人口规模、需求饱和度、合规资质和租金复核。"
+  no_estimate_disclaimer: "本报告未生成营收测算，仅提供测算所需核验项；需补充服务客单价、复购率、到店频次、人员成本和租金后再测算。"
+
+data_blind_spots:
+  - "小型工作室和流动服务人员大量未被 POI 收录。"
+  - "社区实际服务需求和消费习惯需走访和访谈确认。"
+  - "诊所/洗衣的合规资质因地区差异较大，需逐一核验。"
+  - "复购率和口碑转介绍无法从空间数据推导。"
+
+forbidden_misreadings:
+  - "不能把 0 POI 竞品直接写成强优势或市场空白。"
+  - "不能把餐饮/零售门店作为社区基础服务的直接竞品。"
+  - "不能输出推荐开店、值得投资、可以放心等决策语言。"
+  - "不得出现外卖骑手、出餐速度、上座率、午晚高峰堂食等餐饮核验项。"
+
+source_refs:
+  - source_id: "book_002"
+    applies_to: ["red_flags"]
+    rule_key: "vacancy_rate_20pct"
+
+sources:
+  - id: "rule_seed_006"
+    type: "rule_seed"
+    confidence: "B"
+
+last_reviewed: "2026-06-15"
+owner: "product"

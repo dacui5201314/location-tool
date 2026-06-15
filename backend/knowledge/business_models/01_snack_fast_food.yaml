@@ -85,5 +85,19 @@ sources:
     type: "internal_sample"
     confidence: "A"
 
+source_refs:
+  - source_id: "book_001"
+    applies_to: ["red_flags", "data_blind_spots", "forbidden_misreadings"]
+    rule_key: "storefront_visibility_50m"
+  - source_id: "book_001"
+    applies_to: ["red_flags"]
+    rule_key: "peak_hour_dual_validation"
+  - source_id: "book_001"
+    applies_to: ["red_flags"]
+    rule_key: "rent_ratio_20pct_snack"
+  - source_id: "book_002"
+    applies_to: ["red_flags"]
+    rule_key: "rent_ratio_20pct_snack"
+
 last_reviewed: "2026-06-15"
 owner: "product"
