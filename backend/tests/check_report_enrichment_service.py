@@ -119,7 +119,7 @@ def test_three_paths_field_completeness():
     for k in required:
         assert k in e_r and e_r[k], f"retry missing {k}"
 
-    print("T7 three-path field completeness: 11 fields x 3 paths PASS")
+    print(f"T7 three-path field completeness: {len(required)} fields x 3 paths PASS")
 
 
 # T8: HTML 重建只消费 report_json，不调用业务判断
@@ -139,6 +139,102 @@ def test_html_renders_from_report_json_only():
     print("T8 HTML renders from report_json: PASS")
 
 
+# ═══════════════ T9: 小程序 parseReport 静态守护 ═══════════════
+def test_miniprogram_no_business_logic():
+    """扫描 uniapp 报告页源码，禁止出现业务判断函数调用。"""
+    import os
+    vue_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                            "..", "uniapp", "src", "pages", "report-detail", "index.vue")
+    if not os.path.exists(vue_path):
+        print("T9 miniprogram static: SKIP (file not found)")
+        return
+    with open(vue_path, "r", encoding="utf-8") as f:
+        src = f.read()
+    banned = [
+        "classify_business_model_family", "compute_business_model_snapshot",
+        "compute_location_profile", "compute_location_fundamentals",
+        "build_business_field_checklist", "build_business_caliber_explanation",
+        "enrich_report_business_context", "load_business_model",
+        "_snapshot_", "_checklist_",
+    ]
+    found = [b for b in banned if b in src]
+    assert not found, f"miniprogram source contains business logic calls: {found}"
+    print("T9 miniprogram static: 0 banned calls PASS")
+
+
+# ═══════════════ T9.5: storage_service 业务逻辑守门 ═══════════════
+def test_storage_service_business_logic_gate():
+    """storage_service.py 只允许 revenue_disclaimer 缺失时的防御性 classify fallback。"""
+    import os
+    svc_path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                            "..", "services", "storage_service.py")
+    with open(svc_path, "r", encoding="utf-8") as f:
+        src = f.read()
+    # classify 调用次数
+    classify_count = src.count("classify_business_model_family(")
+    assert classify_count <= 1, f"storage_service.py should have <=1 classify call, found {classify_count}"
+    if classify_count == 1:
+        # 必须在 revenue_disclaimer 缺失的 fallback 路径中
+        classify_idx = src.find("classify_business_model_family")
+        context = src[max(0, classify_idx - 200):classify_idx + 100]
+        assert "revenue_disclaimer" in context or "not rev_disclaimer" in context, (
+            f"classify call context: {context[:200]}"
+        )
+    print("T9.5 storage_service business logic gate: PASS")
+
+
+# ═══════════════ T10: HTML 渲染字段验收 ═══════════════
+def test_html_display_field_coverage():
+    from services.storage_service import _build_report_html
+    from services.fallback_report_service import build_fallback_report
+
+    rd = _base_rd()
+    fb = build_fallback_report(rd, address="t", business_type="小吃快餐", brand_name="砂锅", store_size=50)
+    fb["business_type"] = "小吃快餐"; fb["generated_at"] = "2026-06-15 10:00"
+    html = _build_report_html(1, fb, "addr", "brand")
+
+    display_fields = [
+        "地点基本面",        # location_fundamentals
+        "行业生意模型",      # business_model_snapshot
+        "现场核验清单",      # field_checklist
+        "竞品口径说明",      # caliber_explanation
+        "关键证据摘要",      # evidence_summary
+        "数据说明与风险提示", # data_boundary
+        "营收测算说明",      # revenue_disclaimer
+        "保守版数据摘要",    # fallback badge
+        "选址决策参考",      # decision_snapshot
+        "经营建议",          # action_plan
+    ]
+    missing = [f for f in display_fields if f not in html]
+    assert not missing, f"HTML missing display fields: {missing}"
+    print(f"T10 HTML display: {len(display_fields)} fields all present PASS")
+
+
+# ═══════════════ T11: 小程序 parseReport 字段消费验收 ═══════════════
+def test_miniprogram_field_consumption():
+    """确认小程序 parseReport 消费了所有 P1 核心字段。"""
+    import os
+    vue_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                            "..", "uniapp", "src", "pages", "report-detail", "index.vue")
+    if not os.path.exists(vue_path):
+        print("T11 miniprogram fields: SKIP (file not found)")
+        return
+    with open(vue_path, "r", encoding="utf-8") as f:
+        src = f.read()
+    required_reads = [
+        "location_fundamentals",   # rptLocationFundamentals
+        "business_model_snapshot", # rptBusinessModelSnapshot
+        "field_checklist",         # rptFieldChecklist
+        "caliber_explanation",     # rptCaliberExplanation
+        "evidence_summary",        # rptEvidenceSummary
+        "data_boundary",           # rptDataBoundary
+        "revenue_disclaimer",      # rptRevenueDisclaimer
+    ]
+    missing = [f for f in required_reads if f not in src]
+    assert not missing, f"miniprogram missing field reads: {missing}"
+    print(f"T11 miniprogram fields: {len(required_reads)} P1 fields consumed PASS")
+
+
 if __name__ == "__main__":
     test_all_paths_have_location_profile()
     test_both_snapshot_and_profile()
@@ -148,5 +244,9 @@ if __name__ == "__main__":
     test_snack_not_misclassified()
     test_three_paths_field_completeness()
     test_html_renders_from_report_json_only()
+    test_miniprogram_no_business_logic()
+    test_storage_service_business_logic_gate()
+    test_html_display_field_coverage()
+    test_miniprogram_field_consumption()
     print()
     print("ALL ENRICHMENT SERVICE TESTS PASSED")
