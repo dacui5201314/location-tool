@@ -8,8 +8,10 @@
 #   score_n < 40: 应列为低优先级候选点
 # 阈值不得依赖 LLM 输出或前端展示文案。
 # 竞品、客流、人口支撑等只影响 one_sentence / fit_condition / stop_condition，不影响 verdict 档位。
+# P1: fit_condition / stop_condition 按生意模型族群差异化。
 """
 import re as _re
+from services.business_model_service import classify_business_model_family
 
 _BANNED_REPLACEMENTS = [
     ("最终决策", "后续判断"),
@@ -20,6 +22,12 @@ _BANNED_REPLACEMENTS = [
     ("推荐入驻", "需结合现场核验"),
     ("推荐开店", "需结合现场核验"),
     ("可以放心", "需结合现场核验"),
+    # P1: 0竞品过度乐观表达
+    ("市场空白明显", "近场无同类门店"),
+    ("先发优势明显", "近场供给较少"),
+    ("先发优势", "近场供给较少"),
+    ("品类切入空间较好", "品类空间需结合需求侧核验"),
+    ("竞争环境宽松", "近场竞品较少但远场竞争不可忽视"),
 ]
 
 
@@ -113,16 +121,39 @@ def compute_decision_snapshot(score, real_data, business_type="", brand_name="",
     else:
         next_action = "安排工作日午晚高峰时段现场实测门前客流"
 
-    # ── fit_condition / stop_condition ──
-    if verdict == "可优先现场核验":
-        fit_condition = "午晚高峰目标客群实测达标，且月租金在预算范围内"
-        stop_condition = "门前实测客流明显低于预期，或月租金远超同商圈平均水平"
-    elif verdict == "谨慎考察":
-        fit_condition = "午晚高峰目标客群实际经过量达到预期，且租金可控"
-        stop_condition = "两个高峰时段目标客群都明显不足，或租金占比超过营收20%且无议价空间"
+    # ── P1: fit_condition / stop_condition（按生意模型族群差异化）──
+    family = classify_business_model_family(business_type, brand_name)
+    if family == "education_childcare":
+        if verdict == "可优先现场核验":
+            fit_condition = "周边小学步行5分钟内可达且动线安全，周边低年级家庭密度足够，合规资质可办理，租金可控"
+            stop_condition = "周边小学距离偏远或动线不安全，已有多家成熟托管无差异化空间，或合规无法满足"
+        elif verdict == "谨慎考察":
+            fit_condition = "周边小学和家庭密度经核验成立，合规和空间条件基本满足，租金可控"
+            stop_condition = "周边小学客源不足、动线不安全、或暗竞品已充分覆盖且无差异化空间"
+        else:
+            fit_condition = "租金显著低于同地段、附近有新建小学或大型社区带来增量需求"
+            stop_condition = "周边小学弱且家庭密度不足、合规无法满足、或已有托管全覆盖"
+    elif family == "snack_fast_food":
+        if verdict == "可优先现场核验":
+            fit_condition = "午市客流实测成立、租金低、1-2人可运营、外卖可覆盖晚餐缺口"
+            stop_condition = "午市客流低于预期、或月租金远超同商圈平均水平"
+        elif verdict == "谨慎考察":
+            fit_condition = "租金低、午市学校/办公客流实测成立、外卖可补充晚餐"
+            stop_condition = "租金高、晚餐和周末客流弱、外卖出单不足时不应优先推进"
+        else:
+            fit_condition = "租金显著低于同商圈、目标客群实测远超预期、或有强线上引流能力"
+            stop_condition = "目标客群实测持续偏低、租金占比过高、且外卖条件不佳"
     else:
-        fit_condition = "租金显著低于同商圈、目标客群实测远超预期，或有强线上引流能力"
-        stop_condition = "目标客群实测持续偏低，且外卖取餐条件一般"
+        # 通用逻辑
+        if verdict == "可优先现场核验":
+            fit_condition = "目标客群实测达标，且月租金在预算范围内"
+            stop_condition = "门前实测客流明显低于预期，或月租金远超同商圈平均水平"
+        elif verdict == "谨慎考察":
+            fit_condition = "目标客群实际经过量达到预期，且租金可控"
+            stop_condition = "目标客群实测明显不足，或租金占比超过营收20%且无议价空间"
+        else:
+            fit_condition = "租金显著低于同商圈、目标客群实测远超预期，或有强线上引流能力"
+            stop_condition = "目标客群实测持续偏低，且经营条件难以改善"
 
     if is_fallback:
         fit_condition += "（本报告为保守版数据摘要，深度分析未展开）"

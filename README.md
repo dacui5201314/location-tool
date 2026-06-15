@@ -179,6 +179,7 @@ http://localhost:8000/docs           # Swagger API 文档
 
 ## 版本历史
 
+- **v4.1.0** (2026-06-15) — P1 第一优先级体验提升：12 族群生意模型模板（小吃快餐/教育托管/教育培训/正餐/茶饮咖啡/便利零售/购物零售/美业/基础服务/酒店/娱乐/通用），同一地址不同业态共享地点基本面但输出不同业务判断；教育托管从教育培训拆出独立模板，禁止餐饮词（外卖骑手/出餐速度/上座率/午晚高峰堂食），0 竞品必须提示暗竞品/漏收录；竞争/品类评分增加需求侧约束封顶（弱需求+0竞品不拿高分）；小吃快餐结论更锋利（低租金/小档口/午市/外卖 vs 高租金/晚餐弱/外卖不足）；统一 P1 enrichment 服务确保 normal/retry/fallback 三条链路模块一致；HTML 与小程序报告模块对齐（fallback 标识/地点基本面/生意模型快照/竞品口径/证据摘要/数据边界/营收免责）；category 参数全链路传播支持 category-only 托管识别；数据充分度文案克制化（POI 数据充分 ≠ 经营数据充分）；严格 regression：188/2178/fallback/28 P0.5/22 P1 全 PASS。
 - **v4.0.0** (2026-06-16) — P0.5-final 报告可信度与判断力收口：HTML footer 去 AI 兜底、normal/retry/fallback 统一 deterministic decision_snapshot（三档阈值：可优先现场核验 / 谨慎考察 / 低优先级候选点）、营收测算模型免责、action_plan 与 field_checklist 分开展示、小餐饮替代消费过滤药店/医疗 POI 并同步重算计数、fallback 禁词稳态矩阵（7 场景全量 guard 验证）、公交分类稳健化（7 种中文 type 变体不丢到 None + fetch 层 distance 缺失保留 + BUS_DIAG 诊断日志）、同品牌分店自我分流检测与评分封顶（competition≤45 / category≤40）、低维详情解释增强（为什么低 / 怎么验证 / 什么情况淘汰）、现场核验清单淘汰信号 eliminate_hint、bus_seen distance 兜底 + fetch 层 keep_missing_distance 参数。测试：188 / 2178 / fallback / 28 P0.5 回归全 PASS。
 - **v3.9.3** (2026-06-12) — 微信审核合规：小程序前端所有用户可见 AI 文案替换（AI智能选址→商业选址分析、AI分析→分析、高级模型→多维评估、深度分析→多维分析、AI商业评估→商业评估），manifest/app-header/ProfilePanel/home 共 9 处；编译产物零敏感词匹配
 - **v3.9.2** (2026-06-12) — 线上热修复：Android 地址输入框受控 value 解锁（定位后可手动编辑）；P0-NAME guard 量词+POI 泛称误杀修复（个住宅小区/栋办公建筑/所教育机构 等，新增 11 条回归测试）；兜底报告竞争口径修正（同业态→同品类直接竞品 + 替代消费三半径独立展示）；prompt 竞品密度预判文案降级（删除品类空白优势硬规则，substitute>0 时保守提示）；报告页周边数据 stats-grid flex→CSS grid 三列稳定布局；首页移除免费额度顶部提示条（修复 OPPO/vivo/小米/华为/三星状态栏遮挡）

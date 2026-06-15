@@ -133,7 +133,128 @@ def _build_report_html(record_id: int, report_data: dict, address: str, brand_na
     score_note = decision_snapshot.get("verdict") or exec_summary.get("verdict") or ("可重点核验" if score_num >= 70 else "需线下验证" if score_num >= 45 else "需谨慎评估")
     city_line = " ".join(str(real_data.get(k) or "").strip() for k in ["city", "district", "township"]).strip()
     business_type = report_data.get("business_type") or report_data.get("industry") or report_data.get("category") or ""
+    report_type = report_data.get("report_type") or ""  # P1: fallback 标识
     generated_raw = report_data.get("generated_at") or report_data.get("created_at") or ""
+    if generated_raw:
+        generated_display = generated_raw[:16] if len(generated_raw) >= 16 else generated_raw
+    else:
+        generated_display = datetime.now(CHINA_TZ).strftime("%Y-%m-%d %H:%M")  # 仅兜底
+    # ── P1: fallback 标识 ──
+    fallback_badge_html = ""
+    if report_type == "fallback":
+        fallback_badge_html = '<div class="notice" style="background:#fef3c7;color:#92400e;border:1px solid #fde68a;margin-bottom:28px;">📋 保守版数据摘要 — 基于采集数据生成，深度分析未展开。建议结合现场核验。</div>'
+
+    # ── P1: 地点基本面 ──
+    location_fundamentals = report_data.get("location_fundamentals") or {}
+    loc_fund_html = ""
+    if location_fundamentals:
+        lf_label = _esc(location_fundamentals.get("label") or "")
+        lf_summary = _esc(location_fundamentals.get("summary") or "")
+        lf_strengths = "".join(f"<p>✓ {_esc(s)}</p>" for s in (location_fundamentals.get("strengths") or [])[:4])
+        lf_risks = "".join(f"<p>⚠ {_esc(r)}</p>" for r in (location_fundamentals.get("risks") or [])[:4])
+        loc_fund_html = f"""
+  <section class="section">
+    <h2>📍 地点基本面</h2>
+    <div class="info-box" style="background:#f8fafc;border:1px solid #e2e8f0;">
+      <div class="info-row"><b>位置类型</b>{lf_label}</div>
+      <p style="margin:12px 0 8px;font-size:15px;line-height:1.85;">{lf_summary}</p>
+    </div>
+    <div class="split" style="margin-top:16px;">
+      <div class="soft-card good"><h2>✅ 位置优势</h2>{lf_strengths}</div>
+      <div class="soft-card bad"><h2>⚠ 位置风险</h2>{lf_risks}</div>
+    </div>
+  </section>"""
+
+    # ── P1: 生意模型快照 ──
+    biz_snapshot = report_data.get("business_model_snapshot") or {}
+    biz_snap_html = ""
+    if biz_snapshot:
+        bs_core = _esc(biz_snapshot.get("core_logic") or "")
+        bs_comp = _esc(biz_snapshot.get("competitor_note") or "")
+        bs_fit = _esc(biz_snapshot.get("fit_condition") or "")
+        bs_stop = _esc(biz_snapshot.get("stop_condition") or "")
+        bs_score = _esc(biz_snapshot.get("score_explanation") or "")
+        must_verify = biz_snapshot.get("must_verify") or []
+        mv_items = "".join(f"<p>{i+1}. {_esc(v)}</p>" for i, v in enumerate(must_verify[:6]))
+        biz_snap_html = f"""
+  <section class="section">
+    <h2>🏪 行业生意模型：{_esc(business_type or '选址')}</h2>
+    <div class="info-box" style="background:#f0fdf4;border:1px solid #bbf7d0;">
+      <p style="margin:0;font-size:15px;line-height:1.9;"><b>核心逻辑：</b>{bs_core}</p>
+      {f'<p style="margin:12px 0 0;font-size:14px;line-height:1.9;color:#64748b;">{bs_comp}</p>' if bs_comp else ''}
+    </div>
+    {f'<div class="info-box" style="background:#fff;border:1px solid #e2e8f0;margin-top:14px;"><h3 style="margin:0 0 10px;">📋 必核验项</h3>{mv_items}</div>' if mv_items else ''}
+    {f'<div class="info-row" style="color:#16a34a;margin-top:10px;"><b>成立条件</b>{bs_fit}</div>' if bs_fit else ''}
+    {f'<div class="info-row" style="color:#dc2626;margin-top:6px;"><b>降级条件</b>{bs_stop}</div>' if bs_stop else ''}
+    {f'<p style="margin-top:10px;font-size:14px;color:#64748b;">{bs_score}</p>' if bs_score else ''}
+  </section>"""
+
+    # ── P1: 竞品口径说明 ──
+    caliber_explanation = report_data.get("caliber_explanation") or ""
+    caliber_html = ""
+    if caliber_explanation:
+        caliber_html = f"""
+  <section class="section">
+    <h2>📖 竞品口径说明</h2>
+    <div class="detail-block" style="border-left-color:#3b82f6;">
+      <p>{_esc(caliber_explanation)}</p>
+    </div>
+  </section>"""
+
+    # ── P1: 证据摘要 ──
+    evidence_summary = report_data.get("evidence_summary") or {}
+    evidence_html = ""
+    if evidence_summary:
+        dc = evidence_summary.get("direct_competitors") or {}
+        sc = evidence_summary.get("substitute_consumption") or {}
+        ta = evidence_summary.get("traffic_anchors") or {}
+        kp = evidence_summary.get("key_pois") or {}
+        evidence_html = f"""
+  <section class="section">
+    <h2>📊 关键证据摘要</h2>
+    <div class="poi-grid" style="grid-template-columns:repeat(3,1fr);">
+      <div class="poi-card">
+        <div class="poi-label">直接竞品</div>
+        <div class="poi-value">{dc.get('200m', 0)} / {dc.get('500m', 0)} / {dc.get('1000m', 0)}</div>
+        <div class="poi-sub">200m / 500m / 1000m</div>
+      </div>
+      <div class="poi-card">
+        <div class="poi-label">替代消费</div>
+        <div class="poi-value">{sc.get('200m', 0)} / {sc.get('500m', 0)} / {sc.get('1000m', 0)}</div>
+        <div class="poi-sub">200m / 500m / 1000m</div>
+      </div>
+      <div class="poi-card">
+        <div class="poi-label">客流锚点</div>
+        <div class="poi-value">{ta.get('200m', 0)} / {ta.get('500m', 0)} / {ta.get('1000m', 0)}</div>
+        <div class="poi-sub">200m / 500m / 1000m</div>
+      </div>
+    </div>
+    {f'<div class="note-line">住宅: {kp.get("residential", {}).get("200m", 0)}/{kp.get("residential", {}).get("500m", 0)}/{kp.get("residential", {}).get("1000m", 0)} | 学校: {kp.get("schools", {}).get("200m", 0)}/{kp.get("schools", {}).get("500m", 0)}/{kp.get("schools", {}).get("1000m", 0)} | 办公: {kp.get("office", {}).get("200m", 0)}/{kp.get("office", {}).get("500m", 0)}/{kp.get("office", {}).get("1000m", 0)}</div>' if kp else ''}
+  </section>"""
+
+    # ── P1: 数据边界 ──
+    data_boundary = report_data.get("data_boundary") or ""
+    boundary_html = ""
+    if data_boundary:
+        boundary_html = f"""
+  <section class="section disc-section">
+    <h2>📌 数据说明与风险提示</h2>
+    <div class="detail-block" style="border-left-color:#94a3b8;">
+      <p>{_esc(data_boundary)}</p>
+    </div>
+  </section>"""
+
+    # ── P1: 营收测算说明优先使用 report 中的 revenue_disclaimer ──
+    rev_disclaimer = report_data.get("revenue_disclaimer") or ""
+    if not rev_disclaimer:
+        from services.business_model_service import classify_business_model_family
+        rev_family = classify_business_model_family(business_type or "", brand_name or "")
+        if rev_family == "education_childcare":
+            rev_disclaimer = "以上为模型估算，不代表实际经营结果；需结合周边小学距离、生源数、托管服务组合和租金复核。"
+        elif rev_family == "snack_fast_food":
+            rev_disclaimer = "以上为模型估算，不代表实际经营结果；需结合现场客流、租金、转让费、出餐能力和外卖能力复核。"
+        else:
+            rev_disclaimer = "以上为模型估算，不代表实际经营结果；需结合现场客流、租金、转让费和实际经营条件复核。"
     if generated_raw:
         generated_display = generated_raw[:16] if len(generated_raw) >= 16 else generated_raw
     else:
@@ -398,9 +519,11 @@ def _build_report_html(record_id: int, report_data: dict, address: str, brand_na
   </section>
 
   <div class="notice notice-yellow">⚠️ 本报告为选址初筛参考，不提供投资建议，各维度评分仅供参考，后续判断请结合实地考察</div>
+  {fallback_badge_html}
   {warning_html}
   {decision_html}
   {suff_html}
+  {loc_fund_html}
 
   <section class="score-panel">
     <div>
@@ -423,13 +546,19 @@ def _build_report_html(record_id: int, report_data: dict, address: str, brand_na
 
   {f'<section class="section"><h2>📊 周边真实数据（200m / 500m / 1000m 三层半径采集）</h2><div class="poi-grid">{poi_cards}</div>{notes_html}{comp_html}</section>' if poi_cards else ''}
 
+  {biz_snap_html}
+  {caliber_html}
+  {evidence_html}
+
   {f'<section class="section"><h2>📝 各维度详细分析</h2>{detail_blocks}</section>' if detail_blocks else ''}
 
-  {f'<section class="section disc-section"><h2>📌 营收测算说明</h2><p>以上为模型估算，不代表实际经营结果；需结合现场客流、租金、转让费、出餐能力和外卖能力复核。</p></section>' if detail_blocks else ''}
+  {f'<section class="section disc-section"><h2>📌 营收测算说明</h2><p>{rev_disclaimer}</p></section>' if detail_blocks else ''}
 
   {checklist_html}
 
   {f'<section class="section"><h2>💡 经营建议</h2><div class="detail-block" style="border-left-color:#ef4444">{action_html}</div></section>' if action_plan else ''}
+
+  {boundary_html}
 
   <section class="footer">
     <div>

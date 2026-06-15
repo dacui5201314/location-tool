@@ -64,6 +64,25 @@
       </view>
 
       <!-- P0-B: 数据充分度标签 -->
+      <!-- P1: 地点基本面 -->
+      <view class="section" v-if="rptLocationFundamentals">
+        <view class="sec-title">📍 地点基本面</view>
+        <view class="loc-fund-box">
+          <text class="loc-fund-type">{{ rptLocationFundamentals.label || rptLocationFundamentals.type || '' }}</text>
+          <text class="loc-fund-summary">{{ rptLocationFundamentals.summary || '' }}</text>
+        </view>
+        <view class="split-mini" v-if="(rptLocationFundamentals.strengths && rptLocationFundamentals.strengths.length) || (rptLocationFundamentals.risks && rptLocationFundamentals.risks.length)">
+          <view class="sm-item good" v-if="rptLocationFundamentals.strengths && rptLocationFundamentals.strengths.length">
+            <text class="sm-title sm-green">位置优势</text>
+            <text class="sm-text" v-for="(s,i) in rptLocationFundamentals.strengths" :key="'ls'+i">✓ {{ s }}</text>
+          </view>
+          <view class="sm-item bad" v-if="rptLocationFundamentals.risks && rptLocationFundamentals.risks.length">
+            <text class="sm-title sm-red">位置风险</text>
+            <text class="sm-text" v-for="(r,i) in rptLocationFundamentals.risks" :key="'lr'+i">⚠ {{ r }}</text>
+          </view>
+        </view>
+      </view>
+
       <view class="ds-tag" v-if="rptDataSufficiency" :class="'ds-' + rptDataSufficiency.level">
         <text class="ds-icon">{{ suffIcon }}</text>
         <text class="ds-label">{{ rptDataSufficiency.label }}</text>
@@ -221,10 +240,10 @@
         </view>
       </view>
 
-      <!-- P0.5-final: 营收模型免责 -->
+      <!-- P0.5-final: 营收模型免责（优先使用后端 revenue_disclaimer） -->
       <view class="section disc-section" v-if="rptDetailTexts.length">
         <view class="sec-title">📌 营收测算说明</view>
-        <text class="sec-text">以上为模型估算，不代表实际经营结果；需结合现场客流、租金、转让费、出餐能力和外卖能力复核。</text>
+        <text class="sec-text">{{ rptRevenueDisclaimer || '以上为模型估算，不代表实际经营结果；需结合现场客流、租金和实际经营条件复核。' }}</text>
       </view>
 
       <!-- ── 连锁品牌 ── -->
@@ -241,6 +260,30 @@
         <text class="ql" v-if="rptIrr > 0">严谨度规则剔除 {{ rptIrr }} 个无关 POI</text>
         <text class="ql" v-for="(q,i) in rptQual" :key="'q'+i">{{ q }}</text>
         <view class="item-sm" v-for="(n,i) in rptIrrList" :key="'irr'+i">{{ n }}</view>
+      </view>
+
+      <!-- P1: 生意模型快照 -->
+      <view class="section" v-if="rptBusinessModelSnapshot">
+        <view class="sec-title">🏪 行业生意模型：{{ record.business_type || '选址' }}</view>
+        <view class="biz-snap-box">
+          <text class="biz-snap-core" v-if="rptBusinessModelSnapshot.core_logic">{{ rptBusinessModelSnapshot.core_logic }}</text>
+          <text class="biz-snap-comp" v-if="rptBusinessModelSnapshot.competitor_note">{{ rptBusinessModelSnapshot.competitor_note }}</text>
+        </view>
+        <view class="biz-must-verify" v-if="rptBusinessModelSnapshot.must_verify && rptBusinessModelSnapshot.must_verify.length">
+          <text class="bmv-title">📋 必核验项</text>
+          <view class="bmv-item" v-for="(v,i) in rptBusinessModelSnapshot.must_verify" :key="'bmv'+i">
+            <text class="bmv-num">{{ i+1 }}</text>
+            <text class="bmv-text">{{ v }}</text>
+          </view>
+        </view>
+        <view class="biz-cond fit" v-if="rptBusinessModelSnapshot.fit_condition">
+          <text class="biz-cond-label">成立条件：</text>
+          <text class="biz-cond-text">{{ rptBusinessModelSnapshot.fit_condition }}</text>
+        </view>
+        <view class="biz-cond stop" v-if="rptBusinessModelSnapshot.stop_condition">
+          <text class="biz-cond-label">降级条件：</text>
+          <text class="biz-cond-text">{{ rptBusinessModelSnapshot.stop_condition }}</text>
+        </view>
       </view>
 
       <!-- ── 经营建议（仅当没有 field_checklist 或两者都有时展示）── -->
@@ -370,7 +413,11 @@ export default {
       rptDataSufficiency: null,
       rptEvidenceSummary: null,
       rptDataBoundary: '',
-      rptFallbackNote: false
+      rptFallbackNote: false,
+      // P1: 地点基本面与生意模型快照
+      rptLocationFundamentals: null,
+      rptBusinessModelSnapshot: null,
+      rptRevenueDisclaimer: '',
     }
   },
   computed: {
@@ -593,6 +640,8 @@ export default {
       this.rptType = ''; this.rptGeneratedAt = ''; this.rptDecisionSnapshot = null; this.rptFieldChecklist = []
       this.rptCaliberExplanation = ''; this.rptDataSufficiency = null
       this.rptEvidenceSummary = null; this.rptDataBoundary = ''; this.rptFallbackNote = false
+      this.rptLocationFundamentals = null; this.rptBusinessModelSnapshot = null
+      this.rptRevenueDisclaimer = ''
       this.poiExpanded = false
 
       let rpt = null
@@ -872,6 +921,16 @@ export default {
       if (this.rptFallbackNote && !this.rptDataBoundary) {
         this.rptDataBoundary = '本报告为保守版数据摘要，仅基于采集数据生成，不包含完整深度分析。建议结合现场核验。'
       }
+
+      // P1: 地点基本面与生意模型快照
+      if (rpt.location_fundamentals && typeof rpt.location_fundamentals === 'object') {
+        this.rptLocationFundamentals = rpt.location_fundamentals
+      }
+      if (rpt.business_model_snapshot && typeof rpt.business_model_snapshot === 'object') {
+        this.rptBusinessModelSnapshot = rpt.business_model_snapshot
+      }
+      // P1: 营收免责（按业态区分）
+      this.rptRevenueDisclaimer = rpt.revenue_disclaimer || ''
     }
   }
 }
@@ -1070,4 +1129,34 @@ export default {
 .ev-col-num { font-size:24rpx; font-weight:700; color:#334155; display:block; padding:4rpx 0; }
 
 .disc-section { margin:20rpx 24rpx; }
+
+/* P1: 地点基本面 */
+.loc-fund-box { background:#f8fafc; border:1rpx solid #e2e8f0; border-radius:12rpx; padding:18rpx 20rpx; margin-bottom:18rpx; }
+.loc-fund-type { display:block; font-size:26rpx; font-weight:900; color:#1f4aa8; margin-bottom:8rpx; }
+.loc-fund-summary { font-size:26rpx; color:#475569; line-height:1.75; }
+.split-mini { display:flex; gap:12rpx; flex-wrap:wrap; }
+.sm-item { flex:1; min-width:280rpx; border-radius:12rpx; padding:16rpx; }
+.sm-item.good { background:#effdf5; border:1rpx solid #bbf7d0; }
+.sm-item.bad { background:#fff5f5; border:1rpx solid #fecaca; }
+.sm-title { display:block; font-size:24rpx; font-weight:900; margin-bottom:10rpx; }
+.sm-title.sm-green { color:#047857; }
+.sm-title.sm-red { color:#b91c1c; }
+.sm-text { display:block; font-size:24rpx; color:#475569; line-height:1.7; }
+
+/* P1: 生意模型快照 */
+.biz-snap-box { background:#f0fdf4; border:1rpx solid #bbf7d0; border-radius:12rpx; padding:18rpx 20rpx; margin-bottom:18rpx; }
+.biz-snap-core { font-size:26rpx; color:#334155; line-height:1.75; display:block; }
+.biz-snap-comp { font-size:24rpx; color:#64748b; line-height:1.75; display:block; margin-top:10rpx; }
+.biz-must-verify { margin-bottom:18rpx; }
+.bmv-title { font-size:26rpx; font-weight:900; color:#0f172a; display:block; margin-bottom:10rpx; }
+.bmv-item { display:flex; gap:10rpx; padding:10rpx 0; border-bottom:1rpx solid #f1f5f9; }
+.bmv-num { width:40rpx; height:40rpx; background:#dbeafe; border-radius:50%; text-align:center; line-height:40rpx; font-size:22rpx; font-weight:900; color:#1f4aa8; flex-shrink:0; }
+.bmv-text { font-size:25rpx; color:#475569; line-height:1.6; flex:1; }
+.biz-cond { padding:14rpx 16rpx; border-radius:10rpx; margin-top:10rpx; }
+.biz-cond.fit { background:#f0fdf4; border:1rpx solid #bbf7d0; }
+.biz-cond.stop { background:#fff5f5; border:1rpx solid #fecaca; }
+.biz-cond-label { font-size:23rpx; font-weight:900; }
+.biz-cond.fit .biz-cond-label { color:#16a34a; }
+.biz-cond.stop .biz-cond-label { color:#dc2626; }
+.biz-cond-text { font-size:24rpx; color:#475569; line-height:1.7; }
 </style>

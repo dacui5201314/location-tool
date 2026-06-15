@@ -3,8 +3,62 @@
 LLM 报告事实校验失败 + retry 仍失败时，用 real_data 生成保守版报告。
 只引用真实数量和泛化类别，不写任何具体 POI 名称。
 文案严格避免 P0 语境关键词和决策性表述。
+P1: 按业态切换生意模型模板，不再所有业态共用一套逻辑。
 """
 import json as _json
+from services.business_model_service import (
+    classify_business_model_family,
+    compute_location_fundamentals,
+    compute_business_model_snapshot,
+    build_business_field_checklist,
+    build_business_caliber_explanation,
+)
+
+
+# ═══════════════════════════════════════════════
+# 简版 action_plan 生成（从 field_checklist 提取 title）
+# ═══════════════════════════════════════════════
+def _simple_action_plan(field_checklist, business_type="", brand_name=""):
+    """从 field_checklist 的 title 生成简版经营建议。"""
+    if not field_checklist or not isinstance(field_checklist, list):
+        family = classify_business_model_family(business_type, brand_name)
+        return _default_action_plan(family)
+    items = []
+    for item in field_checklist[:5]:
+        if isinstance(item, dict) and item.get("title"):
+            items.append(item["title"])
+        elif isinstance(item, str):
+            items.append(item)
+    if len(items) < 3:
+        family = classify_business_model_family(business_type, brand_name)
+        return _default_action_plan(family)
+    return items
+
+
+def _default_action_plan(family):
+    if family == "education_childcare":
+        return [
+            "确认周边小学距离和放学动线安全性",
+            "走访周边托管/小饭桌暗竞品",
+            "核验消防/食品/托管合规和空间分区",
+            "访谈周边低年级家长托管需求",
+            "走访相邻商户了解租金后制定财务模型",
+        ]
+    if family == "snack_fast_food":
+        return [
+            "实测午高峰门前客流和动线",
+            "走访相邻商户了解真实租金",
+            "观察同类门店午高峰经营状态",
+            "检查外卖骑手停车和取餐便利度",
+            "检查门店门头可见度和道路动线",
+        ]
+    return [
+        "安排时段现场实测目标客群流量",
+        "走访相邻商户了解真实租金和经营状况",
+        "观察同类门店经营状态和客群特征",
+        "检查门店门头可见度和道路动线",
+        "线下询价确认租金后制定财务模型",
+    ]
 
 
 def _int(v, default=0):
@@ -60,9 +114,9 @@ def build_fallback_report(real_data: dict, address: str = "",
     advantages = []
     if dc_200 <= 3:
         if sub_200 > 0 or sub_500 > 0:
-            advantages.append(f"200米范围内{dh_count(dc_200, '家同品类直接竞品')}，直接竞品较少，但替代消费较多，需现场核验分流影响")
+            advantages.append(f"200m 直接竞品 {dc_200} 家，直接竞品较少，但替代消费较多，需现场核验分流影响")
         else:
-            advantages.append(f"200米范围内{dh_count(dc_200, '家同品类直接竞品')}，直接竞争压力较小")
+            advantages.append(f"200m 直接竞品 {dc_200} 家，直接竞争压力较小")
     if res_500 >= 10:
         advantages.append(f"500米半径覆盖{dh_count(res_500, '个住宅小区')}，常住人口基数充足")
     if subway_applicable and subway_500 >= 1:
@@ -83,7 +137,7 @@ def build_fallback_report(real_data: dict, address: str = "",
     # ── disadvantages（避免"分流""极""不足"） ──
     disadvantages = []
     if dc_200 > 15:
-        disadvantages.append(f"200米范围内{dh_count(dc_200, '家同品类直接竞品')}，竞争较激烈")
+        disadvantages.append(f"200m 直接竞品 {dc_200} 家，竞争较激烈")
     if subway_applicable and subway_500 == 0 and bus_500 == 0:
         disadvantages.append("500米内无地铁和公交覆盖，出行主要依赖步行和自驾")
     elif subway_applicable and subway_500 == 0:
@@ -109,20 +163,48 @@ def build_fallback_report(real_data: dict, address: str = "",
 
     # ── summary ──
     summary = (
-        f"该{business_type or '门店'}选址数据摘要：200米内{dc_200}家同品类直接竞品，"
-        f"500米内{dc_500}家，1000米内{dc_1000}家。"
-        f"替代消费200米{sub_200}家、500米{sub_500}家、1000米{sub_1000}家。"
+        f"该点位选址数据摘要："
+        f"直接竞品 200米{dc_200}家、500米{dc_500}家、1000米{dc_1000}家。"
+        f"替代消费 200米{sub_200}家、500米{sub_500}家、1000米{sub_1000}家。"
         f"500米内{res_500}个住宅小区、{office_500}栋办公建筑、{school_500}所教育机构。"
         f"本报告为基于采集数据的保守版数据摘要，不替代现场客流、租金和商户经营状态核验。"
     )
 
     # ── P0.5: 同品牌分店检测（必须在 dims 之前）──
     same_brand_risk, same_brand_matches = _detect_same_brand_risk(brand_name, real_data)
-    small_food = _is_small_food(business_type, brand_name)
+    # P1: category → 使用 brand_name 作为业态细分描述（fallback 无独立 category 字段）
+    _category = brand_name or ""
 
     # ── P0.5: 低维详情辅助函数 ──
     def _traffic_flow_detail(r500, o500, s500, sw500, b500, score):
+        family = classify_business_model_family(business_type, brand_name, _category)
         pop = r500 + o500 + s500
+        # 教育/托管类：不使用午晚高峰/外卖等餐饮语言
+        if family == "education_childcare":
+            if pop >= 10:
+                txt = f"500米内住宅{r500}个、学校{s500}所，潜在生源基础一般。"
+                detail = (f"500米内住宅{r500}个、学校{s500}所。"
+                          f"托管客流核心看周边小学低年级学生数量和放学时段动线。"
+                          f"现场需在15:30-17:00放学时段观察学生和家长的动线是否经过店址。"
+                          f"如动线不经过且无可调整的引流方式，则该点位客流支撑不足。评分：{score}")
+            else:
+                txt = f"500米内住宅{r500}个、学校{s500}所，生源基础偏弱。"
+                detail = (f"500米内住宅{r500}个、学校{s500}所，生源基础偏弱。"
+                          f"现场必须确认周边小学距离和放学动线，如实测学生和家长流量明显不足，"
+                          f"需降低为低优先级候选点。评分：{score}")
+            return txt, detail
+        if family == "education_training":
+            if pop >= 10:
+                txt = f"500米内住宅{r500}个、学校{s500}所，潜在客源基础一般。"
+                detail = (f"500米内住宅{r500}个、学校{s500}所。"
+                          f"培训客流需现场核验周末和放学时段的实际到店流量。"
+                          f"如客群实测明显不足，需重新评估点位。评分：{score}")
+            else:
+                txt = f"500米内住宅{r500}个、学校{s500}所，客源基础偏弱。"
+                detail = (f"500米内住宅{r500}个、学校{s500}所，客源基础偏弱。"
+                          f"现场必须实测目标客群流量，如不足需降低为低优先级候选点。评分：{score}")
+            return txt, detail
+        # 餐饮/零售等：保留原逻辑
         if pop >= 20:
             txt = f"500米内住宅{r500}个、办公{o500}栋、学校{s500}所，潜在客流基础较好。"
             detail = (f"500米内住宅{r500}个、办公{o500}栋、学校{s500}所，地铁{sw500}站、公交{b500}条。"
@@ -183,13 +265,29 @@ def build_fallback_report(real_data: dict, address: str = "",
     _cs_text, _cs_detail = _cost_estimate_detail(store_size, 50)
 
     def _revenue_estimation_detail(bt, ss):
+        family = classify_business_model_family(bt, brand_name, _category)
+        if family == "education_childcare":
+            return (f"托管营收测算需结合周边小学低年级学生数量、托管服务组合"
+                    f"（午托/晚托/作业辅导/晚餐）和周边家长支付意愿来估算。"
+                    f"建议用保守/中性/乐观三档，分别估算生源数、月收费、"
+                    f"空间利用率和盈亏平衡点。本数据摘要不提供未经验证的营收推算。")
+        if family == "education_training":
+            return (f"培训营收测算需结合目标生源数、课程单价、续费率和满班率来估算。"
+                    f"建议用保守/中性/乐观三档，分别估算生源数、月营收和固定成本。"
+                    f"本数据摘要不提供未经验证的营收推算。")
         return (f"营收测算需结合线下客流实测和租金询价后完成。"
                 f"建议用保守/中性/乐观三档假设分别测算日均单量、客单价、月固定成本和盈亏平衡点。"
                 f"本数据摘要不提供未经验证的营收推算。")
 
     def _site_suggestion_detail(bt):
+        family = classify_business_model_family(bt, brand_name, _category)
+        if family == "education_childcare":
+            return (f"本报告为数据摘要，用于选址初筛参考。"
+                    f"建议顺序：① 确认周边小学和放学动线 → ② 走访暗竞品 → "
+                    f"③ 核验合规和空间条件 → ④ 访谈家长需求 → ⑤ 制定财务模型。"
+                    f"任何单一数据源都不足以支撑选址判断。")
         return (f"本报告为数据摘要，用于选址初筛参考。"
-                f"建议顺序：① 现场实测客流（午晚高峰各一次）→ ② 询价租金和转让费 → "
+                f"建议顺序：① 现场实测客流（目标客群高峰时段）→ ② 询价租金和转让费 → "
                 f"③ 走访同业态商户了解实际经营状况 → ④ 结合以上信息制定财务模型。"
                 f"任何单一数据源都不足以支撑选址判断。")
 
@@ -208,14 +306,17 @@ def build_fallback_report(real_data: dict, address: str = "",
          "score": _clamp(25, 80, 20 + office_500 + school_500),
          "text": _cp_text},
         {"key": "competition", "label": "竞争环境",
-         "score": _competition_score(dc_200, dc_500, dc_1000, same_brand_risk),
+         "score": _competition_score(dc_200, dc_500, dc_1000, same_brand_risk,
+                                     res_500, school_500, office_500,
+                                     classify_business_model_family(business_type, brand_name, _category)),
          "text": _competition_text(dc_200, dc_500, dc_1000, sub_500, same_brand_risk)},
         {"key": "complementary_businesses", "label": "互补业态",
          "score": _clamp(30, 70, 40 + shopping_500 * 3 + _int(s10.get("convenience", 0))),
          "text": _complementary_text(shopping_500, _int(s10.get("convenience", 0)), _int(s10.get("hotels", 0)))},
         {"key": "category_advantage", "label": "品类优势",
-         "score": _category_advantage_score(dc_200, dc_500, dc_1000, same_brand_risk, res_500, office_500, school_500),
-         "text": _category_advantage_text(business_type, dc_200, dc_500, dc_1000, same_brand_risk, res_500, office_500, school_500)},
+         "score": _category_advantage_score(dc_200, dc_500, dc_1000, same_brand_risk, res_500, office_500, school_500,
+                                            classify_business_model_family(business_type, brand_name, _category)),
+         "text": _category_advantage_text(business_type, dc_200, dc_500, dc_1000, same_brand_risk, res_500, office_500, school_500, brand_name=brand_name)},
         {"key": "cost_estimate", "label": "成本压力",
          "score": 50,
          "text": _cs_text},
@@ -239,8 +340,8 @@ def build_fallback_report(real_data: dict, address: str = "",
         "traffic_flow": _tf_detail,
         "consumer_profile": _cp_detail,
         "competition": (
-            f"同品类直接竞品：200米内{dc_200}家、500米内{dc_500}家、1000米内{dc_1000}家。"
-            f"替代消费：200米内{sub_200}家、500米内{sub_500}家、1000米内{sub_1000}家。"
+            f"直接竞品：200米{dc_200}家、500米{dc_500}家、1000米{dc_1000}家。"
+            f"替代消费：200米{sub_200}家、500米{sub_500}家、1000米{sub_1000}家。"
             f"流量节点{sn_count(anc_1000, '个')}。评分：{dims[4]['score']}"
         ),
         "complementary_businesses": (
@@ -255,9 +356,12 @@ def build_fallback_report(real_data: dict, address: str = "",
         "site_suggestion": _site_detail,
     }
 
-    # ── action_plan (5-8 items) ──
-    action_plan = _build_action_plan(business_type, dc_200, subway_500, bus_500,
-                                     res_500, school_500, office_500)
+    # ── P1: field_checklist 统一使用 business_model_service ──
+    field_checklist = build_business_field_checklist(
+        real_data, business_type, brand_name, store_size, category=_category)
+
+    # ── 简版 action_plan 从 field_checklist 提取 ──
+    action_plan = field_checklist  # 保留原始结构化数据供 decision_snapshot 使用
 
     # ── scores ──
     scores = [d["score"] for d in dims]
@@ -272,7 +376,7 @@ def build_fallback_report(real_data: dict, address: str = "",
         disadvantages.insert(0, top_risk)
     decision_snapshot = compute_decision_snapshot(
         overall, real_data, business_type=business_type, brand_name=brand_name,
-        advantages=advantages, disadvantages=disadvantages, action_plan=action_plan,
+        advantages=advantages, disadvantages=disadvantages, action_plan=field_checklist,
         is_fallback=True)
     top_strength = decision_snapshot.get("top_strength", advantages[0] if advantages else "")
     top_risk = decision_snapshot.get("top_risk", disadvantages[0] if disadvantages else warning)
@@ -287,21 +391,18 @@ def build_fallback_report(real_data: dict, address: str = "",
 
     # decision_snapshot already set above via compute_decision_snapshot
 
-    # ── P0-A: field_checklist (5-8 结构化核验任务) ──
-    field_checklist = _build_field_checklist(business_type, dc_200, sub_500,
-                                             anc_1000, subway_500, bus_500,
-                                             res_500, school_500, office_500,
-                                             parking_500)
-
     # ── P0-A: caliber_explanation ──
-    caliber_explanation = (
-        "直接竞品：与您的门店品类相同、直接争夺同一客群的周边门店。"
-        "替代消费：品类不同但可能分流顾客消费预算的周边门店。"
-        "客流锚点：本身不是竞品但能带来客流的设施（学校、写字楼、商场、地铁站等）。"
-        "本报告基于高德地图POI数据采集和系统规则分析，数据可能存在更新延迟。"
-    )
+    caliber_explanation = build_business_caliber_explanation(
+        real_data, business_type, brand_name, category=_category)
 
-    # ── P0-A: evident_summary ──
+    # ── P1: 地点基本面 ──
+    location_fundamentals = compute_location_fundamentals(real_data)
+
+    # ── P1: 生意模型快照 ──
+    business_model_snapshot = compute_business_model_snapshot(
+        real_data, business_type, brand_name, store_size, category=_category)
+
+    # ── P0-A: evidence_summary ──
     evidence_summary = {
         "direct_competitors": {"200m": dc_200, "500m": dc_500, "1000m": dc_1000},
         "substitute_consumption": {"200m": sub_200, "500m": sub_500, "1000m": sub_1000},
@@ -326,7 +427,7 @@ def build_fallback_report(real_data: dict, address: str = "",
     data_sufficiency = assess_data_sufficiency(
         real_data, business_type=business_type, config_key="",
         rigor_enabled=bool(real_data.get("rigor_enabled", False)),
-        is_fallback=True)
+        is_fallback=True, brand_name=brand_name, category=_category)
 
     # ── P0-A: data_boundary ──
     data_boundary = (
@@ -335,6 +436,11 @@ def build_fallback_report(real_data: dict, address: str = "",
         "数据可能存在更新延迟，店铺经营状态以实际为准。"
         "本报告仅用于选址初筛参考，不替代现场调研、租金测算和实际商业判断。"
     )
+
+    # ── P1: revenue_disclaimer ──
+    from services.report_enrichment_service import _build_revenue_disclaimer
+    rev_family = classify_business_model_family(business_type, brand_name, _category)
+    revenue_disclaimer = _build_revenue_disclaimer(rev_family)
 
     return {
         # 旧字段（兼容）
@@ -345,7 +451,7 @@ def build_fallback_report(real_data: dict, address: str = "",
         "details": details,
         "dimension_scores": dims,
         "executive_summary": executive_summary,
-        "action_plan": _simple_action_plan(action_plan),
+        "action_plan": _simple_action_plan(field_checklist, business_type, brand_name),
         "overall_score": overall,
         "score": overall,
         "total_score": overall,
@@ -359,101 +465,11 @@ def build_fallback_report(real_data: dict, address: str = "",
         "evidence_summary": evidence_summary,
         "data_sufficiency": data_sufficiency,
         "data_boundary": data_boundary,
+        # P1 新字段
+        "location_fundamentals": location_fundamentals,
+        "business_model_snapshot": business_model_snapshot,
+        "revenue_disclaimer": revenue_disclaimer,
     }
-
-
-def _build_action_plan(business_type, dc_200, subway_500, bus_500,
-                       res_500, school_500, office_500):
-    """生成5-8条结构化核验动作。"""
-    items = []
-    items.append({"title": "现场实测午/晚高峰门前人流",
-                  "time_window": "工作日 11:30-13:00、18:00-20:00",
-                  "action": "在门店固定位置观察15分钟，记录经过正面动线的人数",
-                  "record_method": ["拍照", "计数", "备注"],
-                  "risk_type": "客流不足",
-                  "pass_hint": "午晚高峰均有稳定目标客群经过",
-                  "eliminate_hint": "两个高峰时段门前目标客群都明显不足"})
-    items.append({"title": "走访相邻商户了解真实租金和转让费",
-                  "time_window": "工作日白天",
-                  "action": "询问3-5家相邻商户实际租金、转让费、物业费",
-                  "record_method": ["录音（需征得同意）", "备注", "拍照"],
-                  "risk_type": "租金过高",
-                  "pass_hint": "实际租金在预算范围内且占比合理",
-                  "eliminate_hint": "月租金超过预估月营收20%且无议价空间"})
-
-    if dc_200 > 3:
-        items.append({"title": "观察直接竞品午高峰上座率和排队情况",
-                      "time_window": "工作日 11:30-13:00",
-                      "action": "记录200米内同品类门店午高峰上座率和大致的排队时长",
-                      "record_method": ["计数", "计时", "备注"],
-                      "risk_type": "竞品密集",
-                      "pass_hint": "竞品上座率中等且有明确差异化空间",
-                      "eliminate_hint": "200米内竞品午高峰均满座且排队，说明需求已被充分满足"})
-
-    if subway_500 > 0 or bus_500 >= 5:
-        items.append({"title": "检查地铁/公交出口到门店的步行动线",
-                      "time_window": "任意时段",
-                      "action": "从最近的地铁站或公交站步行至门店，检查动线是否通畅、是否有遮挡",
-                      "record_method": ["拍照", "备注", "计时"],
-                      "risk_type": "交通便利但动线不畅",
-                      "pass_hint": "通勤人群自然经过门店，无明显遮挡或绕路",
-                      "eliminate_hint": "地铁/公交出口到门店动线完全偏离通勤主流方向"})
-
-    items.append({"title": "检查外卖骑手停车和取餐便利度",
-                  "time_window": "午高峰 11:30-13:00",
-                  "action": "观察门店附近是否有外卖骑手停车区，取餐是否需要上楼或绕路",
-                  "record_method": ["拍照", "计数", "备注"],
-                  "risk_type": "外卖运营受限",
-                  "pass_hint": "骑手可便利停靠且取餐流程顺畅",
-                  "eliminate_hint": "骑手无法停车且周边无任何便利取餐条件"})
-
-    if school_500 >= 2:
-        items.append({"title": "观察学校放学动线和家长等待空间",
-                      "time_window": "工作日下午放学时段 15:30-17:00",
-                      "action": "观察学校门口到门店的动线，学生和家长是否经过门店",
-                      "record_method": ["拍照", "备注"],
-                      "risk_type": "学区客群导入不足",
-                      "pass_hint": "放学动线经过门店，家长有等待空间",
-                      "eliminate_hint": "学校放学动线完全不经过门店且无可调整的引流方式"})
-
-    items.append({"title": "观察门店门头可见度和道路对侧导流情况",
-                  "time_window": "任意时段",
-                  "action": "从道路对侧、50米外观察门头是否清晰可见，是否有树木/广告牌遮挡",
-                  "record_method": ["拍照", "备注"],
-                  "risk_type": "门头曝光不足",
-                  "pass_hint": "门头在50米外清晰可见，无遮挡",
-                  "eliminate_hint": "门头被树木/广告牌/建筑完全遮挡且无法改善"})
-
-    # 确保至少5条
-    while len(items) < 5:
-        items.append({"title": "确认周边施工/道路封闭/规划变更情况",
-                      "time_window": "任意时段",
-                      "action": "询问周边商户或物业，确认近期是否有施工、封路或规划调整",
-                      "record_method": ["备注", "拍照"],
-                      "risk_type": "外部环境变化",
-                      "pass_hint": "近期无施工或临时管控",
-                      "eliminate_hint": "确认有长期封路或大范围施工且影响时长超过3个月"})
-    return items[:8]
-
-
-def _build_field_checklist(business_type, dc_200, sub_500, anc_1000,
-                           subway_500, bus_500, res_500, school_500,
-                           office_500, parking_500):
-    """生成 field_checklist 对象数组（兼容旧版字符串数组）。"""
-    items = _build_action_plan(business_type, dc_200, subway_500, bus_500,
-                               res_500, school_500, office_500)
-    checklist = []
-    for item in items:
-        checklist.append({
-            "title": item["title"],
-            "time_window": item.get("time_window", ""),
-            "action": item.get("action", ""),
-            "record_method": item.get("record_method", []),
-            "risk_type": item.get("risk_type", ""),
-            "pass_hint": item.get("pass_hint", ""),
-            "eliminate_hint": item.get("eliminate_hint", ""),
-        })
-    return checklist
 
 
 def _detect_same_brand_risk(brand_name: str, real_data: dict) -> tuple:
@@ -517,47 +533,35 @@ def _detect_same_brand_risk(brand_name: str, real_data: dict) -> tuple:
     return len(matched) > 0, matched[:5]
 
 
-def _is_small_food(business_type: str, brand_name: str = "") -> bool:
-    """判断是否属于小餐饮/快餐/小吃类业态。"""
-    kw = ["小餐饮", "快餐", "小吃", "面", "粉", "皮", "麻辣烫", "炸鸡",
-          "米线", "凉皮", "肉夹馍", "饺子", "馄饨", "煎饼", "便当",
-          "盖浇", "砂锅", "冒菜", "卤味", "鸭脖", "鸡排", "汉堡",
-          "酸辣粉", "螺蛳粉", "热干面", "锅贴", "生煎", "小笼",
-          "麻辣拌", "烤冷面", "手抓饼", "鸡蛋灌饼", "烧烤", "烤串"]
-    bt = (business_type or "").strip()
-    bn = (brand_name or "").strip()
-    for k in kw:
-        if k in bt or k in bn:
-            return True
-    return False
-
-
-def _simple_action_plan(items):
-    """从结构化核验清单提取简化版 action_plan（兼容旧 P0 检查文本）。"""
-    return [
-        "安排不同时段现场实测客流和门前动线",
-        "走访相邻商户了解真实租金和经营状况",
-        "观察直接竞品上座率、排队和出餐速度",
-        "检查门店门头可见度、遮挡物和道路动线",
-        "线下询价确认租金后结合面积制定财务模型",
-    ]
-
-
-def _competition_score(dc_200, dc_500, dc_1000, same_brand_risk):
-    """竞争环境评分：同品牌风险封顶45，dc_1000>=4封顶60。"""
+def _competition_score(dc_200, dc_500, dc_1000, same_brand_risk,
+                       res_500=0, school_500=0, office_500=0,
+                       business_family=""):
+    """P1: 竞争环境评分。教育托管/生活服务等0竞品不能拿高分。"""
     if same_brand_risk:
         return _clamp(10, 45, 45 - dc_200 * 2)
     base = 85 - dc_200 * 2 - dc_500 * 1 - dc_1000 // 2
     if dc_1000 >= 4:
         base = min(base, 60)
+    # P1: 教育托管/小饭桌/生活服务等业态，需求侧弱时竞争评分封顶
+    if business_family in ("education_childcare", "education_training", "service_beauty"):
+        pop = res_500 + school_500 + office_500
+        if pop < 8 and dc_1000 == 0:
+            # 需求弱且无POI竞品 → 不能高分，因为可能是低需求导致无供给
+            base = min(base, 50)
+        elif pop < 5:
+            base = min(base, 60)
+    # 小吃快餐：近场0竞品但远场多时限制
+    if business_family == "snack_fast_food":
+        if dc_200 == 0 and dc_1000 >= 8:
+            base = min(base, 70)
     return _clamp(10, 85, base)
 
 
 def _competition_text(dc_200, dc_500, dc_1000, sub_500, same_brand_risk):
-    """竞争环境描述。"""
+    """竞争环境描述。避免"家同品类"连续短语被 POI guard 误判。"""
     if same_brand_risk:
         return (f"1000米内疑似已有同品牌/近似品牌门店，存在自我分流风险，竞争评分受限。"
-                f"200米{dc_200}家、500米{dc_500}家、1000米{dc_1000}家同品类直接竞品。"
+                f"直接竞品 200米{dc_200}家、500米{dc_500}家、1000米{dc_1000}家。"
                 f"现场重点核验同品牌分店实际经营状况和客群重叠程度。")
     level = "较激烈" if dc_200 > 10 else ("中等" if dc_200 > 3 else "200米直接竞品较少")
     extra = ""
@@ -565,7 +569,7 @@ def _competition_text(dc_200, dc_500, dc_1000, sub_500, same_brand_risk):
         extra = "但1000米同品类门店较多，整体竞争不可忽视。"
     elif dc_1000 >= 4:
         extra = "1000米范围内同品类门店有一定数量，需关注辐射竞争。"
-    return (f"200米内{dc_200}家、500米内{dc_500}家、1000米内{dc_1000}家同品类直接竞品，"
+    return (f"直接竞品 200米{dc_200}家、500米{dc_500}家、1000米{dc_1000}家。"
             f"替代消费500米{sub_500}家，竞争{level}。{extra}")
 
 
@@ -583,8 +587,9 @@ def _complementary_text(shopping_500, convenience_1k, hotels_1k):
 
 
 def _category_advantage_score(dc_200, dc_500, dc_1000, same_brand_risk,
-                              res_500, office_500, school_500):
-    """品类优势评分：同品牌风险封顶40。"""
+                              res_500, office_500, school_500,
+                              business_family=""):
+    """P1: 品类优势评分。教育托管/生活服务等0竞品在弱需求时不能高分。"""
     if same_brand_risk:
         return _clamp(10, 40, 40 - dc_200 * 2)
     base = 85
@@ -598,27 +603,81 @@ def _category_advantage_score(dc_200, dc_500, dc_1000, same_brand_risk,
         base += 5
     elif pop_support < 5:
         base -= 10
+    # P1: 教育托管/生活服务弱需求时封顶
+    if business_family in ("education_childcare", "education_training", "service_beauty"):
+        if pop_support < 8 and dc_1000 == 0:
+            base = min(base, 50)
+        elif pop_support < 5:
+            base = min(base, 55)
     return _clamp(10, 85, base)
 
 
 def _category_advantage_text(business_type, dc_200, dc_500, dc_1000,
-                             same_brand_risk, res_500, office_500, school_500):
-    """品类优势描述。"""
+                             same_brand_risk, res_500, office_500, school_500,
+                             brand_name=""):
+    """P1: 品类优势描述，按业态区分，禁止0竞品=强优势的机械解释。"""
+    family = classify_business_model_family(business_type, brand_name)
+
     if same_brand_risk:
-        return (f"同品牌分店风险导致品类优势受限。{business_type or '该业态'}在本位置"
+        return (f"同品牌分店风险导致品类优势受限。该业态在本位置"
                 f"需通过差异化产品或服务建立独特竞争力。建议现场核验同品牌门店"
                 f"的客单价、排队情况和顾客评价，确认是否存在错位竞争空间。")
+
+    # 教育托管/培训/生活服务等 POI 易漏收录业态：0竞品不能写优势
+    if family in ("education_childcare", "education_training", "service_beauty"):
+        if dc_1000 == 0 and dc_500 == 0:
+            return (
+                f"该业态在本位置地图POI未发现明确同类门店。"
+                f"但该类业态可能存在未被POI收录的暗竞品（家庭式托管/小饭桌/个人工作室），"
+                f"需现场走访学校门口和周边小区确认实际供给。"
+                f"0家POI竞品不等于市场空白——也可能反映需求不足或低收录率。"
+            )
+        if dc_200 == 0 and dc_1000 > 0:
+            return (
+                f"近场无直接竞品记录，1000m 同类门店：{dc_1000} 家。"
+                f"注意：该类业态可能有未收录暗竞品，需现场走访确认。"
+            )
+
+    # 小吃快餐 200m 0竞品但远场多
+    if family == "snack_fast_food":
+        if dc_200 == 0 and dc_1000 >= 8:
+            return (
+                f"近场无同品类直接竞品，1000m 同类门店：{dc_1000} 家，"
+                f"远场供给较充分。近场空档需要判断：是品类机会，还是低客流导致的空白。"
+                f"只有低租金、小档口、强午市/外卖模型才值得继续看。"
+            )
+        if dc_200 <= 3 and dc_1000 <= 5:
+            return (
+                f"该业态在本位置直接竞品较少。"
+                f"现场需核验午高峰实际客流和同类门店经营状态，"
+                f"确认是否存在品类差异化机会。"
+            )
+
+    # 餐饮/零售等通用逻辑：0竞品但需求侧弱时不给高分
+    pop_support = res_500 + office_500 + school_500
     if dc_200 <= 3 and dc_1000 <= 5:
-        return (f"{business_type or '该业态'}在本位置200米直接竞品仅{dc_200}家，"
-                f"品类切入空间较好。现场需核验500米内同品类门店的客单价和定位，"
-                f"确认是否存在价格带空白或品类差异化机会。")
+        if pop_support < 5:
+            return (
+                f"该业态在本位置200米直接竞品仅{dc_200}家，"
+                f"但周边人口和客流支撑较弱（住宅{res_500}、办公{office_500}、学校{school_500}），"
+                f"0竞品可能反映需求不足而非品类机会。需现场核验目标客群实际存在量。"
+            )
+        return (
+            f"该业态在本位置200米直接竞品仅{dc_200}家，"
+            f"品类切入空间需结合客流核验判断。现场需核验500米内同品类门店的客单价和定位，"
+            f"确认是否存在价格带空白或品类差异化机会。"
+        )
     if dc_1000 >= 10:
-        return (f"1000米内{dh_count(dc_1000, '家同品类门店')}，品类供给较充分。"
-                f"现场需重点核验同品类门店上座率/排队情况，如午晚高峰均满座则仍有切入空间；"
-                f"如上座率普遍偏低，则该品类在此区域可能供过于求。")
-    return (f"{business_type or '该业态'}在本位置品类竞争中等。"
-            f"500米居住{res_500}小区、办公{office_500}栋、学校{school_500}所。"
-            f"现场需核验目标客群实际消费偏好与该品类的匹配度。")
+        return (
+            f"1000m 同品类门店：{dc_1000} 家，品类供给较充分。"
+            f"现场需重点核验同品类门店上座率/排队情况，如午晚高峰均满座则仍有切入空间；"
+            f"如上座率普遍偏低，则该品类在此区域可能供过于求。"
+        )
+    return (
+        f"该业态在本位置品类竞争中等。"
+        f"500米居住{res_500}小区、办公{office_500}栋、学校{school_500}所。"
+        f"现场需核验目标客群实际消费偏好与该品类的匹配度。"
+    )
 
 
 def _clamp(lo, hi, v):
@@ -626,11 +685,17 @@ def _clamp(lo, hi, v):
 
 
 def dh_count(n, word):
-    """数量+单位，避免 "X家" 触发 P0 "家" 后缀"""
+    """安全的数量+单位。避免"家XXX"连续短语被 POI name guard 误判为 POI 名称。"""
+    if word.startswith("家"):
+        # "家同类门店" → "同类门店 3 家"
+        return f"{word[1:]} {n} 家"
     return f"{n}{word}"
 
 
 def sn_count(n, word):
+    """安全的数量+单位。"""
+    if word.startswith("家"):
+        return f"{word[1:]} {n} 家"
     return f"{n}{word}"
 
 

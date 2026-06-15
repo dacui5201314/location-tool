@@ -12,7 +12,8 @@ def _int(v, default=0):
 
 def assess_data_sufficiency(real_data: dict, business_type: str = "",
                             config_key: str = "", rigor_enabled: bool = False,
-                            is_fallback: bool = False) -> dict:
+                            is_fallback: bool = False, brand_name: str = "",
+                            category: str = "") -> dict:
     """评估本次报告的数据充分度。
 
     Returns:
@@ -57,12 +58,13 @@ def assess_data_sufficiency(real_data: dict, business_type: str = "",
         "traffic_anchors_1000m" in real_data
     )
 
-    # POI 稀疏判断：1000m 内 POI 总量过少
+    # POI 稀疏判断：stats_1000m 有数据但总量少才判稀疏；poi_counts 空不判稀疏
     s10 = real_data.get("stats_1000m", {}) or {}
-    total_poi_1km = sum(_int(v) for v in s10.values())
+    total_poi_1km = sum(_int(v) for v in s10.values()) if s10 else 0
     poi_counts = real_data.get("poi_counts", {}) or {}
-    total_poi_all = sum(_int(v) for v in poi_counts.values())
-    flags["poi_sparse"] = (total_poi_1km < 15 or total_poi_all < 5)
+    total_poi_all = sum(_int(v) for v in poi_counts.values()) if poi_counts else 0
+    # 只有在有 stats_1000m 数据且总量确实少时才判稀疏
+    flags["poi_sparse"] = (total_poi_1km > 0 and total_poi_1km < 15)
 
     # === 评分逻辑（确定性规则） ===
     if not flags["rigor_enabled"]:
@@ -104,21 +106,30 @@ def assess_data_sufficiency(real_data: dict, business_type: str = "",
 
     # labels
     label_map = {
-        "sufficient": "数据较充分",
-        "moderate": "数据一般",
-        "insufficient": "数据不足",
+        "sufficient": "POI数据较充分",
+        "moderate": "POI数据一般",
+        "insufficient": "POI数据不足",
     }
 
     summary_map = {
-        "sufficient": "核心竞品和客流数据可用，可用于选址初筛",
-        "moderate": "数据可支撑初筛判断，建议结合现场核验",
-        "insufficient": "数据较少，仅作保守参考，需重点现场核验",
+        "sufficient": "POI数据较充分，经营数据待现场核验",
+        "moderate": "POI数据一般，仅适合初筛，关键经营信息需现场核验",
+        "insufficient": "POI数据不足，只能作为保守参考",
     }
+
+    # P1: 教育托管类需补充托管竞品和合规提示
+    from services.business_model_service import classify_business_model_family
+    family = classify_business_model_family(business_type, brand_name, category)
+    if family == "education_childcare":
+        reasons.append("托管竞品、合规资质、招生需求无法仅靠地图POI判断，需现场核验")
+        if level == "sufficient":
+            level = "moderate"
+            label_map["sufficient"] = "POI数据较充分"
 
     return {
         "level": level,
-        "label": label_map.get(level, "数据一般"),
-        "summary": summary_map.get(level, "数据可支撑初筛判断，建议结合现场核验"),
+        "label": label_map.get(level, "POI数据一般"),
+        "summary": summary_map.get(level, "POI数据一般，仅适合初筛，关键经营信息需现场核验"),
         "reasons": reasons,
         "flags": flags,
     }

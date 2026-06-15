@@ -948,7 +948,9 @@ async def analyze_location(req: AnalyzeRequest, user: dict = Depends(get_current
             result["data_sufficiency"] = assess_data_sufficiency(
                 real_data, business_type=req.business_type or "",
                 config_key=config_key, rigor_enabled=bool(get_rigor_for_config_key(config_key)),
-                is_fallback=_fallback_triggered)
+                is_fallback=_fallback_triggered,
+                brand_name=req.brand_name or "",
+                category=(req.brand_name or ""))  # brand_name 作为业态细分描述
             # ★ P0.5-final: normal/retry 补齐 decision_snapshot（fallback 已有）
             if not result.get("decision_snapshot") or not isinstance(result.get("decision_snapshot"), dict) or not result["decision_snapshot"].get("verdict"):
                 result["decision_snapshot"] = compute_decision_snapshot(
@@ -959,6 +961,17 @@ async def analyze_location(req: AnalyzeRequest, user: dict = Depends(get_current
                     disadvantages=result.get("disadvantages"),
                     action_plan=result.get("action_plan"),
                     is_fallback=_fallback_triggered)
+            # ★ P1: 统一补齐 P1 业务上下文模块（normal/retry/fallback 三条链路）
+            from services.report_enrichment_service import enrich_report_business_context
+            # category: 使用 brand_name 作为业态细分描述（brand_name 通常包含托管/小吃等关键词）
+            _category_p1 = req.brand_name or ""
+            result = enrich_report_business_context(
+                result, real_data,
+                business_type=req.business_type or "",
+                brand_name=req.brand_name or "",
+                category=_category_p1,
+                store_size=req.store_size or 0,
+                is_fallback=_fallback_triggered)
             # 保存到数据库
             _db_save_ok = False
             db = SessionLocal()
