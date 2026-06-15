@@ -1,0 +1,95 @@
+# 址得选 休闲娱乐生意模型 v2026-06-15
+model_id: entertainment
+model_version: "2026-06-15.v1"
+display_name: "酒吧 / KTV / 网吧 / 剧本杀 / 密室 / 台球"
+
+coverage:
+  backend_rule_groups: ["夜经济娱乐", "沉浸式社交娱乐"]
+  keywords:
+    - "酒吧"
+    - "KTV"
+    - "网吧"
+    - "网咖"
+    - "剧本杀"
+    - "密室"
+    - "台球"
+    - "桌游"
+    - "电玩"
+    - "轰趴"
+    - "VR"
+    - "LiveHouse"
+    - "精酿"
+
+competition:
+  type: "聚集型"
+  zero_competitor_policy: "娱乐行业 0 竞品可能意味着该区域缺乏夜间消费生态、存在政策/噪音/环保限制、或年轻客群密度不足。娱乐场所需要同类聚集形成夜间消费目的地效应。"
+  hidden_competitor_risk: "部分娱乐场所可能以餐饮/文化/活动中心等非娱乐类别注册。居民楼内的私人影咖/棋牌室大多不被POI收录。"
+
+demand_sources:
+  - name: "年轻客群密度"
+    weight: "critical"
+    trigger: "周边有大学城或年轻人聚集的居住/办公区"
+  - name: "夜间交通可达"
+    weight: "high"
+    trigger: "深夜公共交通可达或停车便利"
+  - name: "同类娱乐聚集"
+    weight: "high"
+    trigger: "周边已有 3+ 家不同娱乐场所"
+  - name: "周末/节假日客流"
+    weight: "high"
+    trigger: "线下实测"
+
+key_time_windows:
+  - label: "夜间高峰"
+    value: "每日 20:00-次日 2:00"
+  - label: "周末全天"
+    value: "周末 14:00-次日 2:00"
+
+hard_gates:
+  - "消防验收（娱乐场所为消防重点单位）"
+  - "环保隔音验收"
+  - "特种行业许可证（KTV/网吧）"
+  - "距学校/医院直线距离满足当地法规最低要求"
+
+fit_signals:
+  - "位于夜间消费活跃区域且同类娱乐聚集"
+  - "消防和隔音条件满足"
+  - "深夜交通可达（停车/地铁/打车便利）"
+  - "周边无高密度紧贴住宅（避免扰民投诉）"
+
+red_flags:
+  - "周边无任何夜间消费生态且年轻客群密度不足"
+  - "紧贴高密度住宅（<100m）且隔音条件无法满足"
+  - "消防或特种行业许可无法办理"
+  - "深夜交通完全不可达"
+
+revenue_model:
+  unit_logic: "周末/节假日权重高；人均消费 x 座位数/容纳人数 x 翻台率"
+  area_range_sqm: [100, 1000]
+  rent_ratio_limit: 0.20
+  disclaimer: "以上为模型估算，不代表实际经营结果；需结合年轻客群密度、深夜可达性、隔音/消防合规和租金复核。"
+  no_estimate_disclaimer: "本报告未生成营收测算，仅提供测算所需核验项；需补充人均消费、座位数、翻台率、酒水/食品成本和租金后再测算。"
+
+data_blind_spots:
+  - "部分娱乐场所可能以非娱乐类别注册，导致 POI 统计偏低。"
+  - "夜间客流和周末客流需线下实测，POI 数据无法反映时段分布。"
+  - "消防/隔音/特种许可的属地政策差异较大，需逐一核验。"
+  - "居民投诉风险和派出所治安态度无法从空间数据推导。"
+
+forbidden_misreadings:
+  - "不能把 0 竞品当成品类机会：可能意味着政策/噪音限制或夜间需求不足。"
+  - "不能把餐饮门店作为娱乐场所的直接竞品。"
+  - "不能输出推荐开店、值得投资、可以放心等决策语言。"
+
+source_refs:
+  - source_id: "rule_seed_006"
+    applies_to: ["competition"]
+    rule_key: "entertainment_aggregation_type"
+
+sources:
+  - id: "rule_seed_010"
+    type: "rule_seed"
+    confidence: "B"
+
+last_reviewed: "2026-06-15"
+owner: "product"

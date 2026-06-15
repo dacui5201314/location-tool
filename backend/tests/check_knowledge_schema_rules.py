@@ -163,20 +163,26 @@ def test_source_manifest():
     print(f"T6 source_manifest: {len(manifest['sources'])} sources all valid PASS")
 
 
-# ═══════════════ T7: load_business_model 加载全部 5 个模型 ═══════════════
+# ═══════════════ T7: 动态加载全部 business_models/*.yaml ═══════════════
 def test_load_all_models():
     from services.business_model_service import load_business_model, get_model_version
-    expected = ["snack_fast_food", "education_childcare", "beverage_dessert",
-                "retail_convenience", "service_beauty"]
-    for mid in expected:
-        model = load_business_model(mid)
-        assert model, f"load_business_model({mid}) returned empty"
-        assert model.get("model_id") == mid, f"{mid}: model_id mismatch {model.get('model_id')}"
+    models_dir = os.path.join(KNOWLEDGE_DIR, "business_models")
+    model_ids = set()
+    for fname in os.listdir(models_dir):
+        if not fname.endswith(".yaml"):
+            continue
+        model = _load_yaml(os.path.join(models_dir, fname))
+        mid = model.get("model_id", "")
+        if mid:
+            model_ids.add(mid)
+    assert len(model_ids) >= 9, f"expected >=9 models, found {len(model_ids)}: {sorted(model_ids)}"
+    for mid in sorted(model_ids):
+        loaded = load_business_model(mid)
+        assert loaded, f"load_business_model({mid}) returned empty"
+        assert loaded.get("model_id") == mid
         version = get_model_version(mid)
-        assert version.startswith(mid + "@"), f"version format: {version}"
-    # 已缓存
-    assert load_business_model("snack_fast_food") is not None
-    print(f"T7 load_business_model: {len(expected)} models all loaded PASS")
+        assert version.startswith(mid + "@"), f"{mid} version: {version}"
+    print(f"T7 dynamic load: {len(model_ids)} models all loaded PASS")
 
 
 # ═══════════════ T8: 新增 03/04/10 YAML 通过 schema ═══════════════

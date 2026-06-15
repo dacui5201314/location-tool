@@ -1,5 +1,21 @@
 # 址得选报告产品整改方案
 
+## 当前文档定位（2026-06-15）
+
+本文件继续保留，定位为“报告产品整改总账 + 当前阶段路线索引”，仍然有用，但不再作为所有后续专项的唯一执行文档。
+
+当前有效分工如下：
+
+1. `report_product_rectification_plan.md`：记录 P0-A、P0-B、P0.5、P0.5-final、P1 第一优先级的完成状态、回归基线、服务器覆盖清单和后续专项入口。
+2. `location_knowledge_framework_plan.md`：作为下一阶段“选址知识蒸馏与业态框架固化工程”的主执行方案，负责位置基本面、多业态 YAML、竞争类型、来源治理和 schema 测试。
+
+后续执行原则：
+
+- 已完成的 P0/P0.5/P1 第一优先级内容只做回归保护，不再反复重写。
+- 报告判断力继续提升时，优先按 `location_knowledge_framework_plan.md` 建立知识框架，不再靠零散 prompt 或关键词补丁。
+- HTML 与小程序展示必须继续保持同一 `report_json` 渲染，不允许两端各自生成业务判断。
+- `report_fact_guard.py`、`poi_name_guard.py`、评分/POI 分类/prompt 语义仍属于高风险区，任何改动必须先补测试再执行。
+
 ## 一、整改背景
 
 址得选当前已经进入真实用户深度使用阶段，问题不再只是“某个类目报错”或“某个页面适配不好”，而是报告产品本身的可信度、解释力、稳定性和用户心理预期开始接受真实市场检验。
@@ -659,15 +675,15 @@ P0-B：首屏可判断。
 - 用户遇到失败时知道点数有没有退、失败编号在哪里。
 - 连续生成多份报告后，用户能在收藏/记录里形成候选点排序或淘汰判断。
 
-### 11. 当前执行状态总览（2026-06-13）
+### 11. 当前执行状态总览（2026-06-15）
 
-本方案不删除已完成内容。已完成部分作为当前报告产品的基线能力保留，后续修改必须保证不回退；待执行部分作为下一轮派工清单；后续部分进入 P1/P2 专项。
+本方案不删除已完成内容。已完成部分作为当前报告产品的基线能力保留，后续修改必须保证不回退；P0.5-final 已于 2026-06-15 完成开发、返工审核和回归测试；P1 第一优先级整改已完成返工，后续主线转入“选址知识蒸馏与业态框架固化工程”。
 
 状态说明：
 
 - `[已完成]`：已经开发、回归测试或真实样本验收通过，后续只做回归保护。
 - `[部分完成]`：核心能力已落地，但真实体验暴露出收尾项。
-- `[待执行]`：下一轮必须执行，执行完成后才能关闭 P0.5。
+- `[待执行]`：下一轮必须执行，执行完成后才能关闭对应阶段。
 - `[后续]`：进入 P1/P2 专项，不阻塞 P0.5-final。
 
 当前状态：
@@ -676,9 +692,11 @@ P0-B：首屏可判断。
 | --- | --- | --- |
 | `[已完成]` | P0-A 止血稳定 | 失败卡片、`request_id`、结构化 `billing_status`、退款提示、fallback 稳定性和禁词稳态已完成。 |
 | `[已完成]` | P0-B 首屏可判断 | 生成前预期、首屏决策卡展示框架、数据充分度、分享脱敏、分享标题模板已完成；normal 报告稳定补齐 `decision_snapshot` 纳入 P0.5-final。 |
-| `[部分完成]` | P0.5 主体验收 | HTML 标题/业态/时间/POI 合计、公交数据、竞争评分、低分解释、fallback 禁词矩阵已完成；仍需 P0.5-final 收尾。 |
-| `[待执行]` | P0.5-final | footer 去 AI 兜底、normal/retry/fallback 统一 `decision_snapshot`、营收免责、`action_plan` 与 `field_checklist` 分离、小餐饮替代消费过滤药店/医疗 POI。 |
-| `[后续]` | P1 体验提升 | 学校/校园客流源展示归并、小餐饮竞品分层、数据充分度文案精确化、强相关 POI 优先展示、公交去重。 |
+| `[已完成]` | P0.5 主体验收 | HTML 标题/业态/时间/POI 合计、公交数据、竞争评分、低分解释、fallback 禁词矩阵已完成；P0.5-final 收尾已完成并纳入回归保护。 |
+| `[已完成]` | P0.5-final | footer 去 AI 兜底、normal/retry/fallback 统一 `decision_snapshot`、营收免责、`action_plan` 与 `field_checklist` 分离、小餐饮替代消费过滤药店/医疗 POI 均已完成。 |
+| `[已完成]` | P1 第一优先级整改 | HTML/小程序核心模块一致、normal/retry/fallback 统一 enrichment、分业态生意模型快照、教育托管 fallback 跑偏修正、竞争/品类评分虚高初步校准、同一地址基本面叙事统一均已完成返工。 |
+| `[待执行]` | 选址知识蒸馏与业态框架固化 | 以 `location_knowledge_framework_plan.md` 为主执行依据，建立 `location_profile`、12 个 `business_model` YAML、竞争类型、来源治理、schema 和样本回归体系。 |
+| `[后续]` | P1 体验提升后段 | 学校/校园客流源展示归并、小餐饮竞品分层、强相关 POI 优先展示、公交去重等专题进入后段，不阻塞知识框架打样。 |
 | `[后续]` | P1 后段 / P2 | 候选点池、多点对比、后台健康度、质量投诉样本、支付链路端到端验收。 |
 
 ## 七、代码执行路径与整改落点
@@ -1300,11 +1318,11 @@ P2 产品体验与运营闭环：
 - fallback 报告不会被误认为完整深度报告。
 - 分享页不暴露技术字段和审核敏感词。
 
-### [后续] 阶段三：P1 统一口径和任务化核验
+### [已完成第一优先级] 阶段三：P1 统一口径和任务化核验
 
 周期：1-2 周。
 
-目标：建立用户能看懂的唯一事实来源，并让报告变成可现场执行的核验工具。
+目标：建立用户能看懂的唯一事实来源，并让报告变成可现场执行的核验工具。第一优先级已完成，后续不再重复做同类补丁，转入知识框架专项。
 
 工作项：
 
@@ -1315,7 +1333,7 @@ P2 产品体验与运营闭环：
 5. 每个维度分输出一句用户能理解的分数原因。
 6. `field_checklist` 升级为结构化对象，包含时间、动作、记录方式和对应风险。
 7. 增加报告质量反馈入口，复用现有意见反馈后台。
-8. 建立或补齐核心业态回归样本，优先覆盖小吃快餐、茶饮咖啡、中餐正餐、火锅烧烤、便利店、生鲜、教育、酒店、生活服务、夜经济。
+8. 第一优先级已建立分业态 deterministic 服务和 P1 回归测试；后续核心业态样本回归按 `location_knowledge_framework_plan.md` 扩展为 YAML + schema + 样本闭环。
 
 验收标准：
 
@@ -1443,13 +1461,14 @@ fallback 不能假装是完整报告。
 3. 简版数据充分度：数据较充分 / 数据一般 / 数据不足。
 4. fallback 和分享页使用用户可理解文案，不暴露技术字段。
 
-### [后续] P1 尽快做
+### [已完成第一优先级 / 待执行知识框架] P1 尽快做
 
-1. 统一 direct/substitute/anchor 报告口径。
-2. 增加竞品口径说明。
-3. 现场核验清单升级为结构化任务。
-4. 增加报告质量反馈入口和后台处理状态。
-5. 补齐核心业态规则。
+1. `[已完成]` 统一 direct/substitute/anchor 报告口径。
+2. `[已完成]` 增加竞品口径说明、证据摘要和数据边界。
+3. `[已完成]` 现场核验清单升级为结构化任务，并与 `action_plan` 分开展示。
+4. `[已完成]` normal/retry/fallback 统一补齐 P1 模块，HTML 与小程序同源渲染。
+5. `[待执行]` 按 `location_knowledge_framework_plan.md` 补齐核心业态 YAML、位置基本面、多业态样本和 schema 测试。
+6. `[后续]` 增加报告质量反馈入口和后台处理状态。
 6. 建立核心业态回归样本库。
 
 ### [后续] P1 后段 / P2 持续优化
@@ -1461,15 +1480,25 @@ fallback 不能假装是完整报告。
 5. 支付链路端到端验收。
 6. PDF / 长图导出暂不做，除非后续真实用户高频提出留档或打印需求。
 
-## 十一、[待执行] 真实体验验收后的 P0.5-final 执行方案
+## 十一、[已完成] 真实体验验收后的 P0.5-final 执行方案
 
 本节基于 2026-06-13 真实体验评估和“宝鸡文理学院高新校区 · 麻辣烫 · 小餐饮”样本验收补充。当前 P0.5 主体已经修对：标题去 AI、业态和时间一致、POI 三层半径展示、公交不再恒为 0、竞争评分不再只看 200 米、低分解释更具体、数据充分度和营收测算已具备基础价值。
 
 但真实用户体验仍暴露出几个必须收尾的问题：HTML footer 残留旧口径、normal 报告缺 `decision_snapshot`、经营建议被当成现场核验清单、营收测算缺少模型免责、小餐饮替代消费混入药店/医药超市。P0.5-final 的目标不是重构评分体系，而是把“首屏判断一致、明显错分修正、用户展示口径稳定”这三件事收住。
 
+执行结果（2026-06-15）：
+
+1. HTML 导出 title / h1 / subtitle / footer 已去 AI，旧后台配置 `AI 选址分析 · 商业选址初筛参考` 会兜底替换为 `址得选 · 商业选址初筛参考`。
+2. normal / retry / fallback 已统一使用 `backend/services/report_decision_service.py` 的 `compute_decision_snapshot()`；`verdict` 严格按分数三档：`>=60` 可优先现场核验，`40-59` 谨慎考察，`<40` 应列为低优先级候选点。
+3. `decision_snapshot` 用户可见字段已做禁词兜底清洗，避免出现推荐开店、建议推进、可以投资、值得投资、最终决策、强烈建议、推荐入驻、可以放心等表达。
+4. 小程序和 HTML 营收测算附近已增加模型估算免责。
+5. 小程序和 HTML 已将 `action_plan` 展示为“经营建议”，将 `field_checklist` 独立展示为“现场核验清单”，不再把经营建议伪装成现场核验清单。
+6. 小餐饮 / 小吃快餐 / 餐饮相关业态已通过 `backend/services/substitute_pharmacy_filter.py` 过滤药店、医药超市、医院、诊所等医疗类 POI，并同步重算三层半径替代消费列表和计数。
+7. 本轮未执行学校/校园客流源归并、小餐饮竞品分层和评分校准、prompt 重构、`report_fact_guard.py` 放宽、候选点池、多点对比、支付链路、PDF/长图。
+
 ### 1. P0.5-final 范围边界
 
-本轮必须做：
+本轮已完成：
 
 1. HTML footer 去掉残留 `AI` 字样，包括后台配置旧值兜底。
 2. normal / retry / fallback 报告统一补齐 `decision_snapshot`。
@@ -1477,7 +1506,7 @@ fallback 不能假装是完整报告。
 4. 小程序和 HTML 将 `action_plan` 与 `field_checklist` 分开展示。
 5. 小餐饮替代消费中过滤药店、医药超市、医疗类 POI，并同步重算三层半径计数。
 
-本轮不要做：
+本轮已确认未做：
 
 1. 不要大改 prompt 来强制 LLM 输出新字段。
 2. 不要放宽或削弱 `report_fact_guard.py`。
@@ -1545,6 +1574,13 @@ compute_decision_snapshot(
 - `check_report_fact_guard.py`、`check_industry_rigor_rules.py`、`check_p05_report_quality.py` 全部通过。
 - 用户打开报告首屏能看到：综合判断、一句话结论、最大优势、最大风险、下一步、成立条件、降级条件。
 
+已落地说明：
+
+- `backend/services/report_decision_service.py` 已新增，`compute_decision_snapshot()` 为确定性函数，不依赖 LLM 或前端展示文案。
+- `backend/main.py` 已在保存 normal / retry 报告前补齐缺失的 `decision_snapshot`。
+- `backend/services/fallback_report_service.py` 已改为调用同一函数，不再维护另一套 `_verdict()`。
+- `uniapp/src/pages/report-detail/index.vue` 和 `backend/services/storage_service.py` 已展示 `fit_condition` 与 `stop_condition`。
+
 ### 3. HTML footer 去 AI：配置和兜底同时处理
 
 问题：
@@ -1575,6 +1611,12 @@ AI 多维度分析 -> 选址规则分析
 - 后台配置仍是旧值时，新 HTML 也不会把 `AI` 字样带到用户可见页面。
 - 小程序分享页不暴露 `ai / retry_ai / fallback / request_id` 等内部字段。
 
+已落地说明：
+
+- `backend/services/runtime_config.py` 默认 `footer_text` 已改为 `址得选 · 商业选址初筛参考`。
+- `backend/services/storage_service.py` 已保留旧值兜底替换。
+- `backend/admin/index.html` 管理后台默认展示文案已去 AI。
+
 ### 4. 营收测算增加模型免责
 
 问题：
@@ -1594,6 +1636,11 @@ AI 多维度分析 -> 选址规则分析
 - 小程序报告详情页营收测算附近能看到模型免责。
 - HTML 导出版营收测算附近能看到模型免责。
 - `report_fact_guard` 不因免责文案触发财务单点数字误判。
+
+已落地说明：
+
+- `uniapp/src/pages/report-detail/index.vue` 已增加固定免责文案。
+- `backend/services/storage_service.py` HTML 导出已增加固定免责文案。
 
 ### 5. `action_plan` 与 `field_checklist` 分开展示
 
@@ -1620,6 +1667,11 @@ AI 多维度分析 -> 选址规则分析
 - normal 报告没有 `field_checklist` 时，小程序不显示“现场核验清单”标题。
 - 经营建议仍能展示，但标题为“经营建议”或“运营建议”。
 - fallback 或后续新报告有结构化 `field_checklist` 时，展示时间、动作、记录方式、通过信号、降级/淘汰信号。
+
+已落地说明：
+
+- 小程序和 HTML 均已按 `field_checklist` 与 `action_plan` 分开渲染。
+- `field_checklist` 支持字符串数组和结构化对象数组；`action_plan` 只作为经营建议展示。
 
 ### 6. 小餐饮替代消费过滤药店/医疗 POI，并同步重算计数
 
@@ -1686,6 +1738,13 @@ len(filtered_substitute_list_1000m) == substitute_competitors_1000m
 - 空列表 `[]` 被视为合法数据，不被误判为字段缺失。
 - `check_industry_rigor_rules.py` 和 `check_report_fact_guard.py` 全部通过。
 
+已落地说明：
+
+- `backend/services/substitute_pharmacy_filter.py` 已新增。
+- `backend/main.py` 已在 AMap 采集完成后、报告生成与保存前调用过滤函数。
+- 过滤启用范围已收紧为明确餐饮相关词，避免单字 `面 / 粉 / 皮` 误伤非餐饮业态。
+- 分半径列表字段存在时按字段存在判断处理，`[]` 不触发从总表重拆。
+
 ### 7. P0.5-final 测试清单
 
 新增或补齐测试：
@@ -1723,9 +1782,317 @@ npm run build:mp-weixin
 - 替代消费不出现药店/医疗类 POI。
 - 三种形态：JSON、小程序、HTML 核心判断一致。
 
-## 十二、[后续] P1 体验提升执行方案
+已执行回归（2026-06-15）：
 
-P1 的目标是把报告从“可信的初筛报告”提升为“更接近选址决策工具”。P1 可以动展示口径和部分统计口径，但必须分专题做，不能混在 P0.5-final 里。
+```text
+C:\Users\admin\.local\bin\uv.exe run python tests\check_report_fact_guard.py
+结果：188 PASS, 0 FAIL
+
+C:\Users\admin\.local\bin\uv.exe run python tests\check_industry_rigor_rules.py
+结果：2178 PASS, 0 FAIL
+
+C:\Users\admin\.local\bin\uv.exe run python tests\check_fallback_report.py
+结果：ALL PASS
+
+C:\Users\admin\.local\bin\uv.exe run python tests\check_p05_report_quality.py
+结果：ALL P0.5 REGRESSION TESTS PASSED（含 T9-T13 返工回归）
+
+npm.cmd run build:mp-weixin
+结果：DONE
+
+C:\Users\admin\.local\bin\uv.exe run python -m compileall .
+结果：无错误
+```
+
+本轮 P0.5-final 必须覆盖文件：
+
+```text
+backend/main.py
+backend/services/report_decision_service.py
+backend/services/substitute_pharmacy_filter.py
+backend/services/fallback_report_service.py
+backend/services/storage_service.py
+backend/services/runtime_config.py
+backend/admin/index.html
+uniapp/src/pages/report-detail/index.vue
+backend/tests/check_p05_report_quality.py
+```
+
+上线依赖确认文件：
+
+```text
+backend/services/report_quality_service.py
+backend/tests/check_fallback_report.py
+backend/routers/records.py
+backend/services/amap_service.py
+backend/services/poi_name_guard.py
+uniapp/src/pages/home/index.vue
+uniapp/src/utils/api.js
+```
+
+说明：以上依赖文件属于 P0-A / P0-B / P0.5 前序未提交改动，不计入本轮 P0.5-final 新增范围；但 `backend/main.py` 当前会导入 `backend/services/report_quality_service.py`，服务器若缺少该文件会导致后端启动失败，部署时必须确认已存在或一并覆盖。
+
+## 十二、[已完成第一优先级 / 后续知识框架] P1 体验提升执行方案
+
+P1 的目标是把报告从“可信的初筛报告”提升为“更接近选址决策工具”。截至 2026-06-15，P1 第一优先级整改已完成返工，解决了 HTML/小程序核心模块不一致、normal/retry/fallback 缺少统一 enrichment、教育托管 fallback 套餐饮模板、0 竞品过度乐观、营收免责固定餐饮口径等问题。
+
+后续 P1 不再继续靠零散补丁扩展，而应转入 `location_knowledge_framework_plan.md` 定义的知识框架工程：先建立位置基本面 `location_profile`，再建立 12 个业态 `business_model` YAML，把行业判断力固化为可执行、可测试、可回归的规则。
+
+### 0. 2026-06-15 真实报告复盘后的 P1 优先级调整
+
+复盘样本：
+
+1. `report_110_20260614_105719.html`：小吃快餐 / 砂锅小吃。
+2. `report_111_20260614_110304.html`：教育培训 / 小学生课后托管服务就餐与作业辅导。
+3. 对应 JSON 报告：normal/retry 小吃快餐报告、fallback 教育托管报告。
+
+结论：
+
+- P0.5-final 已解决报告结构、首屏 `decision_snapshot`、HTML 去 AI、营收免责、`action_plan` 与 `field_checklist` 分离、小餐饮药店过滤等问题。
+- 小吃快餐报告已经具备一定付费价值，但商业判断还不够锋利，尤其是“低租金小档口可看，高租金不应优先”的结论没有足够直给。
+- 教育托管报告仍像通用 fallback 模板，没有真正进入托管生意逻辑；出现午晚高峰、外卖骑手、上座率、出餐速度、客单价/单量等餐饮框架，严重伤害用户信任。
+- 两份报告暴露出 P1 的核心不再是结构缺失，而是行业理解、评分解释和多端展示一致性。
+
+P1 必须优先处理的四个问题：
+
+1. HTML 与小程序报告详情必须完全一致。
+   - HTML 不能只是导出版简化视图，应与小程序前端使用同一套用户可见模块和语义。
+   - 当前 HTML 已有决策参考、数据充分度、维度评分、周边数据、详情、现场核验、经营建议，但仍缺少或弱于小程序侧的 fallback 标识、竞品口径说明、`evidence_summary` 三类数据摘要、`data_boundary` 数据说明与风险边界等模块。
+   - 后续新增报告模块必须同时定义“小程序渲染”和“HTML 导出渲染”，不得只改一端。
+   - 验收必须使用同一份 report JSON 对比小程序和 HTML 的模块清单、标题、核心字段、禁词、footer、免责声明、数据口径说明。
+
+2. 不同业态必须有不同“生意模型模板”。
+   - 小吃快餐看：学校/办公/住宅时段客流、午市/晚市峰谷、直接竞品与强替代、出餐速度、外卖能力、租金、人手、门头和取餐动线。
+   - 教育托管看：目标小学距离、放学动线、家长接送和临停、安全合规、消防/食品/托管资质、托管/小饭桌/作业辅导竞品、招生半径、空间条件、午托/晚托/作业辅导/晚餐组合。
+   - 酒店、生活服务、低频零售、教育培训等后续也要分别建立业务判断模板，不能继续套通用人口/交通/竞品框架。
+
+3. fallback 报告也必须按业态切换，不能套通用清单。
+   - fallback 可以保守，但不能错业态。
+   - 教育托管 fallback 禁止出现外卖骑手、出餐速度、上座率、午晚餐堂食等餐饮动作。
+   - 教育托管 fallback 的现场核验清单应至少覆盖：从目标小学到店步行安全性、放学时段学生/家长动线、家长临停接送、托管/小饭桌暗竞品走访、消防/食品/托管合规、空间分区和安全出口、午托/晚托招生询价。
+   - fallback 的 `action_plan` 也应按业态生成，不能从餐饮默认模板简化而来。
+
+4. 竞争和品类评分不能只看“有没有竞品”。
+   - 0 家竞品不等于强优势，尤其是教育托管、小饭桌、培训、家政、生活服务等 POI 容易漏收录的行业。
+   - 如果 1000 米内教育培训为 0，但住宅、目标小学、办公、商业活跃度也弱，应表达为“需求密度和 POI 收录不足，不能把 0 竞品视为强优势”。
+   - 小吃快餐 200 米内 0 家直接竞品，但 500/1000 米内同类和餐饮总量较高时，竞争评分不应接近满分；需要结合“为什么没有近场竞品”：低人流空白、门店稀疏、强替代较多、商圈未成型，还是确实有品类机会。
+   - 评分解释必须回答用户疑问：为什么竞争/品类分很高但总分不高，或者为什么 0 竞品反而不一定好。
+
+P1 新增验收样本：
+
+1. 同一地址分别生成小吃快餐和教育托管报告，必须能看出两套完全不同的生意逻辑。
+2. 教育托管报告不得出现外卖骑手、取餐、出餐速度、上座率、午晚高峰堂食等餐饮核验项。
+3. 教育托管报告必须区分小学、幼儿园、中学、职业学校对托管业务的不同价值，不能笼统写成“教育机构 / 学生客群稳定”。
+4. 教育托管 0 家竞品必须谨慎表达，说明托管/小饭桌 POI 可能漏收录，必须现场走访。
+5. 小吃快餐报告必须能给出更锋利的条件判断，例如“仅适合低租金、低人工、小档口、强午市和外卖模型；租金不低时不应优先”。
+6. HTML 与小程序对同一 JSON 的模块覆盖必须一致，不得 HTML 缺少核心口径说明、数据边界和 fallback 标识。
+
+### 0.1 HTML 与小程序报告一致性专项
+
+问题：
+
+- 当前 HTML 更像导出版，虽然具备 P0.5-final 的基础模块，但相比小程序仍缺少完整传播型报告的信息架构。
+- 用户把 HTML 发给合伙人时，希望看到的是一份完整商业报告，而不是压缩后的模板页。
+- HTML 与小程序如果模块不一致，会导致同一份报告在不同端表达不同，影响信任和验收。
+
+P1 方案：
+
+1. 抽象统一的报告展示 schema，不让小程序和 HTML 各自决定模块顺序。
+2. 小程序与 HTML 都必须按同一模块清单渲染：
+   - 报告类型标识：完整报告 / 修正报告 / 保守版数据摘要。
+   - 首屏决策卡：verdict、one_sentence、score、top_strength、top_risk、next_action、fit_condition、stop_condition。
+   - 地点基本面：该位置本质是什么地方，例如学区边缘、社区底商、弱交通住宅区、办公商圈、交通节点等。
+   - 数据充分度：改为“POI 数据较充分，经营数据待现场核验”等更克制表达。
+   - 关键证据摘要：直接竞品 / 替代消费 / 客流锚点 / 核心 POI 三层半径。
+   - 行业口径说明：本业态如何定义竞品、替代、锚点，以及数据可能漏收录的部分。
+   - 关键维度评分：必须解释高分/低分与总分关系。
+   - 周边真实数据与强相关 POI 列表。
+   - 行业专属现场核验清单。
+   - 经营建议。
+   - 营收测算与模型免责。
+   - 数据边界和风险提示。
+3. 后端 `storage_service.py` 的 HTML 构建逻辑不得缺少小程序已有的 `caliber_explanation`、`evidence_summary`、`data_boundary`、fallback 标识等用户可见字段。
+4. 任何新增字段都必须同时补小程序和 HTML 测试。
+
+验收标准：
+
+- 使用同一份小吃快餐 JSON，HTML 与小程序展示同样的核心模块。
+- 使用同一份教育托管 fallback JSON，HTML 与小程序都明确显示“保守版数据摘要”，并展示教育托管专属现场核验清单。
+- HTML 中不能再缺少竞品口径说明、数据边界、fallback 标识、关键证据摘要。
+- HTML 首屏要更像可传播商业报告：先给判断和条件，再给证据和核验，不把大量维度详情压在前面。
+
+### 0.2 分业态生意模型模板专项
+
+问题：
+
+- 当前报告结构已经统一，但内容仍偏通用。
+- 同一地址切换业态后，报告没有先建立“地点本身基本面”，导致不同业态各自裁剪事实，用户会感觉系统自相矛盾。
+- 教育托管被当成普通教育培训甚至餐饮来分析，是当前最明显的付费价值短板。
+
+P1 方案：
+
+1. 新增“地点基本面”确定性摘要，先描述地址本身：
+   - 居住密度、办公密度、学校结构、交通可达、商业成熟度、餐饮密度、停车条件。
+   - 该摘要独立于业态，但后续每个业态解释其适配/不适配原因。
+2. 为核心业态建立 `business_model_template`：
+   - 小吃快餐。
+   - 教育托管 / 小学生托管 / 小饭桌。
+   - 普通教育培训。
+   - 茶饮咖啡。
+   - 中餐正餐。
+   - 便利店。
+   - 生鲜。
+   - 酒店。
+   - 生活服务。
+3. 每个模板至少定义：
+   - 核心成交逻辑。
+   - 最重要客群。
+   - 关键距离和时间窗口。
+   - 必看 POI。
+   - 暗竞品/漏收录风险。
+   - 不适用的通用核验项。
+   - 现场核验清单模板。
+   - 分数封顶/降级条件。
+4. 教育托管要从普通教育培训中拆出单独模板，不能继续只用“教育培训”泛类。
+
+验收标准：
+
+- 教育托管报告首屏能回答：是否靠近目标小学放学动线、家长接送是否方便、合规和空间是否需要重点核验。
+- 小吃快餐报告首屏能回答：是否适合低租金小档口、午市/晚市/外卖分别是否成立。
+- 同一地址多业态报告共享地点基本面，但业务判断明显不同。
+
+### 0.3 竞争/品类评分校准专项
+
+问题：
+
+- 竞争环境和品类优势容易因为“近场竞品少”而虚高。
+- 用户看到竞争环境 85、品类优势 85，但总分只有 47/50，会觉得评分体系不可信。
+- “0 竞品”在教育托管、家政、生活服务等行业经常意味着 POI 漏收录或需求不足，不应被直接写成优势。
+
+P1 方案：
+
+1. 竞争评分增加“需求侧支撑”约束：
+   - 如果需求侧弱，0 竞品不能给高分。
+   - 如果远场同类密度高，近场 0 竞品不能直接给满分。
+2. 按行业设置评分封顶：
+   - 教育托管：若 500 米内目标小学价值不足、住宅不足、托管竞品 POI 不可信，则竞争/品类优势封顶。
+   - 小吃快餐：若 1000 米内同类小吃多、餐饮总量高、住宅/办公弱，则竞争分不能过高。
+3. 评分解释必须同步说明：
+   - 高分来自哪里。
+   - 为什么总分被低分项拉低。
+   - 哪些条件不成立时应降级。
+4. 低分报告不能用“市场空白明显、先发优势”这类乐观词冲淡风险。
+
+验收标准：
+
+- 小吃快餐样本中，200 米 0 竞品但 1000 米 12 家同类时，竞争环境不能被描述为“宽松 / 满分级优势”。
+- 教育托管样本中，1000 米 0 家教育培训时，品类优势不能直接给 85 或写“切入空间较好”，必须提示需求密度与 POI 漏收录风险。
+- 用户能理解为什么某些维度高但总分不高。
+
+### 0.4 P1 第一优先级返工完成记录（2026-06-15）
+
+Claude 返工反馈显示，P1 第一优先级已完成以下代码改造；后续正式发版前仍需 Codex 按实际 diff 和回归结果复核一次，不能只看执行报告。
+
+已完成改造：
+
+1. `backend/services/report_enrichment_service.py` 新增统一 enrichment 函数。
+   - normal / retry / fallback 保存前统一补齐 P1 用户可见模块。
+   - 补齐字段包括：`location_fundamentals`、`business_model_snapshot`、`caliber_explanation`、`evidence_summary`、`data_boundary`、`revenue_disclaimer`。
+   - 对教育托管类 normal/retry 报告，如旧 `field_checklist` 含餐饮错位词，按业态纠偏。
+
+2. `backend/services/business_model_service.py` 改造为确定性分业态服务。
+   - `classify_business_model_family()` 使用 `business_type + brand_name + category` 三者识别。
+   - 支持 category-only 托管识别，例如 `category="小学生课后托管服务就餐与作业辅导"` 时归入 `education_childcare`。
+   - 修复 “X家同类门店” 等会触发 strict POI 名称误判的表达。
+
+3. `backend/services/fallback_report_service.py` 收敛 fallback 逻辑。
+   - 修复 `check_fallback_report.py` 中 `家同类门店` 被 guard 误判的问题。
+   - `field_checklist` 改为调用 `business_model_service.build_business_field_checklist()`，不再维护另一套完整 checklist。
+   - fallback 输出新增 `revenue_disclaimer`，并避免将 `business_type` 原样插入用户可见文本导致名称 guard 风险。
+
+4. `backend/main.py` 接入统一 enrichment。
+   - normal、retry、fallback 三条链路在保存前统一补齐 P1 模块。
+   - 目标是保证 HTML 与小程序从同一份 `report_json` 渲染，不再出现 normal 有字段缺口、fallback 才有新模块的问题。
+
+5. `backend/services/storage_service.py` 与 `uniapp/src/pages/report-detail/index.vue` 同步展示。
+   - HTML 优先使用 `report_data["revenue_disclaimer"]`。
+   - 小程序新增 `rptRevenueDisclaimer`，不再固定使用餐饮版免责。
+   - HTML 和小程序均展示地点基本面、生意模型快照、竞品口径、证据摘要和数据边界。
+
+6. `backend/services/report_decision_service.py` 和 `backend/services/report_quality_service.py` 完成配套修正。
+   - `fit_condition` / `stop_condition` 按业态差异化。
+   - 0 竞品过度乐观表达做保守清洗。
+   - 数据充分度改为“POI 数据较充分 / 一般 / 不足 + 经营数据待核验”的克制口径。
+
+Claude 反馈的回归结果：
+
+```text
+check_report_fact_guard.py         188 PASS, 0 FAIL
+check_industry_rigor_rules.py      2178 PASS, 0 FAIL
+check_fallback_report.py           ALL PASS
+check_p05_report_quality.py        ALL P0.5 REGRESSION TESTS PASSED
+check_p1_business_model_quality.py ALL 20 TESTS PASSED
+npm run build:mp-weixin            DONE
+```
+
+服务器覆盖文件清单：
+
+```text
+backend/main.py
+backend/services/business_model_service.py
+backend/services/report_enrichment_service.py
+backend/services/fallback_report_service.py
+backend/services/storage_service.py
+backend/services/report_decision_service.py
+backend/services/report_quality_service.py
+backend/tests/check_p1_business_model_quality.py
+uniapp/src/pages/report-detail/index.vue
+uniapp/dist/build/mp-weixin/
+```
+
+明确未触碰：
+
+```text
+report_fact_guard.py
+poi_name_guard.py
+prompt 主体
+P2 候选点池、多点对比、支付链路、PDF/长图
+学校/校园归并底层评分改造
+```
+
+### 0.5 下一阶段主线：选址知识蒸馏与业态框架固化
+
+P1 第一优先级修复的是“当前报告不要明显错、两端不要不一致、fallback 不要跑偏”。下一阶段要解决的是“报告长期有行业判断力”，执行依据改为根目录：
+
+```text
+location_knowledge_framework_plan.md
+```
+
+下一阶段的核心不是继续写 prompt，而是把选址知识固化为两层规则：
+
+```text
+第一层：location_profile
+只由 real_data 生成，回答“这个地方本身是什么类型”。
+
+第二层：business_model YAML
+由 location_profile + business_type/category/brand_name 生成，回答“这个业态在这个位置是否匹配”。
+```
+
+必须保留的关键设计：
+
+1. 12 个业态族群，教育托管和教育培训拆开。
+2. 位置基本面采用 `primary_type + secondary_tags + evidence`，不做单一死标签。
+3. 竞争类型至少包括：排斥型、半聚集型、聚集型、中性型、暗竞品型。
+4. 成立条件拆为：`hard_gates`、`fit_signals`、`red_flags`，不机械使用全部 AND。
+5. HTML 与小程序只渲染 `report_json`，不各自生成业务逻辑。
+6. 每个 YAML 必须有版本号、来源追踪、数据盲区、禁止误判和 schema 校验。
+
+两个专项提醒：
+
+1. Phase 1 即使只交付 `07_education_childcare.yaml`，也必须提前写出教育培训对照测试：
+   - 九悦香都 + 教育托管：0 POI 竞品 = 暗雷，重点提示托管/小饭桌/家庭式托管可能漏收录。
+   - 九悦香都 + 教育培训：0 POI 竞品同样不能写强优势，但原因不同，应按聚集型/信任型逻辑保守表达，提示课程需求、满班率和品牌信任需验证。
+2. `05_pharmacy.yaml` 是否单独保留放到 Phase 2 再决定。药店只覆盖一个前台业态、竞争类型偏中性，若样本验证与洗衣、诊所、维修等结构一致，可合并为 `05_daily_independent.yaml`。
 
 ### 1. 学校/校园客流源展示归并
 

@@ -273,6 +273,44 @@ def test_laundry_clinic_semantics():
     print("T14 laundry_clinic PASS")
 
 
+def test_pharmacy_semantics():
+    from services.business_model_service import classify_business_model_family, load_business_model
+    assert classify_business_model_family("药店", "", "") == "pharmacy"
+    assert classify_business_model_family("药房", "", "") == "pharmacy"
+    assert classify_business_model_family("便利店", "", "") == "retail_convenience"
+    model = load_business_model("pharmacy")
+    assert model and model["competition"]["type"] == "中性型"
+    assert "医院" in " ".join(model.get("forbidden_misreadings", []))
+    print("T15 pharmacy PASS")
+
+
+def test_retail_shopping_semantics():
+    from services.business_model_service import load_business_model
+    model = load_business_model("retail_shopping")
+    assert model and model["competition"]["type"] == "中性型"
+    fm = " ".join(model.get("forbidden_misreadings", []))
+    assert "孤立" in fm or "电商" in fm or "0 竞品" in fm, f"应含孤立/电商: {fm[:100]}"
+    print("T16 retail_shopping PASS")
+
+
+def test_hotel_semantics():
+    from services.business_model_service import load_business_model
+    model = load_business_model("hotel")
+    assert model and model["competition"]["type"] == "聚集型"
+    zp = model["competition"]["zero_competitor_policy"]
+    assert "0 竞品" in zp or "不是优势" in zp
+    print("T17 hotel PASS")
+
+
+def test_entertainment_semantics():
+    from services.business_model_service import load_business_model
+    model = load_business_model("entertainment")
+    assert model and model["competition"]["type"] == "聚集型"
+    rf = " ".join(model.get("red_flags", []))
+    assert "隔音" in rf or "消防" in rf or "扰民" in rf, f"应含隔音/消防/扰民: {rf[:100]}"
+    print("T18 entertainment PASS")
+
+
 if __name__ == "__main__":
     test_snack_food_no_strong_advantage_zero_comp()
     test_edu_childcare_no_inflated_comp_score()
@@ -288,5 +326,9 @@ if __name__ == "__main__":
     test_group_dining_semantics()
     test_education_training_semantics()
     test_laundry_clinic_semantics()
+    test_pharmacy_semantics()
+    test_retail_shopping_semantics()
+    test_hotel_semantics()
+    test_entertainment_semantics()
     print()
     print("ALL BUSINESS MODEL TESTS PASSED")

@@ -82,8 +82,13 @@ _BEVERAGE_DESSERT_KW = [
 ]
 
 _RETAIL_CONVENIENCE_KW = [
-    "便利店", "超市", "小超市", "生鲜", "水果店", "药店",
+    "便利店", "超市", "小超市", "生鲜", "水果店",
     "烟酒", "菜店", "日用", "百货", "杂货",
+]
+
+_PHARMACY_KW = [
+    "药店", "药房", "医药", "中药", "大药房",
+    "同仁堂", "老百姓", "益丰", "一心堂", "健之佳",
 ]
 
 _RETAIL_SHOPPING_KW = [
@@ -138,6 +143,9 @@ def classify_business_model_family(business_type: str, brand_name: str = "",
     for kw in _RETAIL_CONVENIENCE_KW:
         if kw in combined:
             return "retail_convenience"
+    for kw in _PHARMACY_KW:
+        if kw in combined:
+            return "pharmacy"
     for kw in _RETAIL_SHOPPING_KW:
         if kw in combined:
             return "retail_shopping"
@@ -288,6 +296,7 @@ def compute_business_model_snapshot(real_data: dict, business_type: str,
         "food_service": _snapshot_food_service,
         "beverage_dessert": _snapshot_beverage_dessert,
         "retail_convenience": _snapshot_retail_convenience,
+        "pharmacy": _snapshot_pharmacy,
         "retail_shopping": _snapshot_retail_shopping,
         "service_beauty": _snapshot_service_beauty,
         "service_basic": _snapshot_service_basic,
@@ -542,6 +551,40 @@ def _snapshot_retail_convenience(real_data, business_type, brand_name, store_siz
     }
 
 
+def _snapshot_pharmacy(real_data, business_type, brand_name, store_size):
+    r = real_data or {}
+    s5 = r.get("stats_500m", {}) or {}
+    hospital_500 = _int(s5.get("hospitals", 0))
+    dc_1000 = _int(r.get("direct_competitors_1000m", 0))
+
+    if dc_1000 == 0:
+        competitor_note = (
+            "地图 POI 未检出同类药店。但医院药房、社区卫生中心药房、线上药店"
+            "（京东健康/阿里健康）不在 POI 收录范围，需现场走访确认。"
+        )
+    else:
+        competitor_note = f"1000m 同类药店 {dc_1000} 家。"
+
+    if hospital_500 >= 1:
+        competitor_note += f" 500m 内 {hospital_500} 家医院/诊所可作为处方锚点。"
+
+    return {
+        "model_type": "pharmacy",
+        "core_logic": "药店做社区刚需生意，核心看常住人口基数、年龄结构、医院/诊所锚点和医保资质。线上药店分流不可忽视。",
+        "competitor_note": competitor_note,
+        "must_verify": [
+            "统计周边 500m 常住人口和年龄结构",
+            "确认 500m 内医院/诊所数量和处方外流情况",
+            "核验药品经营许可、执业药师和 GSP 认证条件",
+            "评估线上药店对该区域的配送覆盖强度",
+            "走访同类药店了解日均客流和客单价",
+        ],
+        "fit_condition": "周边常住人口 >= 5000、有医院/诊所锚点、医保资质可办理、竞品不超过 2 家",
+        "stop_condition": "常住人口不足、已有 3+ 家同类且客流一般、或线上药店已充分覆盖",
+        "score_explanation": "药店评分重点看人口基数和医院/诊所锚点，0 竞品不等于优势。",
+    }
+
+
 def _snapshot_retail_shopping(real_data, business_type, brand_name, store_size):
     return {
         "model_type": "retail_shopping",
@@ -744,6 +787,7 @@ def build_business_field_checklist(real_data: dict, business_type: str,
         "food_service": _checklist_food_service,
         "beverage_dessert": _checklist_beverage_dessert,
         "retail_convenience": _checklist_retail_convenience,
+        "pharmacy": _checklist_pharmacy,
         "service_beauty": _checklist_service_beauty,
         "generic": _checklist_generic,
     }
@@ -1007,6 +1051,26 @@ def _checklist_retail_convenience(real_data, business_type, brand_name, store_si
         _make_item("询价相邻商户租金", "工作日白天",
                    "询问相邻商户实际租金", "租金过高",
                    "租金可控", "月租金占比过高"),
+    ]
+
+
+def _checklist_pharmacy(real_data, business_type, brand_name, store_size):
+    return [
+        _make_item("统计周边常住人口和年龄结构", "任意时段",
+                   "走访周边小区了解常住人口、年龄分布和慢性病用药需求", "人口不足",
+                   "周边常住人口 >= 5000 且老龄化比例较高", "常住人口不足 3000 且以年轻人为主"),
+        _make_item("确认医院/诊所锚点", "工作日白天",
+                   "走访 500m 内医院/诊所，确认处方外流情况和患者购药动线", "锚点缺失",
+                   "500m 内有医院或社区诊所可导出处方客流", "500m 内无任何医疗机构"),
+        _make_item("核验药品经营许可和执业药师", "工作日",
+                   "确认 GSP 认证、药品经营许可和执业药师注册条件", "合规不达标",
+                   "证照和药师条件可满足", "许可或药师无法到位"),
+        _make_item("走访同类药店了解客流", "工作日全天",
+                   "走访同类药店了解日均客流、客单价和医保定点情况", "竞品饱和",
+                   "同类药店客流充足且仍有空间", "已有 3+ 家同类且客流一般"),
+        _make_item("询价相邻商户租金", "工作日白天",
+                   "询问相邻商户实际租金", "租金过高",
+                   "租金在预算范围内", "月租金占比过高"),
     ]
 
 

@@ -1,0 +1,93 @@
+# 址得选 酒店住宿生意模型 v2026-06-15
+model_id: hotel
+model_version: "2026-06-15.v1"
+display_name: "酒店 / 宾馆 / 民宿 / 青旅"
+
+coverage:
+  backend_rule_groups: ["商务酒店", "民宿青旅"]
+  keywords:
+    - "酒店"
+    - "宾馆"
+    - "民宿"
+    - "青旅"
+    - "旅舍"
+    - "客栈"
+    - "汉庭"
+    - "如家"
+    - "全季"
+    - "亚朵"
+    - "希尔顿"
+    - "万豪"
+    - "维也纳"
+
+competition:
+  type: "聚集型"
+  zero_competitor_policy: "酒店行业 0 竞品通常不是优势而是危险信号——可能意味着该区域住宿需求不足。酒店需要同类聚集来验证商圈住宿需求成熟度。交通枢纽/商务区/景区附近的酒店聚集是正常现象。"
+  hidden_competitor_risk: "民宿平台（Airbnb/途家）和OTA（携程/美团）上的非标住宿不在高德POI收录范围。公寓/日租房/钟点房可能以其他类别注册。"
+
+demand_sources:
+  - name: "交通枢纽"
+    weight: "critical"
+    trigger: "stats_1000m.subway >= 1 or 靠近火车站/机场"
+  - name: "商务区/会展"
+    weight: "high"
+    trigger: "stats_500m.office >= 10"
+  - name: "旅游/景区"
+    weight: "high"
+    trigger: "周边有知名景区或旅游集散地"
+  - name: "医院陪护"
+    weight: "medium"
+    trigger: "stats_1000m.hospitals >= 2"
+
+key_time_windows:
+  - label: "入住高峰"
+    value: "每日 14:00-22:00"
+  - label: "退房高峰"
+    value: "每日 7:00-12:00"
+
+hard_gates:
+  - "特种行业许可证"
+  - "消防验收合格"
+  - "公共卫生许可"
+
+fit_signals:
+  - "位于交通枢纽/商务区/景区核心圈"
+  - "同档次酒店聚集且入住率良好"
+  - "OTA 平台该区域搜索量和均价匹配定位"
+  - "停车便利或地铁步行可达"
+
+red_flags:
+  - "周边无交通枢纽/商务区/景区锚点"
+  - "同档次酒店严重过剩且入住率持续走低"
+  - "消防或特种行业许可无法办理"
+  - "物业条件不满足（层高/独立大堂/电梯/停车）"
+
+revenue_model:
+  unit_logic: "房间数 x 入住率 x ADR x 30 天；RevPAR 为核心指标"
+  area_range_sqm: [500, 5000]
+  rent_ratio_limit: 0.25
+  disclaimer: "以上为模型估算，不代表实际经营结果；需结合入住率、ADR、OTA获客成本、物业条件和消防/证照要求复核。"
+  no_estimate_disclaimer: "本报告未生成营收测算，仅提供测算所需核验项；需补充房间数、入住率、ADR、OTA佣金、人工和物业成本后再测算。"
+
+data_blind_spots:
+  - "民宿平台（Airbnb/途家）的非标住宿不在 POI 收录范围。"
+  - "OTA 平台上竞争对手的实际入住率和 ADR 需单独调研。"
+  - "物业层高、独立大堂、电梯数量和停车位需现场核验。"
+
+forbidden_misreadings:
+  - "不能把 0 竞品当成品类机会：0 酒店通常意味着住宿需求不足。"
+  - "不能把周边餐饮/商业活跃度等同于酒店住宿需求。"
+  - "不能输出推荐开店、值得投资、可以放心等决策语言。"
+
+source_refs:
+  - source_id: "rule_seed_006"
+    applies_to: ["competition"]
+    rule_key: "hotel_aggregation_type"
+
+sources:
+  - id: "rule_seed_009"
+    type: "rule_seed"
+    confidence: "B"
+
+last_reviewed: "2026-06-15"
+owner: "product"

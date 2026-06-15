@@ -1,0 +1,90 @@
+# 址得选 目的零售生意模型 v2026-06-15
+model_id: retail_shopping
+model_version: "2026-06-15.v1"
+display_name: "服装 / 数码 / 专卖 / 眼镜 / 珠宝"
+
+coverage:
+  backend_rule_groups: ["低频目的零售"]
+  keywords:
+    - "服装"
+    - "数码"
+    - "专卖"
+    - "手机"
+    - "电脑"
+    - "家电"
+    - "眼镜"
+    - "珠宝"
+    - "名创优品"
+    - "屈臣氏"
+    - "优衣库"
+
+competition:
+  type: "中性型"
+  zero_competitor_policy: "目的零售中，同类聚集可验证商圈对该品类的需求成熟度。0 竞品不一定加分：需判断是品类空白机会还是该商圈对该品类需求不足。孤立选址风险极高。"
+  hidden_competitor_risk: "电商（淘宝/京东/拼多多）和直播带货对目的零售的分流远大于线下竞品；综合商场内的同类柜台可能未被独立收录。"
+
+demand_sources:
+  - name: "商圈成熟度"
+    weight: "critical"
+    trigger: "stats_500m.shopping >= 1"
+  - name: "同类聚集"
+    weight: "high"
+    trigger: "周边有 3+ 家不同品牌的同类门店"
+  - name: "交通可达性"
+    weight: "high"
+    trigger: "stats_500m.subway >= 1 or stats_500m.bus >= 5"
+  - name: "展示面曝光"
+    weight: "high"
+    trigger: "门店位于商业街/商场一层主流动线上"
+
+key_time_windows:
+  - label: "周末全天"
+    value: "周末 10:00-20:00"
+  - label: "节假日"
+    value: "节假日 10:00-21:00"
+
+hard_gates:
+  - "营业执照"
+  - "品牌授权或正规进货渠道"
+
+fit_signals:
+  - "位于成熟商圈或商业街一层"
+  - "同类门店聚集且经营良好"
+  - "展示面 ≥ 3m 且临街"
+  - "坪效和客单价匹配商圈消费力"
+
+red_flags:
+  - "孤立选址，周边无任何同类或互补业态聚集"
+  - "商圈客流不足且以低消费力为主"
+  - "展示面严重遮挡或位于二楼及以上非临街位置"
+  - "电商对该品类替代率极高且线下无明显体验优势"
+
+revenue_model:
+  unit_logic: "日均进店 x 转化率 x 客单价 x 复购周期"
+  area_range_sqm: [30, 200]
+  rent_ratio_limit: 0.15
+  disclaimer: "以上为模型估算，不代表实际经营结果；需结合商圈客流、坪效、库存周转率和租金复核。"
+  no_estimate_disclaimer: "本报告未生成营收测算，仅提供测算所需核验项；需补充日均进店、转化率、客单价、库存成本和租金后再测算。"
+
+data_blind_spots:
+  - "电商对该品类的实际分流比例需结合品类特性评估，无法从 POI 推导。"
+  - "商场内部店铺的展示面和动线方向需现场观察。"
+  - "品牌授权和进货渠道对毛利率的影响需独立评估。"
+
+forbidden_misreadings:
+  - "不能把孤立选址的 0 竞品当成品类机会。"
+  - "不能因为周边人口多就默认目的零售需求充足（需品类匹配）。"
+  - "不能输出推荐开店、值得投资、可以放心等决策语言。"
+
+source_refs:
+  - source_id: "book_002"
+    applies_to: ["red_flags"]
+    rule_key: "isolated_location_downgrade"
+
+sources:
+  - id: "rule_seed_008"
+    type: "rule_seed"
+    confidence: "B"
+
+last_reviewed: "2026-06-15"
+owner: "product"

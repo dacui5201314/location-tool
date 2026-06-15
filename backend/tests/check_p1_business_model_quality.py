@@ -119,7 +119,7 @@ def test_classify_all_business_types():
         ("西餐", "", "food_service"),
         ("便利店", "", "retail_convenience"),
         ("超市", "", "retail_convenience"),
-        ("药店", "", "retail_convenience"),
+        ("药店", "", "pharmacy"),
         ("生鲜店", "", "retail_convenience"),
         ("服装店", "", "retail_shopping"),
         ("数码店", "", "retail_shopping"),

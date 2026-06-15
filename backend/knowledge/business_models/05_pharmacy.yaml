@@ -1,0 +1,89 @@
+# 址得选 药店药房生意模型 v2026-06-15
+model_id: pharmacy
+model_version: "2026-06-15.v1"
+display_name: "药店 / 药房 / 医药零售"
+
+coverage:
+  backend_rule_groups: ["高频刚需零售"]
+  keywords:
+    - "药店"
+    - "药房"
+    - "医药"
+    - "中药"
+    - "大药房"
+    - "同仁堂"
+    - "老百姓"
+    - "益丰"
+    - "一心堂"
+    - "健之佳"
+
+competition:
+  type: "中性型"
+  zero_competitor_policy: "近场无同类药店不等于机会。需核验社区人口基数、年龄结构（老龄化社区药店需求高）、是否有医院/诊所锚点带来处方外流，以及是否已有未收录的社区药房。"
+  hidden_competitor_risk: "医院药房、社区卫生服务中心药房、线上药店（京东健康/阿里健康）构成实质性竞争，但均不在 POI 收录范围内。"
+
+demand_sources:
+  - name: "周边常住人口"
+    weight: "critical"
+    trigger: "stats_500m.residential >= 5"
+  - name: "医院/诊所锚点"
+    weight: "high"
+    trigger: "stats_500m.hospitals >= 1"
+  - name: "老龄化社区"
+    weight: "high"
+    trigger: "周边社区以老旧小区/退休人群为主"
+  - name: "医保定点资质"
+    weight: "high"
+    trigger: "可办理医保定点"
+
+key_time_windows:
+  - label: "全天"
+    value: "工作日 8:00-21:00"
+
+hard_gates:
+  - "药品经营许可证"
+  - "执业药师注册"
+  - "GSP 认证"
+  - "医保定点资质（可选但强烈建议）"
+
+fit_signals:
+  - "周边常住人口 >= 5000 人"
+  - "500m 内有医院或社区诊所"
+  - "医保定点资质可办理"
+  - "近场同类药店不超过 2 家"
+
+red_flags:
+  - "周边常住人口不足 3000 人"
+  - "已有 3+ 家同类药店且客流量一般"
+  - "药品经营许可或执业药师无法到位"
+  - "线上药店对该区域配送覆盖极强"
+
+revenue_model:
+  unit_logic: "日均客流 x 转化率 x 客单价（含处方药/OTC/保健品/医疗器械）"
+  area_range_sqm: [60, 200]
+  rent_ratio_limit: 0.15
+  disclaimer: "以上为模型估算，不代表实际经营结果；需结合社区人口、医保资质、医院/诊所锚点和租金复核。"
+  no_estimate_disclaimer: "本报告未生成营收测算，仅提供测算所需核验项；需补充日均客流、客单价、医保资质、执业药师成本和租金后再测算。"
+
+data_blind_spots:
+  - "医院药房和社区卫生中心药房不在高德 POI 收录范围。"
+  - "线上药店（京东健康/阿里健康/美团买药）的竞争强度需单独评估。"
+  - "社区年龄结构和慢性病患病率无法从 POI 数据推导。"
+
+forbidden_misreadings:
+  - "不能把医院和诊所作为药店的直接竞品（它们是处方锚点而非竞品）。"
+  - "不能把便利店和超市作为药店的直接竞品（OTC 药品销售受限）。"
+  - "不能输出推荐开店、值得投资、可以放心等决策语言。"
+
+source_refs:
+  - source_id: "rule_seed_002"
+    applies_to: ["competition"]
+    rule_key: "pharmacy_neutral_type"
+
+sources:
+  - id: "rule_seed_007"
+    type: "rule_seed"
+    confidence: "B"
+
+last_reviewed: "2026-06-15"
+owner: "product"
