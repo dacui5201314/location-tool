@@ -306,6 +306,51 @@ def test_snack_food_200m_zero_but_1000m_many():
 
 
 # ═══════════════════════════════════════════════
+# T5b: summary 同步 + top_strength 不机械 + 口径一致
+# ═══════════════════════════════════════════════
+def test_snack_food_summary_sync_and_top_strength():
+    from services.fallback_report_service import build_fallback_report
+
+    # 小吃快餐：200m 0竞品，1000m 12同类，餐饮 56 家
+    rd = _base_rd(
+        direct_competitors_200m=0,
+        direct_competitors_500m=3,
+        direct_competitors_1000m=12,
+    )
+    rd["stats_1000m"]["restaurants"] = 56
+
+    report = build_fallback_report(rd, address="九悦香都",
+                                   business_type="小吃快餐",
+                                   brand_name="砂锅小吃",
+                                   store_size=50)
+
+    # 1. report["summary"] 不含旧占位文本
+    s = report.get("summary", "")
+    assert "该点位选址数据摘要" not in s, f"summary 不应是旧格式: {s[:80]}"
+    assert "近场" in s or "低租金" in s or "小档口" in s, \
+        f"summary 应包含近场空档/低租金小档口等判断: {s[:100]}"
+
+    # 2. report["summary"] == report["executive_summary"]["summary"]
+    es_s = report.get("executive_summary", {}).get("summary", "")
+    assert s == es_s, f"summary != exec_summary.summary:\n  summary: {s[:80]}\n  exec: {es_s[:80]}"
+
+    # 3. decision_snapshot.top_strength 不机械
+    ds = report.get("decision_snapshot", {})
+    ts = ds.get("top_strength", "")
+    assert "直接竞争压力较小" not in ts, f"top_strength 不应机械写竞争压力小: {ts[:80]}"
+    assert "近场" in ts or "供给较少" in ts or "空档" in ts or "低客流" in ts, \
+        f"top_strength 应体现近场空档需核验: {ts[:80]}"
+
+    # 4. competitor_note 与 top_strength 口径一致
+    snap = report.get("business_model_snapshot", {})
+    cn = snap.get("competitor_note", "")
+    assert "近场" in cn or "空档" in cn or "低客流" in cn or "远场" in cn, \
+        f"competitor_note 应与 top_strength 口径一致: {cn[:100]}"
+
+    print("T5b snack food summary sync + top_strength aligned: PASS")
+
+
+# ═══════════════════════════════════════════════
 # T6: 小吃快餐结论锋利（fit/stop）
 # ═══════════════════════════════════════════════
 def test_snack_food_fit_stop_sharp():
@@ -906,6 +951,7 @@ if __name__ == "__main__":
     test_education_childcare_checklist()
     test_education_childcare_zero_competitor_safe()
     test_snack_food_200m_zero_but_1000m_many()
+    test_snack_food_summary_sync_and_top_strength()
     test_snack_food_fit_stop_sharp()
     test_location_fundamentals_consistency()
     test_html_renders_all_modules()

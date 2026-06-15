@@ -416,6 +416,8 @@ def build_fallback_report(real_data: dict, address: str = "",
         location_fundamentals, business_model_snapshot,
         dc_200, dc_500, dc_1000, sub_500, res_500, office_500, school_500,
         restaurants_1k)
+    # ★ 同步 report.summary，确保小程序和 HTML 展示同一份新摘要
+    summary = executive_summary["summary"]
 
     # ── P0-A: evidence_summary ──
     evidence_summary = {
