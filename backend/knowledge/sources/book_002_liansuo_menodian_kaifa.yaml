@@ -1,0 +1,56 @@
+# 来源卡: 连锁门店开发与选址
+# 作者: 李晓辉, 弓秀云
+# 类型: book | 可信度: B
+# derived_rule_only: true — 不包含原文摘录
+
+source_id: "book_002"
+source_type: "book"
+title: "连锁门店开发与选址"
+confidence: "B"
+copyright_note: "李晓辉, 弓秀云《连锁门店开发与选址》— 仅保留抽象选址判断规则，不包含原文摘录"
+derived_rule_only: true
+applicable_models:
+  - "snack_fast_food"
+  - "retail_convenience"
+  - "retail_shopping"
+
+extracted_rules:
+  demand_sources:
+    - rule: "商圈分级法"
+      condition: "按核心商圈/次级商圈/边缘商圈三层划分评估客流质量和消费匹配度"
+      caveat: "不同业态对商圈等级的依赖不同：便利店重次级商圈、正餐重核心商圈"
+    - rule: "盈亏平衡倒推法"
+      condition: "从预估日均营收反推可承受的最高租金，而非先看租金再算营收"
+      caveat: "适用于已有单店模型的连锁品牌扩张，独立创业者需保守估算"
+
+  red_flags:
+    - rule: "租售比超标"
+      condition: "月租金超过预估月营收 20%（快餐）/ 25%（零售）"
+      severity: "stop"
+    - rule: "商圈衰退信号"
+      condition: "周边出现大量空铺、转租、降租，或主力店撤场"
+      severity: "stop"
+    - rule: "孤立选址"
+      condition: "周边 500m 内无任何同类或互补业态聚集"
+      severity: "downgrade"
+      caveat: "目的性消费业态（家具/建材）可例外，但便利店/快餐不可"
+
+  fit_signals:
+    - rule: "同类聚集验证"
+      condition: "商圈内已有 3+ 家不同品牌同类门店且经营良好"
+      caveat: "说明该商圈已被市场验证，适合跟随型选址策略"
+    - rule: "人口密度匹配"
+      condition: "门店类型与周边人口密度匹配：便利店需 3000+ 人/km²，正餐需 5000+"
+
+  field_checklist_additions:
+    - "统计周边 500m 空铺率和转租率，空铺超过 20% 应降低优先级"
+    - "核验主力店（超市/百货/大型餐饮）是否在正常经营，有无撤场计划"
+    - "从预估营收反推可承受的最高租金，而非先接受租金再算是否盈利"
+
+  data_blind_spots:
+    - "商圈分级的具体人口/客流阈值因城市等级差异较大，需本地化校准"
+    - "空铺率的统计周期和口径影响判断：季度性空铺 vs 结构性衰退"
+
+  forbidden_misreadings:
+    - "不能把商圈分级当成固定公式套用：同一城市不同区域商圈边界可能重叠"
+    - "不能只因租金低就忽视租售比：租金低但客流也低时租售比可能更高"

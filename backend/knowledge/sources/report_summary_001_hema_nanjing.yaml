@@ -1,0 +1,51 @@
+# 来源卡: 社区化新零售的布局选址与优化发展研究——以南京市盒马鲜生为例
+# 类型: report_summary | 可信度: B
+# derived_rule_only: true — 仅保留抽象规则
+
+source_id: "report_summary_001"
+source_type: "report_summary"
+title: "社区化新零售的布局选址与优化发展研究——以南京市盒马鲜生为例"
+confidence: "B"
+copyright_note: "学术论文《社区化新零售的布局选址与优化发展研究——以南京市盒马鲜生为例》— 仅保留抽象选址规则"
+derived_rule_only: true
+applicable_models:
+  - "retail_convenience"
+
+extracted_rules:
+  demand_sources:
+    - rule: "3km 配送半径覆盖模型"
+      condition: "新零售门店以 3km 为配送半径，覆盖范围内住宅和办公人口决定线上订单上限"
+      caveat: "配送半径内的人口密度比门店门口步行客流更重要"
+    - rule: "店仓一体模式"
+      condition: "门店同时作为前置仓，面积需满足零售展示 + 仓储分拣双重需求"
+      caveat: "纯便利店模式不适用此规则"
+    - rule: "居住+办公双客群"
+      condition: "盒马选址偏好居住和办公双高密度区域"
+      caveat: "单一客群（纯居住或纯办公）点位线上订单波动大"
+
+  red_flags:
+    - rule: "配送半径内人口不足"
+      condition: "3km 半径内覆盖人口不足 10 万"
+      severity: "stop"
+    - rule: "线上订单占比过低"
+      condition: "线上订单占比持续低于 30%，说明配送需求不足"
+      severity: "downgrade"
+
+  fit_signals:
+    - rule: "高密度社区 + 写字楼复合客群"
+      condition: "周边既有成熟住宅区又有写字楼集群"
+    - rule: "交通便利支持配送"
+      condition: "周边道路条件支持电动车/摩托车高效配送"
+
+  field_checklist_additions:
+    - "统计 3km 配送半径内的住宅小区数量和估算人口"
+    - "统计 3km 配送半径内的写字楼数量和办公人口"
+    - "核验门店是否具备仓储分拣的后场空间（不小于营业面积的 30%）"
+
+  data_blind_spots:
+    - "盒马模式对一线/新一线城市的适用性高于二三线城市"
+    - "配送半径实际受道路拥堵和骑手密度影响，3km 为理想值"
+
+  forbidden_misreadings:
+    - "不能把盒马的店仓一体模型直接套用到普通便利店选址"
+    - "不能只因配送半径人口高就忽略门店本身的展示和到店体验"

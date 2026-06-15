@@ -1,0 +1,62 @@
+# 来源卡: 千分选址 最实效的餐饮连锁门店选址策略
+# 作者: 赖林胜
+# 类型: book | 可信度: B
+# derived_rule_only: true — 不包含原文摘录，仅保留抽象选址判断规则
+
+source_id: "book_001"
+source_type: "book"
+title: "千分选址 最实效的餐饮连锁门店选址策略"
+confidence: "B"
+copyright_note: "赖林胜《千分选址》— 仅保留抽象选址判断规则，不包含原文摘录"
+derived_rule_only: true
+applicable_models:
+  - "snack_fast_food"
+  - "food_service"
+
+extracted_rules:
+  demand_sources:
+    - rule: "七分选址三分经营"
+      condition: "餐饮成功 70% 取决于选址，30% 取决于运营"
+      caveat: "选址错误无法通过后期运营弥补，应作为 stop_condition 的硬门槛逻辑"
+    - rule: "金角银边草肚皮"
+      condition: "转角位 > 沿街中段 > 内街/巷内"
+      caveat: "门头曝光度是餐饮选址第一要素，内街位置即使租金低也应降级评估"
+    - rule: "午晚双高峰验证"
+      condition: "餐饮点位必须同时验证午市和晚市两个时段客流"
+      caveat: "只有单一时段支撑的选址，租金必须降到极致才可考虑"
+    - rule: "可视可达原则"
+      condition: "门店必须在主流动线上清晰可见，且 50m 内无障碍遮挡"
+      caveat: "被树木/广告牌/建筑遮挡的门头，即使租金再低也应淘汰"
+
+  red_flags:
+    - rule: "门头遮挡淘汰"
+      condition: "门头在 50m 外不可见或被完全遮挡"
+      severity: "stop"
+    - rule: "单一时段客流"
+      condition: "只有午市或只有晚市有客流，另一时段基本为零"
+      severity: "downgrade"
+      caveat: "除非租金极低且外卖可弥补，否则不应作为优先候选点"
+    - rule: "竞品密度过饱和"
+      condition: "200m 内同品类门店超过 8 家"
+      severity: "stop"
+
+  fit_signals:
+    - rule: "动线方向匹配"
+      condition: "目标客群的自然流动方向经过门店正面"
+    - rule: "租金占比可控"
+      condition: "月租金不超过预估月营收的 15%（快餐）到 20%（正餐）"
+
+  field_checklist_additions:
+    - "核验门店 50m 可视范围内是否有树木、广告牌、建筑物遮挡门头"
+    - "核验动线方向：目标客群从地铁/公交/停车场到达门店的自然路径"
+    - "核验午市 11:30-13:00 和晚市 18:00-20:00 两个时段各自客流，不可只看一个"
+    - "核验竞品 200m 内数量和上座率，确认品类是否过饱和"
+
+  data_blind_spots:
+    - "千分选址法的具体评分权重未公开，仅采用其方法论框架"
+    - "金角银边原则在窄街/步行街/商场内街的适用性需本地化调整"
+    - "门头遮挡标准（50m/100m）应结合具体道路宽度和步行速度调整"
+
+  forbidden_misreadings:
+    - "不能把金角银边绝对化：窄街的银边可能优于宽马路的金角"
+    - "不能只看午市忽略晚市：午市强的点位可能因住宅少导致晚市极弱"
