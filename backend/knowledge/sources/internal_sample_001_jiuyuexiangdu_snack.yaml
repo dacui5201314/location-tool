@@ -1,0 +1,50 @@
+# 来源卡: 宝鸡九悦香都砂锅小吃报告复盘
+# 类型: internal_sample | 可信度: A
+# 不做长段原文复制，只沉淀可反哺 YAML 和测试的判断规则
+
+source_id: "internal_sample_001"
+source_type: "internal_sample"
+title: "宝鸡九悦香都砂锅小吃报告复盘"
+confidence: "A"
+applicable_models:
+  - "snack_fast_food"
+
+extracted_rules:
+  demand_sources:
+    - rule: "学校午市可作为核心需求来源"
+      condition: "stats_500m.schools >= 1"
+      caveat: "必须检查寒暑假客流断崖风险，外卖可部分弥补但无法完全替代"
+    - rule: "办公午市为辅助需求来源"
+      condition: "stats_500m.office >= 1"
+      caveat: "单次消费金额低，但频次高，适合薄利多销模型"
+    - rule: "社区晚餐为弱需求来源"
+      condition: "stats_500m.residential >= 5"
+      caveat: "九悦香都样本中住宅仅 4 个，晚餐客流实测偏弱"
+
+  red_flags:
+    - rule: "三弱同时出现不应作为优先候选点"
+      condition: "租金高 + 晚餐客流弱 + 外卖出单不足"
+      severity: "stop"
+    - rule: "近场空档不能简单判断为市场空白"
+      condition: "dc_200 == 0 and (dc_1000 >= 8 or restaurants_1000m >= 40)"
+      severity: "downgrade"
+      corrective: "必须核验是否因低客流导致无供给，而非品类机会"
+
+  fit_signals:
+    - rule: "低租金小档口模型可持续"
+      condition: "租金低 and 1-2 人可运营 and 午市学校客流成立"
+      caveat: "即使远场竞争多，低租金模型仍有生存空间"
+
+  field_checklist_additions:
+    - "核验午高峰 11:30-13:00 学校门口到门店的动线方向和学生流量"
+    - "核验晚餐时段 17:30-20:00 周边住宅小区实际外出就餐人流"
+    - "核验外卖骑手取餐便利度和周边外卖平台竞争格局"
+
+  data_blind_spots:
+    - "高德 POI 对小摊贩、档口、学校内部食堂收录不全"
+    - "外卖单量和骑手取餐便利度无法从 POI 数据直接推导"
+    - "寒暑假对学区型点位的影响需走访学校或社区确认"
+
+  forbidden_misreadings:
+    - "不能把 200m 无竞品直接写成市场空白红利"
+    - "不能输出推荐开店、值得投资、可以放心等决策语言"

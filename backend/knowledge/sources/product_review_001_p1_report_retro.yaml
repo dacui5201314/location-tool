@@ -1,0 +1,47 @@
+# 来源卡: 址得选 v4.1 P1 报告产品复盘
+# 类型: product_review | 可信度: A
+# 不复制报告原文，只沉淀通用跨业态规则
+
+source_id: "product_review_001"
+source_type: "product_review"
+title: "址得选 v4.1 P1 报告产品复盘"
+confidence: "A"
+applicable_models:
+  - "snack_fast_food"
+  - "education_childcare"
+  - "beverage_dessert"
+  - "retail_convenience"
+  - "service_beauty"
+
+extracted_rules:
+  demand_sources: []
+
+  red_flags:
+    - rule: "餐饮门店多不能作为所有业态通用优势"
+      applicable_families: ["education_childcare", "education_training", "service_beauty", "service_basic", "hotel"]
+      corrective: "这些族群的 location_fundamentals 和 location_profile 应过滤餐饮相关优势"
+    - rule: "0 POI 竞品不能机械写成强优势"
+      severity: "universal"
+      details:
+        - "排斥型: 0 竞品可加分但仍需需求侧支撑"
+        - "半聚集型: 0 竞品只能中性表达"
+        - "聚集型: 0 竞品需保守，需求不足时封顶"
+        - "暗竞品型: 0 POI 必须提示可能存在未收录暗竞品"
+    - rule: "不同业态不得共用通用竞争判断模板"
+      severity: "hard"
+
+  fit_signals: []
+
+  field_checklist_additions: []
+
+  data_blind_spots:
+    - rule: "暗竞品型业态的 POI 收录率普遍偏低"
+      details: "托管/小饭桌、美业工作室、家政维修多为非标准收录"
+    - rule: "所有业态的租金、转让费、实际经营数据无法从 POI 推导"
+    - rule: "会员储值、预约复购等商业模式无法从空间数据推导"
+
+  forbidden_misreadings:
+    - "不能把多所大学学院当成多所独立学校抬高学区判断"
+    - "不能把幼儿园/中学/大学学生当成小学生托管客源"
+    - "不能输出推荐开店、值得投资、可以放心等决策语言"
+    - "不能出现外卖骑手、出餐速度、上座率、午晚高峰堂食等餐饮核验项在非餐饮报告"

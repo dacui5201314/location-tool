@@ -69,23 +69,26 @@ def test_business_model_yamls():
 # ═══════════════ T3: 缺字段时校验失败 ═══════════════
 def test_missing_fields_fails():
     data = _load_yaml(os.path.join(KNOWLEDGE_DIR, "business_models", "01_snack_fast_food.yaml"))
-    # 复制并删除必填字段
+
+    # 删除必填字段 → 必须触发 AssertionError
     broken = copy.deepcopy(data)
     del broken["competition"]
+    failed = False
     try:
         _validate_required(broken, ["competition"], "broken")
-        assert False, "should have raised on missing competition"
     except AssertionError:
-        pass  # expected
+        failed = True
+    assert failed, "missing competition should have raised"
 
     broken2 = copy.deepcopy(data)
     broken2["competition"] = dict(broken2["competition"])
     del broken2["competition"]["type"]
+    failed2 = False
     try:
         _validate_required(broken2["competition"], ["type"], "broken/competition")
-        assert False, "should have raised on missing competition.type"
     except AssertionError:
-        pass
+        failed2 = True
+    assert failed2, "missing competition.type should have raised"
 
     print("T3 missing fields correctly fails: PASS")
 
@@ -185,24 +188,86 @@ def test_new_yamls_pass_schema():
 # ═══════════════ T9: 缺字段 copy 必须失败（非假失败） ═══════════════
 def test_missing_fields_on_new_yamls():
     data = _load_yaml(os.path.join(KNOWLEDGE_DIR, "business_models", "03_beverage_dessert.yaml"))
+
     # 删 revenue_model → 必须失败
     broken = copy.deepcopy(data)
     del broken["revenue_model"]
+    failed = False
     try:
         _validate_required(broken, ["revenue_model"], "broken-03")
-        assert False, "should have raised"
     except AssertionError:
-        pass
+        failed = True
+    assert failed, "missing revenue_model should have raised"
+
     # 删 competition.type → 必须失败
     broken2 = copy.deepcopy(data)
     broken2["competition"] = dict(broken2["competition"])
     del broken2["competition"]["type"]
+    failed2 = False
     try:
         _validate_required(broken2["competition"], ["type"], "broken-03/competition")
-        assert False, "should have raised"
     except AssertionError:
-        pass
+        failed2 = True
+    assert failed2, "missing competition.type should have raised"
+
     print("T9 missing fields on new YAMLs correctly fails: PASS")
+
+
+# ═══════════════ T10: 蒸馏来源卡满足 schema ═══════════════
+def test_distilled_source_cards():
+    schema = _load_yaml(os.path.join(KNOWLEDGE_DIR, "source_card_schema.yaml"))
+    required = schema["required_fields"]
+    sources_dir = os.path.join(KNOWLEDGE_DIR, "sources")
+    cards = [f for f in os.listdir(sources_dir)
+             if f.endswith(".yaml") and f != "source_manifest.yaml"]
+    assert cards, "no distilled source cards found"
+
+    for fname in sorted(cards):
+        card = _load_yaml(os.path.join(sources_dir, fname))
+        _validate_required(card, required, f"sources/{fname}")
+        assert card["source_type"] in schema["source_type_enum"], \
+            f"sources/{fname}: type '{card['source_type']}' invalid"
+        assert card["confidence"] in schema["confidence_enum"], \
+            f"sources/{fname}: confidence '{card['confidence']}' invalid"
+        # 每条规则：dict 必须有 'rule' 键；str 直接作为 rule 内容
+        rules = card.get("extracted_rules", {})
+        for section in ["red_flags", "data_blind_spots"]:
+            for item in rules.get(section, []):
+                if isinstance(item, dict):
+                    assert "rule" in item, f"sources/{fname}/{section}: dict missing 'rule'"
+                elif not isinstance(item, str):
+                    assert False, f"sources/{fname}/{section}: item must be dict or str"
+
+    print(f"T10 {len(cards)} distilled source cards satisfy schema: PASS")
+
+
+# ═══════════════ T11: 蒸馏规则可追溯回已有 YAML ═══════════════
+def test_distilled_rules_traceable():
+    from services.business_model_service import load_business_model
+
+    # internal_sample_001 → snack_fast_food YAML 应存在对应规则
+    snack = load_business_model("snack_fast_food")
+    assert snack, "snack_fast_food not loaded"
+    # demand_sources 中的学校午市规则
+    ds_names = [d["name"] for d in snack.get("demand_sources", [])]
+    assert "学校午市" in ds_names, f"snack_fast_food demand_sources: {ds_names}"
+    # red_flags 中的三弱规则
+    rf_text = " ".join(snack.get("red_flags", []))
+    assert "两个高峰" in rf_text or "寒暑假" in rf_text or "1000m" in rf_text, \
+        f"snack_fast_food red_flags should cover known risks: {rf_text[:100]}"
+    # forbidden_misreadings 中的 200m 无竞品规则
+    fm_text = " ".join(snack.get("forbidden_misreadings", []))
+    assert "200m" in fm_text or "竞品" in fm_text, \
+        f"snack_fast_food forbidden_misreadings: {fm_text[:100]}"
+
+    # product_review_001 → 5 个模型都应加载
+    for mid in ["education_childcare", "retail_convenience", "service_beauty"]:
+        model = load_business_model(mid)
+        assert model, f"{mid} not loaded"
+        comp_type = model.get("competition", {}).get("type", "")
+        assert comp_type, f"{mid} missing competition.type"
+
+    print("T11 distilled rules traceable to YAMLs: PASS")
 
 
 if __name__ == "__main__":
@@ -215,5 +280,7 @@ if __name__ == "__main__":
     test_load_all_models()
     test_new_yamls_pass_schema()
     test_missing_fields_on_new_yamls()
+    test_distilled_source_cards()
+    test_distilled_rules_traceable()
     print()
     print("ALL KNOWLEDGE SCHEMA TESTS PASSED")
