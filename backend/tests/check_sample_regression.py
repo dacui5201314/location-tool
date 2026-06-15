@@ -122,6 +122,56 @@ SAMPLES = [
         "expected_absent": ["市场空白明显","先发优势","品类切入空间较好","推荐开店"],
     },
 
+    # ── 补齐 6 个第二样本 ──
+    {
+        "case_id": "food_service_02",
+        "model_id": "food_service","business_type": "火锅店", "brand_name": "重庆老火锅", "store_size": 250,
+        "real_data": _make_rd(direct_competitors_200m=2, direct_competitors_500m=6, direct_competitors_1000m=10,
+            stats_500m={"residential":10,"office":8,"schools":2,"hospitals":1,"subway":1,"bus":6,"parking":4,"shopping":2,"hotels":3,"restaurants":20}),
+        "expected_present": ["直接竞品","停车","排烟","消防"],
+        "expected_absent": ["市场空白明显","推荐开店"],
+    },
+    {
+        "case_id": "beverage_dessert_02",
+        "model_id": "beverage_dessert","business_type": "咖啡店", "brand_name": "瑞幸", "store_size": 15,
+        "real_data": _make_rd(direct_competitors_200m=1, direct_competitors_500m=4, direct_competitors_1000m=8,
+            stats_500m={"residential":6,"office":10,"schools":2,"hospitals":0,"subway":2,"bus":8,"parking":3,"shopping":1,"hotels":1,"restaurants":15}),
+        "expected_present": ["直接竞品","步行","动线","外卖"],
+        "expected_absent": ["市场空白明显","先发优势","推荐开店"],
+    },
+    {
+        "case_id": "retail_convenience_02",
+        "model_id": "retail_convenience","business_type": "生鲜店", "brand_name": "社区生鲜", "store_size": 80,
+        "real_data": _make_rd(direct_competitors_200m=0, direct_competitors_500m=2, direct_competitors_1000m=4,
+            stats_500m={"residential":15,"office":2,"schools":2,"hospitals":0,"subway":0,"bus":4,"parking":2,"shopping":0,"hotels":0,"restaurants":6}),
+        "expected_present": ["直接竞品","住宅","动线","入住"],
+        "expected_absent": ["推荐开店","出餐速度","外卖骑手"],
+    },
+    {
+        "case_id": "retail_shopping_02",
+        "model_id": "retail_shopping","business_type": "数码店", "brand_name": "", "store_size": 50,
+        "real_data": _make_rd(direct_competitors_200m=1, direct_competitors_500m=3, direct_competitors_1000m=5,
+            stats_500m={"residential":5,"office":6,"schools":1,"hospitals":0,"subway":1,"bus":7,"parking":3,"shopping":2,"hotels":1,"restaurants":12}),
+        "expected_present": ["直接竞品","商圈","电商"],
+        "expected_absent": ["市场空白明显","推荐开店"],
+    },
+    {
+        "case_id": "service_basic_02",
+        "model_id": "service_basic","business_type": "诊所", "brand_name": "", "store_size": 60,
+        "real_data": _make_rd(direct_competitors_200m=0, direct_competitors_500m=1, direct_competitors_1000m=2,
+            stats_500m={"residential":12,"office":3,"schools":2,"hospitals":1,"subway":0,"bus":4,"parking":2,"shopping":0,"hotels":0,"restaurants":8}),
+        "expected_present": ["直接竞品","住宅","资质"],
+        "expected_absent": ["市场空白明显","外卖骑手","出餐速度","推荐开店"],
+    },
+    {
+        "case_id": "service_beauty_02",
+        "model_id": "service_beauty","business_type": "健身房", "brand_name": "私教工作室", "store_size": 200,
+        "real_data": _make_rd(direct_competitors_200m=0, direct_competitors_500m=0, direct_competitors_1000m=1,
+            stats_500m={"residential":10,"office":5,"schools":2,"hospitals":0,"subway":1,"bus":6,"parking":3,"shopping":1,"hotels":1,"restaurants":10}),
+        "expected_present": ["直接竞品","消费力","会员"],
+        "expected_absent": ["市场空白明显","品类切入空间较好","外卖骑手","出餐速度"],
+    },
+
     # ── 高风险 6 个 ──
     {
         "case_id": "snack_fast_food_02_highrisk",
@@ -228,5 +278,30 @@ def test_all_samples():
     print(f"SAMPLE_REGRESSION: {len(SAMPLES)} samples ALL PASS")
 
 
+def test_meta():
+    """元测试：防假绿。"""
+    # 每个 sample 都有非空 expected_present + expected_absent
+    for s in SAMPLES:
+        ep = s.get("expected_present", [])
+        ea = s.get("expected_absent", [])
+        assert isinstance(ep, list) and len(ep) > 0, f"{s['case_id']}: expected_present empty"
+        assert isinstance(ea, list) and len(ea) > 0, f"{s['case_id']}: expected_absent empty"
+
+    # 12 个 model_id 都至少 2 个样本
+    from collections import Counter
+    counts = Counter(s["model_id"] for s in SAMPLES)
+    for mid in ["snack_fast_food","food_service","beverage_dessert","retail_convenience",
+                "pharmacy","retail_shopping","education_childcare","education_training",
+                "service_basic","service_beauty","hotel","entertainment"]:
+        assert counts[mid] >= 2, f"model_id '{mid}' only has {counts[mid]} samples (need >=2)"
+
+    # case_id 唯一
+    ids = [s["case_id"] for s in SAMPLES]
+    assert len(ids) == len(set(ids)), f"duplicate case_ids: {[i for i,n in Counter(ids).items() if n>1]}"
+
+    print(f"META: {len(SAMPLES)} samples, {len(counts)} models x>=2, all case_ids unique PASS")
+
+
 if __name__ == "__main__":
     test_all_samples()
+    test_meta()
