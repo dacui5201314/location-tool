@@ -391,6 +391,45 @@ def test_source_id_uniqueness():
     print(f"T13 source_id uniqueness: manifest={len(manifest_ids)}, cards={len(card_ids)} PASS")
 
 
+# ═══════════════ T14: 吸收规则可追溯到 source card ═══════════════
+def test_absorbed_rules_traceable():
+    """验证 YAML 中标注 Phase 1.5 吸收的规则能追溯到 source card 的 source_id。"""
+    sources_dir = os.path.join(KNOWLEDGE_DIR, "sources")
+    # 收集所有 source_id
+    all_source_ids = set()
+    for fname in os.listdir(sources_dir):
+        if not fname.endswith(".yaml") or fname == "source_manifest.yaml":
+            continue
+        card = _load_yaml(os.path.join(sources_dir, fname))
+        sid = card.get("source_id", "")
+        if sid:
+            all_source_ids.add(sid)
+
+    models_dir = os.path.join(KNOWLEDGE_DIR, "business_models")
+    absorbed_sources_found = set()
+    for fname in os.listdir(models_dir):
+        if not fname.endswith(".yaml"):
+            continue
+        # 读原始文件文本（YAML 注释在 parse 后丢失）
+        with open(os.path.join(models_dir, fname), "r", encoding="utf-8") as f:
+            raw_text = f.read()
+        import re
+        for match in re.finditer(r'Phase 1\.5 吸收:\s*([\w_,\s]+)', raw_text):
+            sources_str = match.group(1)
+            for sid in sources_str.replace(",", " ").split():
+                sid = sid.strip()
+                if sid and sid in all_source_ids:
+                    absorbed_sources_found.add(sid)
+
+    # 至少 book_001 和 book_002 被吸收
+    assert "book_001" in absorbed_sources_found, \
+        f"book_001 not absorbed; found: {absorbed_sources_found}"
+    assert "book_002" in absorbed_sources_found or "report_summary_001" in absorbed_sources_found, \
+        f"neither book_002 nor report_summary_001 absorbed; found: {absorbed_sources_found}"
+
+    print(f"T14 absorbed rules traceable: {sorted(absorbed_sources_found)} PASS")
+
+
 if __name__ == "__main__":
     test_location_profiles_yaml()
     test_business_model_yamls()
@@ -405,5 +444,6 @@ if __name__ == "__main__":
     test_distilled_rules_traceable()
     test_external_source_compliance()
     test_source_id_uniqueness()
+    test_absorbed_rules_traceable()
     print()
     print("ALL KNOWLEDGE SCHEMA TESTS PASSED")

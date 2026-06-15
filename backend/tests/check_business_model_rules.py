@@ -190,6 +190,43 @@ def test_service_beauty_semantics():
     print(f"T9 service_beauty 暗竞品型: model_type={snap['model_type']} PASS")
 
 
+# T10: snack_fast_food 吸收规则存在性
+def test_snack_food_absorbed_rules():
+    from services.business_model_service import load_business_model
+    model = load_business_model("snack_fast_food")
+    assert model, "snack_fast_food not loaded"
+
+    rf_text = " ".join(model.get("red_flags", []))
+    # book_001: 门头遮挡/50m可视
+    assert "门头" in rf_text and "50m" in rf_text, f"missing 门头50m rule: {rf_text[:100]}"
+    # book_001: 午晚双高峰单一支撑
+    assert "单一高峰" in rf_text or "另一时段" in rf_text, f"missing 单一时段 rule: {rf_text[:100]}"
+    # book_001/book_002: 租金占比 20%
+    assert "月租金超过预估月营收" in rf_text, f"missing 租金红线: {rf_text[:100]}"
+
+    fm_text = " ".join(model.get("forbidden_misreadings", []))
+    assert "金角银边" in fm_text, f"missing 金角银边: {fm_text[:100]}"
+    assert "午市" in fm_text and "晚市" in fm_text, f"missing 午晚双看: {fm_text[:100]}"
+
+    print("T10 snack_food absorbed rules: PASS")
+
+
+# T11: retail_convenience 吸收规则存在性
+def test_retail_convenience_absorbed_rules():
+    from services.business_model_service import load_business_model
+    model = load_business_model("retail_convenience")
+    assert model
+
+    rf_text = " ".join(model.get("red_flags", []))
+    assert "空铺率" in rf_text or "主力店" in rf_text, f"missing 空铺/主力店: {rf_text[:100]}"
+
+    fm_text = " ".join(model.get("forbidden_misreadings", []))
+    assert "盒马" in fm_text or "店仓" in fm_text or "配送模型" in fm_text, \
+        f"missing 盒马不可套用: {fm_text[:100]}"
+
+    print("T11 retail_convenience absorbed rules: PASS")
+
+
 if __name__ == "__main__":
     test_snack_food_no_strong_advantage_zero_comp()
     test_edu_childcare_no_inflated_comp_score()
@@ -200,5 +237,7 @@ if __name__ == "__main__":
     test_beverage_dessert_semantics()
     test_retail_convenience_semantics()
     test_service_beauty_semantics()
+    test_snack_food_absorbed_rules()
+    test_retail_convenience_absorbed_rules()
     print()
     print("ALL BUSINESS MODEL TESTS PASSED")
