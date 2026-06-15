@@ -312,20 +312,67 @@ def test_entertainment_semantics():
 
 
 # T19: 全部前台 business_type 归类覆盖
-def test_frontend_business_type_coverage():
+# ── Master self-mapping keys (not user-facing leaf types) ──
+_MASTER_SELF_KEYS = {
+    "异国_中高端正餐", "火锅_烧烤", "刚需快餐小吃", "中餐正餐",
+    "烘焙甜品", "精品茶饮咖啡", "商务酒店", "民宿青旅",
+    "高频刚需零售", "低频目的零售", "专业生活服务", "社区基础服务",
+    "夜经济娱乐", "沉浸式社交娱乐",
+}
+
+# ═════════ T19A: 前台叶子 business_type 全覆盖 ═════════
+def test_leaf_business_type_coverage():
     from prompts.industry_config import BUSINESS_TYPE_TO_MASTER
     from services.business_model_service import classify_business_model_family, load_business_model
-    results = {}
+
+    expected_model_ids = {
+        "snack_fast_food", "food_service", "beverage_dessert",
+        "retail_convenience", "retail_shopping", "pharmacy",
+        "education_childcare", "education_training",
+        "service_beauty", "service_basic", "hotel", "entertainment",
+    }
+
+    leaf_results = {}
     for bt in sorted(BUSINESS_TYPE_TO_MASTER.keys()):
+        if bt in _MASTER_SELF_KEYS:
+            continue
         family = classify_business_model_family(bt, "", "")
-        results.setdefault(family, []).append(bt)
+        assert family != "generic", f"leaf type '{bt}' must not be generic"
+        assert family in expected_model_ids, f"leaf '{bt}' -> '{family}'"
+        leaf_results.setdefault(family, []).append(bt)
+
     assert classify_business_model_family("药店", "", "") == "pharmacy"
-    covered = {mid: len(types) for mid, types in results.items()}
-    for mid in covered: load_business_model(mid)
-    print(f"T19 coverage: {len(BUSINESS_TYPE_TO_MASTER)} types -> {len(results)} models: {covered} PASS")
+    assert classify_business_model_family("教育培训", "小学生托管", "") == "education_childcare"
+    assert classify_business_model_family("教育培训", "午托", "") == "education_childcare"
+    assert classify_business_model_family("教育培训", "英语培训", "") == "education_training"
+
+    for mid in expected_model_ids:
+        model = load_business_model(mid)
+        assert model, f"load_business_model({mid}) empty"
+    covered = {mid: len(types) for mid, types in leaf_results.items()}
+    print(f"T19A leaf: {sum(covered.values())} types -> {len(covered)} models: {covered} PASS")
 
 
-# T20: 同地址换业态
+# ═════════ T19B: Master self-mapping 不落 generic ═════════
+def test_master_keys_not_generic():
+    from services.business_model_service import classify_business_model_family
+    generic_masters = []
+    for mk in sorted(_MASTER_SELF_KEYS):
+        if classify_business_model_family(mk, "", "") == "generic":
+            generic_masters.append(mk)
+    # 这些 master key 文本不含对应族群的 keywords, 无法通过 classify 映射
+    KNOWN_AMBIGUOUS = {
+        "高频刚需零售",     # 含便利/超市/药店跨族群词, 无法唯一
+        "专业生活服务",     # 不含美容/宠物/健身关键词
+        "低频目的零售",     # 不含服装/数码/专卖关键词
+        "社区基础服务",     # 不含洗衣/诊所/家政关键词
+        "沉浸式社交娱乐",   # 不含酒吧/KTV/剧本杀等具体娱乐关键词
+    }
+    for mk in generic_masters:
+        assert mk in KNOWN_AMBIGUOUS, f"master '{mk}' fell to generic — fix or add to KNOWN_AMBIGUOUS"
+    print(f"T19B master: {len(_MASTER_SELF_KEYS)} keys, {len(generic_masters)} known-ambiguous PASS")
+
+
 def test_same_location_different_business():
     from services.location_profile_service import compute_location_profile
     from services.report_enrichment_service import enrich_report_business_context
@@ -347,23 +394,22 @@ def test_same_location_different_business():
     print(f"T20 same location {len(cases)} businesses: PASS")
 
 
-# T21: YAML coverage.keywords 与分类器一致性
 def test_yaml_keyword_classifier_consistency():
     from services.business_model_service import classify_business_model_family
     import os, yaml
     models_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "knowledge", "business_models")
-    checked = 0
+    bad = []
     for fname in sorted(os.listdir(models_dir)):
         if not fname.endswith(".yaml"): continue
         with open(os.path.join(models_dir, fname), "r", encoding="utf-8") as f:
             raw = yaml.safe_load(f)
         mid = raw.get("model_id", "")
-        for kw in (raw.get("coverage", {}) or {}).get("keywords", [])[:2]:
+        for kw in (raw.get("coverage", {}) or {}).get("keywords", [])[:3]:
             family = classify_business_model_family("", kw, "")
-            if family == mid:
-                checked += 1
-    assert checked >= 15, f"too few keyword matches: {checked}"
-    print(f"T21 keyword-classifier: {checked} keywords match PASS")
+            if family != mid:
+                bad.append((fname, kw, mid, family))
+    assert bad == [], f"keyword mismatches: {bad}"
+    print(f"T21 keyword-classifier: 0 mismatches PASS")
 
 
 if __name__ == "__main__":
@@ -385,7 +431,8 @@ if __name__ == "__main__":
     test_retail_shopping_semantics()
     test_hotel_semantics()
     test_entertainment_semantics()
-    test_frontend_business_type_coverage()
+    test_leaf_business_type_coverage()
+    test_master_keys_not_generic()
     test_same_location_different_business()
     test_yaml_keyword_classifier_consistency()
     print()
@@ -393,130 +440,3 @@ if __name__ == "__main__":
 
 
 # T19: 全部前台 business_type 归类覆盖
-def test_frontend_business_type_coverage():
-    from prompts.industry_config import BUSINESS_TYPE_TO_MASTER
-    from services.business_model_service import classify_business_model_family
-    from services.business_model_service import load_business_model
-
-    expected_map = {
-        "pharmacy": ["药店", "药房"],
-        "education_childcare": [],
-        "education_training": ["教育培训"],
-        "snack_fast_food": ["小吃快餐", "小吃店", "快餐店", "小餐饮"],
-        "food_service": ["中餐", "中餐正餐", "大餐饮", "火锅店", "烧烤店", "涮锅店", "西餐", "日餐"],
-        "beverage_dessert": ["奶茶店", "咖啡店", "饮品店", "甜品店", "烘焙店", "烘焙甜品"],
-        "retail_convenience": ["便利店", "小超市", "超市", "生鲜店", "水果店", "菜店", "烟酒店", "烟酒行", "日用百货", "百货店", "杂货店"],
-        "retail_shopping": ["零售店", "服装店", "数码店"],
-        "service_beauty": ["美容美发", "宠物店", "健身房"],
-        "service_basic": ["洗衣店", "诊所"],
-        "hotel": ["酒店", "民宿", "民宿青旅", "青年旅舍"],
-        "entertainment": ["酒吧", "KTV", "网吧", "剧本杀", "台球厅"],
-    }
-
-    results = {}
-    for bt in sorted(BUSINESS_TYPE_TO_MASTER.keys()):
-        family = classify_business_model_family(bt, "", "")
-        results.setdefault(family, []).append(bt)
-
-    # 药店必须走 pharmacy
-    for bt in expected_map["pharmacy"]:
-        assert classify_business_model_family(bt, "", "") == "pharmacy", f"{bt} should be pharmacy"
-
-    # 教育托管/培训独立
-    assert classify_business_model_family("教育培训", "小学生托管", "") == "education_childcare"
-    assert classify_business_model_family("教育培训", "英语培训", "") == "education_training"
-
-    # 每个 model_id 至少 1 个样本
-    model_ids = set()
-    for bt in BUSINESS_TYPE_TO_MASTER.keys():
-        model_ids.add(classify_business_model_family(bt, "", ""))
-    assert "pharmacy" in model_ids, "pharmacy missing"
-
-    # 打印覆盖账本
-    covered = {mid: len(types) for mid, types in results.items()}
-    for mid in sorted(covered):
-        load_business_model(mid)  # 确认 YAML 存在
-    print(f"T19 coverage: {len(BUSINESS_TYPE_TO_MASTER)} biz types -> {len(results)} models: {covered} PASS")
-
-
-# T20: 同地址换业态
-def test_same_location_different_business():
-    from services.location_profile_service import compute_location_profile
-    from services.business_model_service import compute_business_model_snapshot
-    from services.report_enrichment_service import enrich_report_business_context
-
-    rd = {
-        "stats_200m":{"residential":0,"office":0,"schools":1,"restaurants":2},
-        "stats_500m":{"residential":4,"office":0,"schools":4,"subway":0,"bus":3,"parking":6,"shopping":0,"hotels":2,"restaurants":11},
-        "stats_1000m":{"residential":13,"office":0,"schools":9,"hospitals":1,"subway":0,"bus":8,"parking":26,"shopping":0,"hotels":7,"restaurants":56},
-        "direct_competitors_200m":0,"direct_competitors_500m":2,"direct_competitors_1000m":12,
-        "substitute_competitors_200m":0,"substitute_competitors_500m":0,"substitute_competitors_1000m":0,
-        "traffic_anchors_200m":0,"traffic_anchors_500m":3,"traffic_anchors_1000m":8,
-        "direct_competitor_list":[],"substitute_list":[],"traffic_anchor_list":[],"poi_lists":{},
-        "rigor_enabled":True,"subway_applicable":True,"city_has_subway":False,
-    }
-
-    lp = compute_location_profile(rd)
-    cases = [
-        ("小吃快餐", "砂锅小吃", "snack_fast_food"),
-        ("教育培训", "小学生托管", "education_childcare"),
-        ("教育培训", "英语培训", "education_training"),
-        ("药店", "", "pharmacy"),
-        ("酒店", "", "hotel"),
-        ("酒吧", "", "entertainment"),
-    ]
-
-    for bt, bn, expected_model in cases:
-        report = {"score":50,"summary":"t","advantages":["a"],"disadvantages":["d"],"dimension_scores":[],"details":{},"action_plan":["a"]}
-        enriched = enrich_report_business_context(report, rd, business_type=bt, brand_name=bn, store_size=50, is_fallback=True)
-
-        # location_profile 一致
-        lp2 = enriched.get("location_profile", {})
-        assert lp2["primary_type"] == lp["primary_type"], f"{bt}: location_profile mismatch"
-
-        # business_model 不同
-        snap = enriched.get("business_model_snapshot", {})
-        assert snap["model_type"] == expected_model, f"{bt}/{bn}: expected {expected_model}, got {snap['model_type']}"
-
-        # 教育托管无餐饮优势
-        if expected_model == "education_childcare":
-            lf = enriched.get("location_fundamentals", {})
-            for s in (lf.get("strengths") or []):
-                assert "餐饮" not in str(s), f"edu childcare不应有餐饮优势: {s}"
-
-        # 0竞品不写强优势 (酒店/娱乐/药店)
-        if expected_model in ("hotel", "entertainment", "pharmacy"):
-            import json
-            text = json.dumps(enriched, ensure_ascii=False)
-            for phrase in ["市场空白明显", "先发优势", "品类切入空间较好"]:
-                assert phrase not in text, f"{bt}不应出现: {phrase}"
-
-    print(f"T20 same location {len(cases)} businesses: location_profile consistent, models differ PASS")
-
-
-# T21: YAML coverage.keywords 与分类器一致性
-def test_yaml_keyword_classifier_consistency():
-    from services.business_model_service import classify_business_model_family, load_business_model
-    import os
-
-    models_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-                              "knowledge", "business_models")
-    checked = 0
-    for fname in sorted(os.listdir(models_dir)):
-        if not fname.endswith(".yaml"): continue
-        model = load_business_model(os.path.splitext(fname)[0].split("_", 1)[-1] if "_" in fname else "")
-        # load by file's own model_id
-        import yaml
-        with open(os.path.join(models_dir, fname), "r", encoding="utf-8") as f:
-            raw = yaml.safe_load(f)
-        mid = raw.get("model_id", "")
-        keywords = (raw.get("coverage", {}) or {}).get("keywords", [])
-        # 挑前 3 个关键词测试分类器
-        for kw in keywords[:3]:
-            family = classify_business_model_family("", kw, "")
-            if family != mid:
-                # 允许显式白名单例外：烘焙→beverage_dessert 但可能也匹配其他
-                pass
-            checked += 1
-    assert checked >= 20, f"too few keyword checks: {checked}"
-    print(f"T21 keyword-classifier: {checked} keywords checked PASS")
