@@ -91,6 +91,7 @@ def build_fallback_report(real_data: dict, address: str = "",
     bus_500 = _int(s5.get("bus", 0))
     parking_500 = _int(s5.get("parking", 0))
     shopping_500 = _int(s5.get("shopping", 0))
+    restaurants_1k = _int(s10.get("restaurants", 0))
     hotel_1000 = _int(s10.get("hotels", 0))
     subway_applicable = real_data.get("subway_applicable", True)
 
@@ -111,9 +112,16 @@ def build_fallback_report(real_data: dict, address: str = "",
         _scene = "综合社区"
 
     # ── advantages（避免"周边""同类""红利""极低"） ──
+    family_adv = classify_business_model_family(business_type, brand_name)
     advantages = []
     if dc_200 <= 3:
-        if sub_200 > 0 or sub_500 > 0:
+        # P1: 小吃快餐 200m 0竞品但远场多时，不能机械写竞争压力小
+        if family_adv == "snack_fast_food" and dc_200 == 0 and (dc_1000 >= 8 or restaurants_1k >= 40):
+            advantages.append(
+                f"200m 内同品类供给较少，但 1000m 同类门店 {dc_1000} 家、餐饮 {restaurants_1k} 家，"
+                f"需核验近场空档是否由低客流导致；只有低租金小档口模型才有继续考察价值"
+            )
+        elif sub_200 > 0 or sub_500 > 0:
             advantages.append(f"200m 直接竞品 {dc_200} 家，直接竞品较少，但替代消费较多，需现场核验分流影响")
         else:
             advantages.append(f"200m 直接竞品 {dc_200} 家，直接竞争压力较小")
@@ -185,7 +193,7 @@ def build_fallback_report(real_data: dict, address: str = "",
                 txt = f"500米内住宅{r500}个、学校{s500}所，潜在生源基础一般。"
                 detail = (f"500米内住宅{r500}个、学校{s500}所。"
                           f"托管客流核心看周边小学低年级学生数量和放学时段动线。"
-                          f"现场需在15:30-17:00放学时段观察学生和家长的动线是否经过店址。"
+                          f"现场需在15:30-17:00放学时段观察学生和家长动线方向。"
                           f"如动线不经过且无可调整的引流方式，则该点位客流支撑不足。评分：{score}")
             else:
                 txt = f"500米内住宅{r500}个、学校{s500}所，生源基础偏弱。"
@@ -384,7 +392,7 @@ def build_fallback_report(real_data: dict, address: str = "",
 
     # ── executive_summary（必须在 same_brand_risk 之后，保证 top_risks 一致）──
     executive_summary = {
-        "summary": "基于采集数据的初筛摘要，需线下核验",
+        "summary": "",  # 占位，后面用结构化字段填充
         "top_strengths": advantages[:3],
         "top_risks": disadvantages[:2],
     }
@@ -401,6 +409,13 @@ def build_fallback_report(real_data: dict, address: str = "",
     # ── P1: 生意模型快照 ──
     business_model_snapshot = compute_business_model_snapshot(
         real_data, business_type, brand_name, store_size, category=_category)
+
+    # ── P1: 补齐 executive_summary.summary（用结构化字段生成更有用的摘要）──
+    executive_summary["summary"] = _build_executive_summary(
+        business_type, brand_name, family_adv,
+        location_fundamentals, business_model_snapshot,
+        dc_200, dc_500, dc_1000, sub_500, res_500, office_500, school_500,
+        restaurants_1k)
 
     # ── P0-A: evidence_summary ──
     evidence_summary = {
@@ -531,6 +546,76 @@ def _detect_same_brand_risk(brand_name: str, real_data: dict) -> tuple:
                     matched.append(name_norm)
 
     return len(matched) > 0, matched[:5]
+
+
+def _build_executive_summary(business_type, brand_name, family,
+                              location_fundamentals, business_model_snapshot,
+                              dc_200, dc_500, dc_1000, sub_500,
+                              res_500, office_500, school_500,
+                              restaurants_1k):
+    """用结构化字段生成有信息量的分析摘要。"""
+    loc_summary = (location_fundamentals or {}).get("summary", "")
+    core_logic = (business_model_snapshot or {}).get("core_logic", "")
+
+    # 位置特征
+    loc_type = (location_fundamentals or {}).get("label", "")
+
+    # 竞品特征
+    if dc_1000 == 0 and dc_500 == 0:
+        comp_note = "近场无直接竞品记录"
+    elif dc_200 == 0 and dc_1000 >= 8:
+        comp_note = f"近场竞品少但 1000m 同类 {dc_1000} 家"
+    elif dc_200 == 0:
+        comp_note = f"近场竞品少，1000m 同类 {dc_1000} 家"
+    elif dc_200 > 10:
+        comp_note = f"200m 直接竞品 {dc_200} 家，竞争较激烈"
+    else:
+        comp_note = f"200m 直接竞品 {dc_200} 家、1000m {dc_1000} 家"
+
+    # 客流基础
+    pop = res_500 + office_500 + school_500
+    if pop >= 20:
+        pop_note = "周边人口和客流基础较好"
+    elif pop >= 8:
+        pop_note = "周边人口和客流基础中等"
+    else:
+        pop_note = "周边人口和客流基础偏弱"
+
+    # 按族群定制
+    if family == "snack_fast_food":
+        if dc_200 == 0 and (dc_1000 >= 8 or restaurants_1k >= 40):
+            return (
+                f"该位置为{loc_type}，{pop_note}。{comp_note}，远场餐饮供给较充分（{restaurants_1k} 家）。"
+                f"近场空档需核验是否因低客流导致；若租金低、1-2 人可运营、午市学校客流成立且外卖可覆盖晚餐，"
+                f"才有作为小档口候选点的价值。"
+            )
+        if pop < 5:
+            return (
+                f"该位置为{loc_type}，{pop_note}。{comp_note}。"
+                f"该点不是强客流点，建议优先核验实际午市人流和租金条件。"
+            )
+        return (
+            f"该位置为{loc_type}，{pop_note}。{comp_note}。"
+            f"小吃快餐需核验午市客流确定性、租金和外卖能力，不建议在未核验前投入谈判成本。"
+        )
+
+    if family == "education_childcare":
+        return (
+            f"该位置为{loc_type}，{pop_note}。{comp_note}。"
+            f"此类选址需走访核验周边小学放学动线、家长接送条件和暗竞品。"
+        )
+
+    if family == "education_training":
+        return (
+            f"该位置为{loc_type}，{pop_note}。{comp_note}。"
+            f"教育培训需核验周边生源密度、满班率和品牌差异化空间。"
+        )
+
+    # 通用
+    return (
+        f"该位置为{loc_type}，{pop_note}。{comp_note}。"
+        f"建议结合现场客流、租金和周边供给情况核验后判断。"
+    )
 
 
 def _competition_score(dc_200, dc_500, dc_1000, same_brand_risk,
