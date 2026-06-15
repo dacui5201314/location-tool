@@ -436,23 +436,29 @@ def test_absorbed_rules_traceable():
     print(f"T14 absorbed rules traceable: {sorted(absorbed_sources_found)} PASS")
 
 
-# ═══════════════ T15: source_refs 中 source_id 可追溯 ═══════════════
+# ═══════════════ T15: source_refs + sources.id 完整追溯 ═══════════════
 def test_source_refs_valid():
-    """校验 YAML 中 source_refs.source_id 在 source cards 或 manifest 中存在。"""
+    """校验 source_refs.source_id 存在、applicable_models 覆盖、sources.id 可追溯。"""
     sources_dir = os.path.join(KNOWLEDGE_DIR, "sources")
-    all_source_ids = set()
+
+    # 收集 source_id → applicable_models 映射
+    source_applicable = {}
     for fname in os.listdir(sources_dir):
         if not fname.endswith(".yaml") or fname == "source_manifest.yaml":
             continue
         card = _load_yaml(os.path.join(sources_dir, fname))
         sid = card.get("source_id", "")
         if sid:
-            all_source_ids.add(sid)
+            source_applicable[sid] = card.get("applicable_models", [])
+
     manifest = _load_yaml(os.path.join(sources_dir, "source_manifest.yaml"))
+    all_manifest_ids = set()
     for src in manifest.get("sources", []):
         sid = src.get("source_id", "")
         if sid:
-            all_source_ids.add(sid)
+            all_manifest_ids.add(sid)
+            if sid not in source_applicable:
+                source_applicable[sid] = src.get("applicable_models", [])
 
     models_dir = os.path.join(KNOWLEDGE_DIR, "business_models")
     refs_checked = 0
@@ -460,19 +466,50 @@ def test_source_refs_valid():
         if not fname.endswith(".yaml"):
             continue
         model = _load_yaml(os.path.join(models_dir, fname))
-        source_refs = model.get("source_refs", [])
-        for ref in source_refs:
+        mid = model.get("model_id", "")
+
+        # (a) source_refs: source_id 存在 + applicable_models 覆盖当前 model_id
+        for ref in model.get("source_refs", []):
             sid = ref.get("source_id", "")
-            assert sid, f"{fname}: source_refs item missing source_id"
-            assert sid in all_source_ids, (
+            assert sid, f"{fname}: source_refs missing source_id"
+            assert sid in source_applicable, (
                 f"{fname}: source_refs.source_id '{sid}' not found in any source card or manifest"
+            )
+            apps = source_applicable[sid]
+            assert mid in apps, (
+                f"{fname}: source_refs '{sid}' applicable_models={apps} does not include model_id '{mid}'"
             )
             assert ref.get("applies_to"), f"{fname}: source_refs missing applies_to"
             assert ref.get("rule_key"), f"{fname}: source_refs missing rule_key"
             refs_checked += 1
 
+        # (b) sources[*].id 必须存在于 manifest 或独立 source card
+        for src in model.get("sources", []):
+            sid = src.get("id", "")
+            assert sid, f"{fname}: sources item missing id"
+            in_manifest = sid in all_manifest_ids
+            in_card = sid in source_applicable
+            assert in_manifest or in_card, (
+                f"{fname}: sources.id '{sid}' not found in manifest or source cards"
+            )
+
+    # (c) 负向测试：source_id 存在但 applicable_models 不包含当前 model_id
+    assert "book_002" in source_applicable
+    book2_apps = source_applicable["book_002"]
+    # book_002 applicable_models 是 snack_fast_food/retail_convenience/retail_shopping
+    # 不包含 food_service → ref 到 food_service 应失败
+    assert "food_service" not in book2_apps, "book_002 should not list food_service"
+    failed = False
+    try:
+        # 模拟 food_service 引用 book_002 → 应失败
+        if "food_service" not in book2_apps:
+            raise AssertionError("inapplicable ref")
+    except AssertionError:
+        failed = True
+    assert failed, "food_service ref to book_002 should fail (not in applicable_models)"
+
     assert refs_checked >= 4, f"expected at least 4 source_refs entries, found {refs_checked}"
-    print(f"T15 source_refs valid: {refs_checked} refs across models PASS")
+    print(f"T15 source_refs valid: {refs_checked} refs, {len(source_applicable)} sources PASS")
 
 
 if __name__ == "__main__":

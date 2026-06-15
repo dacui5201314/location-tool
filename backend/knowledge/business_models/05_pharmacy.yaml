@@ -76,7 +76,7 @@ forbidden_misreadings:
   - "不能输出推荐开店、值得投资、可以放心等决策语言。"
 
 source_refs:
-  - source_id: "rule_seed_002"
+  - source_id: "rule_seed_007"
     applies_to: ["competition"]
     rule_key: "pharmacy_neutral_type"
 

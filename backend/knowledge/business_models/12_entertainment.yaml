@@ -87,7 +87,7 @@ source_refs:
     rule_key: "entertainment_aggregation_type"
 
 sources:
-  - id: "rule_seed_010"
+  - id: "rule_seed_006"
     type: "rule_seed"
     confidence: "B"
 

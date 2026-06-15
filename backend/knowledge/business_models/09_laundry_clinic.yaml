@@ -77,7 +77,7 @@ forbidden_misreadings:
   - "不得出现外卖骑手、出餐速度、上座率、午晚高峰堂食等餐饮核验项。"
 
 source_refs:
-  - source_id: "book_002"
+  - source_id: "rule_seed_006"
     applies_to: ["red_flags"]
     rule_key: "vacancy_rate_20pct"
 
