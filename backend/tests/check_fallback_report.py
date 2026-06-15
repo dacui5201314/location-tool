@@ -82,5 +82,74 @@ def test_fallback_education():
     return True
 
 
+def test_fallback_education_childcare_zero_competitor():
+    """教育培训托管 0 竞品兜底报告：全量 guard 必须通过。"""
+    real_data = {
+        "stats_200m": {"schools": 1, "residential": 0, "office": 0, "hospitals": 0,
+                       "subway": 0, "bus": 0, "parking": 1, "shopping": 0, "hotels": 0},
+        "stats_500m": {"schools": 4, "residential": 4, "office": 0, "hospitals": 0,
+                       "subway": 0, "bus": 2, "parking": 6, "shopping": 0, "hotels": 2},
+        "stats_1000m": {"schools": 9, "residential": 15, "office": 0, "hospitals": 1,
+                        "subway": 0, "bus": 9, "parking": 28, "shopping": 0, "hotels": 7},
+        "direct_competitors_200m": 0,
+        "direct_competitors_500m": 0,
+        "direct_competitors_1000m": 0,
+        "substitute_competitors_200m": 0,
+        "substitute_competitors_500m": 0,
+        "substitute_competitors_1000m": 0,
+        "traffic_anchors_200m": 0,
+        "traffic_anchors_500m": 2,
+        "traffic_anchors_1000m": 5,
+        "direct_competitor_list": [],
+        "direct_competitor_list_200m": [],
+        "direct_competitor_list_500m": [],
+        "direct_competitor_list_1000m": [],
+        "substitute_list": [],
+        "traffic_anchor_list": [],
+        "poi_lists": {},
+        "hot_brands": [],
+        "nearby_roads": [],
+        "rigor_enabled": False,
+        "subway_applicable": True,
+        "city_has_subway": False,
+    }
+
+    report = build_fallback_report(real_data, address="测试地址",
+                                   business_type="教育培训",
+                                   brand_name="小学生课后托管服务就餐与作业辅导服务",
+                                   store_size=200)
+
+    # 1. validate_report_fact_consistency
+    fe = validate_report_fact_consistency(report, real_data)
+    if fe:
+        raise AssertionError(f"fact_consistency failed: {'; '.join(fe)}")
+
+    # 2. check_poi_name_hallucination (strict=True)
+    fb_text = (
+        _json.dumps(report.get("details", {}) or {}, ensure_ascii=False) + " " +
+        _json.dumps(report.get("advantages", []), ensure_ascii=False) + " " +
+        _json.dumps(report.get("disadvantages", []), ensure_ascii=False) + " " +
+        _json.dumps(report.get("executive_summary", {}) or {}, ensure_ascii=False) + " " +
+        str(report.get("summary", ""))
+    )
+    p0 = check_poi_name_hallucination(fb_text, real_data, strict=True)
+    if p0:
+        raise AssertionError(f"P0-NAME failed: {'; '.join(p0[:5])}")
+
+    # 3. check_poi_context_mismatch
+    p2 = check_poi_context_mismatch(fb_text, real_data)
+    if p2:
+        raise AssertionError(f"P2-CTX failed: {'; '.join(p2[:5])}")
+
+    # 4. check_direct_competitor_count_mismatch
+    p3 = check_direct_competitor_count_mismatch(fb_text, real_data)
+    if p3:
+        raise AssertionError(f"P3-COUNT failed: {'; '.join(p3[:5])}")
+
+    print("test_fallback_education_childcare_zero_competitor: ALL PASS")
+    return True
+
+
 if __name__ == "__main__":
     test_fallback_education()
+    test_fallback_education_childcare_zero_competitor()

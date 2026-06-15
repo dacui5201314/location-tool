@@ -627,10 +627,10 @@ def _category_advantage_text(business_type, dc_200, dc_500, dc_1000,
     if family in ("education_childcare", "education_training", "service_beauty"):
         if dc_1000 == 0 and dc_500 == 0:
             return (
-                f"该业态在本位置地图POI未发现明确同类门店。"
+                f"该业态在本位置地图POI未显示明确同类供给。"
                 f"但该类业态可能存在未被POI收录的暗竞品（家庭式托管/小饭桌/个人工作室），"
                 f"需现场走访学校门口和周边小区确认实际供给。"
-                f"0家POI竞品不等于市场空白——也可能反映需求不足或低收录率。"
+                f"POI 显示为 0 不代表没有竞品——也可能反映需求不足或该行业低收录率。"
             )
         if dc_200 == 0 and dc_1000 > 0:
             return (
