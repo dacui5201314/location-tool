@@ -2,7 +2,7 @@
 
 > 审计范围：12 族 business model + location_profile + fallback scoring + enrichment + sample regression
 > 审计日期：2026-06-16
-> 状态：审计完成，待 Phase 4L-B 实施
+> 状态：P0 已实施（Phase 4L-B），P1/P2 待定
 
 ## 1. 涉及学校/校园客流的代码位置清单
 

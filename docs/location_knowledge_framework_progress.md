@@ -74,10 +74,10 @@
 | check_p05_report_quality.py | 13 | PASS |
 | check_p1_business_model_quality.py | 22 | PASS |
 | check_location_profile_rules.py | 6 | PASS |
-| check_business_model_rules.py | 34 | PASS |
+| check_business_model_rules.py | 37 | PASS |
 | check_report_enrichment_service.py | 11 | PASS |
 | check_knowledge_schema_rules.py | 16 | PASS |
-| check_sample_regression.py | 61 | PASS |
+| check_sample_regression.py | 63 | PASS |
 
 ## 明确不做 / 不纳入本轮
 
@@ -94,3 +94,4 @@
 - 外部资料蒸馏继续补齐，但只做 source card 候选规则，不直接改变报告行为。
 - source card → YAML 吸收时必须补 source_refs 和回归测试。
 - 学校/校园客流源归并实施（Phase 4L-B）：按审计建议修改 fallback scoring + location_profile + checklist。
+- ~~学校/校园客流源归并 P0 实施~~ ✅ 已完成（Phase 4L-B）。`_weighted_school()` 按业态区分 school 权重；consumer_profile / traffic_flow / executive_summary / category_advantage / competition 五个评分路径全部走加权；通用优势 school_500>=3 按 family 分教育/餐饮/禁止三档输出。新增 T31-T33 + 2 样本（retail_convenience_06, hotel_06）。

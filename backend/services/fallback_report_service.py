@@ -66,6 +66,22 @@ def _int(v, default=0):
     except: return default
 
 
+_SCHOOL_WEIGHT = {
+    "education_childcare": 1.0,
+    "education_training": 1.0,
+    "snack_fast_food": 0.3,
+    "beverage_dessert": 0.3,
+}
+
+
+def _weighted_school(school_count: int, family: str) -> int:
+    """按业态返回加权后的学校数量，防止非教育/非餐饮业态被 school 抬高客群评分。"""
+    if not school_count:
+        return 0
+    w = _SCHOOL_WEIGHT.get(family, 0.0)
+    return int(school_count * w)
+
+
 def build_fallback_report(real_data: dict, address: str = "",
                           business_type: str = "", brand_name: str = "",
                           store_size: int = 0, category: str = "") -> dict:
@@ -111,8 +127,11 @@ def build_fallback_report(real_data: dict, address: str = "",
     else:
         _scene = "综合社区"
 
+    # ── P1: category → 统一提前，供 advantages / dims / detail 使用
+    _category = category or brand_name or ""
+
     # ── advantages（避免"周边""同类""红利""极低"） ──
-    family_adv = classify_business_model_family(business_type, brand_name)
+    family_adv = classify_business_model_family(business_type, brand_name, _category)
     advantages = []
     if dc_200 <= 3:
         # P1: 小吃快餐 200m 0竞品但远场多时，不能机械写竞争压力小
@@ -138,7 +157,11 @@ def build_fallback_report(real_data: dict, address: str = "",
     if bus_500 >= 5:
         advantages.append(f"500米内{dh_count(bus_500, '条公交线路')}，地面公交网络较密")
     if school_500 >= 3:
-        advantages.append(f"500米半径内{dh_count(school_500, '所教育机构')}，学生客群稳定")
+        if family_adv in ("education_childcare", "education_training"):
+            advantages.append(f"500米半径内{dh_count(school_500, '所教育机构')}，需核验生源与家庭消费力匹配")
+        elif family_adv in ("snack_fast_food", "beverage_dessert"):
+            advantages.append(f"500米半径内{dh_count(school_500, '所教育机构')}，学校客流需核验午间动线、寒暑假和晚餐补充能力")
+        # 便利、酒店、娱乐、零售、药店、生活服务、美业等不输出"学生客群稳定"
     if shopping_500 >= 3:
         advantages.append(f"500米内有{sn_count(shopping_500, '个商业体')}，可共享商业流量")
     if anc_1000 >= 5:
@@ -186,13 +209,10 @@ def build_fallback_report(real_data: dict, address: str = "",
 
     # ── P0.5: 同品牌分店检测（必须在 dims 之前）──
     same_brand_risk, same_brand_matches = _detect_same_brand_risk(brand_name, real_data)
-    # P1: category → 使用 brand_name 作为业态细分描述（fallback 无独立 category 字段）
-    _category = category or brand_name or ""
-
     # ── P0.5: 低维详情辅助函数 ──
     def _traffic_flow_detail(r500, o500, s500, sw500, b500, score):
         family = classify_business_model_family(business_type, brand_name, _category)
-        pop = r500 + o500 + s500
+        pop = r500 + o500 + _weighted_school(s500, family)
         # 教育/托管类：不使用午晚高峰/外卖等餐饮语言
         if family == "education_childcare":
             if pop >= 10:
@@ -233,7 +253,7 @@ def build_fallback_report(real_data: dict, address: str = "",
             txt = f"500米内住宅{r500}个、办公{o500}栋、学校{s500}所，稳定客流来源偏弱。"
             detail = (f"500米内住宅{r500}个、办公{o500}栋、学校{s500}所，稳定客流来源偏弱。"
                       f"现场必须实测午晚高峰门前人流，如15分钟内目标客群明显不足，"
-                      f"需降低为低优先级候选点。除非门店本身有强线上引流能力（如知名品牌、外卖爆款）。评分：{score}")
+                      f"需降低为低优先级候选点。除非该点位本身拥有强线上引流能力（如知名品牌、外卖爆款）。评分：{score}")
         return txt, detail
 
     _tf_text, _tf_detail = _traffic_flow_detail(
@@ -262,7 +282,7 @@ def build_fallback_report(real_data: dict, address: str = "",
 
     _cp_text, _cp_detail = _consumer_profile_detail(
         res_500, office_500, school_500, hotel_1000,
-        _clamp(25, 80, 20 + office_500 + school_500))
+        _clamp(25, 80, 20 + office_500 + _weighted_school(school_500, family_adv)))
 
     def _cost_estimate_detail(ss, score):
         if ss > 0:
@@ -317,7 +337,7 @@ def build_fallback_report(real_data: dict, address: str = "",
          "score": _clamp(25, 75, 30 + res_500 // 2 + office_500),
          "text": _tf_text},
         {"key": "consumer_profile", "label": "消费人群",
-         "score": _clamp(25, 80, 20 + office_500 + school_500),
+         "score": _clamp(25, 80, 20 + office_500 + _weighted_school(school_500, family_adv)),
          "text": _cp_text},
         {"key": "competition", "label": "竞争环境",
          "score": _competition_score(dc_200, dc_500, dc_1000, same_brand_risk,
@@ -583,7 +603,7 @@ def _build_executive_summary(business_type, brand_name, family,
         comp_note = f"200m 直接竞品 {dc_200} 家、1000m {dc_1000} 家"
 
     # 客流基础
-    pop = res_500 + office_500 + school_500
+    pop = res_500 + office_500 + _weighted_school(school_500, family)
     if pop >= 20:
         pop_note = "周边人口和客流基础较好"
     elif pop >= 8:
@@ -643,11 +663,11 @@ def _competition_score(dc_200, dc_500, dc_1000, same_brand_risk,
         if dc_1000 == 0:
             base = min(base, 50)
         # 需求侧弱时进一步封顶
-        pop = res_500 + school_500 + office_500
+        pop = res_500 + _weighted_school(school_500, business_family) + office_500
         if pop < 8:
             base = min(base, 40)
     elif business_family in ("education_training", "service_beauty"):
-        pop = res_500 + school_500 + office_500
+        pop = res_500 + _weighted_school(school_500, business_family) + office_500
         if pop < 8 and dc_1000 == 0:
             base = min(base, 50)
         elif pop < 5:
@@ -700,7 +720,7 @@ def _category_advantage_score(dc_200, dc_500, dc_1000, same_brand_risk,
     if dc_1000 >= 8:
         base -= (dc_1000 - 8) * 2
     # 客流支撑加分
-    pop_support = res_500 + office_500 + school_500
+    pop_support = res_500 + office_500 + _weighted_school(school_500, business_family)
     if pop_support >= 15:
         base += 5
     elif pop_support < 5:
@@ -761,7 +781,7 @@ def _category_advantage_text(business_type, dc_200, dc_500, dc_1000,
             )
 
     # 餐饮/零售等通用逻辑：0竞品但需求侧弱时不给高分
-    pop_support = res_500 + office_500 + school_500
+    pop_support = res_500 + office_500 + _weighted_school(school_500, family)
     if dc_200 <= 3 and dc_1000 <= 5:
         if pop_support < 5:
             return (

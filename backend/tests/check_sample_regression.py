@@ -370,6 +370,10 @@ SAMPLES = [
     {"case_id":"retail_convenience_05","expected_model_id": "retail_convenience", "model_id": "retail_convenience","business_type":"小超市","brand_name":"","store_size":40,
      "real_data":_make_rd(direct_competitors_200m=1,direct_competitors_500m=2,direct_competitors_1000m=4,stats_500m={"residential":8,"office":2,"schools":1,"subway":0,"bus":3,"parking":1,"shopping":0,"hotels":0,"restaurants":4}),
      "expected_present":["直接竞品","住宅","入住"],"expected_absent":["推荐开店"]},
+    # 04.5 retail_convenience school-dominant: school=8+res=2，不应写学生客群稳定
+    {"case_id":"retail_convenience_06_schooldominant","expected_model_id": "retail_convenience", "model_id": "retail_convenience","business_type":"便利店","brand_name":"","store_size":50,
+     "real_data":_make_rd(direct_competitors_200m=0,direct_competitors_500m=0,direct_competitors_1000m=0,stats_500m={"residential":2,"office":1,"schools":8,"subway":0,"bus":2,"parking":1,"shopping":0,"hotels":0,"restaurants":3}),
+     "expected_present":["直接竞品","住宅"],"expected_absent":["学生客群稳定","推荐开店"]},
 
     # 05 pharmacy: 医院社区支撑弱; 周边药店多不简单写机会劣势
     {"case_id":"pharmacy_04","expected_model_id": "pharmacy", "model_id": "pharmacy","business_type":"药店","brand_name":"","store_size":60,
@@ -430,6 +434,10 @@ SAMPLES = [
     {"case_id":"hotel_05","expected_model_id": "hotel", "model_id": "hotel","business_type":"民宿","brand_name":"","store_size":500,
      "real_data":_make_rd(direct_competitors_200m=0,direct_competitors_500m=1,direct_competitors_1000m=3,stats_500m={"residential":5,"office":1,"schools":1,"subway":0,"bus":3,"parking":2,"shopping":0,"hotels":1,"restaurants":8}),
      "expected_present":["直接竞品"],"expected_absent":["市场空白明显","推荐开店"]},
+    # 11.5 hotel school-dominant: school=8+res=3，不应写学生客群稳定
+    {"case_id":"hotel_06_no_school_bias","expected_model_id": "hotel", "model_id": "hotel","business_type":"酒店","brand_name":"","store_size":2000,
+     "real_data":_make_rd(direct_competitors_200m=0,direct_competitors_500m=0,direct_competitors_1000m=0,stats_500m={"residential":3,"office":1,"schools":8,"subway":0,"bus":2,"parking":1,"shopping":0,"hotels":0,"restaurants":4}),
+     "expected_present":["直接竞品"],"expected_absent":["学生客群稳定","市场空白明显","推荐开店"]},
 
     # 12 entertainment: 夜间交通弱; 居民区扰民合规风险
     {"case_id":"entertainment_04","expected_model_id": "entertainment", "model_id": "entertainment","business_type":"KTV","brand_name":"","store_size":400,

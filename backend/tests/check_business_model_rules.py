@@ -487,6 +487,49 @@ def test_pet_business_category_only():
     print("T30 category-only pet business: PASS")
 
 
+# T31: 便利店 school 高 res/office 低 → 不输出"学生客群稳定"，consumer_profile 不被 school 抬高
+def test_convenience_no_school_advantage():
+    rd = _base_rd(direct_competitors_200m=0, direct_competitors_500m=0, direct_competitors_1000m=0,
+                  stats_500m={"residential":2,"office":1,"schools":8,"subway":0,"bus":2,"parking":1,"shopping":0,"hotels":0,"restaurants":3})
+    r = build_fallback_report(rd, business_type="便利店", brand_name="全家", store_size=60)
+    text = json.dumps(r, ensure_ascii=False)
+    assert "学生客群稳定" not in text, f"便利店不应出现学生客群稳定: {text[:500]}"
+    assert "学生" not in text, f"便利店不应出现学生优势: {text[:500]}"
+    # consumer_profile 不应被 school 抬高
+    cp = [d for d in r.get("dimension_scores", []) if d["key"] == "consumer_profile"]
+    if cp:
+        assert cp[0]["score"] < 35, f"便利店 consumer_profile 不应被 school 抬高: {cp[0]['score']}"
+    print("T31 convenience no school advantage: PASS")
+
+
+# T32: 酒店 school 高 → 不输出"学生客群稳定"，consumer_profile 不被 school 抬高
+def test_hotel_no_school_advantage():
+    rd = _base_rd(direct_competitors_200m=0, direct_competitors_500m=0, direct_competitors_1000m=0,
+                  stats_500m={"residential":3,"office":1,"schools":8,"subway":0,"bus":2,"parking":1,"shopping":0,"hotels":0,"restaurants":4})
+    r = build_fallback_report(rd, business_type="酒店", brand_name="汉庭", store_size=2000)
+    text = json.dumps(r, ensure_ascii=False)
+    assert "学生客群稳定" not in text, f"酒店不应出现学生客群稳定: {text[:500]}"
+    cp = [d for d in r.get("dimension_scores", []) if d["key"] == "consumer_profile"]
+    if cp:
+        assert cp[0]["score"] < 35, f"酒店 consumer_profile 不应被 school 抬高: {cp[0]['score']}"
+    print("T32 hotel no school advantage: PASS")
+
+
+# T33: 小吃快餐 school 高 res/office 低 → 如出现学校客流必须带 寒暑假/晚餐/动线核验 之一
+def test_snack_school_with_caveat():
+    rd = _base_rd(direct_competitors_200m=0, direct_competitors_500m=0, direct_competitors_1000m=0,
+                  stats_500m={"residential":2,"office":0,"schools":8,"subway":0,"bus":2,"parking":1,"shopping":0,"hotels":0,"restaurants":5})
+    r = build_fallback_report(rd, business_type="小吃快餐", brand_name="砂锅小吃", store_size=50)
+    text = json.dumps(r, ensure_ascii=False)
+    # 学校优势如果出现必须带至少一个核验词
+    if "学校" in text:
+        assert any(kw in text for kw in ["寒暑假", "晚餐", "动线核验", "午间动线"]), \
+            f"小吃快餐学校优势必须带寒暑假/晚餐/动线核验: {text[:800]}"
+    # 不应出现未限定的"学生客群稳定"
+    assert "学生客群稳定" not in text, f"小吃快餐不应出现未限定的学生客群稳定: {text[:500]}"
+    print("T33 snack school with caveat: PASS")
+
+
 # T19: 全部前台 business_type 归类覆盖
 # ── Master self-mapping keys (not user-facing leaf types) ──
 _MASTER_SELF_KEYS = {
@@ -619,6 +662,9 @@ if __name__ == "__main__":
     test_non_pet_beauty_no_pet_constraints()
     test_pet_business_checklist_constraints()
     test_pet_business_category_only()
+    test_convenience_no_school_advantage()
+    test_hotel_no_school_advantage()
+    test_snack_school_with_caveat()
     test_leaf_business_type_coverage()
     test_master_keys_not_generic()
     test_same_location_different_business()
