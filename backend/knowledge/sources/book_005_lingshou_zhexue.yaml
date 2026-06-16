@@ -1,0 +1,51 @@
+# 来源卡: 零售的哲学：7-Eleven便利店创始人自述
+# 类型: book | 可信度: B
+# derived_rule_only: true — 不包含原文摘录，仅保留抽象选址判断规则
+
+source_id: "book_005"
+source_type: "book"
+title: "零售的哲学：7-Eleven便利店创始人自述"
+confidence: "B"
+copyright_note: "《零售的哲学：7-Eleven便利店创始人自述》— 仅保留抽象选址判断规则，不包含原文摘录"
+derived_rule_only: true
+distillation_status: "candidate_only"
+professional_use_policy: "偏便利店经营与顾客需求方法论；仅能补充 retail_convenience 现场核验和误读约束，不能单独决定评分"
+applicable_models:
+  - "retail_convenience"
+
+extracted_rules:
+  demand_sources:
+    - rule: "便利店服务高频即时需求"
+      condition: "选址应贴近日常通勤、居住出入口和即时补货场景"
+    - rule: "小商圈高密度复购"
+      condition: "便利店依赖近距离重复消费，而非远距离目的性到访"
+
+  red_flags:
+    - rule: "住宅密度与通行方向不匹配"
+      condition: "小区数量多但主出入口和通勤动线不经过门店"
+      severity: "downgrade"
+    - rule: "供应补货条件不足"
+      condition: "卸货、补货、冷链和高频配送条件无法稳定支持门店"
+      severity: "downgrade"
+    - rule: "大店逻辑套小店"
+      condition: "用大卖场覆盖半径判断便利店，而忽略步行 3-5 分钟场景"
+      severity: "warning"
+
+  fit_signals:
+    - rule: "主出入口近场"
+      condition: "门店靠近住宅、办公或交通节点的自然出入口"
+    - rule: "全天候高频品类可做"
+      condition: "早餐、饮料、便当、应急用品等多个时段需求成立"
+
+  field_checklist_additions:
+    - "核验住宅/办公主出入口与门店之间的实际步行动线"
+    - "核验早晚通勤、午间和夜间便利消费是否连续"
+    - "核验卸货、冷链、补货和垃圾处理条件"
+
+  data_blind_spots:
+    - "POI 数量不能反映即时消费频次和补货效率"
+    - "入住率、夜间消费和社区复购需现场观察"
+
+  forbidden_misreadings:
+    - "不能把 500m 内住宅多直接等同于便利店需求强"
+    - "不能用大型超市选址逻辑套用便利店"

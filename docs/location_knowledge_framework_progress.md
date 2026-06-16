@@ -31,9 +31,9 @@
 ### Phase 1.5：知识蒸馏框架
 - `docs/location_knowledge_distillation_plan.md`：蒸馏 SOP（6 类来源版权边界）
 - `docs/source_material_intake_template.md`：外部资料接入模板
-- `docs/source_material_inventory.md`：14 份资料盘点
-- 5 张独立 source card：internal_sample_001、product_review_001、book_001/002、report_summary_001
-- `knowledge/sources/source_manifest.yaml`：14 条来源清单
+- `docs/source_material_inventory.md`：用户清单与本地资料对照盘点
+- 9 张独立 source card：internal_sample_001、product_review_001、book_001/002/003/005/011/012、report_summary_001
+- `knowledge/sources/source_manifest.yaml`：18 条来源清单
 - source_refs 结构化追溯（YAML → source card 可追溯）
 
 ### Phase 2：补齐剩余族群 + 覆盖矩阵
@@ -68,13 +68,18 @@
 | check_knowledge_schema_rules.py | 15 | PASS |
 | check_sample_regression.py | 36 | PASS |
 
-## 未做项
+## 明确不做 / 不纳入本轮
 
-- Phase 2 扩样本：36 → 60（12 族 x5）
-- 外部资料蒸馏：剩余 11 份书籍/报告待蒸馏
-- 学校/校园客流源归并（复杂层级合并）
-- 小餐饮竞品分层（同品类 vs 强替代 vs 弱替代）
-- 公交站去重
-- P2 产品功能：候选点池、多点对比、支付链路、PDF/长图、后台健康度
-- Prompt 主体重构
-- report_fact_guard / poi_name_guard 放宽
+- 不新增候选点池、多点对比、支付链路、PDF、长图。
+- 不重构 prompt 主体来掩盖业务模型问题。
+- 不放宽 report_fact_guard.py。
+- 不放宽 poi_name_guard.py。
+
+## 后续只允许围绕本方案继续
+
+- 报告精准度样本扩充：36 → 60（12 族 x5）。
+- 外部资料蒸馏继续补齐，但只做 source card 候选规则，不直接改变报告行为。
+- source card → YAML 吸收时必须补 source_refs 和回归测试。
+- 学校/校园客流源归并。
+- 小餐饮竞品分层。
+- 公交站去重。

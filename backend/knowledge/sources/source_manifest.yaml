@@ -2,7 +2,7 @@
 # 收录 internal_sample / rule_seed / product_review 及已合规蒸馏的外部来源
 # 外部来源仅保留 derived_rule_only 规则，不保存原文或下载来源元数据
 
-manifest_version: "2026-06-15.v1"
+manifest_version: "2026-06-16.v1"
 
 sources:
   - source_id: "internal_sample_001"
@@ -139,6 +139,47 @@ sources:
     confidence: "B"
     derived_rule_only: true
     applicable_models: ["retail_convenience"]
+    extracted_rules:
+      demand_sources: []
+      red_flags: []
+
+  # ── Phase 4E 用户资料清单补蒸馏（已通过可读性/相关性筛选，候选规则卡，未吸收进 YAML）──
+  - source_id: "book_003"
+    source_type: "book"
+    title: "从零开始做餐饮"
+    confidence: "B"
+    derived_rule_only: true
+    applicable_models: ["snack_fast_food", "food_service"]
+    extracted_rules:
+      demand_sources: []
+      red_flags: []
+
+  - source_id: "book_005"
+    source_type: "book"
+    title: "零售的哲学：7-Eleven便利店创始人自述"
+    confidence: "B"
+    derived_rule_only: true
+    applicable_models: ["retail_convenience"]
+    extracted_rules:
+      demand_sources: []
+      red_flags: []
+
+  - source_id: "book_011"
+    source_type: "book"
+    title: "现代酒店管理"
+    confidence: "B"
+    derived_rule_only: true
+    applicable_models: ["hotel"]
+    extracted_rules:
+      demand_sources: []
+      red_flags: []
+
+  - source_id: "book_012"
+    source_type: "book"
+    title: "酒店管理概论"
+    confidence: "B"
+    derived_rule_only: true
+    applicable_models: ["hotel"]
     extracted_rules:
       demand_sources: []
       red_flags: []

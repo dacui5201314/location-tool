@@ -1,0 +1,51 @@
+# 来源卡: 酒店管理概论
+# 类型: book | 可信度: B
+# derived_rule_only: true — 不包含原文摘录，仅保留抽象选址判断规则
+
+source_id: "book_012"
+source_type: "book"
+title: "酒店管理概论"
+confidence: "B"
+copyright_note: "魏卫《酒店管理概论》— 仅保留抽象选址判断规则，不包含原文摘录"
+derived_rule_only: true
+distillation_status: "candidate_only"
+professional_use_policy: "偏酒店管理基础；只用于补充酒店定位、客源结构、淡旺季和 OTA 核验，不能单独触发开店优势判断"
+applicable_models:
+  - "hotel"
+
+extracted_rules:
+  demand_sources:
+    - rule: "酒店定位决定选址半径"
+      condition: "经济型、商务型、度假型、民宿型对应不同锚点和服务半径"
+    - rule: "季节性影响住宿收入"
+      condition: "旅游、会展和学校周边住宿需评估淡旺季波动"
+
+  red_flags:
+    - rule: "定位与锚点错配"
+      condition: "用商务酒店定位进入旅游淡旺季强或过夜需求弱的区域"
+      severity: "downgrade"
+    - rule: "OTA 获客成本过高"
+      condition: "区域同档次酒店多且平台价格战明显"
+      severity: "downgrade"
+    - rule: "合规链条不完整"
+      condition: "消防、公安、卫生、特种行业许可任一关键条件无法办理"
+      severity: "stop"
+
+  fit_signals:
+    - rule: "房型和客源匹配"
+      condition: "商务客、家庭客、旅游客对应的房型和配套能匹配"
+    - rule: "线上获客可验证"
+      condition: "OTA 同区域搜索、价格带和评价结构支持目标定位"
+
+  field_checklist_additions:
+    - "核验目标客源类型、淡旺季和入住周期"
+    - "核验 OTA 同档次酒店价格带、评分和评论痛点"
+    - "核验证照办理链条和物业改造约束"
+
+  data_blind_spots:
+    - "POI 不能反映季节性、渠道成本和 OTA 评价质量"
+    - "民宿和非标住宿可能不以酒店 POI 形式完整收录"
+
+  forbidden_misreadings:
+    - "不能只看酒店数量，不看价格带和客源结构"
+    - "不能忽略淡旺季，把短期热度当成全年需求"

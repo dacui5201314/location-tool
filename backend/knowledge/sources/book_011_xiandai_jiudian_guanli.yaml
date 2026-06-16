@@ -1,0 +1,51 @@
+# 来源卡: 现代酒店管理
+# 类型: book | 可信度: B
+# derived_rule_only: true — 不包含原文摘录，仅保留抽象选址判断规则
+
+source_id: "book_011"
+source_type: "book"
+title: "现代酒店管理"
+confidence: "B"
+copyright_note: "都大明《现代酒店管理》— 仅保留抽象选址判断规则，不包含原文摘录"
+derived_rule_only: true
+distillation_status: "candidate_only"
+professional_use_policy: "偏酒店经营管理；只用于补充住宿需求锚点、证照/物业核验和数据盲区，不能替代酒店选址专项报告"
+applicable_models:
+  - "hotel"
+
+extracted_rules:
+  demand_sources:
+    - rule: "住宿需求来自明确出行目的"
+      condition: "商务、会展、交通中转、旅游、医院陪护等场景至少一种成立"
+    - rule: "酒店经营看入住率和平均房价"
+      condition: "选址需能支撑目标入住率、ADR 和 RevPAR，而不只看客流"
+
+  red_flags:
+    - rule: "无住宿需求锚点"
+      condition: "周边缺少交通、商务、旅游、医院等住宿需求来源"
+      severity: "stop"
+    - rule: "物业不适配酒店"
+      condition: "消防、层高、电梯、独立出入口、房间布局或停车条件不满足"
+      severity: "stop"
+    - rule: "只看餐饮商业热度"
+      condition: "周边餐饮热闹但无过夜需求"
+      severity: "warning"
+
+  fit_signals:
+    - rule: "需求锚点明确"
+      condition: "交通枢纽、商务区、景区、医院或会展中心在可达范围内"
+    - rule: "同档次酒店经营可验证"
+      condition: "周边同档次酒店入住率、价格和 OTA 评价支持定位"
+
+  field_checklist_additions:
+    - "核验周边住宿需求锚点类型和实际距离"
+    - "核验消防、特种行业、公共卫生许可办理条件"
+    - "核验房间数、房型结构、停车和独立大堂条件"
+
+  data_blind_spots:
+    - "POI 无法反映酒店入住率、ADR、RevPAR 和 OTA 评价"
+    - "物业改造成本和证照办理难度需现场核验"
+
+  forbidden_misreadings:
+    - "不能把周边商业热闹直接等同于住宿需求"
+    - "不能把 0 酒店竞品写成市场空白优势"

@@ -1,0 +1,54 @@
+# 来源卡: 从零开始做餐饮
+# 类型: book | 可信度: B
+# derived_rule_only: true — 不包含原文摘录，仅保留抽象选址判断规则
+
+source_id: "book_003"
+source_type: "book"
+title: "从零开始做餐饮"
+confidence: "B"
+copyright_note: "宋宣《从零开始做餐饮》— 仅保留抽象选址判断规则，不包含原文摘录"
+derived_rule_only: true
+distillation_status: "candidate_only"
+professional_use_policy: "可作为餐饮模型候选规则来源；进入 business_model YAML 前必须补 source_refs 和业务回归测试"
+applicable_models:
+  - "snack_fast_food"
+  - "food_service"
+
+extracted_rules:
+  demand_sources:
+    - rule: "选品定位先于选址"
+      condition: "餐饮点位应先明确客单价、出餐方式、堂食/外卖占比，再匹配商圈客群"
+      caveat: "同一地址对快餐、正餐、轻餐的适配度不同，不能只用餐饮总热度判断"
+    - rule: "后厨能力决定可承载品类"
+      condition: "排烟、上下水、电力、燃气和动线能支撑目标菜单"
+      caveat: "物业条件不足时，即使客流成立也应降级或淘汰"
+
+  red_flags:
+    - rule: "品类与客群错配"
+      condition: "目标客单价明显高于周边主流消费能力"
+      severity: "downgrade"
+    - rule: "餐饮基础设施缺失"
+      condition: "排烟、排污、燃气、电力或消防条件无法满足经营许可"
+      severity: "stop"
+    - rule: "外卖替代判断不足"
+      condition: "过度依赖外卖补量但平台强品牌密集、配送动线差"
+      severity: "downgrade"
+
+  fit_signals:
+    - rule: "品类高峰与商圈高峰一致"
+      condition: "午市/晚市/夜宵等关键时段与周边客群活动时间吻合"
+    - rule: "小面积高周转可行"
+      condition: "快餐小吃具备标准化出品和短等待时间"
+
+  field_checklist_additions:
+    - "核验目标品类的客单价是否匹配周边消费力"
+    - "核验排烟、上下水、电力、燃气和消防条件是否支持目标菜单"
+    - "核验堂食座位、取餐、骑手等候区是否互相干扰"
+
+  data_blind_spots:
+    - "POI 只能反映周边餐饮数量，不能反映后厨条件和物业许可"
+    - "外卖平台强弱、配送时效和真实月销需单独核验"
+
+  forbidden_misreadings:
+    - "不能把餐饮门店多直接理解为任意餐饮品类都适合"
+    - "不能忽略物业条件，只用客流和竞品数量做餐饮判断"
