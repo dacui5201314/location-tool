@@ -32,8 +32,8 @@
 - `docs/location_knowledge_distillation_plan.md`：蒸馏 SOP（6 类来源版权边界）
 - `docs/source_material_intake_template.md`：外部资料接入模板
 - `docs/source_material_inventory.md`：用户清单与本地资料对照盘点
-- 9 张独立 source card：internal_sample_001、product_review_001、book_001/002/003/005/011/012、report_summary_001
-- `knowledge/sources/source_manifest.yaml`：18 条来源清单
+- 15 张独立 source card：internal_sample_001、product_review_001-006、book_001/002/003/005/011/012/013、report_summary_001
+- `knowledge/sources/source_manifest.yaml`：24 条来源清单
 - source_refs 结构化追溯（YAML → source card 可追溯）
 
 ### Phase 2：补齐剩余族群 + 覆盖矩阵
@@ -65,7 +65,7 @@
 | check_location_profile_rules.py | 6 | PASS |
 | check_business_model_rules.py | 21 | PASS |
 | check_report_enrichment_service.py | 11 | PASS |
-| check_knowledge_schema_rules.py | 15 | PASS |
+| check_knowledge_schema_rules.py | 16 | PASS |
 | check_sample_regression.py | 36 | PASS |
 
 ## 明确不做 / 不纳入本轮
