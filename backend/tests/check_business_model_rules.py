@@ -456,6 +456,37 @@ def test_pet_business_checklist_constraints():
     print("T29 pet checklist constraints: PASS")
 
 
+# T30: category-only 宠物店识别 — snapshot + checklist 均需输出物业/噪音/气味
+def test_pet_business_category_only():
+    from services.business_model_service import compute_business_model_snapshot, build_business_field_checklist
+    rd = _base_rd(direct_competitors_200m=0, direct_competitors_500m=0, direct_competitors_1000m=0,
+                  stats_500m={"residential":7,"office":1,"schools":1,"subway":0,"bus":2,"parking":1,"shopping":0,"hotels":0,"restaurants":4})
+
+    # business_type 不含"宠物", 仅 category 含"宠物店" — 此前会漏识别
+    snap = compute_business_model_snapshot(rd, "专业生活服务", "", 60, category="宠物店")
+    assert snap["model_type"] == "service_beauty"
+
+    mv_text = " ".join(snap.get("must_verify", []))
+    assert "物业" in mv_text, f"category-only pet must_verify missing 物业: {mv_text}"
+    assert "噪音" in mv_text, f"category-only pet must_verify missing 噪音: {mv_text}"
+    assert "气味" in mv_text, f"category-only pet must_verify missing 气味: {mv_text}"
+
+    sc = snap.get("stop_condition", "")
+    assert "物业" in sc or "噪音" in sc or "气味" in sc, f"category-only pet stop missing: {sc}"
+
+    fc = build_business_field_checklist(rd, "专业生活服务", "", 60, category="宠物店")
+    all_text = " ".join(
+        item.get("title", "") + " " + item.get("action", "") + " " +
+        item.get("pass_hint", "") + " " + item.get("eliminate_hint", "")
+        for item in fc
+    )
+    assert "物业" in all_text, f"category-only pet checklist missing 物业: {all_text}"
+    assert "噪音" in all_text, f"category-only pet checklist missing 噪音: {all_text}"
+    assert "气味" in all_text, f"category-only pet checklist missing 气味: {all_text}"
+
+    print("T30 category-only pet business: PASS")
+
+
 # T19: 全部前台 business_type 归类覆盖
 # ── Master self-mapping keys (not user-facing leaf types) ──
 _MASTER_SELF_KEYS = {
@@ -587,6 +618,7 @@ if __name__ == "__main__":
     test_pet_business_snapshot_constraints()
     test_non_pet_beauty_no_pet_constraints()
     test_pet_business_checklist_constraints()
+    test_pet_business_category_only()
     test_leaf_business_type_coverage()
     test_master_keys_not_generic()
     test_same_location_different_business()

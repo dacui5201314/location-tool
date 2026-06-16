@@ -318,7 +318,10 @@ def compute_business_model_snapshot(real_data: dict, business_type: str,
         "generic": _snapshot_generic,
     }
     handler = handlers.get(family, _snapshot_generic)
-    result = handler(real_data, business_type, brand_name, store_size)
+    if family == "service_beauty":
+        result = handler(real_data, business_type, brand_name, store_size, category=category)
+    else:
+        result = handler(real_data, business_type, brand_name, store_size)
     # 注入模型版本
     if "business_model_version" not in result:
         result["business_model_version"] = get_model_version(family)
@@ -615,7 +618,7 @@ def _snapshot_retail_shopping(real_data, business_type, brand_name, store_size):
     }
 
 
-def _snapshot_service_beauty(real_data, business_type, brand_name, store_size):
+def _snapshot_service_beauty(real_data, business_type, brand_name, store_size, category=""):
     dc_1000 = _int((real_data or {}).get("direct_competitors_1000m", 0))
     if dc_1000 == 0:
         competitor_note = (
@@ -625,7 +628,7 @@ def _snapshot_service_beauty(real_data, business_type, brand_name, store_size):
     else:
         competitor_note = ""
 
-    is_pet = _is_pet_business(business_type, brand_name)
+    is_pet = _is_pet_business(business_type, brand_name, category)
 
     must_verify = [
         "走访周边中高档住宅小区评估消费力",
@@ -819,7 +822,10 @@ def build_business_field_checklist(real_data: dict, business_type: str,
         "generic": _checklist_generic,
     }
     handler = handlers.get(family, _checklist_generic)
-    items = handler(real_data, business_type, brand_name, store_size)
+    if family == "service_beauty":
+        items = handler(real_data, business_type, brand_name, store_size, category=category)
+    else:
+        items = handler(real_data, business_type, brand_name, store_size)
     return [
         {
             "title": t.get("title", ""),
@@ -1101,8 +1107,8 @@ def _checklist_pharmacy(real_data, business_type, brand_name, store_size):
     ]
 
 
-def _checklist_service_beauty(real_data, business_type, brand_name, store_size):
-    is_pet = _is_pet_business(business_type, brand_name)
+def _checklist_service_beauty(real_data, business_type, brand_name, store_size, category=""):
+    is_pet = _is_pet_business(business_type, brand_name, category)
     items = [
         _make_item("评估周边社区消费力", "工作日晚上和周末",
                    "走访周边小区，观察车辆档次、居民消费习惯", "消费力不足",

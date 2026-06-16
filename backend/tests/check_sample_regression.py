@@ -418,6 +418,10 @@ SAMPLES = [
     {"case_id":"service_beauty_05","expected_model_id": "service_beauty", "model_id": "service_beauty","business_type":"宠物店","brand_name":"","store_size":60,
      "real_data":_make_rd(direct_competitors_200m=0,direct_competitors_500m=0,direct_competitors_1000m=0,stats_500m={"residential":7,"office":1,"schools":1,"subway":0,"bus":2,"parking":1,"shopping":0,"hotels":0,"restaurants":4}),
      "expected_present":["直接竞品", "暗竞品", "工作室", "物业", "噪音", "气味"],"expected_absent":["市场空白明显","外卖骑手"]},
+    # 10.5 service_beauty category-only: business_type无宠物关键词，category="宠物店" 触发 pet 分支
+    {"case_id":"service_beauty_06","expected_model_id": "service_beauty", "model_id": "service_beauty","business_type":"专业生活服务","brand_name":"","category":"宠物店","store_size":60,
+     "real_data":_make_rd(direct_competitors_200m=0,direct_competitors_500m=0,direct_competitors_1000m=0,stats_500m={"residential":7,"office":1,"schools":1,"subway":0,"bus":2,"parking":1,"shopping":0,"hotels":0,"restaurants":4}),
+     "expected_present":["直接竞品", "工作室", "物业", "噪音", "气味"],"expected_absent":["市场空白明显","外卖骑手"]},
 
     # 11 hotel: 商业热闹缺过夜需求; 0竞品不写蓝海
     {"case_id":"hotel_04","expected_model_id": "hotel", "model_id": "hotel","business_type":"酒店","brand_name":"","store_size":2000,
@@ -455,7 +459,7 @@ def _check_sample(s):
     model_yaml = load_business_model(mid)
     assert model_yaml, f"{s['case_id']}: YAML not loaded for {mid}"
 
-    fb = build_fallback_report(rd, address="test", business_type=bt, brand_name=bn, store_size=sz)
+    fb = build_fallback_report(rd, address="test", business_type=bt, brand_name=bn, store_size=sz, category=cat)
     enriched = enrich_report_business_context(fb, rd, business_type=bt, brand_name=bn, category=cat, store_size=sz, is_fallback=True)
 
     required = ["location_profile","location_fundamentals","business_model_snapshot",

@@ -68,7 +68,7 @@ def _int(v, default=0):
 
 def build_fallback_report(real_data: dict, address: str = "",
                           business_type: str = "", brand_name: str = "",
-                          store_size: int = 0) -> dict:
+                          store_size: int = 0, category: str = "") -> dict:
     """从 real_data 生成纯数据兜底报告。"""
 
     s2 = real_data.get("stats_200m", {}) or {}
@@ -187,7 +187,7 @@ def build_fallback_report(real_data: dict, address: str = "",
     # ── P0.5: 同品牌分店检测（必须在 dims 之前）──
     same_brand_risk, same_brand_matches = _detect_same_brand_risk(brand_name, real_data)
     # P1: category → 使用 brand_name 作为业态细分描述（fallback 无独立 category 字段）
-    _category = brand_name or ""
+    _category = category or brand_name or ""
 
     # ── P0.5: 低维详情辅助函数 ──
     def _traffic_flow_detail(r500, o500, s500, sw500, b500, score):
