@@ -49,11 +49,15 @@
 - HTML 10 字段 + 小程序 7 字段验收
 
 ### Phase 4：样本回归库
-- **60 个样本，12 族 x5**（4A: 12基础 → 4B: +6高风险 → 4C: +12第三样本 → 4D: 扩至36 → 4J: +24 → 60）
+- **60 个 Phase 4J 基线样本 + 1 个 Phase 4K category-only 宠物店防回归样本，共 61**（4A: 12基础 → 4B: +6高风险 → 4C: +12第三样本 → 4D: 扩至36 → 4J: +24 → 60 → 4K fix-1: +1）
 - 每样本 expected_present/expected_absent，JSON + HTML 双文本扫描，禁止表达扫描
 - expected_model_id 60/60 全覆盖，meta 强制必填且断言 `expected_model_id == model_id`
 - 元测试：EXPECTED_MODEL_IDS 常量、set 精确匹配、每族 >=5、case_id 唯一
-- **Phase 4K 已收口**：宠物店物业/噪音/气味限制已通过 `_is_pet_business()` 检测 + snapshot.must_verify/stop_condition + field_checklist 确定性注入 report_json（service_beauty_05 expected_present 含 物业/噪音/气味）。非宠物业态（美容美发/健身）不受影响。source_refs 不变（沿用 product_review_004）。
+- **Phase 4K 已收口**：宠物店物业/噪音/气味限制已通过 `_is_pet_business(business_type, brand_name, category)` 三参数检测 + snapshot.must_verify/stop_condition + field_checklist 确定性注入 report_json。
+  - `service_beauty_05`：覆盖 `business_type="宠物店"`，expected_present 含 物业/噪音/气味 ✅
+  - `service_beauty_06`：覆盖 `business_type="专业生活服务"`, `category="宠物店"`（category-only 路径），expected_present 含 物业/噪音/气味 ✅
+  - 两条路径均要求 report_json/HTML 出现 物业/噪音/气味。非宠物业态（美容美发/健身）不受影响。source_refs 不变（沿用 product_review_004）。
+- **Phase 4K fix-1**：修复 `_is_pet_business()` 支持 category 参数但 `_snapshot_service_beauty` / `_checklist_service_beauty` 未传 category 导致 category-only 宠物店漏识别问题。`compute_business_model_snapshot` 和 `build_business_field_checklist` 对 service_beauty 族类分流传 `category=`，`build_fallback_report` 加 `category` 参数防止 enrich 幂等跳过覆盖。
 
 ## 当前测试矩阵
 
@@ -65,10 +69,10 @@
 | check_p05_report_quality.py | 13 | PASS |
 | check_p1_business_model_quality.py | 22 | PASS |
 | check_location_profile_rules.py | 6 | PASS |
-| check_business_model_rules.py | 33 | PASS |
+| check_business_model_rules.py | 34 | PASS |
 | check_report_enrichment_service.py | 11 | PASS |
 | check_knowledge_schema_rules.py | 16 | PASS |
-| check_sample_regression.py | 60 | PASS |
+| check_sample_regression.py | 61 | PASS |
 
 ## 明确不做 / 不纳入本轮
 
