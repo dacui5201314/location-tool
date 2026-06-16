@@ -2,7 +2,7 @@
 
 > 审计范围：12 族 business model + location_profile + fallback scoring + enrichment + sample regression
 > 审计日期：2026-06-16
-> 状态：P0 已实施（e30241f2），P1 已实施（Phase 4L-C），P2 待实施
+> 状态：P0 已实施（e30241f2），P1-A 已实施（Phase 4L-C），P2 + G2/G3 待实施
 
 ## 1. 涉及学校/校园客流的代码位置清单
 
@@ -179,11 +179,13 @@
 | T31-T33 | `check_business_model_rules.py` | 便利店/酒店/小吃快餐 school 高 res 低 |
 | retail_convenience_06, hotel_06 | `check_sample_regression.py` | 2 个回归样本 |
 
-### 4.2 P1 已实施（Phase 4L-C）/ P2 待实施
+### 4.2 P1-A 已实施（Phase 4L-C）/ P2 + G2/G3 待实施
 
 | 优先级 | 状态 | 文件 | 改动 | 理由 |
 |--------|------|------|------|------|
-| **P1** | ✅ 已实施 | `location_profile_service.py` | `_k12_school_count()` + 学区判定全部走 K12 有效学校数；T7（全大学不判学区）+ T8（K12 仍判学区） | 大学聚集区不是"学区" |
+| **P1-A** | ✅ 已实施 | `location_profile_service.py` | `_k12_school_count()` + 学区判定全部走 K12 有效学校数；T7（全大学不判学区）+ T8（K12 仍判学区） | 大学聚集区不是"学区" |
+| **G2** | 待实施 | `business_model_service.py` checklist | 茶饮 school 高但步行动线未核验 | 学校客流≠步行动线客流 |
+| **G3** | 待实施 | 测试缺样本 | 教育培训 school 高但消费力弱 | 需加消费力核验独立样本 |
 | **P2** | 待实施 | `business_model_service.py` L1021 | `school_500 >= 2 → 插入学校午休动线核验` → 仅在小学/中学时触发 | 大学周边不需要放学动线核验 |
 | **P2** | 待实施 | `01_snack_fast_food.yaml` | demand_sources "学校午市" → 加 `仅中小学` | 触发条件过于宽泛 |
 
@@ -208,8 +210,8 @@
 
 2. **6 个测试缺口** — ✅ P0 已关 4 个（G1/G4/G5/G6），P1 残余 2 个（G2/G3）。
 
-3. **location_profile 学区判定粗糙** — ✅ P1 已修正。`_k12_school_count()` 排除大学/培训，学区判定全部走 K12 有效学校数。全大学不再判学区，K12 足够多仍判学区。
+3. **location_profile 学区判定粗糙** — ✅ P1-A 已修正。`_k12_school_count()` 排除大学/培训，学区判定全部走 K12 有效学校数。全大学不再判学区，K12 足够多仍判学区。G2/G3 仍为后续残余。
 
 ---
 
-*审计 2026-06-16，P0 实施 2026-06-16（e30241f2），P1 实施 2026-06-16（Phase 4L-C），P2 待实施。*
+*审计 2026-06-16，P0 实施 2026-06-16（e30241f2），P1-A 实施 2026-06-16（Phase 4L-C），P2 + G2/G3 待实施。*
