@@ -36,7 +36,7 @@ SAMPLES = [
     # ── 基础 12 个 ──
     {
         "case_id": "snack_fast_food_01",
-        "model_id": "snack_fast_food",
+        "expected_model_id": "snack_fast_food", "model_id": "snack_fast_food",
         "business_type": "小吃快餐", "brand_name": "砂锅小吃", "store_size": 50,
         "real_data": _make_rd(direct_competitors_200m=0, direct_competitors_500m=3, direct_competitors_1000m=12,
             stats_1000m={"residential":13,"office":0,"schools":9,"hospitals":1,"subway":0,"bus":8,"parking":26,"shopping":0,"hotels":7,"restaurants":56}),
@@ -45,42 +45,42 @@ SAMPLES = [
     },
     {
         "case_id": "food_service_01",
-        "model_id": "food_service","business_type": "中餐", "brand_name": "湘菜馆", "store_size": 200,
+        "expected_model_id": "food_service", "model_id": "food_service","business_type": "中餐", "brand_name": "湘菜馆", "store_size": 200,
         "real_data": _make_rd(direct_competitors_200m=3, direct_competitors_500m=5, direct_competitors_1000m=8),
         "expected_present": ["直接竞品","现场核验清单"],
         "expected_absent": ["市场空白明显","先发优势","推荐开店","值得投资"],
     },
     {
         "case_id": "beverage_dessert_01",
-        "model_id": "beverage_dessert","business_type": "奶茶店", "brand_name": "茶百道", "store_size": 20,
+        "expected_model_id": "beverage_dessert", "model_id": "beverage_dessert","business_type": "奶茶店", "brand_name": "茶百道", "store_size": 20,
         "real_data": _make_rd(direct_competitors_200m=1, direct_competitors_500m=3, direct_competitors_1000m=6),
         "expected_present": ["直接竞品","现场核验清单"],
         "expected_absent": ["市场空白明显","先发优势","推荐开店"],
     },
     {
         "case_id": "retail_convenience_01",
-        "model_id": "retail_convenience","business_type": "便利店", "brand_name": "全家", "store_size": 60,
+        "expected_model_id": "retail_convenience", "model_id": "retail_convenience","business_type": "便利店", "brand_name": "全家", "store_size": 60,
         "real_data": _make_rd(direct_competitors_200m=0, direct_competitors_500m=1, direct_competitors_1000m=3),
         "expected_present": ["直接竞品"],
         "expected_absent": ["推荐开店","值得投资","出餐速度","外卖骑手"],
     },
     {
         "case_id": "pharmacy_01",
-        "model_id": "pharmacy","business_type": "药店", "brand_name": "", "store_size": 80,
+        "expected_model_id": "pharmacy", "model_id": "pharmacy","business_type": "药店", "brand_name": "", "store_size": 80,
         "real_data": _make_rd(direct_competitors_200m=0, direct_competitors_500m=0, direct_competitors_1000m=0),
         "expected_present": ["直接竞品","现场核验清单"],
         "expected_absent": ["市场空白明显","先发优势","品类切入空间较好","推荐开店"],
     },
     {
         "case_id": "retail_shopping_01",
-        "model_id": "retail_shopping","business_type": "服装店", "brand_name": "", "store_size": 60,
+        "expected_model_id": "retail_shopping", "model_id": "retail_shopping","business_type": "服装店", "brand_name": "", "store_size": 60,
         "real_data": _make_rd(direct_competitors_200m=0, direct_competitors_500m=2, direct_competitors_1000m=4),
         "expected_present": ["直接竞品"],
         "expected_absent": ["市场空白明显","推荐开店"],
     },
     {
         "case_id": "education_childcare_01",
-        "model_id": "education_childcare","business_type": "教育培训", "brand_name": "小学生托管服务", "store_size": 100,
+        "expected_model_id": "education_childcare", "model_id": "education_childcare","business_type": "教育培训", "brand_name": "小学生托管服务", "store_size": 100,
         "real_data": _make_rd(direct_competitors_200m=0, direct_competitors_500m=0, direct_competitors_1000m=0,
             stats_500m={"residential":4,"office":0,"schools":4,"subway":0,"bus":2,"parking":6,"shopping":0,"hotels":2,"restaurants":11}),
         "expected_present": ["直接竞品","托管","暗竞品","放学"],
@@ -88,35 +88,35 @@ SAMPLES = [
     },
     {
         "case_id": "education_training_01",
-        "model_id": "education_training","business_type": "教育培训", "brand_name": "英语培训", "store_size": 80,
+        "expected_model_id": "education_training", "model_id": "education_training","business_type": "教育培训", "brand_name": "英语培训", "store_size": 80,
         "real_data": _make_rd(direct_competitors_200m=0, direct_competitors_500m=1, direct_competitors_1000m=2),
         "expected_present": ["直接竞品"],
         "expected_absent": ["午托","小饭桌","餐食成本","市场空白明显","推荐开店"],
     },
     {
         "case_id": "service_basic_01",
-        "model_id": "service_basic","business_type": "洗衣店", "brand_name": "", "store_size": 30,
+        "expected_model_id": "service_basic", "model_id": "service_basic","business_type": "洗衣店", "brand_name": "", "store_size": 30,
         "real_data": _make_rd(direct_competitors_200m=0, direct_competitors_500m=0, direct_competitors_1000m=0),
         "expected_present": ["直接竞品"],
         "expected_absent": ["市场空白明显","外卖骑手","出餐速度","推荐开店"],
     },
     {
         "case_id": "service_beauty_01",
-        "model_id": "service_beauty","business_type": "美容美发", "brand_name": "", "store_size": 60,
+        "expected_model_id": "service_beauty", "model_id": "service_beauty","business_type": "美容美发", "brand_name": "", "store_size": 60,
         "real_data": _make_rd(direct_competitors_200m=0, direct_competitors_500m=0, direct_competitors_1000m=0),
         "expected_present": ["直接竞品"],
         "expected_absent": ["市场空白明显","品类切入空间较好","外卖骑手","出餐速度"],
     },
     {
         "case_id": "hotel_01",
-        "model_id": "hotel","business_type": "酒店", "brand_name": "汉庭", "store_size": 2000,
+        "expected_model_id": "hotel", "model_id": "hotel","business_type": "酒店", "brand_name": "汉庭", "store_size": 2000,
         "real_data": _make_rd(direct_competitors_200m=0, direct_competitors_500m=0, direct_competitors_1000m=0),
         "expected_present": ["直接竞品"],
         "expected_absent": ["市场空白明显","先发优势","品类切入空间较好","推荐开店"],
     },
     {
         "case_id": "entertainment_01",
-        "model_id": "entertainment","business_type": "酒吧", "brand_name": "", "store_size": 200,
+        "expected_model_id": "entertainment", "model_id": "entertainment","business_type": "酒吧", "brand_name": "", "store_size": 200,
         "real_data": _make_rd(direct_competitors_200m=0, direct_competitors_500m=0, direct_competitors_1000m=0),
         "expected_present": ["直接竞品"],
         "expected_absent": ["市场空白明显","先发优势","品类切入空间较好","推荐开店"],
@@ -125,7 +125,7 @@ SAMPLES = [
     # ── 补齐 6 个第二样本 ──
     {
         "case_id": "food_service_02",
-        "model_id": "food_service","business_type": "火锅店", "brand_name": "重庆老火锅", "store_size": 250,
+        "expected_model_id": "food_service", "model_id": "food_service","business_type": "火锅店", "brand_name": "重庆老火锅", "store_size": 250,
         "real_data": _make_rd(direct_competitors_200m=2, direct_competitors_500m=6, direct_competitors_1000m=10,
             stats_500m={"residential":10,"office":8,"schools":2,"hospitals":1,"subway":1,"bus":6,"parking":4,"shopping":2,"hotels":3,"restaurants":20}),
         "expected_present": ["直接竞品","停车","排烟","消防"],
@@ -133,7 +133,7 @@ SAMPLES = [
     },
     {
         "case_id": "beverage_dessert_02",
-        "model_id": "beverage_dessert","business_type": "咖啡店", "brand_name": "瑞幸", "store_size": 15,
+        "expected_model_id": "beverage_dessert", "model_id": "beverage_dessert","business_type": "咖啡店", "brand_name": "瑞幸", "store_size": 15,
         "real_data": _make_rd(direct_competitors_200m=1, direct_competitors_500m=4, direct_competitors_1000m=8,
             stats_500m={"residential":6,"office":10,"schools":2,"hospitals":0,"subway":2,"bus":8,"parking":3,"shopping":1,"hotels":1,"restaurants":15}),
         "expected_present": ["直接竞品","步行","动线","外卖"],
@@ -141,7 +141,7 @@ SAMPLES = [
     },
     {
         "case_id": "retail_convenience_02",
-        "model_id": "retail_convenience","business_type": "生鲜店", "brand_name": "社区生鲜", "store_size": 80,
+        "expected_model_id": "retail_convenience", "model_id": "retail_convenience","business_type": "生鲜店", "brand_name": "社区生鲜", "store_size": 80,
         "real_data": _make_rd(direct_competitors_200m=0, direct_competitors_500m=2, direct_competitors_1000m=4,
             stats_500m={"residential":15,"office":2,"schools":2,"hospitals":0,"subway":0,"bus":4,"parking":2,"shopping":0,"hotels":0,"restaurants":6}),
         "expected_present": ["直接竞品","住宅","动线","入住"],
@@ -149,7 +149,7 @@ SAMPLES = [
     },
     {
         "case_id": "retail_shopping_02",
-        "model_id": "retail_shopping","business_type": "数码店", "brand_name": "", "store_size": 50,
+        "expected_model_id": "retail_shopping", "model_id": "retail_shopping","business_type": "数码店", "brand_name": "", "store_size": 50,
         "real_data": _make_rd(direct_competitors_200m=1, direct_competitors_500m=3, direct_competitors_1000m=5,
             stats_500m={"residential":5,"office":6,"schools":1,"hospitals":0,"subway":1,"bus":7,"parking":3,"shopping":2,"hotels":1,"restaurants":12}),
         "expected_present": ["直接竞品","商圈","电商"],
@@ -157,7 +157,7 @@ SAMPLES = [
     },
     {
         "case_id": "service_basic_02",
-        "model_id": "service_basic","business_type": "诊所", "brand_name": "", "store_size": 60,
+        "expected_model_id": "service_basic", "model_id": "service_basic","business_type": "诊所", "brand_name": "", "store_size": 60,
         "real_data": _make_rd(direct_competitors_200m=0, direct_competitors_500m=1, direct_competitors_1000m=2,
             stats_500m={"residential":12,"office":3,"schools":2,"hospitals":1,"subway":0,"bus":4,"parking":2,"shopping":0,"hotels":0,"restaurants":8}),
         "expected_present": ["直接竞品","住宅","资质"],
@@ -165,7 +165,7 @@ SAMPLES = [
     },
     {
         "case_id": "service_beauty_02",
-        "model_id": "service_beauty","business_type": "健身房", "brand_name": "私教工作室", "store_size": 200,
+        "expected_model_id": "service_beauty", "model_id": "service_beauty","business_type": "健身房", "brand_name": "私教工作室", "store_size": 200,
         "real_data": _make_rd(direct_competitors_200m=0, direct_competitors_500m=0, direct_competitors_1000m=1,
             stats_500m={"residential":10,"office":5,"schools":2,"hospitals":0,"subway":1,"bus":6,"parking":3,"shopping":1,"hotels":1,"restaurants":10}),
         "expected_present": ["直接竞品","消费力","会员"],
@@ -175,7 +175,7 @@ SAMPLES = [
     # ── 高风险 6 个 ──
     {
         "case_id": "snack_fast_food_02_highrisk",
-        "model_id": "snack_fast_food","business_type": "小吃快餐", "brand_name": "麻辣烫", "store_size": 40,
+        "expected_model_id": "snack_fast_food", "model_id": "snack_fast_food","business_type": "小吃快餐", "brand_name": "麻辣烫", "store_size": 40,
         "real_data": _make_rd(direct_competitors_200m=0, direct_competitors_500m=2, direct_competitors_1000m=15,
             stats_500m={"residential":3,"office":0,"schools":4,"subway":0,"bus":1,"parking":2,"shopping":0,"hotels":1,"restaurants":8},
             stats_1000m={"residential":8,"office":1,"schools":8,"hospitals":0,"subway":0,"bus":3,"parking":5,"shopping":0,"hotels":2,"restaurants":50}),
@@ -184,7 +184,7 @@ SAMPLES = [
     },
     {
         "case_id": "education_childcare_02_highrisk",
-        "model_id": "education_childcare","business_type": "教育培训", "brand_name": "午托晚托作业辅导", "store_size": 120,
+        "expected_model_id": "education_childcare", "model_id": "education_childcare","business_type": "教育培训", "brand_name": "午托晚托作业辅导", "store_size": 120,
         "real_data": _make_rd(direct_competitors_200m=0, direct_competitors_500m=0, direct_competitors_1000m=0,
             stats_500m={"residential":6,"office":0,"schools":5,"subway":0,"bus":2,"parking":4,"shopping":0,"hotels":1,"restaurants":8}),
         "expected_present": ["暗竞品","放学","合规","消防","空间"],
@@ -192,7 +192,7 @@ SAMPLES = [
     },
     {
         "case_id": "education_training_02_highrisk",
-        "model_id": "education_training","business_type": "教育培训", "brand_name": "美术培训", "store_size": 80,
+        "expected_model_id": "education_training", "model_id": "education_training","business_type": "教育培训", "brand_name": "美术培训", "store_size": 80,
         "real_data": _make_rd(direct_competitors_200m=0, direct_competitors_500m=0, direct_competitors_1000m=1,
             stats_500m={"residential":12,"office":2,"schools":3,"subway":1,"bus":6,"parking":3,"shopping":1,"hotels":1,"restaurants":10}),
         "expected_present": ["直接竞品","办学","消防"],
@@ -200,7 +200,7 @@ SAMPLES = [
     },
     {
         "case_id": "pharmacy_02_highrisk",
-        "model_id": "pharmacy","business_type": "药店", "brand_name": "", "store_size": 80,
+        "expected_model_id": "pharmacy", "model_id": "pharmacy","business_type": "药店", "brand_name": "", "store_size": 80,
         "real_data": _make_rd(direct_competitors_200m=0, direct_competitors_500m=0, direct_competitors_1000m=0,
             stats_500m={"residential":10,"office":3,"schools":2,"hospitals":2,"subway":1,"bus":6,"parking":3,"shopping":1,"hotels":1,"restaurants":12}),
         "expected_present": ["直接竞品","医院","锚点"],
@@ -208,7 +208,7 @@ SAMPLES = [
     },
     {
         "case_id": "hotel_02_highrisk",
-        "model_id": "hotel","business_type": "酒店", "brand_name": "", "store_size": 3000,
+        "expected_model_id": "hotel", "model_id": "hotel","business_type": "酒店", "brand_name": "", "store_size": 3000,
         "real_data": _make_rd(direct_competitors_200m=0, direct_competitors_500m=0, direct_competitors_1000m=0,
             stats_500m={"residential":5,"office":2,"schools":1,"hospitals":0,"subway":0,"bus":2,"parking":2,"shopping":0,"hotels":0,"restaurants":5},
             stats_1000m={"residential":10,"office":3,"schools":2,"hospitals":0,"subway":0,"bus":4,"parking":4,"shopping":0,"hotels":1,"restaurants":12}),
@@ -217,7 +217,7 @@ SAMPLES = [
     },
     {
         "case_id": "entertainment_02_highrisk",
-        "model_id": "entertainment","business_type": "KTV", "brand_name": "", "store_size": 400,
+        "expected_model_id": "entertainment", "model_id": "entertainment","business_type": "KTV", "brand_name": "", "store_size": 400,
         "real_data": _make_rd(direct_competitors_200m=0, direct_competitors_500m=0, direct_competitors_1000m=0,
             stats_500m={"residential":15,"office":1,"schools":1,"hospitals":0,"subway":0,"bus":2,"parking":2,"shopping":0,"hotels":0,"restaurants":5},
             stats_1000m={"residential":30,"office":2,"schools":2,"hospitals":0,"subway":0,"bus":4,"parking":4,"shopping":0,"hotels":1,"restaurants":15}),
@@ -229,7 +229,7 @@ SAMPLES = [
     # 排斥型 0竞品但需求弱
     {
         "case_id": "snack_fast_food_03_weakdemand",
-        "model_id": "snack_fast_food","business_type": "小餐饮", "brand_name": "煎饼摊", "store_size": 15,
+        "expected_model_id": "snack_fast_food", "model_id": "snack_fast_food","business_type": "小餐饮", "brand_name": "煎饼摊", "store_size": 15,
         "real_data": _make_rd(direct_competitors_200m=0, direct_competitors_500m=0, direct_competitors_1000m=2,
             stats_500m={"residential":2,"office":0,"schools":1,"subway":0,"bus":1,"parking":1,"shopping":0,"hotels":0,"restaurants":3},
             stats_1000m={"residential":4,"office":0,"schools":2,"subway":0,"bus":2,"parking":2,"shopping":0,"hotels":0,"restaurants":8}),
@@ -239,7 +239,7 @@ SAMPLES = [
     # 半聚集型 有同类但不能直接推荐
     {
         "case_id": "food_service_03_semiagg",
-        "model_id": "food_service","business_type": "烧烤店", "brand_name": "", "store_size": 150,
+        "expected_model_id": "food_service", "model_id": "food_service","business_type": "烧烤店", "brand_name": "", "store_size": 150,
         "real_data": _make_rd(direct_competitors_200m=0, direct_competitors_500m=3, direct_competitors_1000m=7,
             stats_500m={"residential":8,"office":3,"schools":1,"subway":0,"bus":4,"parking":3,"shopping":1,"hotels":2,"restaurants":18}),
         "expected_present": ["直接竞品","晚市","停车"],
@@ -248,7 +248,7 @@ SAMPLES = [
     # 半聚集型茶饮 0竞品不写空白
     {
         "case_id": "beverage_dessert_03_semiagg",
-        "model_id": "beverage_dessert","business_type": "饮品店", "brand_name": "", "store_size": 20,
+        "expected_model_id": "beverage_dessert", "model_id": "beverage_dessert","business_type": "饮品店", "brand_name": "", "store_size": 20,
         "real_data": _make_rd(direct_competitors_200m=0, direct_competitors_500m=0, direct_competitors_1000m=1,
             stats_500m={"residential":6,"office":3,"schools":1,"subway":0,"bus":3,"parking":1,"shopping":0,"hotels":0,"restaurants":8}),
         "expected_present": ["直接竞品","步行","人流"],
@@ -257,7 +257,7 @@ SAMPLES = [
     # 排斥型便利 住宅弱时不写推荐
     {
         "case_id": "retail_convenience_03_weakresident",
-        "model_id": "retail_convenience","business_type": "小超市", "brand_name": "", "store_size": 40,
+        "expected_model_id": "retail_convenience", "model_id": "retail_convenience","business_type": "小超市", "brand_name": "", "store_size": 40,
         "real_data": _make_rd(direct_competitors_200m=0, direct_competitors_500m=0, direct_competitors_1000m=1,
             stats_500m={"residential":3,"office":1,"schools":1,"subway":0,"bus":2,"parking":1,"shopping":0,"hotels":0,"restaurants":4}),
         "expected_present": ["直接竞品","住宅"],
@@ -266,7 +266,7 @@ SAMPLES = [
     # 中性型药店 医院锚点弱 0竞品不写机会
     {
         "case_id": "pharmacy_03_neutral",
-        "model_id": "pharmacy","business_type": "药房", "brand_name": "", "store_size": 60,
+        "expected_model_id": "pharmacy", "model_id": "pharmacy","business_type": "药房", "brand_name": "", "store_size": 60,
         "real_data": _make_rd(direct_competitors_200m=0, direct_competitors_500m=0, direct_competitors_1000m=0,
             stats_500m={"residential":5,"office":2,"schools":1,"hospitals":0,"subway":0,"bus":2,"parking":1,"shopping":0,"hotels":0,"restaurants":5}),
         "expected_present": ["直接竞品","人口"],
@@ -275,7 +275,7 @@ SAMPLES = [
     # 中性型零售 孤立选址不写机会
     {
         "case_id": "retail_shopping_03_isolated",
-        "model_id": "retail_shopping","business_type": "零售店", "brand_name": "", "store_size": 40,
+        "expected_model_id": "retail_shopping", "model_id": "retail_shopping","business_type": "零售店", "brand_name": "", "store_size": 40,
         "real_data": _make_rd(direct_competitors_200m=0, direct_competitors_500m=0, direct_competitors_1000m=0,
             stats_500m={"residential":4,"office":1,"schools":1,"subway":0,"bus":1,"parking":1,"shopping":0,"hotels":0,"restaurants":4}),
         "expected_present": ["直接竞品","商圈","孤立"],
@@ -284,7 +284,7 @@ SAMPLES = [
     # 暗竞品型托管 brand_name空+category托管(通过category识别)
     {
         "case_id": "education_childcare_03_categoryonly",
-        "model_id": "education_childcare","business_type": "教育培训", "brand_name": "", "category": "小学生课后托管服务", "store_size": 100,
+        "expected_model_id": "education_childcare", "model_id": "education_childcare","business_type": "教育培训", "brand_name": "", "category": "小学生课后托管服务", "store_size": 100,
         "real_data": _make_rd(direct_competitors_200m=0, direct_competitors_500m=0, direct_competitors_1000m=0,
             stats_500m={"residential":5,"office":0,"schools":4,"subway":0,"bus":2,"parking":4,"shopping":0,"hotels":1,"restaurants":7}),
         "expected_present": ["直接竞品","暗竞品","放学"],
@@ -293,7 +293,7 @@ SAMPLES = [
     # 聚集型培训 0竞品需看满班率
     {
         "case_id": "education_training_03_aggregation",
-        "model_id": "education_training","business_type": "教育培训", "brand_name": "舞蹈培训", "store_size": 100,
+        "expected_model_id": "education_training", "model_id": "education_training","business_type": "教育培训", "brand_name": "舞蹈培训", "store_size": 100,
         "real_data": _make_rd(direct_competitors_200m=0, direct_competitors_500m=0, direct_competitors_1000m=0,
             stats_500m={"residential":10,"office":3,"schools":2,"subway":1,"bus":5,"parking":2,"shopping":1,"hotels":1,"restaurants":8}),
         "expected_present": ["直接竞品","满班率","生源"],
@@ -302,7 +302,7 @@ SAMPLES = [
     # 暗竞品型洗衣 0POI需提示低收录
     {
         "case_id": "service_basic_03_hidden",
-        "model_id": "service_basic","business_type": "洗衣店", "brand_name": "社区干洗", "store_size": 25,
+        "expected_model_id": "service_basic", "model_id": "service_basic","business_type": "洗衣店", "brand_name": "社区干洗", "store_size": 25,
         "real_data": _make_rd(direct_competitors_200m=0, direct_competitors_500m=0, direct_competitors_1000m=0,
             stats_500m={"residential":10,"office":1,"schools":2,"subway":0,"bus":3,"parking":2,"shopping":0,"hotels":0,"restaurants":6}),
         "expected_present": ["直接竞品","住宅"],
@@ -311,7 +311,7 @@ SAMPLES = [
     # 暗竞品型美业 0POI需提示工作室漏收录
     {
         "case_id": "service_beauty_03_hidden",
-        "model_id": "service_beauty","business_type": "宠物店", "brand_name": "", "store_size": 50,
+        "expected_model_id": "service_beauty", "model_id": "service_beauty","business_type": "宠物店", "brand_name": "", "store_size": 50,
         "real_data": _make_rd(direct_competitors_200m=0, direct_competitors_500m=0, direct_competitors_1000m=0,
             stats_500m={"residential":8,"office":2,"schools":1,"subway":0,"bus":3,"parking":2,"shopping":0,"hotels":0,"restaurants":5}),
         "expected_present": ["直接竞品","工作室","消费力"],
@@ -320,7 +320,7 @@ SAMPLES = [
     # 聚集型酒店 0竞品+交通弱
     {
         "case_id": "hotel_03_notadvantage",
-        "model_id": "hotel","business_type": "民宿", "brand_name": "", "store_size": 500,
+        "expected_model_id": "hotel", "model_id": "hotel","business_type": "民宿", "brand_name": "", "store_size": 500,
         "real_data": _make_rd(direct_competitors_200m=0, direct_competitors_500m=0, direct_competitors_1000m=0,
             stats_500m={"residential":6,"office":2,"schools":1,"hospitals":0,"subway":0,"bus":2,"parking":1,"shopping":0,"hotels":0,"restaurants":4},
             stats_1000m={"residential":12,"office":3,"schools":2,"hospitals":0,"subway":0,"bus":3,"parking":3,"shopping":0,"hotels":1,"restaurants":10}),
@@ -330,7 +330,7 @@ SAMPLES = [
     # 聚集型娱乐 0竞品+合规弱
     {
         "case_id": "entertainment_03_nightweak",
-        "model_id": "entertainment","business_type": "台球厅", "brand_name": "", "store_size": 300,
+        "expected_model_id": "entertainment", "model_id": "entertainment","business_type": "台球厅", "brand_name": "", "store_size": 300,
         "real_data": _make_rd(direct_competitors_200m=0, direct_competitors_500m=0, direct_competitors_1000m=0,
             stats_500m={"residential":10,"office":1,"schools":1,"subway":0,"bus":2,"parking":2,"shopping":0,"hotels":0,"restaurants":5},
             stats_1000m={"residential":20,"office":2,"schools":2,"subway":0,"bus":3,"parking":3,"shopping":0,"hotels":1,"restaurants":10}),
@@ -441,7 +441,7 @@ def _check_sample(s):
     rd = s["real_data"]
     bt, bn, sz = s["business_type"], s["brand_name"], s["store_size"]
     cat = s.get("category", "")
-    mid = s["model_id"]
+    mid = s.get("expected_model_id", s.get("model_id"))
 
     family = classify_business_model_family(bt, bn, cat)
     assert family == mid, f"{s['case_id']}: classify={family}, expected={mid}"
@@ -506,7 +506,7 @@ def test_meta():
         assert isinstance(ep, list) and len(ep) > 0, f"{s['case_id']}: expected_present empty"
         assert isinstance(ea, list) and len(ea) > 0, f"{s['case_id']}: expected_absent empty"
 
-    counts = Counter(s["model_id"] for s in SAMPLES)
+    counts = Counter(s.get("expected_model_id", s.get("model_id")) for s in SAMPLES)
     assert set(counts.keys()) == EXPECTED_MODEL_IDS, (
         f"model_ids mismatch: got {sorted(counts.keys())}, expected {sorted(EXPECTED_MODEL_IDS)}"
     )
