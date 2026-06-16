@@ -105,12 +105,12 @@
 | beverage_dessert_03 | schools_500m=1 | 学校少，客流弱 |
 | retail_convenience_04 | schools_500m=1 | 辅助客流 |
 
-**P0 已关 / P1-P2 残余缺口**（T31-T33 + 2 样本已覆盖 P0 学校加权路径，以下为 P1/P2 残余）：
-- ✅ 便利店 school=8+res=2 → T31 + retail_convenience_06 已关
-- ✅ 酒店 school=8+res=3 → T32 + hotel_06 已关
-- P1 小吃快餐 school 高+无住宅/办公 → 寒暑假断崖在 advantages 已带"寒暑假"核验词，但未做独立回归样本
-- P1 茶饮 school 高但无步行动线核验 → 需改 business_model_service checklist（P1 范围）
-- P1 教育培训 school 高但家庭消费力弱 → 需加消费力核验样本（P1 范围）
+**P0 已关 / P1 残余**（T31-T33 + 2 样本已覆盖 P0，以下标注 P0 已关或 P1 残余）：
+- ✅ G1 小吃快餐 school 高+无住宅/办公 → T33 P0 已关（advantages 已带"寒暑假/午间动线/晚餐"核验词）。独立回归样本为可选增强，非 P1 必做。
+- ✅ G4 便利店 school=8+res=2 → T31 + retail_convenience_06 P0 已关
+- ✅ G5 酒店 school=8+res=3 → T32 + hotel_06 P0 已关
+- P1 G2 茶饮 school 高但无步行动线核验 → 需改 business_model_service checklist
+- P1 G3 教育培训 school 高但家庭消费力弱 → 需加消费力核验样本
 
 ---
 
@@ -207,7 +207,7 @@
 
 1. **school_500 被过度使用** — ✅ P0 已修正：`_weighted_school()` 按业态区分，7 处评分/文本路径全部走加权。
 
-2. **6 个测试缺口** — ✅ P0 已关 3 个（G1/G4/G5/G6），P1 残余 2 个（G2/G3）。
+2. **6 个测试缺口** — ✅ P0 已关 4 个（G1/G4/G5/G6），P1 残余 2 个（G2/G3）。
 
 3. **location_profile 学区判定粗糙** — ❌ P1 待做。`school_500 >= 8` 直接判为"学区及周边"，`school_anchor_breakdown` 已做类型细分但未被使用。
 
