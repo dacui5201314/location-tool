@@ -417,7 +417,7 @@ SAMPLES = [
      "expected_present":["工作室","暗竞品"],"expected_absent":["市场空白明显","品类切入空间较好","外卖骑手"]},
     {"case_id":"service_beauty_05","expected_model_id": "service_beauty", "model_id": "service_beauty","business_type":"宠物店","brand_name":"","store_size":60,
      "real_data":_make_rd(direct_competitors_200m=0,direct_competitors_500m=0,direct_competitors_1000m=0,stats_500m={"residential":7,"office":1,"schools":1,"subway":0,"bus":2,"parking":1,"shopping":0,"hotels":0,"restaurants":4}),
-     "expected_present":["直接竞品", "暗竞品", "工作室"],"expected_absent":["市场空白明显","外卖骑手"]},
+     "expected_present":["直接竞品", "暗竞品", "工作室", "物业", "噪音", "气味"],"expected_absent":["市场空白明显","外卖骑手"]},
 
     # 11 hotel: 商业热闹缺过夜需求; 0竞品不写蓝海
     {"case_id":"hotel_04","expected_model_id": "hotel", "model_id": "hotel","business_type":"酒店","brand_name":"","store_size":2000,

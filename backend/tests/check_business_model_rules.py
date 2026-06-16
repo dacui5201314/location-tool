@@ -395,6 +395,67 @@ def test_ph4h_entertainment_absorbed():
     print("T26 PH4H entertainment absorbed: PASS")
 
 
+# T27: 宠物店 snapshot 必须包含物业/噪音/气味约束
+def test_pet_business_snapshot_constraints():
+    from services.business_model_service import compute_business_model_snapshot
+    rd = _base_rd(direct_competitors_200m=0, direct_competitors_500m=0, direct_competitors_1000m=0,
+                  stats_500m={"residential":7,"office":1,"schools":1,"subway":0,"bus":2,"parking":1,"shopping":0,"hotels":0,"restaurants":4})
+    snap = compute_business_model_snapshot(rd, "宠物店", "", 60)
+    assert snap["model_type"] == "service_beauty"
+
+    # must_verify 必须包含物业/噪音/气味相关约束
+    mv_text = " ".join(snap.get("must_verify", []))
+    assert "物业" in mv_text, f"pet must_verify missing 物业: {mv_text}"
+    assert "噪音" in mv_text, f"pet must_verify missing 噪音: {mv_text}"
+    assert "气味" in mv_text, f"pet must_verify missing 气味: {mv_text}"
+
+    # stop_condition 必须包含物业/噪音/气味
+    sc = snap.get("stop_condition", "")
+    assert "物业" in sc or "噪音" in sc or "气味" in sc, f"pet stop missing: {sc}"
+
+    print("T27 pet snapshot constraints: PASS")
+
+
+# T28: 美容美发 snapshot 不得强塞宠物限制
+def test_non_pet_beauty_no_pet_constraints():
+    from services.business_model_service import compute_business_model_snapshot
+    rd = _base_rd(direct_competitors_200m=0, direct_competitors_500m=0, direct_competitors_1000m=0)
+    snap = compute_business_model_snapshot(rd, "美容美发", "", 40)
+    assert snap["model_type"] == "service_beauty"
+
+    # must_verify 不得包含宠物专属的物业/排风约束
+    mv_text = " ".join(snap.get("must_verify", []))
+    assert "排风" not in mv_text, f"beauty must_verify should not have 排风: {mv_text}"
+    assert "宠物" not in mv_text, f"beauty must_verify should not mention 宠物 exclusively: {mv_text}"
+
+    # stop_condition 不得包含宠物专属条件
+    sc = snap.get("stop_condition", "")
+    assert "宠物业态" not in sc, f"beauty stop should not mention 宠物业态: {sc}"
+
+    print("T28 non-pet beauty no pet constraints: PASS")
+
+
+# T29: 宠物店 field_checklist 必须包含物业/噪音/气味
+def test_pet_business_checklist_constraints():
+    from services.business_model_service import build_business_field_checklist
+    rd = _base_rd(direct_competitors_200m=0, direct_competitors_500m=0, direct_competitors_1000m=0,
+                  stats_500m={"residential":7,"office":1,"schools":1,"subway":0,"bus":2,"parking":1,"shopping":0,"hotels":0,"restaurants":4})
+    fc = build_business_field_checklist(rd, "宠物店", "", 60)
+
+    # 所有 field_checklist 文本拼接
+    all_text = " ".join(
+        item.get("title", "") + " " + item.get("action", "") + " " +
+        item.get("pass_hint", "") + " " + item.get("eliminate_hint", "")
+        for item in fc
+    )
+
+    assert "物业" in all_text, f"pet checklist missing 物业: {all_text}"
+    assert "噪音" in all_text, f"pet checklist missing 噪音: {all_text}"
+    assert "气味" in all_text, f"pet checklist missing 气味: {all_text}"
+
+    print("T29 pet checklist constraints: PASS")
+
+
 # T19: 全部前台 business_type 归类覆盖
 # ── Master self-mapping keys (not user-facing leaf types) ──
 _MASTER_SELF_KEYS = {
@@ -523,6 +584,9 @@ if __name__ == "__main__":
     test_ph4h_beauty_absorbed()
     test_ph4h_pharmacy_absorbed()
     test_ph4h_entertainment_absorbed()
+    test_pet_business_snapshot_constraints()
+    test_non_pet_beauty_no_pet_constraints()
+    test_pet_business_checklist_constraints()
     test_leaf_business_type_coverage()
     test_master_keys_not_generic()
     test_same_location_different_business()

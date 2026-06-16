@@ -53,7 +53,7 @@
 - 每样本 expected_present/expected_absent，JSON + HTML 双文本扫描，禁止表达扫描
 - expected_model_id 60/60 全覆盖，meta 强制必填且断言 `expected_model_id == model_id`
 - 元测试：EXPECTED_MODEL_IDS 常量、set 精确匹配、每族 >=5、case_id 唯一
-- **已知缺口**：service_beauty_05 暴露"宠物店物业/噪音/气味限制"尚未被当前 business model 确定性输出覆盖（YAML `forbidden_misreadings` 已记录但未渲染到报告文本）。本轮不改 YAML/service；后续吸收必须补 source_refs 和回归测试。
+- **Phase 4K 已收口**：宠物店物业/噪音/气味限制已通过 `_is_pet_business()` 检测 + snapshot.must_verify/stop_condition + field_checklist 确定性注入 report_json（service_beauty_05 expected_present 含 物业/噪音/气味）。非宠物业态（美容美发/健身）不受影响。source_refs 不变（沿用 product_review_004）。
 
 ## 当前测试矩阵
 
@@ -65,7 +65,7 @@
 | check_p05_report_quality.py | 13 | PASS |
 | check_p1_business_model_quality.py | 22 | PASS |
 | check_location_profile_rules.py | 6 | PASS |
-| check_business_model_rules.py | 30 | PASS |
+| check_business_model_rules.py | 33 | PASS |
 | check_report_enrichment_service.py | 11 | PASS |
 | check_knowledge_schema_rules.py | 16 | PASS |
 | check_sample_regression.py | 60 | PASS |
@@ -80,7 +80,7 @@
 ## 后续只允许围绕本方案继续
 
 - ~~报告精准度样本扩充：36 → 60（12 族 x5）~~ ✅ 已完成（Phase 4J）。
-- 宠物店物业/噪音/气味限制需后续 YAML/service 吸收（service_beauty_05 gap），吸收时补 source_refs 和回归测试。
+- ~~宠物店物业/噪音/气味限制 YAML/service 吸收~~ ✅ 已完成（Phase 4K）。
 - 外部资料蒸馏继续补齐，但只做 source card 候选规则，不直接改变报告行为。
 - source card → YAML 吸收时必须补 source_refs 和回归测试。
 - 学校/校园客流源归并。

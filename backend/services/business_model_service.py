@@ -115,6 +115,17 @@ _ENTERTAINMENT_KW = [
     "桌游", "电玩", "轰趴", "VR", "夜经济",
 ]
 
+_PET_KW = ["宠物", "猫舍", "犬舍"]
+
+
+def _is_pet_business(business_type: str = "", brand_name: str = "", category: str = "") -> bool:
+    """检测是否为宠物业态（非美容/美发/健身）。"""
+    combined = f"{business_type or ''} {brand_name or ''} {category or ''}"
+    for kw in _PET_KW:
+        if kw in combined:
+            return True
+    return False
+
 
 def classify_business_model_family(business_type: str, brand_name: str = "",
                                    category: str = "") -> str:
@@ -613,18 +624,32 @@ def _snapshot_service_beauty(real_data, business_type, brand_name, store_size):
         )
     else:
         competitor_note = ""
+
+    is_pet = _is_pet_business(business_type, brand_name)
+
+    must_verify = [
+        "走访周边中高档住宅小区评估消费力",
+        "观察同类门店客流和会员活跃度",
+        "询价周边商铺租金",
+        "确认停车条件和门头可见度",
+    ]
+    if is_pet:
+        must_verify.extend([
+            "确认物业是否允许宠物业态经营（噪音/气味/排风硬约束）",
+            "评估邻里投诉和物业限制风险",
+        ])
+
+    stop_condition = "周边消费力不足、竞品密集、或租金占比超预期"
+    if is_pet:
+        stop_condition += "、物业不允许宠物业态、或噪音/气味/排风条件不满足"
+
     return {
         "model_type": "service_beauty",
         "core_logic": "美业/宠物/健身做3公里内会员储值生意，核心看周边中高消费力住宅密度。",
         "competitor_note": competitor_note,
-        "must_verify": [
-            "走访周边中高档住宅小区评估消费力",
-            "观察同类门店客流和会员活跃度",
-            "询价周边商铺租金",
-            "确认停车条件和门头可见度",
-        ],
+        "must_verify": must_verify,
         "fit_condition": "周边中高消费力住宅充足、停车方便、竞品不超过2家、租金可控",
-        "stop_condition": "周边消费力不足、竞品密集、或租金占比超预期",
+        "stop_condition": stop_condition,
         "score_explanation": "美业/健身评分重点看周边消费力，人口数量不等同于消费匹配。",
     }
 
@@ -1077,7 +1102,8 @@ def _checklist_pharmacy(real_data, business_type, brand_name, store_size):
 
 
 def _checklist_service_beauty(real_data, business_type, brand_name, store_size):
-    return [
+    is_pet = _is_pet_business(business_type, brand_name)
+    items = [
         _make_item("评估周边社区消费力", "工作日晚上和周末",
                    "走访周边小区，观察车辆档次、居民消费习惯", "消费力不足",
                    "周边以中高档小区为主，消费力匹配", "周边以老旧小区/城中村为主，消费力不匹配"),
@@ -1091,6 +1117,16 @@ def _checklist_service_beauty(real_data, business_type, brand_name, store_size):
                    "询问相邻商户实际租金", "租金过高",
                    "租金在预算范围内", "月租金占比过高"),
     ]
+    if is_pet:
+        items.append(_make_item(
+            "核验物业宠物业态许可与噪音/气味约束",
+            "工作日白天",
+            "向物业确认是否允许宠物店经营，检查排风/隔音/气味处理条件，了解邻里投诉历史",
+            "物业限制",
+            "物业允许宠物品类、排风/隔音/气味条件满足、无历史投诉",
+            "物业不允许宠物业态，或排风/隔音/气味条件无法满足",
+        ))
+    return items
 
 
 def _checklist_generic(real_data, business_type, brand_name, store_size):
