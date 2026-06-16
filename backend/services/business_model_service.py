@@ -529,10 +529,38 @@ def _snapshot_snack_fast_food(real_data, business_type, brand_name, store_size):
 
 
 def _snapshot_food_service(real_data, business_type, brand_name, store_size):
+    r = real_data or {}
+    s10 = r.get("stats_1000m", {}) or {}
+    dc_200 = _int(r.get("direct_competitors_200m", 0))
+    dc_500 = _int(r.get("direct_competitors_500m", 0))
+    dc_1000 = _int(r.get("direct_competitors_1000m", 0))
+    restaurants_1k = _int(s10.get("restaurants", 0))
+
+    if dc_1000 == 0 and dc_500 == 0:
+        competitor_note = (
+            f"1000米内未检出同品类正餐门店，周边餐饮{restaurants_1k}家。"
+            f"正餐为半聚集型，0竞品不简单等于竞争压力低——需核验停车便利度、"
+            f"周边餐饮生态成熟度和自身品质支撑，不可简单视为品类机会。"
+        )
+    elif dc_200 == 0 and dc_1000 >= 6:
+        competitor_note = (
+            f"近场无直接竞品，但1000米同类{dc_1000}家、餐饮{restaurants_1k}家。"
+            f"正餐半聚集型需看停车条件和晚市聚餐需求是否成立。"
+        )
+    elif dc_200 == 0:
+        competitor_note = (
+            f"近场无直接竞品，1000米同类{dc_1000}家。"
+            f"需核验停车、晚市客流和周边餐饮生态。"
+        )
+    else:
+        competitor_note = (
+            f"200米直接竞品{dc_200}家、500米{dc_500}家、1000米{dc_1000}家。"
+        )
+
     return {
         "model_type": "food_service",
         "core_logic": "正餐/火锅依赖晚市和周末聚餐，停车便利度、包厢数量、品牌势能是关键。",
-        "competitor_note": "",
+        "competitor_note": competitor_note,
         "must_verify": [
             "晚市高峰18:00-20:00观察门口人流和停车情况",
             "走访同品类门店了解翻台率和客单价",
@@ -549,9 +577,40 @@ def _snapshot_food_service(real_data, business_type, brand_name, store_size):
 def _snapshot_beverage_dessert(real_data, business_type, brand_name, store_size):
     r = real_data or {}
     s5 = r.get("stats_500m", {}) or {}
+    s10 = r.get("stats_1000m", {}) or {}
     school_500 = _int(s5.get("schools", 0))
     res_500 = _int(s5.get("residential", 0))
     office_500 = _int(s5.get("office", 0))
+    dc_200 = _int(r.get("direct_competitors_200m", 0))
+    dc_500 = _int(r.get("direct_competitors_500m", 0))
+    dc_1000 = _int(r.get("direct_competitors_1000m", 0))
+    restaurants_1k = _int(s10.get("restaurants", 0))
+    hot_brands = r.get("hot_brands", []) or []
+
+    if dc_1000 == 0 and dc_500 == 0:
+        brand_hint = ""
+        if hot_brands:
+            brand_hint = "周边存在强品牌门店覆盖，外卖平台需单独评估竞品密度。"
+        competitor_note = (
+            f"1000米内未检出同品类茶饮/咖啡门店，周边餐饮{restaurants_1k}家。"
+            f"茶饮为半聚集型，0竞品不简单等于竞争压力低——需核验步行动线、"
+            f"外卖平台强品牌覆盖和年轻客群实际存在量，不可简单视为品类机会。"
+            + (f" {brand_hint}" if brand_hint else "")
+        )
+    elif dc_200 == 0 and dc_1000 >= 5:
+        competitor_note = (
+            f"近场无直接竞品，但1000米同类{dc_1000}家、餐饮{restaurants_1k}家。"
+            f"茶饮半聚集型需核验步行动线和外卖平台强品牌覆盖。"
+        )
+    elif dc_200 == 0:
+        competitor_note = (
+            f"近场无直接竞品，1000米同类{dc_1000}家。"
+            f"需核验步行动线、外卖平台排名和周边年轻客群密度。"
+        )
+    else:
+        competitor_note = (
+            f"200米直接竞品{dc_200}家、500米{dc_500}家、1000米{dc_1000}家。"
+        )
 
     must_verify = [
         "工作日全天观察门前步行人流量",
@@ -567,7 +626,7 @@ def _snapshot_beverage_dessert(real_data, business_type, brand_name, store_size)
     return {
         "model_type": "beverage_dessert",
         "core_logic": "茶饮/咖啡/烘焙依赖冲动消费和步行客流，核心看地铁口/学校门口/写字楼底层曝光位置。",
-        "competitor_note": "",
+        "competitor_note": competitor_note,
         "must_verify": must_verify,
         "fit_condition": "位于核心动线上、步行客流充足、品牌有辨识度、外卖可覆盖",
         "stop_condition": "动线偏僻、步行客流不足、竞品密集且品牌势能弱",

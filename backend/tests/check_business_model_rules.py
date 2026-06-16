@@ -618,6 +618,40 @@ def test_snack_k12_still_triggers_checklist():
     print("T37 snack K12 still triggers checklist: PASS")
 
 
+# T38 G1: food_service 0竞品 → competitor_note 非空，含半聚集型/停车/餐饮生态/品质支撑
+def test_food_service_zero_comp_competitor_note():
+    from services.business_model_service import compute_business_model_snapshot
+    rd = _base_rd(direct_competitors_200m=0, direct_competitors_500m=0, direct_competitors_1000m=0,
+                  stats_1000m={"residential":13,"office":0,"schools":9,"hospitals":1,"subway":0,"bus":8,"parking":26,"shopping":0,"hotels":7,"restaurants":30})
+    snap = compute_business_model_snapshot(rd, "中餐", "", 120)
+    assert snap["model_type"] == "food_service"
+    cn = snap.get("competitor_note", "")
+    assert len(cn) > 0, f"G1 competitor_note must not be empty"
+    assert any(kw in cn for kw in ["半聚集", "停车", "餐饮生态", "品质支撑"]), \
+        f"G1 must have one of 半聚集/停车/餐饮生态/品质支撑: {cn}"
+    assert "市场空白" not in cn
+    assert "蓝海" not in cn
+    assert "竞争压力较小" not in cn
+    print(f"T38 food_service 0 comp note: {cn[:80]}... PASS")
+
+
+# T39 G2: beverage_dessert 0竞品 → competitor_note 非空，含步行动线/外卖平台/强品牌/半聚集型
+def test_beverage_zero_comp_competitor_note():
+    from services.business_model_service import compute_business_model_snapshot
+    rd = _base_rd(direct_competitors_200m=0, direct_competitors_500m=0, direct_competitors_1000m=0,
+                  stats_1000m={"residential":10,"office":3,"schools":2,"hospitals":0,"subway":1,"bus":6,"parking":2,"shopping":1,"hotels":1,"restaurants":15})
+    snap = compute_business_model_snapshot(rd, "奶茶店", "", 20)
+    assert snap["model_type"] == "beverage_dessert"
+    cn = snap.get("competitor_note", "")
+    assert len(cn) > 0, f"G2 competitor_note must not be empty"
+    assert any(kw in cn for kw in ["步行动线", "外卖平台", "强品牌", "半聚集"]), \
+        f"G2 must have one of 步行动线/外卖平台/强品牌/半聚集: {cn}"
+    assert "市场空白" not in cn
+    assert "蓝海" not in cn
+    assert "竞争压力较小" not in cn
+    print(f"T39 beverage 0 comp note: {cn[:80]}... PASS")
+
+
 # T19: 全部前台 business_type 归类覆盖
 # ── Master self-mapping keys (not user-facing leaf types) ──
 _MASTER_SELF_KEYS = {
@@ -757,6 +791,8 @@ if __name__ == "__main__":
     test_training_weak_consumption()
     test_snack_university_no_school_checklist()
     test_snack_k12_still_triggers_checklist()
+    test_food_service_zero_comp_competitor_note()
+    test_beverage_zero_comp_competitor_note()
     test_leaf_business_type_coverage()
     test_master_keys_not_generic()
     test_same_location_different_business()

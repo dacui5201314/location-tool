@@ -2,7 +2,7 @@
 
 > 审计范围：snack_fast_food / food_service / beverage_dessert 三族的竞品口径
 > 审计日期：2026-06-16
-> 状态：审计完成，待 Phase 4M-B 实施
+> 状态：P0 已实施（4M-B），G1/G2 已关；G3/G4/G5/G6 待 4M-C
 
 ## 1. 现有代码位置清单
 

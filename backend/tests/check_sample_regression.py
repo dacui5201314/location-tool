@@ -358,6 +358,10 @@ SAMPLES = [
     {"case_id":"food_service_05","expected_model_id": "food_service", "model_id": "food_service","business_type":"火锅店","brand_name":"","store_size":200,
      "real_data":_make_rd(direct_competitors_200m=2,direct_competitors_500m=5,direct_competitors_1000m=10,stats_500m={"residential":5,"office":12,"schools":1,"subway":1,"bus":6,"parking":3,"shopping":2,"hotels":2,"restaurants":20},stats_1000m={"residential":10,"office":20,"schools":2,"subway":2,"bus":10,"parking":5,"shopping":3,"hotels":4,"restaurants":40}),
      "expected_present":["晚市","停车"],"expected_absent":["推荐开店"]},
+    # 02.5 food_service G1: 0竞品 → competitor_note 含半聚集型/停车/餐饮生态
+    {"case_id":"food_service_06_zero_comp","expected_model_id": "food_service", "model_id": "food_service","business_type":"中餐","brand_name":"","store_size":150,
+     "real_data":_make_rd(direct_competitors_200m=0,direct_competitors_500m=0,direct_competitors_1000m=0,stats_500m={"residential":4,"office":0,"schools":2,"subway":0,"bus":3,"parking":0,"shopping":1,"hotels":1,"restaurants":12},stats_1000m={"residential":10,"office":0,"schools":4,"subway":0,"bus":6,"parking":2,"shopping":1,"hotels":2,"restaurants":25}),
+     "expected_present":["半聚集","停车","直接竞品"],"expected_absent":["市场空白","蓝海","竞争压力较小","推荐开店"]},
 
     # 03 beverage: 0竞品缺年轻客群; 平台强品牌覆盖
     {"case_id":"beverage_dessert_04","expected_model_id": "beverage_dessert", "model_id": "beverage_dessert","business_type":"奶茶店","brand_name":"","store_size":15,
@@ -370,6 +374,10 @@ SAMPLES = [
     {"case_id":"beverage_dessert_06_schoolflow","expected_model_id": "beverage_dessert", "model_id": "beverage_dessert","business_type":"饮品店","brand_name":"","store_size":20,
      "real_data":_make_rd(direct_competitors_200m=0,direct_competitors_500m=0,direct_competitors_1000m=1,stats_500m={"residential":2,"office":1,"schools":6,"subway":0,"bus":2,"parking":1,"shopping":0,"hotels":0,"restaurants":4}),
      "expected_present":["直接竞品", "步行动线", "放学时段"],"expected_absent":["年轻客群充足","市场空白明显","推荐开店"]},
+    # 03.5 beverage_dessert G2: 0竞品 → competitor_note 含步行动线/外卖平台/半聚集
+    {"case_id":"beverage_dessert_07_zero_comp","expected_model_id": "beverage_dessert", "model_id": "beverage_dessert","business_type":"咖啡店","brand_name":"","store_size":20,
+     "real_data":_make_rd(direct_competitors_200m=0,direct_competitors_500m=0,direct_competitors_1000m=0,stats_500m={"residential":6,"office":3,"schools":1,"subway":1,"bus":5,"parking":1,"shopping":1,"hotels":1,"restaurants":10}),
+     "expected_present":["步行动线","半聚集","直接竞品"],"expected_absent":["市场空白","蓝海","竞争压力较小","推荐开店"]},
 
     # 04 retail_convenience: 住宅多动线不经过; 入住率不足
     {"case_id":"retail_convenience_04","expected_model_id": "retail_convenience", "model_id": "retail_convenience","business_type":"便利店","brand_name":"","store_size":50,
