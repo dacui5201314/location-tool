@@ -41,6 +41,8 @@ key_time_windows:
 
 hard_gates:
   - "食品经营许可（含预包装食品）或烟草专卖许可"
+  # Phase 4G 吸收: book_005
+  - "卸货、补货、冷链和垃圾处理条件可满足"
 
 fit_signals:
   - "周边 500m 住宅 ≥ 5 个且入住率高"
@@ -54,6 +56,9 @@ red_flags:
   # Phase 1.5 吸收: book_002/report_summary_001
   - "周边 500m 空铺率超过 20% 或主力店已撤场"
   - "3km 配送半径内覆盖人口不足 10 万（仅对新零售/前置仓模式）"
+  # Phase 4G 吸收: book_005
+  - "住宅数量达标但主出入口和通勤动线不经过门店"
+  - "卸货、冷链、补货频次无法稳定支持门店运营"
 
 revenue_model:
   unit_logic: "日均客流 x 转化率 x 客单价 x 30 天；毛利率 20-30%"
@@ -69,6 +74,9 @@ data_blind_spots:
   # Phase 1.5 吸收: book_002/report_summary_001
   - "盒马/叮咚/美团等新零售前置仓模型不适用于普通便利超市选址判断。"
   - "空铺率和主力店撤场信号需定期走访确认，POI 数据更新有滞后。"
+  # Phase 4G 吸收: book_005
+  - "便利店依赖小商圈高密度复购，不能按大卖场覆盖半径判断。"
+  - "住宅实际入住率、年龄结构和即时消费习惯需现场走访确认。"
 
 forbidden_misreadings:
   - "不能只因住宅数量高就直接写推荐。"
@@ -76,6 +84,9 @@ forbidden_misreadings:
   - "不能输出推荐开店、值得投资、可以放心等决策语言。"
   # Phase 1.5 吸收: report_summary_001
   - "不能把盒马的店仓一体/3km 配送模型直接套用到普通便利店选址。"
+  # Phase 4G 吸收: book_005
+  - "不能把 500m 内住宅多直接等同于便利店需求强。"
+  - "不能用大卖场覆盖半径逻辑套用便利店选址。"
 
 sources:
   - id: "rule_seed_002"
@@ -89,6 +100,9 @@ source_refs:
   - source_id: "report_summary_001"
     applies_to: ["red_flags", "data_blind_spots", "forbidden_misreadings"]
     rule_key: "hema_model_not_for_convenience"
+  - source_id: "book_005"
+    applies_to: ["hard_gates", "red_flags", "data_blind_spots", "forbidden_misreadings"]
+    rule_key: "cvs_density_and_dongxian"
 
 last_reviewed: "2026-06-15"
 owner: "product"

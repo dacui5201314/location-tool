@@ -40,6 +40,9 @@ key_time_windows:
 
 hard_gates:
   - "食品经营许可和排烟条件可办理"
+  # Phase 4G 吸收: book_003
+  - "排烟、上下水、电力、燃气满足后厨需求"
+  - "消防条件满足餐饮经营要求"
 
 fit_signals:
   - "午高峰实测目标客群达标"
@@ -56,6 +59,10 @@ red_flags:
   - "门头在 50m 外不可见或被树木/广告牌/建筑完全遮挡"
   - "只有午市或晚市单一高峰支撑，另一时段基本为零"
   - "月租金超过预估月营收 20%（快餐业态租售比红线）"
+  # Phase 4G 吸收: book_003 从零开始做餐饮
+  - "品类客单价明显高于周边主流消费能力"
+  - "排烟、排污、燃气、电力或消防任一条件无法满足经营许可"
+  - "过度依赖外卖补量但平台强品牌密集、配送动线差"
 
 revenue_model:
   unit_logic: "日均单量 x 客单价 x 毛利率"
@@ -72,6 +79,9 @@ data_blind_spots:
   # Phase 1.5 吸收: book_001/book_002
   - "门头可视性（50m 无障碍）需现场观察确认，无法从 POI 数据推导。"
   - "午晚双高峰各自客流的峰谷差异需线下实测，无法仅靠 POI 推断。"
+  # Phase 4G 吸收: book_003
+  - "POI 只能反映周边餐饮数量，不能反映后厨条件和物业许可。"
+  - "外卖平台强弱、配送时效和真实月销需单独核验。"
 
 forbidden_misreadings:
   - "不能把 200m 无竞品直接写成市场空白红利。"
@@ -79,6 +89,9 @@ forbidden_misreadings:
   # Phase 1.5 吸收: book_001/book_002
   - "不能把金角银边绝对化：窄街的银边可能优于宽马路的金角。"
   - "不能只看午市忽略晚市：午市强的点位可能因住宅少导致晚市极弱。"
+  # Phase 4G 吸收: book_003
+  - "不能把餐饮门店多直接理解为任意餐饮品类都适合。"
+  - "不能忽略物业条件，只用客流和竞品数量做餐饮判断。"
 
 sources:
   - id: "internal_sample_001"
@@ -98,6 +111,9 @@ source_refs:
   - source_id: "book_002"
     applies_to: ["red_flags"]
     rule_key: "rent_ratio_20pct_snack"
+  - source_id: "book_003"
+    applies_to: ["hard_gates", "red_flags", "data_blind_spots", "forbidden_misreadings"]
+    rule_key: "kitchen_infra_and_category_match"
 
 last_reviewed: "2026-06-15"
 owner: "product"

@@ -311,6 +311,45 @@ def test_entertainment_semantics():
     print("T18 entertainment PASS")
 
 
+def test_ph4g_catering_absorbed():
+    from services.business_model_service import load_business_model
+    for mid in ["snack_fast_food", "food_service"]:
+        m = load_business_model(mid)
+        rf = " ".join(m.get("red_flags", []))
+        assert "排烟" in rf or "排污" in rf or "燃气" in rf or "消防" in rf, \
+            f"{mid} missing kitchen infra: {rf[:120]}"
+        fm = " ".join(m.get("forbidden_misreadings", []))
+        assert "物业" in fm or "后厨" in fm or "餐饮品类" in fm or "餐饮门店" in fm, \
+            f"{mid} missing category-match: {fm[:120]}"
+        assert "book_003" in {r["source_id"] for r in m.get("source_refs", [])}
+    print("T19 PH4G catering absorbed: PASS")
+
+
+def test_ph4g_convenience_absorbed():
+    from services.business_model_service import load_business_model
+    m = load_business_model("retail_convenience")
+    rf = " ".join(m.get("red_flags", []))
+    assert "出入口" in rf or "动线" in rf, f"missing dongxian: {rf[:120]}"
+    fm = " ".join(m.get("forbidden_misreadings", []))
+    assert "大卖场" in fm or "覆盖半径" in fm, f"missing cvs logic: {fm[:120]}"
+    assert "book_005" in {r["source_id"] for r in m.get("source_refs", [])}
+    print("T20 PH4G convenience absorbed: PASS")
+
+
+def test_ph4g_hotel_absorbed():
+    from services.business_model_service import load_business_model
+    m = load_business_model("hotel")
+    rf = " ".join(m.get("red_flags", []))
+    assert "商业热闹" in rf or "过夜需求" in rf, f"missing demand: {rf[:120]}"
+    fm = " ".join(m.get("forbidden_misreadings", []))
+    assert "价格带" in fm or "客源结构" in fm or "淡旺季" in fm, f"missing positioning: {fm[:120]}"
+    hg = " ".join(m.get("hard_gates", []))
+    assert "电梯" in hg or "停车" in hg or "出入口" in hg, f"missing property: {hg[:120]}"
+    ref_ids = {r["source_id"] for r in m.get("source_refs", [])}
+    assert "book_011" in ref_ids and "book_012" in ref_ids, f"missing hotel refs: {ref_ids}"
+    print("T21 PH4G hotel absorbed: PASS")
+
+
 # T19: 全部前台 business_type 归类覆盖
 # ── Master self-mapping keys (not user-facing leaf types) ──
 _MASTER_SELF_KEYS = {
@@ -431,6 +470,12 @@ if __name__ == "__main__":
     test_retail_shopping_semantics()
     test_hotel_semantics()
     test_entertainment_semantics()
+    test_ph4g_catering_absorbed()
+    test_ph4g_convenience_absorbed()
+    test_ph4g_hotel_absorbed()
+    test_ph4g_catering_absorbed()
+    test_ph4g_convenience_absorbed()
+    test_ph4g_hotel_absorbed()
     test_leaf_business_type_coverage()
     test_master_keys_not_generic()
     test_same_location_different_business()

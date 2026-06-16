@@ -49,6 +49,9 @@ hard_gates:
   - "特种行业许可证"
   - "消防验收合格"
   - "公共卫生许可"
+  # Phase 4G 吸收: book_011/book_012
+  - "独立出入口、电梯和停车条件满足酒店运营"
+  - "房型结构（单/双/套）匹配目标客源"
 
 fit_signals:
   - "位于交通枢纽/商务区/景区核心圈"
@@ -61,6 +64,10 @@ red_flags:
   - "同档次酒店严重过剩且入住率持续走低"
   - "消防或特种行业许可无法办理"
   - "物业条件不满足（层高/独立大堂/电梯/停车）"
+  # Phase 4G 吸收: book_011/book_012
+  - "周边商业热闹但无过夜需求"
+  - "OTA 同区域价格战明显，获客成本过高"
+  - "淡旺季波动过大且无商务/交通/医疗等稳定需求锚点对冲"
 
 revenue_model:
   unit_logic: "房间数 x 入住率 x ADR x 30 天；RevPAR 为核心指标"
@@ -73,16 +80,29 @@ data_blind_spots:
   - "民宿平台（Airbnb/途家）的非标住宿不在 POI 收录范围。"
   - "OTA 平台上竞争对手的实际入住率和 ADR 需单独调研。"
   - "物业层高、独立大堂、电梯数量和停车位需现场核验。"
+  # Phase 4G 吸收: book_011/book_012
+  - "POI 不能反映酒店入住率、ADR、RevPAR 和 OTA 评价质量。"
+  - "民宿和非标住宿可能不以酒店 POI 形式完整收录。"
+  - "淡旺季、OTA 渠道成本和证照办理难度需逐一核验。"
 
 forbidden_misreadings:
   - "不能把 0 竞品当成品类机会：0 酒店通常意味着住宿需求不足。"
   - "不能把周边餐饮/商业活跃度等同于酒店住宿需求。"
+  # Phase 4G 吸收: book_011/book_012
+  - "不能只看酒店数量，不看价格带和客源结构。"
+  - "不能忽略淡旺季，把短期热度当成全年需求。"
   - "不能输出推荐开店、值得投资、可以放心等决策语言。"
 
 source_refs:
   - source_id: "rule_seed_006"
     applies_to: ["competition"]
     rule_key: "hotel_aggregation_type"
+  - source_id: "book_011"
+    applies_to: ["hard_gates", "red_flags", "data_blind_spots", "forbidden_misreadings"]
+    rule_key: "hotel_demand_anchors_and_compliance"
+  - source_id: "book_012"
+    applies_to: ["hard_gates", "red_flags", "data_blind_spots", "forbidden_misreadings"]
+    rule_key: "hotel_positioning_and_ota"
 
 sources:
   - id: "rule_seed_006"
