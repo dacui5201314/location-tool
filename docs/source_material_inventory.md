@@ -15,13 +15,19 @@
 
 | source_id | 资料名 | 类型 | 状态 | 适用模型 |
 |-----------|--------|------|------|----------|
-| book_001 | 千分选址 最实效的餐饮连锁门店选址策略 | book | 历史已蒸馏并部分吸收 | snack_fast_food, food_service |
-| book_002 | 连锁门店开发与选址 | book | 历史已蒸馏并部分吸收 | snack_fast_food, retail_convenience, retail_shopping |
-| report_summary_001 | 社区化新零售的布局选址与优化发展研究-以南京市盒马鲜生为例 | report_summary | 已蒸馏并部分吸收 | retail_convenience |
-| book_003 | 从零开始做餐饮 | book | 已蒸馏候选规则 | snack_fast_food, food_service |
-| book_005 | 零售的哲学：7-Eleven便利店创始人自述 | book | 已蒸馏候选规则，限便利店需求/经营方法论 | retail_convenience |
-| book_011 | 现代酒店管理 | book | 已蒸馏候选规则，限酒店需求锚点/证照/物业核验 | hotel |
-| book_012 | 酒店管理概论 | book | 已蒸馏候选规则，限酒店定位/客源结构/淡旺季/OTA 核验 | hotel |
+| book_001 | 千分选址 最实效的餐饮连锁门店选址策略 | book | Phase 1.5 已吸收 | snack_fast_food, food_service |
+| book_002 | 连锁门店开发与选址 | book | Phase 1.5 已吸收 | snack_fast_food, retail_convenience, retail_shopping |
+| report_summary_001 | 社区化新零售的布局选址与优化发展研究-以南京市盒马鲜生为例 | report_summary | Phase 1.5 已吸收 | retail_convenience |
+| book_003 | 从零开始做餐饮 | book | Phase 4G 已吸收 | snack_fast_food, food_service |
+| book_005 | 零售的哲学：7-Eleven便利店创始人自述 | book | Phase 4G 已吸收 | retail_convenience |
+| book_011 | 现代酒店管理 | book | Phase 4G 已吸收 | hotel |
+| book_012 | 酒店管理概论 | book | Phase 4G 已吸收 | hotel |
+| book_013 | 一本书读懂校外托管机构运营与管理 | book | Phase 4I 已吸收 | education_childcare |
+| product_review_002 | 址得选 教育托管业态知识梳理 | product_review | Phase 4H 已吸收 | education_childcare |
+| product_review_003 | 址得选 教育培训业态知识梳理 | product_review | Phase 4H 已吸收 | education_training |
+| product_review_004 | 址得选 美业健身宠物业态知识梳理 | product_review | Phase 4H 已吸收 | service_beauty |
+| product_review_005 | 址得选 药店业态知识梳理 | product_review | Phase 4H 已吸收 | pharmacy |
+| product_review_006 | 址得选 休闲娱乐业态知识梳理 | product_review | Phase 4H 已吸收 | entertainment |
 
 ## 本地有文件但本轮不蒸馏
 
