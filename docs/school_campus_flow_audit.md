@@ -2,7 +2,7 @@
 
 > 审计范围：12 族 business model + location_profile + fallback scoring + enrichment + sample regression
 > 审计日期：2026-06-16
-> 状态：P0 已实施（Phase 4L-B），P1/P2 待定
+> 状态：P0 已实施（e30241f2），P1/P2 待实施
 
 ## 1. 涉及学校/校园客流的代码位置清单
 
@@ -105,11 +105,12 @@
 | beverage_dessert_03 | schools_500m=1 | 学校少，客流弱 |
 | retail_convenience_04 | schools_500m=1 | 辅助客流 |
 
-**缺失覆盖**：
-- ❌ 小吃快餐：schools_500m=8 但无住宅/办公 → 寒暑假断崖风险未测试
-- ❌ 茶饮：schools_500m=6 但无步行动线核验 → 学校客流≠步行动线客流
-- ❌ 教育培训：schools_500m=5 但家庭消费力弱 → 学校数高但生源质量低
-- ❌ 便利店/零售：schools_500m=8 → 学校成为主导客流（不应如此）
+**P0 已关 / P1-P2 残余缺口**（T31-T33 + 2 样本已覆盖 P0 学校加权路径，以下为 P1/P2 残余）：
+- ✅ 便利店 school=8+res=2 → T31 + retail_convenience_06 已关
+- ✅ 酒店 school=8+res=3 → T32 + hotel_06 已关
+- P1 小吃快餐 school 高+无住宅/办公 → 寒暑假断崖在 advantages 已带"寒暑假"核验词，但未做独立回归样本
+- P1 茶饮 school 高但无步行动线核验 → 需改 business_model_service checklist（P1 范围）
+- P1 教育培训 school 高但家庭消费力弱 → 需加消费力核验样本（P1 范围）
 
 ---
 
@@ -148,54 +149,52 @@
 | 非教育业态不出现托管核验词 | T5, T28 |
 | YAML forbidden_misreadings: 大学≠小学托管客源 | YAML schema 检查（T24 PH4H beauty absorbed） |
 
-### 未覆盖 ❌（Phase 4L-B 应补齐）
+### P1/P2 未覆盖（Phase 4L-B P0 已关，以下待后续）
 
-| 缺口编号 | 场景 | 风险 | 建议测试 |
-|---------|------|------|---------|
-| **G1** | 小吃快餐 schools_500m=8, res_500=2, office_500=0 | 学校主导但寒暑假/周末断崖，"学生客群稳定"被误写为优势 | 优势中不得出现"学生客群稳定"无寒暑假提示 |
-| **G2** | 茶饮 schools_500m=6, 门店不在校门口动线上 | 学校客流≠步行动线客流，POI 学校数高但实际无人经过 | checklist 必须含"步行动线"核验 |
-| **G3** | 教育培训 schools_500m=5, res_500=2（老旧小区） | 学校多但周边家庭消费力弱 | 不得写"生源充足"；必须提示"消费力核验" |
-| **G4** | 便利店 schools_500m=8, res_500=2 | 学校成为主导客流源，但便利店核心是住宅 | 不应将学校写为优势 |
-| **G5** | 酒店 schools_500m=5, office_500=1, res_500=3 | 学校数参与 consumer_profile 评分，不合逻辑 | 酒店客群评分不应被学校抬高 |
-| **G6** | 所有业态 school_500 >= 3 → "学生客群稳定" | 通用优势语句对所有业态生效 | 非教育/餐饮业态不应出现此句 |
+| 缺口编号 | 状态 | 场景 | 风险 | 建议测试 |
+|---------|------|------|------|---------|
+| **G1** | P0 已关 (T33) | 小吃快餐 schools=8, res=2, office=0 | 学校优势必须带核验词 | ✅ advantages 已带"寒暑假/午间动线/晚餐" |
+| **G2** | P1 | 茶饮 schools=6 不在校门口动线 | 学校客流≠步行动线客流 | 需改 business_model_service checklist（P1） |
+| **G3** | P1 | 教育培训 schools=5, res=2 | 学校多但消费力弱 | 需加消费力核验独立样本（P1） |
+| **G4** | P0 已关 (T31) | 便利店 schools=8, res=2 | 学校不写优势 | ✅ T31 + retail_convenience_06 |
+| **G5** | P0 已关 (T32) | 酒店 schools=5, office=1, res=3 | school 不参与客群评分 | ✅ T32 + hotel_06 |
+| **G6** | P0 已关 | 非教育/餐饮业态不输出"学生客群稳定" | 通用优势三档输出 | ✅ 已实施三档分流 |
 
 ---
 
-## 4. Phase 4L-B 最小实现建议
+## 4. Phase 4L-B 实施状态
 
-### 4.1 需要改的代码
+### 4.1 P0 已实施（e30241f2）
+
+| 改动 | 文件 | 说明 |
+|------|------|------|
+| `_weighted_school()` | `fallback_report_service.py` | 教育=1.0, 小吃/茶饮=0.3, 其他=0 |
+| consumer_profile 评分 | 同上 | `20 + office + weighted_school(school, family)` |
+| traffic_flow_detail.pop | 同上 | `r500 + o500 + weighted_school(s500, family)` |
+| executive_summary.pop | 同上 | 同上 |
+| category_advantage_score.pop | 同上 | 同上 |
+| category_advantage_text.pop | 同上 | 同上 |
+| competition_score.pop | 同上 | 同上 |
+| advantages school_500>=3 | 同上 | 教育→"核验生源与消费力"，小吃/茶饮→"核验午间动线/寒暑假/晚餐"，其他→不输出 |
+| T31-T33 | `check_business_model_rules.py` | 便利店/酒店/小吃快餐 school 高 res 低 |
+| retail_convenience_06, hotel_06 | `check_sample_regression.py` | 2 个回归样本 |
+
+### 4.2 P1/P2 待实施
 
 | 优先级 | 文件 | 改动 | 理由 |
 |--------|------|------|------|
-| **P0** | `fallback_report_service.py` L586/646/650 | `pop = res_500 + office_500 + school_500` → 按业态区分 school 权重（教育=1.0，餐饮=0.3，其他=0） | 当前将学校等同于人口 |
-| **P0** | `fallback_report_service.py` L265/320 | consumer_profile 评分 `20 + office + school` → 按业态加权 | 酒店/娱乐/零售不应被 school 影响客群评分 |
-| **P1** | `fallback_report_service.py` L140-141 | `school_500 >= 3 → "学生客群稳定"` → 加业态判断 | 只对教育/餐饮输出此优势 |
-| **P1** | `location_profile_service.py` L165 | `school_500 >= 5 → "学区客群基础较好"` → 使用 school_anchor_breakdown 区分小学/大学 | 大学聚集区不是"学区" |
-| **P1** | `location_profile_service.py` L108 | `school_500 >= 8 → "学区及周边"` → 同样需要细分 | 同上 |
-| **P2** | `business_model_service.py` L1021 | `school_500 >= 2 → 插入学校午休动线核验` → 仅在小学/中学存在时触发 | 大学周边不需要放学动线核验 |
-| **P2** | `01_snack_fast_food.yaml` | demand_sources "学校午市" → 加条件 `仅中小学` | 寒暑假提示已有，但触发条件过于宽泛 |
+| **P1** | `location_profile_service.py` L165 | `school_500 >= 5 → "学区客群基础较好"` → 使用 school_anchor_breakdown | 大学聚集区不是"学区" |
+| **P1** | `location_profile_service.py` L108 | `school_500 >= 8 → "学区及周边"` → 同样细分 | 同上 |
+| **P2** | `business_model_service.py` L1021 | `school_500 >= 2 → 插入学校午休动线核验` → 仅在小学/中学时触发 | 大学周边不需要放学动线核验 |
+| **P2** | `01_snack_fast_food.yaml` | demand_sources "学校午市" → 加 `仅中小学` | 触发条件过于宽泛 |
 
-### 4.2 需要新增的回归样本（建议 +6）
+待加 P1 样本/测试（可选）：
+- snack_fast_food 寒暑假断崖独立回归样本
+- beverage_dessert 学校多但步行动线未核验样本
+- education_training 学校多但消费力弱样本
+- location_profile 大学聚集≠学区测试
 
-| 样本 case_id | 场景 | expected_present | expected_absent |
-|-------------|------|-----------------|----------------|
-| snack_fast_food_06_schoolonly | schools=8, res=2, office=0 | "寒暑假","断崖"或"晚餐弱" | "学生客群稳定" |
-| beverage_dessert_06_schoolflow | schools=6, res=2 | "步行动线","学校门口" | "年轻客群充足" |
-| education_training_06_weakspend | schools=5, res=2 | "消费力核验" | "生源充足" |
-| retail_convenience_06_schooldominant | schools=8, res=2 | "住宅不足" | "学生客群稳定" |
-| hotel_03_no_school_bias | schools=5+ | — | consumer_profile 评分不受 school 抬高 |
-| generic_school_advantage | any non-edu/dining | — | 通用优势不含"学生客群" |
-
-### 4.3 需要新增的 business_model_rules 测试项（建议 +4）
-
-| 测试 ID | 内容 |
-|---------|------|
-| T31 | 小吃快餐 school=8+res=2 → 优势不得含"学生客群稳定"无寒暑假提示 |
-| T32 | 便利店 school=5+ → consumer_profile 评分不受 school 主导 |
-| T33 | hotel/entertainment 业态 school_500 不参与客群评分 |
-| T34 | location_profile school>=8 但全是大学 → location_type 不为"学区及周边" |
-
-### 4.4 禁止项（Phase 4L-B 也不能碰）
+### 4.3 始终禁止项
 
 - ❌ report_fact_guard.py / poi_name_guard.py
 - ❌ HTML / 小程序 / 支付 / 候选池 / 多点对比 / PDF / 长图
@@ -206,14 +205,12 @@
 
 ## 5. 审计结论摘要
 
-1. **school_500 被过度使用**：`fallback_report_service.py` 将 `school_500` 与 `res_500`、`office_500` 线性加总为人口（L586/646/650），对所有 12 个 model 生效，而 YAML 中仅 4 个 model 将 school 列为 demand_source。
+1. **school_500 被过度使用** — ✅ P0 已修正：`_weighted_school()` 按业态区分，7 处评分/文本路径全部走加权。
 
-2. **6 个测试缺口**：小吃快餐学校主导无寒暑假提示、茶饮学校多但步行动线未核验、教育培训学校多但消费力弱、便利店学校主导、酒店/娱乐被 school 抬高评分、通用优势误写学生客群。
+2. **6 个测试缺口** — ✅ P0 已关 3 个（G1/G4/G5/G6），P1 残余 2 个（G2/G3）。
 
-3. **location_profile 学区判定粗糙**：`school_500 >= 8` 直接判为"学区及周边"，已有 `school_anchor_breakdown` 做类型细分但未被使用。
-
-4. **最小修复路径**：P0 改 fallback scoring 的 school 权重按业态区分 + P1 改通用优势语句的业态判断 + 6 样本 + 4 规则测试。
+3. **location_profile 学区判定粗糙** — ❌ P1 待做。`school_500 >= 8` 直接判为"学区及周边"，`school_anchor_breakdown` 已做类型细分但未被使用。
 
 ---
 
-*审计完成于 2026-06-16。Phase 4L-B 待执行。*
+*审计 2026-06-16，P0 实施 2026-06-16（e30241f2），P1/P2 待实施。*

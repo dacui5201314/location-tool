@@ -62,7 +62,7 @@
 ### Phase 4L-A：学校/校园客流源归并审计
 - 新增 `docs/school_campus_flow_audit.md`：审计 12 族 × 4 service + YAML + 61 样本中 school 使用口径
 - 发现 **6 个测试缺口**、**fallback scoring 对非教育业态误用 school**、**location_profile 学区判定不区分学校类型**
-- **Phase 4L-B 待实施**：P0 改 fallback scoring 的 school 权重按业态区分 + P1 改通用优势语句 + 6 样本 + 4 规则测试
+- **Phase 4L-B P0 已实施**（e30241f2）：`_weighted_school()` 按业态区分 school 权重、7 处评分路径走加权、通用优势三档输出、T31-T33 + 2 样本。P1/P2（location_profile 学区细分、checklist 学校类型）待后续。
 
 ## 当前测试矩阵
 
@@ -93,5 +93,5 @@
 - ~~学校/校园客流源归并审计~~ ✅ 已完成（Phase 4L-A）。详见 `docs/school_campus_flow_audit.md`。
 - 外部资料蒸馏继续补齐，但只做 source card 候选规则，不直接改变报告行为。
 - source card → YAML 吸收时必须补 source_refs 和回归测试。
-- 学校/校园客流源归并实施（Phase 4L-B）：按审计建议修改 fallback scoring + location_profile + checklist。
+- 学校/校园客流源归并 P1/P2：location_profile 学区细分 + business_model_service checklist 学校类型（P0 已关，P1/P2 待做）。
 - ~~学校/校园客流源归并 P0 实施~~ ✅ 已完成（Phase 4L-B）。`_weighted_school()` 按业态区分 school 权重；consumer_profile / traffic_flow / executive_summary / category_advantage / competition 五个评分路径全部走加权；通用优势 school_500>=3 按 family 分教育/餐饮/禁止三档输出。新增 T31-T33 + 2 样本（retail_convenience_06, hotel_06）。
