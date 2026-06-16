@@ -59,6 +59,11 @@
   - 两条路径均要求 report_json/HTML 出现 物业/噪音/气味。非宠物业态（美容美发/健身）不受影响。source_refs 不变（沿用 product_review_004）。
 - **Phase 4K fix-1**：修复 `_is_pet_business()` 支持 category 参数但 `_snapshot_service_beauty` / `_checklist_service_beauty` 未传 category 导致 category-only 宠物店漏识别问题。`compute_business_model_snapshot` 和 `build_business_field_checklist` 对 service_beauty 族类分流传 `category=`，`build_fallback_report` 加 `category` 参数防止 enrich 幂等跳过覆盖。
 
+### Phase 4L-A：学校/校园客流源归并审计
+- 新增 `docs/school_campus_flow_audit.md`：审计 12 族 × 4 service + YAML + 61 样本中 school 使用口径
+- 发现 **6 个测试缺口**、**fallback scoring 对非教育业态误用 school**、**location_profile 学区判定不区分学校类型**
+- **Phase 4L-B 待实施**：P0 改 fallback scoring 的 school 权重按业态区分 + P1 改通用优势语句 + 6 样本 + 4 规则测试
+
 ## 当前测试矩阵
 
 | 测试文件 | 项数 | 状态 |
@@ -85,8 +90,7 @@
 
 - ~~报告精准度样本扩充：36 → 60（12 族 x5）~~ ✅ 已完成（Phase 4J）。
 - ~~宠物店物业/噪音/气味限制 YAML/service 吸收~~ ✅ 已完成（Phase 4K）。
+- ~~学校/校园客流源归并审计~~ ✅ 已完成（Phase 4L-A）。详见 `docs/school_campus_flow_audit.md`。
 - 外部资料蒸馏继续补齐，但只做 source card 候选规则，不直接改变报告行为。
 - source card → YAML 吸收时必须补 source_refs 和回归测试。
-- 学校/校园客流源归并。
-- 小餐饮竞品分层。
-- 公交站去重。
+- 学校/校园客流源归并实施（Phase 4L-B）：按审计建议修改 fallback scoring + location_profile + checklist。
