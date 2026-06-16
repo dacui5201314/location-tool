@@ -65,7 +65,7 @@
 | check_p05_report_quality.py | 13 | PASS |
 | check_p1_business_model_quality.py | 22 | PASS |
 | check_location_profile_rules.py | 6 | PASS |
-| check_business_model_rules.py | 24 | PASS |
+| check_business_model_rules.py | 30 | PASS |
 | check_report_enrichment_service.py | 11 | PASS |
 | check_knowledge_schema_rules.py | 16 | PASS |
 | check_sample_regression.py | 60 | PASS |
