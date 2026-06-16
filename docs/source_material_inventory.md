@@ -9,7 +9,7 @@
 2. **与选址判断直接相关**：能反哺需求来源、风险信号、现场核验、数据盲区或禁误读。
 3. **适用模型明确**：能落到 12 个 business model 中的一个或多个，不做泛泛而谈。
 4. **专业可信**：优先书籍、论文、报告、官方资料；论坛帖/营销文只入库存，不进 source card。
-5. **不改变报告行为**：新增来源卡先标记候选，吸收进 YAML 前必须补 `source_refs` 和业务回归测试。
+5. **已吸收闭环**：所有蒸馏来源均已通过对应 Phase 吸收进 YAML，补全 `source_refs` 和业务回归测试。新增来源卡必须走相同闭环。
 
 ## 已蒸馏来源
 
@@ -58,10 +58,11 @@
 
 ## 本轮处理说明
 
-- 本轮严格筛选后，新增 4 张外部来源卡：`book_003`、`book_005`、`book_011`、`book_012`。
 - 撤回 7 张不够稳的候选卡：`book_004`、`book_006`、`book_007`、`book_008`、`book_009`、`book_010`、`report_summary_002`。
-- 新增卡全部标记 `derived_rule_only: true` 和 `distillation_status: candidate_only`。
-- 新增卡暂未吸收进 12 个 business model YAML，避免未经过业务回归就改变报告行为。
+- 所有来源卡均标记 `derived_rule_only: true`，不包含原文摘录。
+- Phase 4G 已吸收 `book_003`/`book_005`/`book_011`/`book_012` 到对应 business model YAML 并补 source_refs 和回归测试。
+- Phase 4H 已吸收 `product_review_002`-`006`（五业态知识梳理）到对应 YAML。
+- Phase 4I 已吸收 `book_013`（托管书籍）到 education_childcare YAML。
 
 ## 蒸馏原则
 
