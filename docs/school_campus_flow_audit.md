@@ -131,7 +131,7 @@
 | entertainment | **无直接引用** | — | — |
 
 **结论**：
-- 只有 3 个族（snack_fast_food, beverage_dessert, education_childcare, education_training）的 YAML 明确将 school 列为 demand_source
+- 只有 4 个 model（snack_fast_food, beverage_dessert, education_childcare, education_training）的 YAML 明确将 school 列为 demand_source
 - 但 **fallback_report_service 的 scoring 对所有 12 族都使用 `school_500`** 参与 consumer_profile、category_advantage、traffic_flow 评分
 - 这导致 hotel/entertainment/retail 等非教育业态也被 school 数"污染"评分
 
@@ -206,7 +206,7 @@
 
 ## 5. 审计结论摘要
 
-1. **school_500 被过度使用**：`fallback_report_service.py` 将 `school_500` 与 `res_500`、`office_500` 线性加总为人口（L586/646/650），对所有 12 族生效，而 YAML 中仅 3 个族将 school 列为 demand_source。
+1. **school_500 被过度使用**：`fallback_report_service.py` 将 `school_500` 与 `res_500`、`office_500` 线性加总为人口（L586/646/650），对所有 12 个 model 生效，而 YAML 中仅 4 个 model 将 school 列为 demand_source。
 
 2. **6 个测试缺口**：小吃快餐学校主导无寒暑假提示、茶饮学校多但步行动线未核验、教育培训学校多但消费力弱、便利店学校主导、酒店/娱乐被 school 抬高评分、通用优势误写学生客群。
 
