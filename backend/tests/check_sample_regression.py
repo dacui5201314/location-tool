@@ -1,4 +1,4 @@
-"""Phase 4B: 18个模型族群样本回归库（12基础 + 6高风险）"""
+"""Phase 4D: 36个模型族群样本回归库 — 12族 x3样本（1基础+1高风险+1误判场景）"""
 import sys, os, json
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -91,7 +91,7 @@ SAMPLES = [
         "model_id": "education_training","business_type": "教育培训", "brand_name": "英语培训", "store_size": 80,
         "real_data": _make_rd(direct_competitors_200m=0, direct_competitors_500m=1, direct_competitors_1000m=2),
         "expected_present": ["直接竞品"],
-        "expected_absent": ["午托","餐食成本","市场空白明显","推荐开店"],
+        "expected_absent": ["午托","小饭桌","餐食成本","市场空白明显","推荐开店"],
     },
     {
         "case_id": "service_basic_01",
