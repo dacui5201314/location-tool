@@ -96,4 +96,5 @@
 - ~~学校/校园客流源归并 P1：location_profile 学区细分~~ ✅ 已完成（Phase 4L-C）。`_k12_school_count()` 排除大学/培训，`compute_location_profile` 学区判定全部走 K12 有效学校数。新增 T7（全大学不判学区）+ T8（K12 仍判学区）。
 - ~~学校/校园客流源归并 G2/G3 残余~~ ✅ 已完成（Phase 4L-D）。`_snapshot_beverage_dessert` school 高+res/office 低时追加校门口步行动线核验项；`_snapshot_education_training` school 高+res 低时追加家庭消费力核验、score_explanation 禁止"生源充足"。新增 T34-T35 + beverage_dessert_06 + education_training_06。
 - ~~学校/校园客流源归并 P2~~ ✅ 已完成（Phase 4L-E）。小吃快餐 checklist 学校午休动线仅按 K12 触发；全大学/培训不触发；YAML demand_sources 补"仅限中小学/K12"口径。新增 T36-T37 + snack_fast_food_06_university。school 流全线关闭。
+- 小餐饮竞品分层审计 ✅ 已完成（Phase 4M-A）。详见 `docs/catering_competitor_layer_audit.md`。
 - ~~学校/校园客流源归并 P0 实施~~ ✅ 已完成（Phase 4L-B）。`_weighted_school()` 按业态区分 school 权重；consumer_profile / traffic_flow / executive_summary / category_advantage / competition 五个评分路径全部走加权；通用优势 school_500>=3 按 family 分教育/餐饮/禁止三档输出。新增 T31-T33 + 2 样本（retail_convenience_06, hotel_06）。
