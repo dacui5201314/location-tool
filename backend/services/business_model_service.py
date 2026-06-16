@@ -7,6 +7,9 @@ import re as _re
 import os as _os
 import yaml as _yaml
 
+# P2: 小吃快餐学校午休动线按 K12 触发，需学校类型细分
+from services.location_profile_service import compute_school_anchor_breakdown
+
 _KNOWLEDGE_DIR = _os.path.join(_os.path.dirname(__file__), "..", "knowledge")
 _MODELS_DIR = _os.path.join(_KNOWLEDGE_DIR, "business_models")
 
@@ -1008,6 +1011,13 @@ def _checklist_snack_fast_food(real_data, business_type, brand_name, store_size)
     dc_200 = _int(r.get("direct_competitors_200m", 0))
     dc_1000 = _int(r.get("direct_competitors_1000m", 0))
 
+    # P2: 学校午休动线仅按 K12 触发，全大学/培训不得触发
+    sab = compute_school_anchor_breakdown(r)
+    bd = (sab or {}).get("breakdown", {}) or {}
+    k12 = bd.get("elementary", 0) + bd.get("middle_high", 0) + bd.get("kindergarten", 0)
+    _use_k12 = (sab.get("total", 0) > 0 and bd.get("unknown", 0) < sab.get("total", 0))
+    _trigger_school = k12 if _use_k12 else school_500
+
     items = [
         _make_item(
             "实测午高峰门前人流",
@@ -1050,11 +1060,11 @@ def _checklist_snack_fast_food(real_data, business_type, brand_name, store_size)
             "门头被树木/广告牌/建筑完全遮挡且无法改善",
         ),
     ]
-    if school_500 >= 2:
+    if _trigger_school >= 2:
         items.insert(1, _make_item(
             "确认学校午休放学动线和学生餐饮习惯",
             "工作日11:30-12:30",
-            "观察学校门口到门店的动线，确认学生午间外出就餐的流向和规模",
+            "观察学校门口到门店的动线，确认学生午间外出就餐的流向和规模（仅限中小学，不含大学/培训机构）",
             "学校客流落空",
             "学生午间外出就餐动线经过门店",
             "学校封闭管理学生不得外出，或动线完全不经过门店",

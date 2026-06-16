@@ -346,6 +346,10 @@ SAMPLES = [
     {"case_id":"snack_fast_food_05","expected_model_id": "snack_fast_food", "model_id": "snack_fast_food","business_type":"小吃快餐","brand_name":"炸鸡","store_size":30,
      "real_data":_make_rd(direct_competitors_200m=1,direct_competitors_500m=3,direct_competitors_1000m=6,stats_500m={"residential":2,"office":0,"schools":6,"subway":0,"bus":2,"parking":1,"shopping":0,"hotels":0,"restaurants":5},stats_1000m={"residential":5,"office":0,"schools":10,"subway":0,"bus":3,"parking":2,"shopping":0,"hotels":0,"restaurants":12}),
      "expected_present":["直接竞品","学校","晚餐"],"expected_absent":["市场空白明显","竞争环境宽松"]},
+    # 01.5 snack P2: schools=5 全大学/培训 → checklist 不得出现学校午休/放学动线
+    {"case_id":"snack_fast_food_06_university","expected_model_id": "snack_fast_food", "model_id": "snack_fast_food","business_type":"小吃快餐","brand_name":"","store_size":40,
+     "real_data":_make_rd(direct_competitors_200m=0,direct_competitors_500m=2,direct_competitors_1000m=4,stats_500m={"residential":4,"office":0,"schools":5,"subway":0,"bus":3,"parking":2,"shopping":0,"hotels":1,"restaurants":8},poi_lists={"schools":[{"name":"宝鸡文理学院"},{"name":"宝鸡职业技术学院"},{"name":"某师范大学"},{"name":"某理工学校"},{"name":"新东方培训中心"}]}),
+     "expected_present":["直接竞品","午高峰"],"expected_absent":["学校午休","放学动线","市场空白明显"]},
 
     # 02 food_service: 停车排烟消防不足; 办公热闹晚市弱
     {"case_id":"food_service_04","expected_model_id": "food_service", "model_id": "food_service","business_type":"中餐","brand_name":"","store_size":150,

@@ -575,6 +575,49 @@ def test_training_weak_consumption():
     print("T35 training weak consumption: PASS")
 
 
+# T36 P2: 小吃快餐 schools>=2 但全大学/培训 → checklist 不得出现学校午休/放学动线
+def test_snack_university_no_school_checklist():
+    from services.business_model_service import build_business_field_checklist
+    rd = _base_rd(direct_competitors_200m=0, direct_competitors_500m=0, direct_competitors_1000m=0,
+                  stats_500m={"residential":4,"office":0,"schools":5,"subway":0,"bus":3,"parking":2,"shopping":0,"hotels":1,"restaurants":8})
+    rd["poi_lists"] = {
+        "schools": [
+            {"name": "宝鸡文理学院"},
+            {"name": "宝鸡职业技术学院"},
+            {"name": "某师范大学"},
+            {"name": "某理工学校"},
+            {"name": "新东方培训中心"},
+        ]
+    }
+    fc = build_business_field_checklist(rd, "小吃快餐", "砂锅小吃", 50)
+    fc_text = " ".join(item.get("title", "") + " " + item.get("action", "")
+                        for item in fc)
+    assert "学校午休" not in fc_text, f"P2 全大学不应有学校午休: {fc_text}"
+    assert "放学动线" not in fc_text, f"P2 全大学不应有放学动线: {fc_text}"
+    print("T36 snack university no school checklist: PASS")
+
+
+# T37 P2: 小吃快餐 K12>=2 → checklist 仍出现学校午休/放学动线核验
+def test_snack_k12_still_triggers_checklist():
+    from services.business_model_service import build_business_field_checklist
+    rd = _base_rd(direct_competitors_200m=0, direct_competitors_500m=0, direct_competitors_1000m=0,
+                  stats_500m={"residential":4,"office":0,"schools":4,"subway":0,"bus":3,"parking":2,"shopping":0,"hotels":1,"restaurants":8})
+    rd["poi_lists"] = {
+        "schools": [
+            {"name": "宝鸡高新第一小学"},
+            {"name": "宝鸡中学"},
+            {"name": "阳光幼儿园"},
+            {"name": "新东方培训中心"},
+        ]
+    }
+    fc = build_business_field_checklist(rd, "小吃快餐", "砂锅小吃", 50)
+    fc_text = " ".join(item.get("title", "") + " " + item.get("action", "")
+                        for item in fc)
+    assert "学校午休" in fc_text, f"P2 K12应保留学校午休: {fc_text}"
+    assert "仅限中小学" in fc_text, f"P2 应注明仅限中小学: {fc_text}"
+    print("T37 snack K12 still triggers checklist: PASS")
+
+
 # T19: 全部前台 business_type 归类覆盖
 # ── Master self-mapping keys (not user-facing leaf types) ──
 _MASTER_SELF_KEYS = {
@@ -712,6 +755,8 @@ if __name__ == "__main__":
     test_snack_school_with_caveat()
     test_beverage_school_flow_caveat()
     test_training_weak_consumption()
+    test_snack_university_no_school_checklist()
+    test_snack_k12_still_triggers_checklist()
     test_leaf_business_type_coverage()
     test_master_keys_not_generic()
     test_same_location_different_business()

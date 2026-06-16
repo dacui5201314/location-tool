@@ -21,7 +21,7 @@ competition:
 demand_sources:
   - name: "学校午市"
     weight: "high"
-    trigger: "stats_500m.schools >= 1"
+    trigger: "stats_500m.schools >= 1（仅限中小学/K12 有效学校数，不含大学/培训机构）"
   - name: "办公午市"
     weight: "medium"
     trigger: "stats_500m.office >= 1"
@@ -115,5 +115,5 @@ source_refs:
     applies_to: ["hard_gates", "red_flags", "data_blind_spots", "forbidden_misreadings"]
     rule_key: "kitchen_infra_and_category_match"
 
-last_reviewed: "2026-06-15"
+last_reviewed: "2026-06-16"
 owner: "product"

@@ -2,7 +2,7 @@
 
 > 审计范围：12 族 business model + location_profile + fallback scoring + enrichment + sample regression
 > 审计日期：2026-06-16
-> 状态：P0 已实施（e30241f2），P1-A 已实施（Phase 4L-C），G2/G3 已实施（Phase 4L-D），P2 待实施
+> 状态：全线关闭。P0（4L-B）→ P1-A（4L-C）→ G2/G3（4L-D）→ P2（4L-E）全部实施。
 
 ## 1. 涉及学校/校园客流的代码位置清单
 
@@ -179,15 +179,14 @@
 | T31-T33 | `check_business_model_rules.py` | 便利店/酒店/小吃快餐 school 高 res 低 |
 | retail_convenience_06, hotel_06 | `check_sample_regression.py` | 2 个回归样本 |
 
-### 4.2 P1-A 已实施（4L-C）/ G2/G3 已实施（4L-D）/ P2 待实施
+### 4.2 全部实施状态
 
 | 优先级 | 状态 | 文件 | 改动 | 理由 |
 |--------|------|------|------|------|
 | **P1-A** | ✅ 4L-C | `location_profile_service.py` | `_k12_school_count()` + 学区判定走 K12；T7+T8 | 大学≠学区 |
-| **G2** | ✅ 4L-D | `business_model_service.py` | `_snapshot_beverage_dessert` school 高+res 低→追加校门口步行动线核验；checklist 追加放学时段动线项；T34 + beverage_dessert_06 | 学校客流≠步行动线客流 |
-| **G3** | ✅ 4L-D | `business_model_service.py` | `_snapshot_education_training` school 高+res 低→追加家庭消费力核验、score_explanation 禁止"生源充足"；checklist 追加消费力项；T35 + education_training_06 | 学校数≠有效生源 |
-| **P2** | 待实施 | `business_model_service.py` L1021 | `school_500 >= 2 → 插入学校午休动线核验` → 仅在小学/中学时触发 | 大学周边不需要放学动线核验 |
-| **P2** | 待实施 | `01_snack_fast_food.yaml` | demand_sources "学校午市" → 加 `仅中小学` | 触发条件过于宽泛 |
+| **G2** | ✅ 4L-D | `business_model_service.py` | `_snapshot_beverage_dessert` school 高+res 低→追加校门口步行动线核验；T34 + beverage_dessert_06 | 学校客流≠步行动线客流 |
+| **G3** | ✅ 4L-D | `business_model_service.py` | `_snapshot_education_training` school 高+res 低→追加消费力核验；T35 + education_training_06 | 学校数≠有效生源 |
+| **P2** | ✅ 4L-E | `business_model_service.py` + YAML | checklist 学校午休仅按 K12 触发；YAML demand_sources 补"仅限中小学/K12"；T36-T37 + snack_fast_food_06_university | 大学不触发放学动线 |
 
 可选增强（非必做）：
 - snack_fast_food 寒暑假断崖独立回归样本（T33 已有规则覆盖，可选增强）
@@ -211,4 +210,4 @@
 
 ---
 
-*审计 2026-06-16。P0 实施（e30241f2），P1-A 实施（4L-C），G2/G3 实施（4L-D），P2 待实施。*
+*审计 2026-06-16。P0（4L-B）→ P1-A（4L-C）→ G2/G3（4L-D）→ P2（4L-E）全部实施。*
