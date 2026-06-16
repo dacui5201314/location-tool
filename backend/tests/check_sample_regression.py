@@ -362,6 +362,10 @@ SAMPLES = [
     {"case_id":"beverage_dessert_05","expected_model_id": "beverage_dessert", "model_id": "beverage_dessert","business_type":"咖啡店","brand_name":"","store_size":20,
      "real_data":_make_rd(direct_competitors_200m=0,direct_competitors_500m=1,direct_competitors_1000m=3,stats_500m={"residential":6,"office":3,"schools":1,"subway":1,"bus":5,"parking":1,"shopping":1,"hotels":1,"restaurants":10}),
      "expected_present":["直接竞品", "品牌"],"expected_absent":["市场空白明显","推荐开店"]},
+    # 03.5 beverage G2: school=6 res=2 office=1 → 必须含校门口步行动线核验，禁止年轻客群充足
+    {"case_id":"beverage_dessert_06_schoolflow","expected_model_id": "beverage_dessert", "model_id": "beverage_dessert","business_type":"饮品店","brand_name":"","store_size":20,
+     "real_data":_make_rd(direct_competitors_200m=0,direct_competitors_500m=0,direct_competitors_1000m=1,stats_500m={"residential":2,"office":1,"schools":6,"subway":0,"bus":2,"parking":1,"shopping":0,"hotels":0,"restaurants":4}),
+     "expected_present":["直接竞品", "步行动线", "放学时段"],"expected_absent":["年轻客群充足","市场空白明显","推荐开店"]},
 
     # 04 retail_convenience: 住宅多动线不经过; 入住率不足
     {"case_id":"retail_convenience_04","expected_model_id": "retail_convenience", "model_id": "retail_convenience","business_type":"便利店","brand_name":"","store_size":50,
@@ -406,6 +410,10 @@ SAMPLES = [
     {"case_id":"education_training_05","expected_model_id": "education_training", "model_id": "education_training","business_type":"教育培训","brand_name":"","store_size":60,
      "real_data":_make_rd(direct_competitors_200m=1,direct_competitors_500m=2,direct_competitors_1000m=4,stats_500m={"residential":7,"office":6,"schools":3,"subway":1,"bus":6,"parking":3,"shopping":1,"hotels":1,"restaurants":12}),
      "expected_present":["直接竞品","停车"],"expected_absent":["午托","外卖骑手"]},
+    # 08.5 education_training G3: school=5 res=2 → 禁止生源充足，必须含消费力核验
+    {"case_id":"education_training_06_weakspend","expected_model_id": "education_training", "model_id": "education_training","business_type":"教育培训","brand_name":"美术培训","store_size":80,
+     "real_data":_make_rd(direct_competitors_200m=0,direct_competitors_500m=0,direct_competitors_1000m=0,stats_500m={"residential":2,"office":1,"schools":5,"subway":1,"bus":3,"parking":2,"shopping":0,"hotels":0,"restaurants":4}),
+     "expected_present":["直接竞品", "消费力", "客单价", "满班率"],"expected_absent":["生源充足","午托","外卖骑手"]},
 
     # 09 service_basic: 暗竞品漏收录; 合规资质不足
     {"case_id":"service_basic_04","expected_model_id": "service_basic", "model_id": "service_basic","business_type":"洗衣店","brand_name":"","store_size":25,

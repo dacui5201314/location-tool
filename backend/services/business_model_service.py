@@ -424,20 +424,30 @@ def _snapshot_education_training(real_data, business_type, brand_name, store_siz
     fit_condition = "周边家庭密度足够、目标客群（学龄儿童/成人）基数达标、交通便利、租金可控"
     stop_condition = "周边家庭密度不足、目标客群太少、已有成熟品牌覆盖、租金占比过高"
 
+    must_verify = [
+        "工作日放学后和周末观察学生/家长流量",
+        "走访同类培训机构了解满班率和客单价",
+        "确认周边3公里家庭消费力",
+        "核验办学资质和消防要求",
+        "考察停车和公共交通便利度",
+    ]
+    score_explanation = "评分需结合周边家庭密度和学生数量综合判断。竞争维度仅反映POI收录情况。"
+
+    if school_500 >= 3 and res_500 < 5:
+        must_verify.append("走访周边小区评估家庭消费力（房价/租金/车辆档次），确认与课程客单价匹配")
+        score_explanation = (
+            f"周边学校{school_500}所但住宅仅{res_500}个，学校数量不等同于有效生源。"
+            f"需核验周边家庭消费力、客单价承受能力、续费意愿和满班率，不可仅凭学校数判断生源规模。"
+        )
+
     return {
         "model_type": "education_training",
         "core_logic": "教育培训核心看周边家庭/学生密度、交通可达性和品牌差异化。续费和转介绍是核心获客方式。",
         "competitor_note": competitor_note,
-        "must_verify": [
-            "工作日放学后和周末观察学生/家长流量",
-            "走访同类培训机构了解满班率和客单价",
-            "确认周边3公里家庭消费力",
-            "核验办学资质和消防要求",
-            "考察停车和公共交通便利度",
-        ],
+        "must_verify": must_verify,
         "fit_condition": fit_condition,
         "stop_condition": stop_condition,
-        "score_explanation": "评分需结合周边家庭密度和学生数量综合判断。竞争维度仅反映POI收录情况。",
+        "score_explanation": score_explanation,
     }
 
 
@@ -534,19 +544,31 @@ def _snapshot_food_service(real_data, business_type, brand_name, store_size):
 
 
 def _snapshot_beverage_dessert(real_data, business_type, brand_name, store_size):
+    r = real_data or {}
+    s5 = r.get("stats_500m", {}) or {}
+    school_500 = _int(s5.get("schools", 0))
+    res_500 = _int(s5.get("residential", 0))
+    office_500 = _int(s5.get("office", 0))
+
+    must_verify = [
+        "工作日全天观察门前步行人流量",
+        "观察最近地铁/公交出口到门店的动线",
+        "走访同品类门店了解日均杯量/客单价",
+        "确认外卖平台上的周边竞品排名和月销量",
+    ]
+    score_explanation = "茶饮咖啡重点看步行客流和动线曝光，人口密度和停车权重较低。"
+    if school_500 >= 3 and res_500 < 5 and office_500 < 5:
+        must_verify.append("核验最近学校校门口到门店的放学时段步行动线（学校客流≠步行动线客流）")
+        score_explanation += "周边学校数量多但住宅/办公偏少，学校客流需核验校门口步行动线和放学时段实测，不可仅凭学校数判断年轻客群。"
+
     return {
         "model_type": "beverage_dessert",
         "core_logic": "茶饮/咖啡/烘焙依赖冲动消费和步行客流，核心看地铁口/学校门口/写字楼底层曝光位置。",
         "competitor_note": "",
-        "must_verify": [
-            "工作日全天观察门前步行人流量",
-            "观察最近地铁/公交出口到门店的动线",
-            "走访同品类门店了解日均杯量/客单价",
-            "确认外卖平台上的周边竞品排名和月销量",
-        ],
+        "must_verify": must_verify,
         "fit_condition": "位于核心动线上、步行客流充足、品牌有辨识度、外卖可覆盖",
         "stop_condition": "动线偏僻、步行客流不足、竞品密集且品牌势能弱",
-        "score_explanation": "茶饮咖啡重点看步行客流和动线曝光，人口密度和停车权重较低。",
+        "score_explanation": score_explanation,
     }
 
 
@@ -924,6 +946,7 @@ def _checklist_education_training(real_data, business_type, brand_name, store_si
     r = real_data or {}
     s5 = r.get("stats_500m", {}) or {}
     school_500 = _int(s5.get("schools", 0))
+    res_500 = _int(s5.get("residential", 0))
     items = [
         _make_item(
             "观察工作日放学后学生/家长流量",
@@ -966,6 +989,15 @@ def _checklist_education_training(real_data, business_type, brand_name, store_si
             "月租金超过预估月营收20%",
         ),
     ]
+    if school_500 >= 3 and res_500 < 5:
+        items.append(_make_item(
+            "走访周边小区评估家庭消费力",
+            "周末白天或工作日傍晚",
+            "走访周边小区，观察车辆档次、房价水平、居民消费习惯，确认家庭消费力与课程客单价匹配度",
+            "消费力不匹配",
+            "周边以中高消费力家庭为主，客单价在承受范围内",
+            "周边以老旧小区/城中村为主，家庭消费力明显低于课程定价区间",
+        ))
     return items[:8]
 
 
@@ -1051,7 +1083,13 @@ def _checklist_food_service(real_data, business_type, brand_name, store_size):
 
 
 def _checklist_beverage_dessert(real_data, business_type, brand_name, store_size):
-    return [
+    r = real_data or {}
+    s5 = r.get("stats_500m", {}) or {}
+    school_500 = _int(s5.get("schools", 0))
+    res_500 = _int(s5.get("residential", 0))
+    office_500 = _int(s5.get("office", 0))
+
+    items = [
         _make_item("全天观察门前步行人流量", "工作日8:00-20:00",
                    "在门店固定位置分段观察步行人流", "客流不足",
                    "全天步行人流充足", "步行人流稀疏"),
@@ -1068,6 +1106,16 @@ def _checklist_beverage_dessert(real_data, business_type, brand_name, store_size
                    "询问相邻商户实际租金", "租金过高",
                    "租金在预算范围内", "月租金占比过高"),
     ]
+    if school_500 >= 3 and res_500 < 5 and office_500 < 5:
+        items.append(_make_item(
+            "核验校门口到门店放学时段步行动线",
+            "工作日15:30-17:00",
+            "从最近学校校门口步行至门店，确认放学时段学生动线是否自然经过门店",
+            "学校客流落空",
+            "放学动线经过门店且门店在50m内可见",
+            "学校动线完全不经过门店且门店不在校门口可视范围内",
+        ))
+    return items
 
 
 def _checklist_retail_convenience(real_data, business_type, brand_name, store_size):

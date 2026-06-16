@@ -530,6 +530,51 @@ def test_snack_school_with_caveat():
     print("T33 snack school with caveat: PASS")
 
 
+# T34 G2: 茶饮 school 高 res/office 低 → snapshot must_verify 含校门口/步行动线，checklist 含放学时段动线核验
+def test_beverage_school_flow_caveat():
+    from services.business_model_service import compute_business_model_snapshot, build_business_field_checklist
+    rd = _base_rd(direct_competitors_200m=0, direct_competitors_500m=0, direct_competitors_1000m=0,
+                  stats_500m={"residential":2,"office":1,"schools":6,"subway":0,"bus":2,"parking":1,"shopping":0,"hotels":0,"restaurants":5})
+
+    snap = compute_business_model_snapshot(rd, "奶茶店", "", 20)
+    assert snap["model_type"] == "beverage_dessert"
+    mv_text = " ".join(snap.get("must_verify", []))
+    assert "校门口" in mv_text or "步行动线" in mv_text, f"G2 must_verify missing: {mv_text}"
+    assert "年轻客群充足" not in mv_text
+
+    fc = build_business_field_checklist(rd, "奶茶店", "", 20)
+    fc_text = " ".join(item.get("title", "") + " " + item.get("action", "")
+                        for item in fc)
+    assert "放学时段" in fc_text or "步行动线" in fc_text, f"G2 checklist missing: {fc_text}"
+    se = snap.get("score_explanation", "")
+    assert "年轻客群充足" not in se
+
+    print("T34 beverage school flow caveat: PASS")
+
+
+# T35 G3: 教育培训 school 高 res 低 → 不得写生源充足，必须提示消费力/客单价/续费/满班率核验
+def test_training_weak_consumption():
+    from services.business_model_service import compute_business_model_snapshot, build_business_field_checklist
+    rd = _base_rd(direct_competitors_200m=0, direct_competitors_500m=0, direct_competitors_1000m=0,
+                  stats_500m={"residential":2,"office":1,"schools":5,"subway":1,"bus":3,"parking":2,"shopping":0,"hotels":0,"restaurants":4})
+
+    snap = compute_business_model_snapshot(rd, "教育培训", "美术培训", 80)
+    assert snap["model_type"] == "education_training"
+    mv_text = " ".join(snap.get("must_verify", []))
+    assert "生源充足" not in mv_text, f"G3 must not say 生源充足: {mv_text}"
+    se = snap.get("score_explanation", "")
+    assert "生源充足" not in se, f"G3 score_explanation must not say 生源充足: {se}"
+    assert any(kw in (mv_text + " " + se) for kw in ["消费力", "客单价", "续费", "满班率"]), \
+        f"G3 must mention 消费力/客单价/续费/满班率: {mv_text} {se}"
+
+    fc = build_business_field_checklist(rd, "教育培训", "美术培训", 80)
+    fc_text = " ".join(item.get("title", "") + " " + item.get("action", "")
+                        for item in fc)
+    assert "消费力" in fc_text, f"G3 checklist missing 消费力: {fc_text}"
+
+    print("T35 training weak consumption: PASS")
+
+
 # T19: 全部前台 business_type 归类覆盖
 # ── Master self-mapping keys (not user-facing leaf types) ──
 _MASTER_SELF_KEYS = {
@@ -665,6 +710,8 @@ if __name__ == "__main__":
     test_convenience_no_school_advantage()
     test_hotel_no_school_advantage()
     test_snack_school_with_caveat()
+    test_beverage_school_flow_caveat()
+    test_training_weak_consumption()
     test_leaf_business_type_coverage()
     test_master_keys_not_generic()
     test_same_location_different_business()

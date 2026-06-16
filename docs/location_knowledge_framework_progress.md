@@ -74,10 +74,10 @@
 | check_p05_report_quality.py | 13 | PASS |
 | check_p1_business_model_quality.py | 22 | PASS |
 | check_location_profile_rules.py | 8 | PASS |
-| check_business_model_rules.py | 37 | PASS |
+| check_business_model_rules.py | 39 | PASS |
 | check_report_enrichment_service.py | 11 | PASS |
 | check_knowledge_schema_rules.py | 16 | PASS |
-| check_sample_regression.py | 63 | PASS |
+| check_sample_regression.py | 65 | PASS |
 
 ## 明确不做 / 不纳入本轮
 
@@ -94,5 +94,6 @@
 - 外部资料蒸馏继续补齐，但只做 source card 候选规则，不直接改变报告行为。
 - source card → YAML 吸收时必须补 source_refs 和回归测试。
 - ~~学校/校园客流源归并 P1：location_profile 学区细分~~ ✅ 已完成（Phase 4L-C）。`_k12_school_count()` 排除大学/培训，`compute_location_profile` 学区判定全部走 K12 有效学校数。新增 T7（全大学不判学区）+ T8（K12 仍判学区）。
-- 学校/校园客流源归并 P2 + G2/G3：business_model_service checklist 学校类型 + 茶饮步行动线 + 教育培训消费力（P1-A 已关，P2 + G2/G3 待做）。
+- ~~学校/校园客流源归并 G2/G3 残余~~ ✅ 已完成（Phase 4L-D）。`_snapshot_beverage_dessert` school 高+res/office 低时追加校门口步行动线核验项；`_snapshot_education_training` school 高+res 低时追加家庭消费力核验、score_explanation 禁止"生源充足"。新增 T34-T35 + beverage_dessert_06 + education_training_06。
+- 学校/校园客流源归并 P2：business_model_service checklist 学校类型细分 + YAML demand_sources（待做）。
 - ~~学校/校园客流源归并 P0 实施~~ ✅ 已完成（Phase 4L-B）。`_weighted_school()` 按业态区分 school 权重；consumer_profile / traffic_flow / executive_summary / category_advantage / competition 五个评分路径全部走加权；通用优势 school_500>=3 按 family 分教育/餐饮/禁止三档输出。新增 T31-T33 + 2 样本（retail_convenience_06, hotel_06）。
