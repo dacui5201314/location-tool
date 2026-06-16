@@ -62,7 +62,7 @@
 ### Phase 4L-A：学校/校园客流源归并审计
 - 新增 `docs/school_campus_flow_audit.md`：审计 12 族 × 4 service + YAML + 61 样本中 school 使用口径
 - 发现 **6 个测试缺口**、**fallback scoring 对非教育业态误用 school**、**location_profile 学区判定不区分学校类型**
-- **Phase 4L-B P0 已实施**（e30241f2）：`_weighted_school()` 按业态区分 school 权重、7 处评分路径走加权、通用优势三档输出、T31-T33 + 2 样本。P1-A 已实施（Phase 4L-C），P2 + G2/G3 待后续。
+- **Phase 4L-B P0 已实施**（e30241f2）：`_weighted_school()` 按业态区分 school 权重、7 处评分路径走加权、通用优势三档输出、T31-T33 + 2 样本。P1-A（4L-C）+ G2/G3（4L-D）已实施，P2 待后续。
 
 ## 当前测试矩阵
 

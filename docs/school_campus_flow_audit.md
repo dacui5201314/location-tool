@@ -105,7 +105,7 @@
 | beverage_dessert_03 | schools_500m=1 | 学校少，客流弱 |
 | retail_convenience_04 | schools_500m=1 | 辅助客流 |
 
-**P0 已关 / P1 残余**（T31-T33 + 2 样本已覆盖 P0，以下标注 P0 已关或 P1 残余）：
+**P0 已关 / 缺口追踪**（T31-T33 + 2 样本覆盖 P0；G2/G3 由 4L-D 关）：
 - ✅ G1 小吃快餐 school 高+无住宅/办公 → T33 P0 已关（advantages 已带"寒暑假/午间动线/晚餐"核验词）。独立回归样本为可选增强，非 P1 必做。
 - ✅ G4 便利店 school=8+res=2 → T31 + retail_convenience_06 P0 已关
 - ✅ G5 酒店 school=8+res=3 → T32 + hotel_06 P0 已关
@@ -149,7 +149,7 @@
 | 非教育业态不出现托管核验词 | T5, T28 |
 | YAML forbidden_misreadings: 大学≠小学托管客源 | YAML schema 检查（T24 PH4H beauty absorbed） |
 
-### P1/P2 未覆盖（Phase 4L-B P0 已关，以下待后续）
+### G1-G6 覆盖状态（6 缺口全部关闭）
 
 | 缺口编号 | 状态 | 场景 | 风险 | 建议测试 |
 |---------|------|------|------|---------|
@@ -189,11 +189,8 @@
 | **P2** | 待实施 | `business_model_service.py` L1021 | `school_500 >= 2 → 插入学校午休动线核验` → 仅在小学/中学时触发 | 大学周边不需要放学动线核验 |
 | **P2** | 待实施 | `01_snack_fast_food.yaml` | demand_sources "学校午市" → 加 `仅中小学` | 触发条件过于宽泛 |
 
-待加 P1 样本/测试（可选）：
-- snack_fast_food 寒暑假断崖独立回归样本
-- beverage_dessert 学校多但步行动线未核验样本
-- education_training 学校多但消费力弱样本
-- location_profile 大学聚集≠学区测试
+可选增强（非必做）：
+- snack_fast_food 寒暑假断崖独立回归样本（T33 已有规则覆盖，可选增强）
 
 ### 4.3 始终禁止项
 
@@ -210,7 +207,7 @@
 
 2. **6 个测试缺口** — ✅ 全部关闭：G1/G4/G5/G6 由 P0 关，G2/G3 由 4L-D 关。
 
-3. **location_profile 学区判定粗糙** — ✅ P1-A 已修正。`_k12_school_count()` 排除大学/培训，学区判定全部走 K12 有效学校数。全大学不再判学区，K12 足够多仍判学区。G2/G3 仍为后续残余。
+3. **location_profile 学区判定粗糙** — ✅ P1-A 已修正。`_k12_school_count()` 排除大学/培训，学区判定全部走 K12 有效学校数。全大学不再判学区，K12 足够多仍判学区。P2 仍待实施。
 
 ---
 
