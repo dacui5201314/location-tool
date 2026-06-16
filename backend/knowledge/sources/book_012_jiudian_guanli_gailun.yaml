@@ -8,7 +8,7 @@ title: "酒店管理概论"
 confidence: "B"
 copyright_note: "魏卫《酒店管理概论》— 仅保留抽象选址判断规则，不包含原文摘录"
 derived_rule_only: true
-distillation_status: "candidate_only"
+distillation_status: "absorbed"
 professional_use_policy: "偏酒店管理基础；只用于补充酒店定位、客源结构、淡旺季和 OTA 核验，不能单独触发开店优势判断"
 applicable_models:
   - "hotel"

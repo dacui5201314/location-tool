@@ -76,6 +76,15 @@ sources:
         - "不能把餐饮门店多作为所有业态通用优势"
         - "不能把 0 竞品机械写成强优势"
 
+  # ── Phase 4I 托管书籍 ──
+  - source_id: "book_013"
+    source_type: "book"
+    title: "一本书读懂校外托管机构运营与管理"
+    confidence: "B"
+    derived_rule_only: true
+    applicable_models: ["education_childcare"]
+    extracted_rules: {demand_sources: [], red_flags: []}
+
   # ── Phase 4H 五业态知识梳理 ──
   - source_id: "product_review_002"
     source_type: "product_review"

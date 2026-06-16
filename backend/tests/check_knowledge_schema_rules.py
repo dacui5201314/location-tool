@@ -519,6 +519,32 @@ def test_source_refs_valid():
     print(f"T15 source_refs valid: {refs_checked} refs, {len(source_applicable)} sources PASS")
 
 
+# ═══════════════ T16: 已吸收 card 不得标记 candidate_only ═══════════════
+def test_absorbed_cards_not_candidate():
+    sources_dir = os.path.join(KNOWLEDGE_DIR, "sources")
+    # 收集所有 YAML source_refs 中引用的 source_id
+    absorbed_ids = set()
+    models_dir = os.path.join(KNOWLEDGE_DIR, "business_models")
+    for fname in os.listdir(models_dir):
+        if not fname.endswith(".yaml"): continue
+        model = _load_yaml(os.path.join(models_dir, fname))
+        for ref in model.get("source_refs", []):
+            sid = ref.get("source_id", "")
+            if sid: absorbed_ids.add(sid)
+
+    for fname in os.listdir(sources_dir):
+        if not fname.endswith(".yaml") or fname == "source_manifest.yaml": continue
+        card = _load_yaml(os.path.join(sources_dir, fname))
+        sid = card.get("source_id", "")
+        if sid in absorbed_ids:
+            status = card.get("distillation_status", "")
+            assert status != "candidate_only", (
+                f"sources/{fname}: source_id '{sid}' is absorbed into YAML source_refs "
+                f"but distillation_status is still 'candidate_only'"
+            )
+    print(f"T16 absorbed card status: {len(absorbed_ids)} absorbed sources checked PASS")
+
+
 if __name__ == "__main__":
     test_location_profiles_yaml()
     test_business_model_yamls()
@@ -535,5 +561,6 @@ if __name__ == "__main__":
     test_source_id_uniqueness()
     test_absorbed_rules_traceable()
     test_source_refs_valid()
+    test_absorbed_cards_not_candidate()
     print()
     print("ALL KNOWLEDGE SCHEMA TESTS PASSED")

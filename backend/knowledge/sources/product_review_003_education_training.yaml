@@ -4,7 +4,7 @@ source_type: "product_review"
 title: "址得选 教育培训业态知识梳理"
 confidence: "B"
 derived_rule_only: true
-distillation_status: "candidate_only"
+distillation_status: "absorbed"
 applicable_models: ["education_training"]
 extracted_rules:
   demand_sources:

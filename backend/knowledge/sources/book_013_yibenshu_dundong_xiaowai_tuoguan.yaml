@@ -1,0 +1,41 @@
+# 来源卡: 一本书读懂校外托管机构运营与管理
+# 作者: 吴金蕊 主编
+# 类型: book | 可信度: B
+# derived_rule_only: true
+source_id: "book_013"
+source_type: "book"
+title: "一本书读懂校外托管机构运营与管理"
+confidence: "B"
+copyright_note: "吴金蕊主编《一本书读懂校外托管机构运营与管理》— 仅保留抽象选址判断规则，不包含原文摘录"
+derived_rule_only: true
+distillation_status: "absorbed"
+applicable_models: ["education_childcare"]
+
+extracted_rules:
+  demand_sources:
+    - rule: "托管前期市场调研四要素"
+      condition: "行业性质认识、市场前景调研、预算评估、可选预算分析"
+    - rule: "招生半径取决于周边小学分布和家长接送便利"
+      condition: "小学低年级学生是核心客源，招生半径通常不超过小学步行10分钟范围"
+
+  red_flags:
+    - rule: "无证经营必淘汰"
+      condition: "托管班必须从正规走向正轨，无证经营无法获得家长信任"
+      severity: "stop"
+    - rule: "手续/证件无法办理"
+      condition: "注册、消防、食品经营许可、从业人员健康证等任一缺失"
+      severity: "stop"
+
+  fit_signals:
+    - rule: "托管班应具备八个区域"
+      condition: "活动区、就餐区、作业辅导区、午休区、卫生间、接待区、办公区、储物区"
+    - rule: "四面墙硬条件"
+      condition: "消防墙、食品墙、安全墙、卫生墙四方面达标"
+
+  data_blind_spots:
+    - "各地托管备案政策差异大，需查当地教育局/市场监管局最新要求"
+    - "家长真实托管需求无法从POI推导，需校门口访谈低年级家长"
+
+  forbidden_misreadings:
+    - "不能只看学校数量，要看家长真实需求和托管服务承载能力"
+    - "不能忽略消防和食品安全对托管机构的硬约束"

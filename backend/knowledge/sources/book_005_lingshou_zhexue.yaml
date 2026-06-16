@@ -8,7 +8,7 @@ title: "零售的哲学：7-Eleven便利店创始人自述"
 confidence: "B"
 copyright_note: "《零售的哲学：7-Eleven便利店创始人自述》— 仅保留抽象选址判断规则，不包含原文摘录"
 derived_rule_only: true
-distillation_status: "candidate_only"
+distillation_status: "absorbed"
 professional_use_policy: "偏便利店经营与顾客需求方法论；仅能补充 retail_convenience 现场核验和误读约束，不能单独决定评分"
 applicable_models:
   - "retail_convenience"

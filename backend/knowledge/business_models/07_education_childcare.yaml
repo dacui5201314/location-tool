@@ -94,11 +94,17 @@ forbidden_misreadings:
   - "不能出现外卖骑手、出餐速度、上座率、午晚高峰堂食等餐饮核验项。"
   # Phase 4H 吸收: product_review_002
   - "不能把0 POI竞品当成竞争空白或品类优势。"
+  # Phase 4I 吸收: book_013
+  - "不能只看学校数量，要看家长真实需求和托管服务承载能力。"
+  - "不能忽略消防和食品安全对托管机构的硬约束。"
 
 source_refs:
   - source_id: "product_review_002"
     applies_to: ["demand_sources", "red_flags", "fit_signals", "data_blind_spots", "forbidden_misreadings"]
     rule_key: "childcare_knowledge_report"
+  - source_id: "book_013"
+    applies_to: ["demand_sources", "red_flags", "fit_signals", "data_blind_spots", "forbidden_misreadings"]
+    rule_key: "tuoguan_operations_and_compliance"
 
 sources:
   - id: "internal_sample_002"

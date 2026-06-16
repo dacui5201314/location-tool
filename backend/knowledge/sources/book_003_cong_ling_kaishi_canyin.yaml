@@ -8,7 +8,7 @@ title: "从零开始做餐饮"
 confidence: "B"
 copyright_note: "宋宣《从零开始做餐饮》— 仅保留抽象选址判断规则，不包含原文摘录"
 derived_rule_only: true
-distillation_status: "candidate_only"
+distillation_status: "absorbed"
 professional_use_policy: "可作为餐饮模型候选规则来源；进入 business_model YAML 前必须补 source_refs 和业务回归测试"
 applicable_models:
   - "snack_fast_food"

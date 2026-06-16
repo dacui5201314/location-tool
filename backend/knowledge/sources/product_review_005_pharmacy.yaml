@@ -4,7 +4,7 @@ source_type: "product_review"
 title: "址得选 药店业态知识梳理"
 confidence: "B"
 derived_rule_only: true
-distillation_status: "candidate_only"
+distillation_status: "absorbed"
 applicable_models: ["pharmacy"]
 extracted_rules:
   demand_sources:
