@@ -92,6 +92,13 @@ forbidden_misreadings:
   - "不能把餐饮门店多作为托管核心优势。"
   - "不能输出推荐开店、值得投资、可以放心等决策语言。"
   - "不能出现外卖骑手、出餐速度、上座率、午晚高峰堂食等餐饮核验项。"
+  # Phase 4H 吸收: product_review_002
+  - "不能把0 POI竞品当成竞争空白或品类优势。"
+
+source_refs:
+  - source_id: "product_review_002"
+    applies_to: ["demand_sources", "red_flags", "fit_signals", "data_blind_spots", "forbidden_misreadings"]
+    rule_key: "childcare_knowledge_report"
 
 sources:
   - id: "internal_sample_002"

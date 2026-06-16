@@ -1,0 +1,31 @@
+# 来源卡: 药店业态知识梳理
+source_id: "product_review_005"
+source_type: "product_review"
+title: "址得选 药店业态知识梳理"
+confidence: "B"
+derived_rule_only: true
+distillation_status: "candidate_only"
+applicable_models: ["pharmacy"]
+extracted_rules:
+  demand_sources:
+    - rule: "住宅密度 + 医院/诊所锚点是核心需求来源"
+      condition: "500m住宅≥5 或 500m医院≥1"
+    - rule: "老龄化社区慢性病用药需求高"
+  red_flags:
+    - rule: "住宅<3且无医院锚点"
+      severity: "stop"
+    - rule: "1000m内已有3+药店且无差异化"
+      severity: "downgrade"
+    - rule: "面积或资质不满足GSP要求"
+      severity: "stop"
+  fit_signals:
+    - rule: "医保定点资质可申请"
+    - rule: "面积满足药监/GSP认证要求"
+    - rule: "执业药师可到位"
+  data_blind_spots:
+    - "医保定点资质为行政审批，不在地图数据中"
+    - "处方外流比例无法从POI推导"
+    - "社区人口年龄结构无法精确获取"
+  forbidden_misreadings:
+    - "不能仅凭竞品少推荐开店"
+    - "不能忽略医保定点对药店竞争力的决定性影响"

@@ -1,0 +1,31 @@
+# 来源卡: 美业健身宠物业态知识梳理
+source_id: "product_review_004"
+source_type: "product_review"
+title: "址得选 美业健身宠物业态知识梳理"
+confidence: "B"
+derived_rule_only: true
+distillation_status: "candidate_only"
+applicable_models: ["service_beauty"]
+extracted_rules:
+  demand_sources:
+    - rule: "美业/美甲大量个人工作室/私域接单不在POI中"
+      condition: "0 POI 竞品不可信"
+    - rule: "健身偏半聚集，停车和楼层重要"
+    - rule: "宠物店有噪音/气味/面积/排风硬约束"
+  red_flags:
+    - rule: "美业0 POI ≠ 无竞品（暗竞品型）"
+      severity: "must_warn"
+    - rule: "宠物店噪音/气味/排风不满足"
+      severity: "stop"
+    - rule: "健身停车极不方便或楼层不适用"
+      severity: "downgrade"
+  fit_signals:
+    - rule: "周边住宅密度达标且女性消费力可支撑"
+    - rule: "健身/宠物停车条件满足"
+  data_blind_spots:
+    - "美业个人工作室/私域接单不在地图收录"
+    - "健身房会员数据无法从POI推导"
+    - "宠物店噪音/气味合规为属地管理"
+  forbidden_misreadings:
+    - "不能对宠物店忽略噪音和气味硬约束"
+    - "美业0 POI竞品不能当成优势"

@@ -420,7 +420,7 @@ def test_absorbed_rules_traceable():
         with open(os.path.join(models_dir, fname), "r", encoding="utf-8") as f:
             raw_text = f.read()
         import re
-        for match in re.finditer(r'Phase (?:1\.5|4G) 吸收:\s*([\w_,/\s]+)', raw_text):
+        for match in re.finditer(r'Phase (?:1\.5|4[GH]) 吸收:\s*([\w_,/\s]+)', raw_text):
             sources_str = match.group(1)
             for sid in re.split(r'[,/\s]+', sources_str):
                 sid = sid.strip()
@@ -434,6 +434,10 @@ def test_absorbed_rules_traceable():
         f"neither book_002 nor report_summary_001 absorbed; found: {absorbed_sources_found}"
     # Phase 4G: book_003/book_005/book_011/book_012 必须被吸收
     for sid in ["book_003", "book_005", "book_011", "book_012"]:
+        assert sid in absorbed_sources_found, f"{sid} not absorbed into any YAML source_refs"
+    # Phase 4H: product_review_002-006 必须被吸收
+    for sid in ["product_review_002", "product_review_003", "product_review_004",
+                "product_review_005", "product_review_006"]:
         assert sid in absorbed_sources_found, f"{sid} not absorbed into any YAML source_refs"
 
     print(f"T14 absorbed rules traceable: {sorted(absorbed_sources_found)} PASS")

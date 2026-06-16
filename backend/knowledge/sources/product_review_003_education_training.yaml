@@ -1,0 +1,31 @@
+# 来源卡: 教育培训业态知识梳理
+source_id: "product_review_003"
+source_type: "product_review"
+title: "址得选 教育培训业态知识梳理"
+confidence: "B"
+derived_rule_only: true
+distillation_status: "candidate_only"
+applicable_models: ["education_training"]
+extracted_rules:
+  demand_sources:
+    - rule: "家庭消费力和课程品类匹配"
+      condition: "周边家庭可支撑课程定价"
+    - rule: "周末和放学后是核心时段"
+      condition: "家长有时间带孩子外出学习"
+  red_flags:
+    - rule: "0竞品可能反映无教育消费需求"
+      condition: "同品类培训少且家庭消费力不足"
+      severity: "must_warn"
+    - rule: "停车极不方便"
+      condition: "家长不愿开车来，直接淘汰"
+      severity: "stop"
+  fit_signals:
+    - rule: "办学许可/消防合规可办理"
+    - rule: "停车条件满足家长接送需求"
+    - rule: "教师资源可获取"
+  data_blind_spots:
+    - "小型培训机构/个人工作室收录不全"
+    - "家庭消费力无法从POI推导"
+  forbidden_misreadings:
+    - "0竞品不能写成市场空白或品类机会"
+    - "不能用托管逻辑套培训（午托/小饭桌/接送/餐食成本）"

@@ -350,6 +350,51 @@ def test_ph4g_hotel_absorbed():
     print("T21 PH4G hotel absorbed: PASS")
 
 
+def test_ph4h_childcare_absorbed():
+    from services.business_model_service import load_business_model
+    m = load_business_model("education_childcare")
+    fm = " ".join(m.get("forbidden_misreadings", []))
+    assert "外卖骑手" in fm or "堂食" in fm
+    assert "product_review_002" in {r["source_id"] for r in m.get("source_refs", [])}
+    print("T22 PH4H childcare absorbed: PASS")
+
+
+def test_ph4h_training_absorbed():
+    from services.business_model_service import load_business_model
+    m = load_business_model("education_training")
+    fm = " ".join(m.get("forbidden_misreadings", []))
+    assert "托管" in fm or "午托" in fm or "小饭桌" in fm or "餐食" in fm
+    assert "product_review_003" in {r["source_id"] for r in m.get("source_refs", [])}
+    print("T23 PH4H training absorbed: PASS")
+
+
+def test_ph4h_beauty_absorbed():
+    from services.business_model_service import load_business_model
+    m = load_business_model("service_beauty")
+    fm = " ".join(m.get("forbidden_misreadings", []))
+    assert "噪音" in fm or "气味" in fm or "宠物" in fm
+    assert "product_review_004" in {r["source_id"] for r in m.get("source_refs", [])}
+    print("T24 PH4H beauty absorbed: PASS")
+
+
+def test_ph4h_pharmacy_absorbed():
+    from services.business_model_service import load_business_model
+    m = load_business_model("pharmacy")
+    fm = " ".join(m.get("forbidden_misreadings", []))
+    assert "医保" in fm or "GSP" in fm or "竞品少" in fm
+    assert "product_review_005" in {r["source_id"] for r in m.get("source_refs", [])}
+    print("T25 PH4H pharmacy absorbed: PASS")
+
+
+def test_ph4h_entertainment_absorbed():
+    from services.business_model_service import load_business_model
+    m = load_business_model("entertainment")
+    rf = " ".join(m.get("red_flags", []))
+    assert "消防" in rf or "噪音" in rf or "扰民" in rf
+    assert "product_review_006" in {r["source_id"] for r in m.get("source_refs", [])}
+    print("T26 PH4H entertainment absorbed: PASS")
+
+
 # T19: 全部前台 business_type 归类覆盖
 # ── Master self-mapping keys (not user-facing leaf types) ──
 _MASTER_SELF_KEYS = {
@@ -473,6 +518,11 @@ if __name__ == "__main__":
     test_ph4g_catering_absorbed()
     test_ph4g_convenience_absorbed()
     test_ph4g_hotel_absorbed()
+    test_ph4h_childcare_absorbed()
+    test_ph4h_training_absorbed()
+    test_ph4h_beauty_absorbed()
+    test_ph4h_pharmacy_absorbed()
+    test_ph4h_entertainment_absorbed()
     test_leaf_business_type_coverage()
     test_master_keys_not_generic()
     test_same_location_different_business()

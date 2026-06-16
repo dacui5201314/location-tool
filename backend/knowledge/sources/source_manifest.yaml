@@ -76,6 +76,47 @@ sources:
         - "不能把餐饮门店多作为所有业态通用优势"
         - "不能把 0 竞品机械写成强优势"
 
+  # ── Phase 4H 五业态知识梳理 ──
+  - source_id: "product_review_002"
+    source_type: "product_review"
+    title: "址得选 教育托管业态知识梳理"
+    confidence: "B"
+    derived_rule_only: true
+    applicable_models: ["education_childcare"]
+    extracted_rules: {demand_sources: [], red_flags: []}
+
+  - source_id: "product_review_003"
+    source_type: "product_review"
+    title: "址得选 教育培训业态知识梳理"
+    confidence: "B"
+    derived_rule_only: true
+    applicable_models: ["education_training"]
+    extracted_rules: {demand_sources: [], red_flags: []}
+
+  - source_id: "product_review_004"
+    source_type: "product_review"
+    title: "址得选 美业健身宠物业态知识梳理"
+    confidence: "B"
+    derived_rule_only: true
+    applicable_models: ["service_beauty"]
+    extracted_rules: {demand_sources: [], red_flags: []}
+
+  - source_id: "product_review_005"
+    source_type: "product_review"
+    title: "址得选 药店业态知识梳理"
+    confidence: "B"
+    derived_rule_only: true
+    applicable_models: ["pharmacy"]
+    extracted_rules: {demand_sources: [], red_flags: []}
+
+  - source_id: "product_review_006"
+    source_type: "product_review"
+    title: "址得选 休闲娱乐业态知识梳理"
+    confidence: "B"
+    derived_rule_only: true
+    applicable_models: ["entertainment"]
+    extracted_rules: {demand_sources: [], red_flags: []}
+
   # ── Phase 2 Batch A/B rule_seed ──
   - source_id: "rule_seed_004"
     source_type: "rule_seed"

@@ -1,0 +1,33 @@
+# 来源卡: 教育托管业态知识梳理
+source_id: "product_review_002"
+source_type: "product_review"
+title: "址得选 教育托管业态知识梳理"
+confidence: "B"
+derived_rule_only: true
+distillation_status: "candidate_only"
+applicable_models: ["education_childcare"]
+extracted_rules:
+  demand_sources:
+    - rule: "小学低年级学生是核心客群"
+      condition: "周边小学距离、放学动线、双职工家庭密度"
+    - rule: "午托/晚托/作业辅导三种服务组合"
+      condition: "工作日 11:30-12:30 午托 + 15:30-17:00 放学 + 作业辅导时段"
+  red_flags:
+    - rule: "0 POI 竞品不等于无竞品"
+      condition: "家庭式托管/小饭桌/个人工作室几乎不被地图收录"
+      severity: "must_warn"
+    - rule: "消防/食品/托管备案任一不满足"
+      condition: "现场核验消防双通道、食品经营许可、托管备案"
+      severity: "stop"
+  fit_signals:
+    - rule: "小学步行5分钟内安全可达"
+      condition: "不过主干道、有人行道、动线安全"
+    - rule: "室内空间可3+分区"
+      condition: "活动区、就餐区、作业区、午休区、卫生间"
+  data_blind_spots:
+    - "托管/小饭桌/家庭式托管收录率极低"
+    - "暗竞品无法通过高德数据识别"
+    - "生源数量无法从POI推导"
+  forbidden_misreadings:
+    - "不能把0 POI竞品当成竞争空白或品类优势"
+    - "不能使用餐饮类核验清单（外卖骑手、午晚高峰堂食等）"

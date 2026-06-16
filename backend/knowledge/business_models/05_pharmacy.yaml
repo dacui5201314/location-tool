@@ -74,11 +74,17 @@ forbidden_misreadings:
   - "不能把医院和诊所作为药店的直接竞品（它们是处方锚点而非竞品）。"
   - "不能把便利店和超市作为药店的直接竞品（OTC 药品销售受限）。"
   - "不能输出推荐开店、值得投资、可以放心等决策语言。"
+  # Phase 4H 吸收: product_review_005
+  - "不能仅凭竞品少推荐开店。"
+  - "不能忽略医保定点对药店竞争力的决定性影响。"
 
 source_refs:
   - source_id: "rule_seed_007"
     applies_to: ["competition"]
     rule_key: "pharmacy_neutral_type"
+  - source_id: "product_review_005"
+    applies_to: ["demand_sources", "red_flags", "fit_signals", "data_blind_spots", "forbidden_misreadings"]
+    rule_key: "pharmacy_knowledge_report"
 
 sources:
   - id: "rule_seed_007"

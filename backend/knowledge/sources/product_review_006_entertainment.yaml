@@ -1,0 +1,33 @@
+# 来源卡: 休闲娱乐业态知识梳理
+source_id: "product_review_006"
+source_type: "product_review"
+title: "址得选 休闲娱乐业态知识梳理"
+confidence: "B"
+derived_rule_only: true
+distillation_status: "candidate_only"
+applicable_models: ["entertainment"]
+extracted_rules:
+  demand_sources:
+    - rule: "强聚集型：必须位于娱乐聚集区或商圈"
+      condition: "同类娱乐场所集中是正常且有利的"
+    - rule: "年轻客群密度决定需求上限"
+    - rule: "夜间交通可达是硬需（公交/停车）"
+  red_flags:
+    - rule: "0竞品=需求不足或位置不适合"
+      severity: "must_warn"
+    - rule: "位置孤立，不在任何商圈或娱乐聚集区"
+      severity: "stop"
+    - rule: "消防或噪音合规无法满足"
+      severity: "stop"
+    - rule: "与居民区距离过近（<100m）噪音投诉风险高"
+      severity: "downgrade"
+  fit_signals:
+    - rule: "位于商圈或已形成娱乐聚集区"
+    - rule: "夜间交通可达（公交/停车/打车便利）"
+    - rule: "消防/噪音/文化经营许可可办理"
+  data_blind_spots:
+    - "娱乐场所可能以非娱乐类别注册导致POI偏低"
+    - "夜生活消费习惯需现场观察"
+  forbidden_misreadings:
+    - "0竞品不能写机会或市场空白"
+    - "不能忽略消防和噪音合规的硬门槛"

@@ -80,12 +80,17 @@ forbidden_misreadings:
   - "不能把 0 竞品当成品类机会：可能意味着政策/噪音限制或夜间需求不足。"
   - "不能把餐饮门店作为娱乐场所的直接竞品。"
   - "不能输出推荐开店、值得投资、可以放心等决策语言。"
+  # Phase 4H 吸收: product_review_006
+  - "0竞品不能写机会或市场空白。"
+  - "不能忽略消防和噪音合规的硬门槛。"
 
 source_refs:
   - source_id: "rule_seed_006"
     applies_to: ["competition"]
     rule_key: "entertainment_aggregation_type"
-
+  - source_id: "product_review_006"
+    applies_to: ["demand_sources", "red_flags", "fit_signals", "data_blind_spots", "forbidden_misreadings"]
+    rule_key: "entertainment_knowledge_report"
 sources:
   - id: "rule_seed_006"
     type: "rule_seed"
