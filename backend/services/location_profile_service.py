@@ -87,6 +87,20 @@ def compute_school_anchor_breakdown(real_data: dict) -> dict:
     }
 
 
+def _k12_school_count(sab: dict) -> int:
+    """从 school_anchor_breakdown 提取 K12 有效学校数（排除大学/培训/unknown）。"""
+    bd = (sab or {}).get("breakdown", {}) or {}
+    return bd.get("elementary", 0) + bd.get("middle_high", 0) + bd.get("kindergarten", 0)
+
+
+def _has_meaningful_breakdown(sab: dict) -> bool:
+    """是否拿到了有意义的学校类型细分（非全 unknown）。"""
+    if not sab or sab.get("total", 0) == 0:
+        return False
+    bd = sab.get("breakdown", {}) or {}
+    return bd.get("unknown", 0) < sab["total"]
+
+
 def compute_location_profile(real_data: dict) -> dict:
     """从 real_data 计算与业态无关的位置基本面。"""
     r = real_data or {}
@@ -104,8 +118,15 @@ def compute_location_profile(real_data: dict) -> dict:
     restaurants_1k = _int(s10.get("restaurants", 0))
     subway_applicable = r.get("subway_applicable", True)
 
+    # ── P1: 学区判定按学校类型细分 ──
+    sab = compute_school_anchor_breakdown(r)
+    use_effective = _has_meaningful_breakdown(sab)
+    _sch = _k12_school_count(sab) if use_effective else school_500
+    # 用于 strengths/label/anchors 等学区语义输出
+    _sch_label = _sch if use_effective else school_500
+
     # ── 位置类型 ──
-    if school_500 >= 8:
+    if _sch >= 8:
         location_type = "学区及周边"
     elif office_500 >= 20 and shopping_500 >= 5:
         location_type = "商务商业复合区"
@@ -115,9 +136,9 @@ def compute_location_profile(real_data: dict) -> dict:
         location_type = "高密度居住区"
     elif shopping_500 >= 8:
         location_type = "核心商圈"
-    elif school_500 >= 3 and bus_500 <= 3 and subway_500 == 0 and subway_applicable:
+    elif _sch >= 3 and bus_500 <= 3 and subway_500 == 0 and subway_applicable:
         location_type = "学区弱交通社区型"
-    elif school_500 >= 3 and res_500 >= 5:
+    elif _sch >= 3 and res_500 >= 5:
         location_type = "学区社区混合型"
     elif res_500 < 5 and office_500 < 5 and school_500 < 3:
         location_type = "弱交通住宅区 / 低密度边缘"
@@ -129,9 +150,9 @@ def compute_location_profile(real_data: dict) -> dict:
     # ── 标签 ──
     if res_500 < 5 and office_500 < 3 and school_500 < 3:
         label = "低密度边缘位置"
-    elif school_500 >= 3 and bus_500 <= 3 and subway_500 == 0 and subway_applicable:
+    elif _sch_label >= 3 and bus_500 <= 3 and subway_500 == 0 and subway_applicable:
         label = "学区弱交通社区型"
-    elif school_500 >= 5:
+    elif _sch_label >= 5:
         label = "学区边缘位置"
     elif office_500 >= 15:
         label = "办公商圈位置"
@@ -144,7 +165,7 @@ def compute_location_profile(real_data: dict) -> dict:
 
     # ── core_anchors ──
     anchors = []
-    if school_500 >= 3:
+    if _sch_label >= 3:
         anchors.append("学校")
     if res_500 >= 10:
         anchors.append("住宅")
@@ -161,7 +182,7 @@ def compute_location_profile(real_data: dict) -> dict:
 
     # ── strengths (通用，不含餐饮供给) ──
     strengths = []
-    if school_500 >= 5:
+    if _sch_label >= 5:
         strengths.append(f"500m 内 {school_500} 所学校，学区客群基础较好")
     if res_500 >= 20:
         strengths.append(f"500m 内 {res_500} 个住宅小区，居住密度较高")
@@ -194,8 +215,9 @@ def compute_location_profile(real_data: dict) -> dict:
     # ── suitable / cautious families ──
     suitable = []
     cautious = []
-    if school_500 >= 3:
+    if _sch_label >= 3:
         suitable.append("education_childcare")
+    if school_500 >= 3:
         suitable.append("snack_fast_food")
     if office_500 >= 10:
         suitable.append("snack_fast_food")
@@ -210,7 +232,7 @@ def compute_location_profile(real_data: dict) -> dict:
         cautious.append("entertainment")
     if bus_500 <= 2 and not (subway_applicable and subway_500 >= 1):
         cautious.append("hotel")
-    if res_500 < 10 and school_500 < 3:
+    if res_500 < 10 and _sch_label < 3:
         cautious.append("education_childcare")
         cautious.append("education_training")
 

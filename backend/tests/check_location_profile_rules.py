@@ -5,6 +5,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from services.location_profile_service import (
     compute_location_profile, compute_school_anchor_breakdown,
     get_dining_not_advantage_families, _classify_school,
+    _k12_school_count,
 )
 
 
@@ -121,6 +122,71 @@ def test_dining_not_advantage():
     print(f"T6 dining not advantage: {sorted(families)} PASS")
 
 
+# T7: 全是大学/培训机构，schools>=8 → 不得判定为学区
+def test_university_only_not_school_zone():
+    rd = _base_rd()
+    rd["stats_500m"]["schools"] = 10
+    rd["poi_lists"] = {
+        "schools": [
+            {"name": "宝鸡文理学院"},
+            {"name": "宝鸡职业技术学院"},
+            {"name": "某师范学院"},
+            {"name": "某理工学校"},
+            {"name": "新东方培训中心"},
+            {"name": "某琴行"},
+            {"name": "某画室"},
+            {"name": "某大学城校区"},
+            {"name": "某高等专科学校"},
+            {"name": "某培训学校"},
+        ]
+    }
+    lp = compute_location_profile(rd)
+    # primary_type 不得为"学区及周边"
+    assert "学区" not in lp["primary_type"], f"全大学不应判学区: {lp['primary_type']}"
+    # label 不得含"学区"
+    assert "学区" not in lp["label"], f"全大学 label 不应含学区: {lp['label']}"
+    # strengths 不得出现"学区客群基础较好"
+    strengths_text = " ".join(lp.get("strengths", []))
+    assert "学区客群" not in strengths_text, f"全大学不应有学区客群优势: {strengths_text}"
+    # evidence 仍保留原始 schools_500m
+    assert lp["evidence"]["schools_500m"] == 10
+    # school_anchor_breakdown 仍输出
+    sab = lp["evidence"]["school_anchor_breakdown"]
+    assert sab["total"] >= 8
+    # education_childcare 不应出现在 suitable 中
+    assert "education_childcare" not in lp.get("suitable_business_families", [])
+    print(f"T7 university-only not school zone: type={lp['primary_type']} label={lp['label']} PASS")
+
+
+# T8: 小学/中学足够多 → 学区判定保留
+def test_k12_schools_still_school_zone():
+    rd = _base_rd()
+    rd["stats_500m"]["schools"] = 8
+    rd["poi_lists"] = {
+        "schools": [
+            {"name": "宝鸡高新第一小学"},
+            {"name": "宝鸡市实验小学"},
+            {"name": "宝鸡中学"},
+            {"name": "某附属中学"},
+            {"name": "阳光幼儿园"},
+            {"name": "宝鸡文理学院"},
+            {"name": "宝鸡文理学院第二校区"},
+            {"name": "新东方培训中心"},
+        ]
+    }
+    lp = compute_location_profile(rd)
+    # K12 schools: elementary(2) + middle_high(2) + kindergarten(1) = 5 >= 5 → 学区判定应保留
+    assert "学区" in lp["primary_type"], f"K12学校应判学区: {lp['primary_type']}"
+    # strengths 应含学区客群
+    strengths_text = " ".join(lp.get("strengths", []))
+    assert "学区客群基础较好" in strengths_text, f"K12应有学区优势: {strengths_text}"
+    # education_childcare 应出现在 suitable
+    assert "education_childcare" in lp.get("suitable_business_families", [])
+    # evidence 仍保留原始 schools_500m
+    assert lp["evidence"]["schools_500m"] == 8
+    print(f"T8 K12 schools still school zone: type={lp['primary_type']} PASS")
+
+
 if __name__ == "__main__":
     test_location_profile_consistent()
     test_no_dining_as_edu_advantage()
@@ -128,5 +194,7 @@ if __name__ == "__main__":
     test_school_classification()
     test_school_breakdown_with_data()
     test_dining_not_advantage()
+    test_university_only_not_school_zone()
+    test_k12_schools_still_school_zone()
     print()
     print("ALL LOCATION PROFILE TESTS PASSED")
