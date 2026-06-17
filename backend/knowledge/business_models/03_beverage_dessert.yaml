@@ -83,5 +83,10 @@ sources:
     type: "rule_seed"
     confidence: "B"
 
-last_reviewed: "2026-06-15"
+source_refs:
+  - source_id: "rule_seed_001"
+    applies_to: ["demand_sources", "red_flags", "fit_signals", "data_blind_spots", "forbidden_misreadings"]
+    rule_key: "beverage_dessert_site_selection"
+
+last_reviewed: "2026-06-17"
 owner: "product"
