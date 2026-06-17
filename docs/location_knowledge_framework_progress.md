@@ -49,9 +49,8 @@
 - HTML 10 字段 + 小程序 7 字段验收
 
 ### Phase 4：样本回归库
-- **60 个 Phase 4J 基线样本 + 1 个 Phase 4K category-only 宠物店防回归样本，共 61**（4A: 12基础 → 4B: +6高风险 → 4C: +12第三样本 → 4D: 扩至36 → 4J: +24 → 60 → 4K fix-1: +1）
+- **71 个样本，12 族均 >=5**（4A:12 → 4B:+6 → 4C:+12 → 4D:36 → 4J:+24=60 → 4K:+1=61 → 4L:+5=66 → 4M:+4=70 → 4N:+1=71）
 - 每样本 expected_present/expected_absent，JSON + HTML 双文本扫描，禁止表达扫描
-- expected_model_id 60/60 全覆盖，meta 强制必填且断言 `expected_model_id == model_id`
 - 元测试：EXPECTED_MODEL_IDS 常量、set 精确匹配、每族 >=5、case_id 唯一
 - **Phase 4K 已收口**：宠物店物业/噪音/气味限制已通过 `_is_pet_business(business_type, brand_name, category)` 三参数检测 + snapshot.must_verify/stop_condition + field_checklist 确定性注入 report_json。
   - `service_beauty_05`：覆盖 `business_type="宠物店"`，expected_present 含 物业/噪音/气味 ✅
@@ -60,7 +59,7 @@
 - **Phase 4K fix-1**：修复 `_is_pet_business()` 支持 category 参数但 `_snapshot_service_beauty` / `_checklist_service_beauty` 未传 category 导致 category-only 宠物店漏识别问题。`compute_business_model_snapshot` 和 `build_business_field_checklist` 对 service_beauty 族类分流传 `category=`，`build_fallback_report` 加 `category` 参数防止 enrich 幂等跳过覆盖。
 
 ### Phase 4L-A：学校/校园客流源归并审计
-- 新增 `docs/school_campus_flow_audit.md`：审计 12 族 × 4 service + YAML + 61 样本中 school 使用口径
+- 新增 `docs/school_campus_flow_audit.md`：审计 12 族 × 4 service + YAML + 71 样本中 school 使用口径
 - 发现 **6 个测试缺口**、**fallback scoring 对非教育业态误用 school**、**location_profile 学区判定不区分学校类型**
 - **Phase 4L-B P0 已实施**（e30241f2）：`_weighted_school()` 按业态区分 school 权重、7 处评分路径走加权、通用优势三档输出、T31-T33 + 2 样本。P1-A（4L-C）+ G2/G3（4L-D）+ P2（4L-E）全部实施，school 流全线关闭。
 
@@ -78,6 +77,19 @@
 | check_report_enrichment_service.py | 11 | PASS |
 | check_knowledge_schema_rules.py | 18 | PASS |
 | check_sample_regression.py | 71 | PASS |
+
+## 当前基线总览 (2026-06-17)
+
+| 指标 | 值 |
+|------|-----|
+| Sample Regression | 71 |
+| Business Model Rules | 46 |
+| Location Profile Rules | 12 |
+| Knowledge Schema | 18 |
+| Fact Guard | 188 |
+| Industry Rigor | 2178 |
+| Source Refs (manifest) | 27 条 |
+| Source Cards | 18 张（15 absorbed + 3 candidate） |
 
 ## 明确不做 / 不纳入本轮
 

@@ -71,9 +71,15 @@ uniapp/
 
 ## backend/knowledge 边界
 
-- **YAML 文件**：运行时被 `business_model_service.load_business_model()` 动态加载，必须保留。
-- **source card 文件**：被 `check_knowledge_schema_rules.py` 测试引用，但**不参与报告生成运行时**。从纯运行角度看可排除，但保留可让服务器端跑 schema 测试验证一致性。建议保留。
-- **candidate_*.yaml**：candidate_only 来源卡，不影响报告行为，可排除。建议保留以便服务器端 T17/T18 测试验证。
+| 文件/目录 | 运行时必需 | 建议 |
+|-----------|-----------|------|
+| `business_models/*.yaml` | ✅ 是 — 被 `load_business_model()` 动态加载到报告生成 | 必须保留 |
+| `location_profiles.yaml` | ✅ 是 — 被 `location_profile_service` 加载 | 必须保留 |
+| `*_schema.yaml` | ❌ 否 — 仅测试使用 | 保留以支持服务器端测试 |
+| `sources/*.yaml`（absorbed） | ❌ 否 — 不参与报告运行时 | 建议保留以支持 schema 追溯测试 |
+| `sources/source_manifest.yaml` | ❌ 否 — 仅测试引用 | 建议保留以支持 source_refs 一致性校验 |
+| `sources/candidate_*.yaml` | ❌ 否 — candidate_only 不改变报告 | 建议保留以支持 T17/T18 测试 |
+| 原始书籍/OCR 文件 | ❌ 否 | 绝对不进生产包 |
 
 ## 当前 .gitignore 覆盖
 
