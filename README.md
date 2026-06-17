@@ -19,6 +19,7 @@
 - **双重计费系统** — 会员订阅制（月度/季度/年度）+ 点数余额制 + CDK 兑换码激活
 - **管理后台** — key 池管理、业态配置热更新、用户管理、SKU 套餐管理、分享配置、操作审计日志
 - **微信支付** — JSAPI v3 完整链路（prepay + notify 验签解密 + PaymentOrder 持久化）+ 小程序虚拟支付（wx.requestVirtualPayment 道具直购）
+- **选址知识蒸馏框架** — 12 族 YAML 确定性业务模型 + 两层判断架构（location_profile / business_model）+ 五类竞争类型（排斥型/半聚集型/暗竞品型/聚集型/中性型）+ school 流 K12 归并 + 公交去重 + 18 张 source card + 27 条 manifest + 71 样本回归库。测试基线：BM 46 / LP 12 / Schema 18 / Fact Guard 188。详见 `docs/location_knowledge_framework_progress.md`。
 
 ---
 
@@ -192,6 +193,7 @@ http://localhost:8000/docs           # Swagger API 文档
 - **v1.14.0** (2026-06-01) — 上线闭环与安全加固：支付 queryOrder 确认闭环、.gitignore 防护、管理后台 search→phone 修复、innerHTML XSS 转义、匿名设备 ID 去硬编码、退款幂等保护、location key 池完整重试、文档统一
 - **v1.13.0** (2026-05-30) — 管理后台重建 + 微信支付接入：全新独立 HTML 管理后台（`/admin`），8 模块功能完整对齐旧版；系统设置含 7 子标签（核心配置/UI/分享/二维码/SKU/Key池/存储）；业态规则从 industry_config.py 直接读取；仪表盘含 15 天趋势图；微信支付 JSAPI v3 完整链路（prepay + notify）；小程序充值页接入真实支付；死代码清理 ~1,000 行；P0 计费时序修复；B26/B27 修复
 - **v1.12.0** (2026-05-30) — 项目简化与安全加固：移除 Web 前端（React），uni-app 成为唯一客户端；后端 location 端点接入 Key 池实现配额自动切换；计费扣点时序优化（AMap 成功后再 commit，失败则 rollback）；uniapp 4 页面 safe-area-inset-bottom iPhone 适配
+- **v4.1.0** (2026-06-17) — 选址知识蒸馏框架收口：12 族 YAML 全部 source_refs 追溯，school 流量化归并全线关闭（K12/大学/培训三档），小餐饮竞品分层五类竞争语义落地（排斥型/半聚集型/暗竞品型/聚集型/中性型），公交站名为单位去重，宠物店 category-only 路径修复，71 样本回归 + 46 BM + 12 LP + 18 Schema + 188 Fact Guard 全 PASS。详见 `docs/location_knowledge_framework_progress.md`。
 - **v1.11.0** (2026-05-29) — 小程序 UI 精细化收口：`compactAddress` 地址简写增强，四 tab 底部间距统一，guest 未登录态布局修复，Profile 页脚文案优化，首页/收藏页脚 padding 平衡，Profile 页面重构。check_industry_rigor_rules.py 2168 PASS / check_report_fact_guard.py 147 PASS
 - **v1.10.0** (2026-05-26) — 上线收口：微信支付后台 PEM 证书配置闭环，头像持久化上传，登录后 onboarding 流程，快捷登录错误引导，法律页面（用户协议/隐私政策），Admin 用户管理展示头像昵称。2168/147 PASS
 - **v1.9.0** (2026-05-26) — uni-app 登录/充值/CDK 独立页面化：快捷登录/密码登录/注册、兑换码独立页、充值中心独立页，微信支付后端（JSAPI v3），User.nickname 字段 DB 迁移。2168/147 PASS
