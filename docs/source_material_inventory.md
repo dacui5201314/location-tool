@@ -64,6 +64,16 @@
 - Phase 4H 已吸收 `product_review_002`-`006`（五业态知识梳理）到对应 YAML。
 - Phase 4I 已吸收 `book_013`（托管书籍）到 education_childcare YAML。
 
+## Phase 4O 候选来源卡（candidate_only，未吸收）
+
+以下 3 个来源已创建候选 source card（derived_rule_only，distillation_status=candidate_only），**未吸收进任何 business_model YAML**，不改变报告行为。吸收前必须补 source_refs 和业务回归测试。
+
+| source_id | 资料名 | 类型 | 置信度 | 适用模型 | 阻塞原因 |
+|-----------|--------|------|--------|----------|----------|
+| candidate_001 | 开店选址实用手册 | book | C | snack_fast_food, food_service, retail_convenience, retail_shopping | PDF 文本抽取不足，需 OCR |
+| candidate_002 | 2023新茶饮选址洞察报告 | report_summary | C | beverage_dessert, snack_fast_food | 未找到原始文件 |
+| candidate_003 | 药店选址指南 | report_summary | C | pharmacy | 未找到原始文件 |
+
 ## 蒸馏原则
 
 - 不保存 OCR 全文、不保存章节原文、不复制长段内容。
