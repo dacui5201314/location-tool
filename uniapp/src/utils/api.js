@@ -234,7 +234,7 @@ function analyzeLocation (payload) {
                 return loc + (m ? ' - ' + m : '') + (t ? ' (' + t + ')' : '') + inp
               })
               msg = '分析参数校验失败：' + parts.join('; ')
-              console.log('[422 Detail]', JSON.stringify(d.slice(0, 3)))
+              if (process.env.NODE_ENV !== 'production') console.log('[422 Detail]', JSON.stringify(d.slice(0, 3)))
             } else if (typeof d === 'string') {
               msg = '分析参数校验失败：' + d
             }

@@ -114,5 +114,6 @@
 - ~~公交站去重~~ ✅ 已完成（Phase 4N）。LP 12，Sample 71。
 - ~~外部资料候选 source card 收口~~ ✅ 已完成（Phase 4O）。candidate_001-003，T17+T18。
 - ~~12 业态 evidence coverage + 茶饮追溯 + 蒸馏 checklist~~ ✅ 已完成（Phase 4P-B/C）。
-- ~~生产部署文件边界收口~~ ✅ 已完成（Phase 4P-D）。docs/ 零运行时引用；backend/knowledge 运行时必需；生产必须保留/排除清单已明确。
+- ~~生产部署文件边界收口~~ ✅ 已完成（Phase 4P-D）。
+- ~~代码体检 + 前端/后台交接~~ ✅ 已完成（Phase 4R）。codebase_optimization_audit.md + FRONTEND_ADMIN_NEXT_WINDOW_HANDOFF.md + api.js console.log dev-gate。
 - ~~学校/校园客流源归并 P0 实施~~ ✅ 已完成（Phase 4L-B）。`_weighted_school()` 按业态区分 school 权重；consumer_profile / traffic_flow / executive_summary / category_advantage / competition 五个评分路径全部走加权；通用优势 school_500>=3 按 family 分教育/餐饮/禁止三档输出。新增 T31-T33 + 2 样本（retail_convenience_06, hotel_06）。
