@@ -187,6 +187,55 @@ def test_k12_schools_still_school_zone():
     print(f"T8 K12 schools still school zone: type={lp['primary_type']} PASS")
 
 
+# T9: bus dedup — 5条线路指向同一站 → 只计1个公交站
+def test_bus_dedup_same_station():
+    rd = _base_rd()
+    rd["stats_500m"]["bus"] = 5
+    rd["poi_lists"] = {
+        "bus_stops": [
+            {"name": "宝鸡文理学院(上行)"},
+            {"name": "宝鸡文理学院(下行)"},
+            {"name": "宝鸡文理学院"},
+            {"name": "宝鸡文理学院站牌东"},
+            {"name": "宝鸡文理学院东侧"},
+        ]
+    }
+    lp = compute_location_profile(rd)
+    # evidence bus_500m 保留原始值
+    assert lp["evidence"]["bus_500m"] == 5, "raw bus_500m 应保留原始值"
+    # bus_deduped 应为1
+    assert lp["evidence"]["bus_deduped"] == 1, f"dedup 后应为1，got {lp['evidence']['bus_deduped']}"
+    # bus 不应出现在 anchors
+    assert "公交" not in lp.get("core_anchors", []), "同一站不应视为公交锚点"
+    # strengths 不应出现"公交线路"
+    strengths_text = " ".join(lp.get("strengths", []))
+    assert "公交" not in strengths_text, f"同一站不应写公交优势: {strengths_text}"
+    print("T9 bus dedup same station: PASS")
+
+
+# T10: real multi-station — 不同站名仍计多个
+def test_bus_multi_station():
+    rd = _base_rd()
+    rd["stats_500m"]["bus"] = 6
+    rd["poi_lists"] = {
+        "bus_stops": [
+            {"name": "宝鸡文理学院"},
+            {"name": "高新人民医院"},
+            {"name": "高新管委会"},
+            {"name": "宝鸡文理学院东区"},
+            {"name": "天下汇"},
+            {"name": "高新广场"},
+        ]
+    }
+    lp = compute_location_profile(rd)
+    deduped = lp["evidence"]["bus_deduped"]
+    # 6个不同站 → 应有多个
+    assert deduped >= 4, f"不同站应保留多数: got {deduped}"
+    # bus 应出现在 anchors（>=5）
+    assert "公交" in lp.get("core_anchors", []), f"多站应含公交锚点: {lp['core_anchors']}"
+    print(f"T10 bus multi-station: deduped={deduped} PASS")
+
+
 if __name__ == "__main__":
     test_location_profile_consistent()
     test_no_dining_as_edu_advantage()
@@ -196,5 +245,7 @@ if __name__ == "__main__":
     test_dining_not_advantage()
     test_university_only_not_school_zone()
     test_k12_schools_still_school_zone()
+    test_bus_dedup_same_station()
+    test_bus_multi_station()
     print()
     print("ALL LOCATION PROFILE TESTS PASSED")

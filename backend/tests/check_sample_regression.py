@@ -474,6 +474,12 @@ SAMPLES = [
     {"case_id":"entertainment_05","expected_model_id": "entertainment", "model_id": "entertainment","business_type":"酒吧","brand_name":"","store_size":200,
      "real_data":_make_rd(direct_competitors_200m=0,direct_competitors_500m=0,direct_competitors_1000m=1,stats_500m={"residential":8,"office":1,"schools":0,"subway":0,"bus":2,"parking":1,"shopping":0,"hotels":0,"restaurants":8}),
      "expected_present":["直接竞品","居民"],"expected_absent":["市场空白明显","品类切入空间较好","推荐开店"]},
+
+    # ── Phase 4N: 公交去重 ──
+    # bus raw=8 但同名站上下行重复去重后~2-3站，住宅弱，不得写公交网络较密
+    {"case_id":"snack_fast_food_08_busdedup","expected_model_id": "snack_fast_food", "model_id": "snack_fast_food","business_type":"小吃快餐","brand_name":"","store_size":40,
+     "real_data":_make_rd(direct_competitors_200m=0,direct_competitors_500m=1,direct_competitors_1000m=3,stats_500m={"residential":3,"office":1,"schools":2,"subway":0,"bus":8,"parking":1,"shopping":0,"hotels":0,"restaurants":6},poi_lists={"bus_stops":[{"name":"宝鸡文理学院(上行)"},{"name":"宝鸡文理学院(下行)"},{"name":"宝鸡文理学院站牌东"},{"name":"宝鸡文理学院站牌西"},{"name":"宝鸡文理学院东侧"},{"name":"高新管委会"},{"name":"高新管委会(上行)"},{"name":"高新管委会(下行)"}]}),
+     "expected_present":["直接竞品"],"expected_absent":["公交网络较密","交通优势明显","客流导入强"]},
 ]
 
 

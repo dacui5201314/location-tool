@@ -8,7 +8,7 @@ import os as _os
 import yaml as _yaml
 
 # P2: 小吃快餐学校午休动线按 K12 触发，需学校类型细分
-from services.location_profile_service import compute_school_anchor_breakdown
+from services.location_profile_service import compute_school_anchor_breakdown, dedup_bus_count
 
 _KNOWLEDGE_DIR = _os.path.join(_os.path.dirname(__file__), "..", "knowledge")
 _MODELS_DIR = _os.path.join(_KNOWLEDGE_DIR, "business_models")
@@ -198,7 +198,7 @@ def compute_location_fundamentals(real_data: dict) -> dict:
     shopping_500 = _int(s5.get("shopping", 0))
     parking_500 = _int(s5.get("parking", 0))
     subway_500 = _int(s5.get("subway", 0))
-    bus_500 = _int(s5.get("bus", 0))
+    bus_500 = dedup_bus_count(real_data)["deduped"]
     restaurants_1k = _int(s10.get("restaurants", 0))
     subway_applicable = r.get("subway_applicable", True)
 

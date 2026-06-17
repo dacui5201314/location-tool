@@ -101,6 +101,77 @@ def _has_meaningful_breakdown(sab: dict) -> bool:
     return bd.get("unknown", 0) < sab["total"]
 
 
+# ── 公交站去重 ──
+
+_BUS_NOISE_RE = _re.compile(
+    r'[-\s]*(上行|下行|内环|外环|东行|西行|南行|北行|东南|东北|西南|西北|往东|往西|往南|往北|[东西南北]站牌|站牌[东西南北]?|东侧|南侧|西侧|北侧|主站|辅站|[东西南北](?:侧|区|口|方向|行)?|内|外)$'
+)
+
+
+def _normalize_bus_name(name: str) -> str:
+    """标准化公交站名：去括号内容 + 方向/方位尾缀。"""
+    n = _re.sub(r'[（(][^)）]*[)）]', '', (name or "").strip())
+    n = _BUS_NOISE_RE.sub('', n)
+    n = _re.sub(r'\s+', '', n)
+    return n.strip()
+
+
+def dedup_bus_count(real_data: dict) -> dict:
+    """从 real_data 的 POI 列表中提取去重后的公交站数。
+
+    Returns:
+        {"raw": N, "deduped": M, "note": "..."}
+        raw = stats_500m.bus（原始计数）
+        deduped = 归一化站名去重后的实际站数
+    """
+    r = real_data or {}
+    s5 = r.get("stats_500m", {}) or {}
+    raw = _int(s5.get("bus", 0))
+    if raw == 0:
+        return {"raw": 0, "deduped": 0}
+
+    # 从 poi_lists 中提取公交站名称
+    bus_names = []
+    poi_lists = r.get("poi_lists", {}) or {}
+    for key in ("bus_stops", "bus", "transport"):
+        entries = poi_lists.get(key, []) or []
+        if entries:
+            for e in entries:
+                n = (e.get("name") or "").strip()
+                if n:
+                    bus_names.append(n)
+            break
+
+    # 也从 traffic_anchor_list 提取公交锚点
+    if not bus_names:
+        anchors = r.get("traffic_anchor_list", []) or []
+        for e in anchors:
+            n = (e.get("name") or "").strip()
+            cat = (e.get("category") or e.get("type") or "").strip()
+            if n and ("公交" in cat or "公交" in n or "站" in n):
+                bus_names.append(n)
+
+    if not bus_names:
+        # 无名称数据，回退到 raw
+        return {"raw": raw, "deduped": raw, "note": "无站名数据，使用原始计数"}
+
+    # 归一化去重
+    seen = set()
+    for name in bus_names:
+        norm = _normalize_bus_name(name)
+        if norm and len(norm) >= 2:
+            seen.add(norm)
+
+    deduped = len(seen)
+    if deduped == 0:
+        deduped = raw
+
+    note = None
+    if raw > deduped:
+        note = f"同站多线路/上下行噪声去重：{raw}→{deduped}"
+    return {"raw": raw, "deduped": deduped, "note": note}
+
+
 def compute_location_profile(real_data: dict) -> dict:
     """从 real_data 计算与业态无关的位置基本面。"""
     r = real_data or {}
@@ -114,7 +185,10 @@ def compute_location_profile(real_data: dict) -> dict:
     shopping_500 = _int(s5.get("shopping", 0))
     parking_500 = _int(s5.get("parking", 0))
     subway_500 = _int(s5.get("subway", 0))
-    bus_500 = _int(s5.get("bus", 0))
+    bus_raw = _int(s5.get("bus", 0))
+    # P2: 公交去重 — 使用去重后站数参与评分/优势/anchor，原始值保留在 evidence
+    bus_dd = dedup_bus_count(r)
+    bus_500 = bus_dd["deduped"]
     restaurants_1k = _int(s10.get("restaurants", 0))
     subway_applicable = r.get("subway_applicable", True)
 
@@ -241,7 +315,8 @@ def compute_location_profile(real_data: dict) -> dict:
         "schools_500m": school_500,
         "residential_500m": res_500,
         "office_500m": office_500,
-        "bus_500m": bus_500,
+        "bus_500m": bus_raw,
+        "bus_deduped": bus_500,
         "subway_500m": subway_500,
         "restaurants_1000m": restaurants_1k,
         "shopping_500m": shopping_500,
