@@ -74,10 +74,10 @@
 | check_p05_report_quality.py | 13 | PASS |
 | check_p1_business_model_quality.py | 22 | PASS |
 | check_location_profile_rules.py | 8 | PASS |
-| check_business_model_rules.py | 43 | PASS |
+| check_business_model_rules.py | 46 | PASS |
 | check_report_enrichment_service.py | 11 | PASS |
 | check_knowledge_schema_rules.py | 16 | PASS |
-| check_sample_regression.py | 68 | PASS |
+| check_sample_regression.py | 70 | PASS |
 
 ## 明确不做 / 不纳入本轮
 
@@ -97,5 +97,6 @@
 - ~~学校/校园客流源归并 G2/G3 残余~~ ✅ 已完成（Phase 4L-D）。`_snapshot_beverage_dessert` school 高+res/office 低时追加校门口步行动线核验项；`_snapshot_education_training` school 高+res 低时追加家庭消费力核验、score_explanation 禁止"生源充足"。新增 T34-T35 + beverage_dessert_06 + education_training_06。
 - ~~学校/校园客流源归并 P2~~ ✅ 已完成（Phase 4L-E）。小吃快餐 checklist 学校午休动线仅按 K12 触发；全大学/培训不触发；YAML demand_sources 补"仅限中小学/K12"口径。新增 T36-T37 + snack_fast_food_06_university。school 流全线关闭。
 - 小餐饮竞品分层审计 ✅ 已完成（Phase 4M-A）。详见 `docs/catering_competitor_layer_audit.md`。
-- ~~小餐饮竞品分层 P0~~ ✅ 已完成（Phase 4M-B）。`_snapshot_food_service` / `_snapshot_beverage_dessert` 补 competitor_note，0竞品走半聚集型语义。新增 T38-T39 + food_service_06 + beverage_dessert_07。G1/G2 已关，G3/G4/G5/G6 留 Phase 4M-C。
+- ~~小餐饮竞品分层 P0~~ ✅ 已完成（Phase 4M-B）。`_snapshot_food_service` / `_snapshot_beverage_dessert` 补 competitor_note。
+- ~~小餐饮竞品分层 G3-G6~~ ✅ 已完成（Phase 4M-C）。fallback advantages 半聚集型提示 + competition_score 0竞品封顶 + 强品牌样本 + 替代消费样本。T40-T42 + beverage_dessert_08 + snack_fast_food_07。6 缺口全部关闭，BM 43→46，Sample 68→70。
 - ~~学校/校园客流源归并 P0 实施~~ ✅ 已完成（Phase 4L-B）。`_weighted_school()` 按业态区分 school 权重；consumer_profile / traffic_flow / executive_summary / category_advantage / competition 五个评分路径全部走加权；通用优势 school_500>=3 按 family 分教育/餐饮/禁止三档输出。新增 T31-T33 + 2 样本（retail_convenience_06, hotel_06）。

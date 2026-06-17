@@ -652,6 +652,39 @@ def test_beverage_zero_comp_competitor_note():
     print(f"T39 beverage 0 comp note: {cn[:80]}... PASS")
 
 
+# T40 G3: food_service/beverage 0竞品 → advantages 不含"直接竞争压力较小"
+def test_food_beverage_zero_comp_no_low_competition():
+    rd = _base_rd(direct_competitors_200m=0, direct_competitors_500m=0, direct_competitors_1000m=0)
+    for bt, bn in [("中餐", ""), ("火锅店", ""), ("奶茶店", ""), ("咖啡店", "")]:
+        r = build_fallback_report(rd, business_type=bt, brand_name=bn, store_size=50)
+        text = json.dumps(r, ensure_ascii=False)
+        assert "直接竞争压力较小" not in text, f"{bt} 0竞品不应写直接竞争压力较小"
+    print("T40 food/beverage 0 comp no low competition: PASS")
+
+
+# T41 G4: food_service/beverage 0竞品+弱需求 → competition_score 封顶
+def test_food_beverage_zero_comp_score_capped():
+    rd = _base_rd(direct_competitors_200m=0, direct_competitors_500m=0, direct_competitors_1000m=0,
+                  stats_500m={"residential":2,"office":1,"schools":2,"subway":0,"bus":2,"parking":1,"shopping":0,"hotels":0,"restaurants":5})
+    for bt in ["中餐", "奶茶店"]:
+        r = build_fallback_report(rd, business_type=bt, brand_name="", store_size=50)
+        comp = [d for d in r.get("dimension_scores", []) if d["key"] == "competition"]
+        if comp:
+            assert comp[0]["score"] <= 60, f"{bt} 0竞品+弱需求 competition 应封顶≤60, got {comp[0]['score']}"
+    print("T41 food/beverage 0 comp score capped: PASS")
+
+
+# T42 G6: 小吃快餐 sub_500>0 → advantages 含"替代消费"
+def test_snack_substitute_advantage():
+    rd = _base_rd(direct_competitors_200m=0, direct_competitors_500m=0, direct_competitors_1000m=1,
+                  substitute_competitors_200m=2, substitute_competitors_500m=5, substitute_competitors_1000m=8,
+                  stats_500m={"residential":6,"office":3,"schools":2,"subway":1,"bus":5,"parking":2,"shopping":1,"hotels":1,"restaurants":15})
+    r = build_fallback_report(rd, business_type="小吃快餐", brand_name="", store_size=40)
+    text = json.dumps(r, ensure_ascii=False)
+    assert "替代消费" in text, f"G6 substitute 分支应含替代消费: {text[:500]}"
+    print("T42 snack substitute advantage: PASS")
+
+
 # T19: 全部前台 business_type 归类覆盖
 # ── Master self-mapping keys (not user-facing leaf types) ──
 _MASTER_SELF_KEYS = {
@@ -793,6 +826,9 @@ if __name__ == "__main__":
     test_snack_k12_still_triggers_checklist()
     test_food_service_zero_comp_competitor_note()
     test_beverage_zero_comp_competitor_note()
+    test_food_beverage_zero_comp_no_low_competition()
+    test_food_beverage_zero_comp_score_capped()
+    test_snack_substitute_advantage()
     test_leaf_business_type_coverage()
     test_master_keys_not_generic()
     test_same_location_different_business()

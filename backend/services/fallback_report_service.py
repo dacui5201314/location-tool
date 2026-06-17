@@ -146,6 +146,18 @@ def build_fallback_report(real_data: dict, address: str = "",
                 f"POI 暂未检出明确托管供给，但该行业低收录率，"
                 f"需实地排查周边是否存在暗竞品、小饭桌或家庭式托管"
             )
+        # P1: 正餐/茶饮半聚集型 0竞品 → 不能写"竞争压力较小"
+        elif family_adv in ("food_service", "beverage_dessert") and dc_200 == 0 and dc_500 == 0:
+            if family_adv == "food_service":
+                advantages.append(
+                    f"近场无直接竞品记录，但正餐为半聚集型——0竞品不简单等于竞争压力低，"
+                    f"需核验停车便利度、周边餐饮生态成熟度和品质支撑"
+                )
+            else:
+                advantages.append(
+                    f"近场无直接竞品记录，但茶饮为半聚集型——0竞品不简单等于竞争压力低，"
+                    f"需核验步行动线、外卖平台强品牌覆盖和年轻客群实际存在量"
+                )
         elif sub_200 > 0 or sub_500 > 0:
             advantages.append(f"200m 直接竞品 {dc_200} 家，直接竞品较少，但替代消费较多，需现场核验分流影响")
         else:
@@ -672,6 +684,14 @@ def _competition_score(dc_200, dc_500, dc_1000, same_brand_risk,
             base = min(base, 50)
         elif pop < 5:
             base = min(base, 60)
+    # 正餐/茶饮半聚集型：0竞品不简单等于低竞争，需封顶
+    if business_family in ("food_service", "beverage_dessert"):
+        if dc_1000 == 0 and dc_500 == 0:
+            pop = res_500 + office_500
+            if pop < 10:
+                base = min(base, 55)
+            else:
+                base = min(base, 65)
     # 小吃快餐：近场0竞品但远场多时限制
     if business_family == "snack_fast_food":
         if dc_200 == 0 and dc_1000 >= 8:

@@ -2,7 +2,7 @@
 
 > 审计范围：snack_fast_food / food_service / beverage_dessert 三族的竞品口径
 > 审计日期：2026-06-16
-> 状态：P0 已实施（4M-B），G1/G2 已关；G3/G4/G5/G6 待 4M-C
+> 状态：全线关闭。4M-B（G1/G2）→ 4M-C（G3/G4/G5/G6）全部实施。6 缺口已关。
 
 ## 1. 现有代码位置清单
 
@@ -92,60 +92,54 @@
 ### G2：beverage_dessert snapshot competitor_note 为空 ✅ 已关（b95819eb）
 - 四档 competitor_note 已落地：0竞品→步行动线+外卖平台+半聚集型+hot_brands 感知
 
-### G3：food_service/beverage 0竞品时 advantages 走默认"竞争压力较小" ⬜ 待 4M-C
-- **位置**：`fallback_report_service.py` L150-152
-- **风险**：半聚集型 0竞品不应该直接写"竞争压力较小"
-- **已有样本**：beverage_dessert_03/04/05/06 的 expected_absent 均已排除"市场空白明显"，但默认 advantages 仍可能输出"竞争压力较小"
-- **注意**：4M-B 新增的 food_service_06 / beverage_dessert_07 样本 expected_absent 含"竞争压力较小"，但这仅验证 snapshot competitor_note 不含该词，不代表 fallback advantages 路径的 G3 已关。G3 仍需在 4M-C 通过修改 `fallback_report_service.py` advantages 分支关闭。
+### G3：food_service/beverage 0竞品 advantages 走默认"竞争压力较小" ✅ 已关（4M-C）
+- fallback advantages 新增 food_service/beverage 半聚集型分支，0竞品输出"需核验停车/餐饮生态"或"步行动线/外卖平台"
 
-### G4：正餐/茶饮 competition_score 无品类差异化封顶
-- **位置**：`_competition_score` L342-346
-- **风险**：正餐 0竞品时分数偏高，与半聚集型语义矛盾
-- **对比**：小吃快餐有 `dc_200==0 and dc_1000>=8 → min(base, 70)`
+### G4：正餐/茶饮 competition_score 无品类差异化封顶 ✅ 已关（4M-C）
+- `_competition_score` 新增 food_service/beverage 0竞品封顶：弱需求(pop<10)→cap 55，一般→cap 65
 
-### G5：同品牌/强品牌覆盖缺样本
-- **位置**：`_detect_same_brand_risk` L520-578
-- **风险**：茶饮品牌（瑞幸/星巴克）近场无同类但平台强品牌全覆盖，现有样本全部 `hot_brands=[]`，未测试同品牌风险路径
+### G5：同品牌/强品牌覆盖缺样本 ✅ 已关（4M-C）
+- beverage_dessert_08_strongbrand：hot_brands 含瑞幸/星巴克/霸王茶姬，0竞品+半聚集型语义
 
-### G6：替代消费（substitute）高但直接竞品少的场景未覆盖
-- **位置**：`fallback_report_service.py` L130-131
-- **风险**：小吃快餐 `sub_200>0 or sub_500>0` 走"替代消费较多需核验"分支，但现有样本 substitute 全部为 0，该分支未被测试
+### G6：替代消费高但直接竞品少 ✅ 已关（4M-C）
+- snack_fast_food_07_substitute：sub_200=2, sub_500=5，advantages 含"替代消费较多需核验分流"
 
 ---
 
-## 4. 4M-B P0 已实施 / 4M-C 待实施
+## 4. 4M-B / 4M-C 全部实施
 
-### P0：food_service / beverage_dessert snapshot 竞品化 ✅ 已实施（b95819eb）
+### P0：snapshot 竞品化 ✅ 4M-B
 
-| 文件 | 状态 | 改动 |
-|------|------|------|
-| `_snapshot_food_service` | ✅ 已实施 | 四档 competitor_note，0竞品→半聚集型+停车+餐饮生态+品质支撑 |
-| `_snapshot_beverage_dessert` | ✅ 已实施 | 四档 competitor_note，0竞品→步行动线+外卖平台+半聚集型+hot_brands 感知 |
+| 文件 | 改动 |
+|------|------|
+| `_snapshot_food_service` | 四档 competitor_note，0竞品→半聚集型+停车+餐饮生态+品质支撑 |
+| `_snapshot_beverage_dessert` | 四档 competitor_note，0竞品→步行动线+外卖平台+半聚集型+hot_brands 感知 |
 
-### P1：正餐/茶饮 0竞品时 advantages 不走默认"竞争压力较小" ⬜ 待 4M-C
+### P1：fallback advantages + score_caps ✅ 4M-C
 
-| 文件 | 改动 | 理由 |
-|------|------|------|
-| `fallback_report_service.py` advantages L150-152 | food_service/beverage_dessert 在 dc_200==0+dc_500==0 时输出半聚集型语义 | G3 |
-| `fallback_report_service.py` `_competition_score` | food_service/beverage 0竞品时封顶（如 0竞品+restaurants_1k<20 → cap=65） | G4 |
+| 文件 | 改动 |
+|------|------|
+| `fallback_report_service.py` advantages | food_service/beverage 0竞品→半聚集型提示，取代"直接竞争压力较小" |
+| `fallback_report_service.py` `_competition_score` | food_service/beverage 0竞品封顶：弱需求 cap 55，一般 cap 65 |
 
-### P2：补齐样本覆盖 ⬜ 待 4M-C（部分已加）
+### P2：样本补齐 ✅ 4M-B + 4M-C
 
-| 样本 | 状态 | 场景 |
-|------|------|------|
-| food_service_06_zero_comp | ✅ 已加（4M-B） | 正餐 0竞品+半聚集型语义 |
-| beverage_dessert_07_zero_comp | ✅ 已加（4M-B） | 茶饮 0竞品+半聚集型语义（hot_brands 为空，G5 强品牌场景仍待） |
-| beverage_dessert_08_strongbrand | ⬜ 待 4M-C | 茶饮 0竞品+hot_brands 含强品牌（G5） |
-| snack_fast_food_07_substitute | ⬜ 待 4M-C | 小吃 0竞品+替代消费多（G6） |
+| 样本 | 场景 |
+|------|------|
+| food_service_06_zero_comp | 正餐 0竞品+半聚集型语义 |
+| beverage_dessert_07_zero_comp | 茶饮 0竞品+半聚集型语义 |
+| beverage_dessert_08_strongbrand | 茶饮 0竞品+hot_brands 强品牌（G5） |
+| snack_fast_food_07_substitute | 小吃 direct 少+substitute 高（G6） |
 
-### 对应 business_model_rules 测试
+### 测试
 
-| 测试 ID | 状态 | 内容 |
-|---------|------|------|
-| T38 | ✅ 已加（4M-B） | food_service 0竞品 → competitor_note 非空+半聚集/停车/餐饮生态 |
-| T39 | ✅ 已加（4M-B） | beverage_dessert 0竞品 → competitor_note 非空+步行动线/外卖平台/半聚集 |
-| T40 | ⬜ 待 4M-C | food_service 0竞品 → advantages 不含"竞争压力较小" |
-| T41 | ⬜ 待 4M-C | 小吃快餐 sub_500>0 → advantages 含"替代消费较多" |
+| 测试 ID | 内容 |
+|---------|------|
+| T38 | food_service 0竞品 → competitor_note 非空+半聚集/停车/餐饮生态 |
+| T39 | beverage_dessert 0竞品 → competitor_note 非空+步行动线/外卖平台/半聚集 |
+| T40 | food/beverage 0竞品 → advantages 不含"直接竞争压力较小" |
+| T41 | food/beverage 0竞品+弱需求 → competition_score 封顶 |
+| T42 | 小吃快餐 sub_500>0 → advantages 含"替代消费" |
 
 ### 始终禁止项
 
@@ -159,11 +153,10 @@
 
 ## 5. 审计结论摘要
 
-1. **snack_fast_food 竞品逻辑最完善**：四档 competitor_note + 排斥型 score caps + YAML far_field 封顶 + 6 样本。
-2. **G1/G2 已关（4M-B）**：food_service / beverage_dessert snapshot competitor_note 已补，0竞品走半聚集型语义。
-3. **G3/G4/G5/G6 待 4M-C**：fallback advantages 差异化（G3）、competition_score 封顶（G4）、强品牌样本（G5）、替代消费分支样本（G6）仍待。
-4. **剩余路径**：P1 advantages/competition_score 差异化（2 处 fallback）→ P2 补齐 2 样本 + 2 测试（T40/T41）。
+1. **6 缺口全部关闭**：G1/G2（4M-B snapshot 竞品化）、G3/G4（4M-C fallback 差异化）、G5/G6（4M-C 样本补齐）。
+2. **三族竞品分层落地**：snack_fast_food 排斥型 + food_service 半聚集型 + beverage_dessert 半聚集型，各有四档 competitor_note + score caps + 样本覆盖。
+3. **测试基线**：BM 46 + Sample 70 + fact_guard 188，全部 PASS。
 
 ---
 
-*审计 2026-06-16。4M-B P0 实施（b95819eb），4M-C 待实施。*
+*审计 2026-06-16。4M-B（b95819eb）→ 4M-C（本轮）全部实施。*

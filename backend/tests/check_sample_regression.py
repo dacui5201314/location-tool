@@ -350,6 +350,10 @@ SAMPLES = [
     {"case_id":"snack_fast_food_06_university","expected_model_id": "snack_fast_food", "model_id": "snack_fast_food","business_type":"小吃快餐","brand_name":"","store_size":40,
      "real_data":_make_rd(direct_competitors_200m=0,direct_competitors_500m=2,direct_competitors_1000m=4,stats_500m={"residential":4,"office":0,"schools":5,"subway":0,"bus":3,"parking":2,"shopping":0,"hotels":1,"restaurants":8},poi_lists={"schools":[{"name":"宝鸡文理学院"},{"name":"宝鸡职业技术学院"},{"name":"某师范大学"},{"name":"某理工学校"},{"name":"新东方培训中心"}]}),
      "expected_present":["直接竞品","午高峰"],"expected_absent":["学校午休","放学动线","市场空白明显"]},
+    # 01.5 snack G6: direct少+substitute高 → 替代消费分流核验
+    {"case_id":"snack_fast_food_07_substitute","expected_model_id": "snack_fast_food", "model_id": "snack_fast_food","business_type":"小吃快餐","brand_name":"","store_size":40,
+     "real_data":_make_rd(direct_competitors_200m=0,direct_competitors_500m=0,direct_competitors_1000m=2,substitute_competitors_200m=2,substitute_competitors_500m=5,substitute_competitors_1000m=8,stats_500m={"residential":6,"office":3,"schools":2,"subway":1,"bus":5,"parking":2,"shopping":1,"hotels":1,"restaurants":15}),
+     "expected_present":["替代消费","分流","直接竞品"],"expected_absent":["市场空白明显"]},
 
     # 02 food_service: 停车排烟消防不足; 办公热闹晚市弱
     {"case_id":"food_service_04","expected_model_id": "food_service", "model_id": "food_service","business_type":"中餐","brand_name":"","store_size":150,
@@ -361,7 +365,7 @@ SAMPLES = [
     # 02.5 food_service G1: 0竞品 → competitor_note 含半聚集型/停车/餐饮生态
     {"case_id":"food_service_06_zero_comp","expected_model_id": "food_service", "model_id": "food_service","business_type":"中餐","brand_name":"","store_size":150,
      "real_data":_make_rd(direct_competitors_200m=0,direct_competitors_500m=0,direct_competitors_1000m=0,stats_500m={"residential":4,"office":0,"schools":2,"subway":0,"bus":3,"parking":0,"shopping":1,"hotels":1,"restaurants":12},stats_1000m={"residential":10,"office":0,"schools":4,"subway":0,"bus":6,"parking":2,"shopping":1,"hotels":2,"restaurants":25}),
-     "expected_present":["半聚集","停车","直接竞品"],"expected_absent":["市场空白","蓝海","竞争压力较小","推荐开店"]},
+     "expected_present":["半聚集","停车","直接竞品"],"expected_absent":["市场空白","蓝海","直接竞争压力较小","推荐开店"]},
 
     # 03 beverage: 0竞品缺年轻客群; 平台强品牌覆盖
     {"case_id":"beverage_dessert_04","expected_model_id": "beverage_dessert", "model_id": "beverage_dessert","business_type":"奶茶店","brand_name":"","store_size":15,
@@ -377,7 +381,11 @@ SAMPLES = [
     # 03.5 beverage_dessert G2: 0竞品 → competitor_note 含步行动线/外卖平台/半聚集
     {"case_id":"beverage_dessert_07_zero_comp","expected_model_id": "beverage_dessert", "model_id": "beverage_dessert","business_type":"咖啡店","brand_name":"","store_size":20,
      "real_data":_make_rd(direct_competitors_200m=0,direct_competitors_500m=0,direct_competitors_1000m=0,stats_500m={"residential":6,"office":3,"schools":1,"subway":1,"bus":5,"parking":1,"shopping":1,"hotels":1,"restaurants":10}),
-     "expected_present":["步行动线","半聚集","直接竞品"],"expected_absent":["市场空白","蓝海","竞争压力较小","推荐开店"]},
+     "expected_present":["步行动线","半聚集","直接竞品"],"expected_absent":["市场空白","蓝海","直接竞争压力较小","推荐开店"]},
+    # 03.5 beverage G5: 0竞品+hot_brands 含强品牌 → 提示外卖平台/强品牌覆盖
+    {"case_id":"beverage_dessert_08_strongbrand","expected_model_id": "beverage_dessert", "model_id": "beverage_dessert","business_type":"咖啡店","brand_name":"瑞幸","store_size":20,
+     "real_data":_make_rd(direct_competitors_200m=0,direct_competitors_500m=0,direct_competitors_1000m=0,stats_500m={"residential":6,"office":5,"schools":1,"subway":1,"bus":5,"parking":1,"shopping":1,"hotels":1,"restaurants":10},hot_brands=[{"name":"瑞幸咖啡"},{"name":"星巴克"},{"name":"霸王茶姬"}]),
+     "expected_present":["步行动线","外卖平台","直接竞品"],"expected_absent":["市场空白","直接竞争压力较小","推荐开店"]},
 
     # 04 retail_convenience: 住宅多动线不经过; 入住率不足
     {"case_id":"retail_convenience_04","expected_model_id": "retail_convenience", "model_id": "retail_convenience","business_type":"便利店","brand_name":"","store_size":50,
