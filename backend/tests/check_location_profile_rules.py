@@ -250,6 +250,22 @@ def test_non_bus_anchors_not_counted():
     print(f"T11 non-bus anchors not counted: {result} PASS")
 
 
+# T12: traffic_anchor_list category="交通设施服务", type="公交站" → 使用站名去重
+def test_bus_anchor_by_type():
+    rd = _base_rd()
+    rd["stats_500m"]["bus"] = 4
+    rd["traffic_anchor_list"] = [
+        {"name": "宝鸡文理学院(上行)", "category": "交通设施服务", "type": "公交站"},
+        {"name": "宝鸡文理学院(下行)", "category": "交通设施服务", "type": "公交车站"},
+        {"name": "高新管委会(上行)", "category": "交通设施服务", "type": "公交站"},
+        {"name": "高新管委会(下行)", "category": "交通设施服务", "type": "公交站"},
+    ]
+    result = dedup_bus_count(rd)
+    # 2个不同站→去重后为2，不回退 raw=4
+    assert result["deduped"] == 2, f"type 含公交应触发去重: got {result}"
+    print(f"T12 bus anchor by type: deduped={result['deduped']} PASS")
+
+
 if __name__ == "__main__":
     test_location_profile_consistent()
     test_no_dining_as_edu_advantage()
@@ -262,5 +278,6 @@ if __name__ == "__main__":
     test_bus_dedup_same_station()
     test_bus_multi_station()
     test_non_bus_anchors_not_counted()
+    test_bus_anchor_by_type()
     print()
     print("ALL LOCATION PROFILE TESTS PASSED")

@@ -144,13 +144,14 @@ def dedup_bus_count(real_data: dict) -> dict:
                     bus_names.append(n)
             break
 
-    # 也从 traffic_anchor_list 提取公交锚点（仅当 category/type 明确含"公交"时）
+    # 也从 traffic_anchor_list 提取公交锚点（category 或 type 任一明确含"公交"）
     if not bus_names:
         anchors = r.get("traffic_anchor_list", []) or []
         for e in anchors:
             n = (e.get("name") or "").strip()
-            cat = (e.get("category") or e.get("type") or "").strip()
-            if n and "公交" in cat:
+            cat = (e.get("category") or "").strip()
+            typ = (e.get("type") or "").strip()
+            if n and ("公交" in cat or "公交" in typ):
                 bus_names.append(n)
 
     if not bus_names:
