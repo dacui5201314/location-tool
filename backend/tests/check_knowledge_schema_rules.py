@@ -579,7 +579,7 @@ def test_candidate_sources_not_in_yaml_source_refs():
 
 
 def test_candidate_cards_have_required_fields():
-    """T18: candidate source card 必须有 source_id/title/source_type/evidence_level 或等价字段。"""
+    """T18: candidate_only card 必须 confidence=C、extracted_rules 为空、usage_limits 含不得吸收。"""
     sources_dir = os.path.join(KNOWLEDGE_DIR, "sources")
     checked = 0
     for fname in os.listdir(sources_dir):
@@ -589,14 +589,27 @@ def test_candidate_cards_have_required_fields():
             continue
         card = _load_yaml(os.path.join(sources_dir, fname))
         required = ["source_id", "title", "source_type", "distillation_status",
-                     "candidate_rules", "usage_limits", "compliance_notes"]
+                     "confidence", "extracted_rules", "candidate_rules",
+                     "usage_limits", "compliance_notes"]
         for field in required:
             assert field in card, f"sources/{fname}: missing required field '{field}'"
+        # 硬化规则 1: 候选卡必须为 candidate_only
         assert card["distillation_status"] == "candidate_only", \
             f"sources/{fname}: candidate card must have status=candidate_only"
+        # 硬化规则 2: 候选卡置信度必须为 C（未验证资料）
+        assert card["confidence"] == "C", \
+            f"sources/{fname}: candidate_only card must have confidence=C, got {card['confidence']}"
+        # 硬化规则 3: extracted_rules 必须为空（候选规则在 candidate_rules 中）
+        assert card.get("extracted_rules") == {} or card.get("extracted_rules") is None, \
+            f"sources/{fname}: candidate_only card extracted_rules must be empty"
+        # 硬化规则 4: usage_limits 必须明确"不得吸收/不得写报告/prompt"
+        ul = card.get("usage_limits", "")
+        assert any(kw in (ul or "") for kw in
+                    ["吸收", "不得", "不可", "不改变报告", "不改报告", "OCR", "获取原始", "可读性"]), \
+            f"sources/{fname}: usage_limits must state absorption barrier, got: {ul[:80]}"
         checked += 1
     assert checked >= 1, "expected at least 1 candidate source card"
-    print(f"T18 candidate cards required fields: {checked} cards PASS")
+    print(f"T18 candidate cards hardened: {checked} cards PASS")
 
 
 if __name__ == "__main__":

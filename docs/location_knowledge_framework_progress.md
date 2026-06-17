@@ -32,8 +32,8 @@
 - `docs/location_knowledge_distillation_plan.md`：蒸馏 SOP（6 类来源版权边界）
 - `docs/source_material_intake_template.md`：外部资料接入模板
 - `docs/source_material_inventory.md`：用户清单与本地资料对照盘点
-- 15 张独立 source card：internal_sample_001、product_review_001-006、book_001/002/003/005/011/012/013、report_summary_001
-- `knowledge/sources/source_manifest.yaml`：24 条来源清单
+- 18 张独立 source card（15 张已吸收 + 3 张 candidate_only）：internal_sample_001、product_review_001-006、book_001/002/003/005/011/012/013、report_summary_001、candidate_001-003
+- `knowledge/sources/source_manifest.yaml`：27 条来源清单（24 条已吸收 + 3 条 candidate_only）
 - source_refs 结构化追溯（YAML → source card 可追溯）
 
 ### Phase 2：补齐剩余族群 + 覆盖矩阵
