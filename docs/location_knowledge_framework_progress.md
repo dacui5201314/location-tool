@@ -76,7 +76,7 @@
 | check_location_profile_rules.py | 12 | PASS |
 | check_business_model_rules.py | 46 | PASS |
 | check_report_enrichment_service.py | 11 | PASS |
-| check_knowledge_schema_rules.py | 16 | PASS |
+| check_knowledge_schema_rules.py | 18 | PASS |
 | check_sample_regression.py | 71 | PASS |
 
 ## 明确不做 / 不纳入本轮
@@ -99,5 +99,6 @@
 - 小餐饮竞品分层审计 ✅ 已完成（Phase 4M-A）。详见 `docs/catering_competitor_layer_audit.md`。
 - ~~小餐饮竞品分层 P0~~ ✅ 已完成（Phase 4M-B）。`_snapshot_food_service` / `_snapshot_beverage_dessert` 补 competitor_note。
 - ~~小餐饮竞品分层 G3-G6~~ ✅ 已完成（Phase 4M-C）。6 缺口全部关闭，BM 46，Sample 70。
-- ~~公交站去重~~ ✅ 已完成（Phase 4N）。`dedup_bus_count()` 归一化站名去重，location_profile / fallback / business_model 全部走去重后公交数。LP 8→10，Sample 70→71。
+- ~~公交站去重~~ ✅ 已完成（Phase 4N）。LP 12，Sample 71。
+- ~~外部资料候选 source card 收口~~ ✅ 已完成（Phase 4O）。新增 candidate_001-003（开店选址手册/茶饮洞察/药店指南），manifest + inventory 同步。T17（candidate_only 不落 YAML source_refs）+ T18（候选卡必填字段校验）。
 - ~~学校/校园客流源归并 P0 实施~~ ✅ 已完成（Phase 4L-B）。`_weighted_school()` 按业态区分 school 权重；consumer_profile / traffic_flow / executive_summary / category_advantage / competition 五个评分路径全部走加权；通用优势 school_500>=3 按 family 分教育/餐饮/禁止三档输出。新增 T31-T33 + 2 样本（retail_convenience_06, hotel_06）。

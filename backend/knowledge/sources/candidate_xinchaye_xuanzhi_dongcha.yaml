@@ -1,0 +1,40 @@
+# 候选来源卡：2023新茶饮选址洞察报告
+# 类型: report_summary | 可信度: C (候选卡片，未获取原文件)
+# distillation_status: candidate_only — 暂不吸收进 YAML，不改变报告行为
+
+source_id: "candidate_002"
+source_type: "report_summary"
+title: "2023新茶饮选址洞察报告"
+confidence: "C"
+copyright_note: "未获取原始报告文件。如后续获取，仅保留 abstract 选址判断规则。"
+derived_rule_only: true
+distillation_status: "candidate_only"
+professional_use_policy: "暂不可吸收进 business_model YAML。需先获取原始报告文件并通过可读性验证，补 source_refs + 业务回归测试。"
+applicable_models:
+  - "beverage_dessert"
+  - "snack_fast_food"
+
+extracted_rules: {}
+
+candidate_rules:
+  demand_sources:
+    - rule: "茶饮选址核心是步行客流密度，不是人口密度"
+      condition: "年轻客群在商圈/学校/地铁口的步行动线密度决定茶饮店选址成败"
+      caveat: "需从原文提取商圈分级、步行临界值和学校/办公权重"
+    - rule: "外卖平台品牌覆盖是茶饮选址的独立竞争维度"
+      condition: "POI 无法反映外卖平台的强品牌密度，需单独评估"
+  red_flags:
+    - rule: "步行客流不足但外卖单量已达到平台头部店密度，不宜继续"
+      condition: "竞品月销远高于一般门店，说明区域已被强品牌饱和覆盖"
+  fit_signals:
+    - rule: "商圈有同类聚集且自身品牌有差异化空间"
+      condition: "同类扎堆提升品类认知，但需要有价格带或产品差异化"
+  data_blind_spots:
+    - "高德 POI 无法反映外卖平台月销和品牌排名"
+    - "步行客流的时段分布需线下实测，POI 数据不提供"
+  forbidden_misreadings:
+    - "不能把人口密度高直接等同于茶饮选址合适"
+    - "不能仅凭 POI 0 竞品判断品类空白——外卖平台可能已有强品牌饱和覆盖"
+
+usage_limits: "仅作为候选规则方向。吸收前必须获取原始报告并通过可读性验证。"
+compliance_notes: "用户清单中的资料，当前未找到原始文件。"

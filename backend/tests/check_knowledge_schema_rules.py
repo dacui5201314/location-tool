@@ -547,6 +547,58 @@ def test_absorbed_cards_not_candidate():
     print(f"T16 absorbed card status: {len(absorbed_ids)} absorbed sources checked PASS")
 
 
+def test_candidate_sources_not_in_yaml_source_refs():
+    """T17: candidate_only 来源不得出现在任何 YAML source_refs 中。"""
+    sources_dir = os.path.join(KNOWLEDGE_DIR, "sources")
+    models_dir = os.path.join(KNOWLEDGE_DIR, "business_models")
+
+    # 收集所有 YAML source_refs
+    absorbed_ids = set()
+    for fname in os.listdir(models_dir):
+        if not fname.endswith(".yaml"):
+            continue
+        model = _load_yaml(os.path.join(models_dir, fname))
+        for ref in model.get("source_refs", []):
+            sid = ref.get("source_id", "")
+            if sid:
+                absorbed_ids.add(sid)
+
+    # 检查 candidate_only 来源
+    for fname in os.listdir(sources_dir):
+        if not fname.endswith(".yaml") or fname == "source_manifest.yaml":
+            continue
+        card = _load_yaml(os.path.join(sources_dir, fname))
+        sid = card.get("source_id", "")
+        status = card.get("distillation_status", "")
+        if status == "candidate_only":
+            assert sid not in absorbed_ids, (
+                f"sources/{fname}: candidate_only source '{sid}' "
+                f"appears in YAML source_refs — must be absorbed first"
+            )
+    print("T17 candidate sources not in YAML source_refs: PASS")
+
+
+def test_candidate_cards_have_required_fields():
+    """T18: candidate source card 必须有 source_id/title/source_type/evidence_level 或等价字段。"""
+    sources_dir = os.path.join(KNOWLEDGE_DIR, "sources")
+    checked = 0
+    for fname in os.listdir(sources_dir):
+        if not fname.endswith(".yaml") or fname == "source_manifest.yaml":
+            continue
+        if not fname.startswith("candidate_"):
+            continue
+        card = _load_yaml(os.path.join(sources_dir, fname))
+        required = ["source_id", "title", "source_type", "distillation_status",
+                     "candidate_rules", "usage_limits", "compliance_notes"]
+        for field in required:
+            assert field in card, f"sources/{fname}: missing required field '{field}'"
+        assert card["distillation_status"] == "candidate_only", \
+            f"sources/{fname}: candidate card must have status=candidate_only"
+        checked += 1
+    assert checked >= 1, "expected at least 1 candidate source card"
+    print(f"T18 candidate cards required fields: {checked} cards PASS")
+
+
 if __name__ == "__main__":
     test_location_profiles_yaml()
     test_business_model_yamls()
@@ -564,5 +616,7 @@ if __name__ == "__main__":
     test_absorbed_rules_traceable()
     test_source_refs_valid()
     test_absorbed_cards_not_candidate()
+    test_candidate_sources_not_in_yaml_source_refs()
+    test_candidate_cards_have_required_fields()
     print()
     print("ALL KNOWLEDGE SCHEMA TESTS PASSED")

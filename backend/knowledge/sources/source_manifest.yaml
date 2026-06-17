@@ -233,3 +233,37 @@ sources:
     extracted_rules:
       demand_sources: []
       red_flags: []
+
+  # ── Phase 4O 候选来源卡（candidate_only，未吸收进 YAML，不改变报告行为）──
+  - source_id: "candidate_001"
+    source_type: "book"
+    title: "开店选址实用手册"
+    confidence: "C"
+    distillation_status: "candidate_only"
+    derived_rule_only: true
+    applicable_models: ["snack_fast_food", "food_service", "retail_convenience", "retail_shopping"]
+    extracted_rules: {}
+    candidate_rules_summary: "目标客群实测流量优先于竞品数量；租金占比红线因业态而异"
+    usage_limits: "OCR 或人工摘录完成后才能吸收进 YAML"
+
+  - source_id: "candidate_002"
+    source_type: "report_summary"
+    title: "2023新茶饮选址洞察报告"
+    confidence: "C"
+    distillation_status: "candidate_only"
+    derived_rule_only: true
+    applicable_models: ["beverage_dessert", "snack_fast_food"]
+    extracted_rules: {}
+    candidate_rules_summary: "茶饮选址核心是步行客流密度非人口密度；外卖平台品牌覆盖是独立竞争维度"
+    usage_limits: "需获取原始报告并通过可读性验证后才能吸收进 YAML"
+
+  - source_id: "candidate_003"
+    source_type: "report_summary"
+    title: "药店选址指南"
+    confidence: "C"
+    distillation_status: "candidate_only"
+    derived_rule_only: true
+    applicable_models: ["pharmacy"]
+    extracted_rules: {}
+    candidate_rules_summary: "药店核心看常住人口基数和年龄结构；医院/诊所处方可作为客流锚点"
+    usage_limits: "需获取原始文件并通过可读性验证后才能吸收进 YAML"

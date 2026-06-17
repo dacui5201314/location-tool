@@ -1,0 +1,40 @@
+# 候选来源卡：药店选址指南
+# 类型: report_summary | 可信度: C (候选卡片，未获取原文件)
+# distillation_status: candidate_only — 暂不吸收进 YAML，不改变报告行为
+
+source_id: "candidate_003"
+source_type: "report_summary"
+title: "药店选址指南 / 药品零售网点空间布局指引"
+confidence: "C"
+copyright_note: "未获取原始文件。如后续获取，仅保留 abstract 选址判断规则。"
+derived_rule_only: true
+distillation_status: "candidate_only"
+professional_use_policy: "暂不可吸收进 business_model YAML。需先获取原始文件并通过可读性验证，补 source_refs + 业务回归测试。"
+applicable_models:
+  - "pharmacy"
+
+extracted_rules: {}
+
+candidate_rules:
+  demand_sources:
+    - rule: "药店核心看常住人口基数和年龄结构"
+      condition: "老龄化社区和慢性病用药需求是稳定需求源"
+      caveat: "需从原文提取具体人口阈值和年龄结构条件"
+    - rule: "医院/社区卫生中心处方可作为客流锚点"
+      condition: "500m 内有医院或诊所时，处方外流可导引客流到药店"
+      caveat: "需区分综合医院与专科诊所的处方权重"
+  red_flags:
+    - rule: "常住人口不足 3000 且无医院锚点时不宜开店"
+      condition: "人口基数和锚点同时不足时，线上药店可能完全替代线下"
+  fit_signals:
+    - rule: "医保定点资质是药店竞争力核心"
+      condition: "可办理医保定点且周边同类药店不足 2 家时，选址可行性较高"
+  data_blind_spots:
+    - "高德 POI 无法反映线上药店（京东健康/阿里健康）的配送覆盖强度"
+    - "常住人口年龄结构和慢病用药需求不能从 POI 推导"
+  forbidden_misreadings:
+    - "不能把 POI 0 竞品视为优势——线上药店可能已完全覆盖该区域"
+    - "不能把医院数量直接等价于处方客流"
+
+usage_limits: "仅作为候选规则方向。吸收前必须获取原始文件并通过可读性验证。"
+compliance_notes: "用户清单中的资料，当前未找到原始文件。"

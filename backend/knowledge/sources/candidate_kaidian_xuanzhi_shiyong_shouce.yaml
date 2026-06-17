@@ -1,0 +1,39 @@
+# 候选来源卡：开店选址实用手册
+# 类型: book | 可信度: C (候选卡片，待 OCR/人工摘录后升级)
+# distillation_status: candidate_only — 暂不吸收进 YAML，不改变报告行为
+
+source_id: "candidate_001"
+source_type: "book"
+title: "开店选址实用手册"
+confidence: "C"
+copyright_note: "仅保留抽象选址判断规则方向；需 OCR 或人工摘录后才能提炼可验证规则。不包含原文摘录。"
+derived_rule_only: true
+distillation_status: "candidate_only"
+professional_use_policy: "暂不可吸收进 business_model YAML。OCR 或人工摘录完成后，需创建对应的 extracted_rules 并补 source_refs + 业务回归测试，方可标记为 absorbed。"
+applicable_models:
+  - "snack_fast_food"
+  - "food_service"
+  - "retail_convenience"
+  - "retail_shopping"
+
+extracted_rules: {}
+
+candidate_rules:
+  demand_sources:
+    - rule: "目标客群实测流量为先于竞品数量的核心选址因子"
+      condition: "选址首看实际经过人流量，其次看竞品密度和租金"
+      caveat: "待 OCR 提取具体判断条件和数值阈值"
+  red_flags:
+    - rule: "租金占比超过预估营收红线时不宜开店"
+      condition: "不同业态的租金占比红线不同，需从原文提取具体数值"
+      caveat: "快餐饮品类通常 20% 以内，正餐可稍高"
+  fit_signals:
+    - rule: "核心动线位置优于静态人口数据"
+      condition: "步行人群流向和停留点是判断的核心"
+  data_blind_spots:
+    - "POI 数据无法反映真实人流动线和停留时间"
+  forbidden_misreadings:
+    - "不能仅凭高德 POI 的周边人口数据代替现场客流实测"
+
+usage_limits: "仅作为候选规则方向，不得直接写入报告或 prompt。吸收前必须 OCR/人工摘录原文选址章节，补充判断条件和置信度。"
+compliance_notes: "书名高度相关但当前 PDF 文本抽取质量不足，本卡不包含原文内容。"
