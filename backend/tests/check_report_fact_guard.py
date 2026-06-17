@@ -495,12 +495,12 @@ report = "200米内3家诊所，就诊人群带来即时客流。"
 issues = check_poi_name_hallucination(report, rd)
 check(len(issues) == 0, f"R9-4 家诊所不触发: {issues}")
 
-# T-R9-5: "条公交线路" → 不 warning
-print("=== T-R9-5: 条公交线路泛称 → 通过 ===")
+# T-R9-5: 公交站点泛称 → 不 warning
+print("=== T-R9-5: 公交站点泛称 → 通过 ===")
 rd = {"direct_competitor_list": []}
-report = "500米内8条公交线路，地面公交网络密集。"
+report = "500米内8个公交站点，地面公交网络密集。"
 issues = check_poi_name_hallucination(report, rd)
-check(len(issues) == 0, f"R9-5 条公交线路不触发: {issues}")
+check(len(issues) == 0, f"R9-5 公交站点泛称不触发: {issues}")
 
 # T-R9-6: "个地铁站" → 不 warning
 print("=== T-R9-6: 个地铁站泛称 → 通过 ===")

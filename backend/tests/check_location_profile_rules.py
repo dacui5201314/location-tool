@@ -5,7 +5,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from services.location_profile_service import (
     compute_location_profile, compute_school_anchor_breakdown,
     get_dining_not_advantage_families, _classify_school,
-    _k12_school_count,
+    _k12_school_count, dedup_bus_count,
 )
 
 
@@ -213,7 +213,7 @@ def test_bus_dedup_same_station():
     print("T9 bus dedup same station: PASS")
 
 
-# T10: real multi-station — 不同站名仍计多个
+# T10: real multi-station — 不同站名仍计多个，东区≠主站
 def test_bus_multi_station():
     rd = _base_rd()
     rd["stats_500m"]["bus"] = 6
@@ -229,11 +229,25 @@ def test_bus_multi_station():
     }
     lp = compute_location_profile(rd)
     deduped = lp["evidence"]["bus_deduped"]
-    # 6个不同站 → 应有多个
-    assert deduped >= 4, f"不同站应保留多数: got {deduped}"
+    # 6个不同站 → 必须等于6，东区≠主站
+    assert deduped == 6, f"6个不同站 deduped 必须等于6: got {deduped}"
     # bus 应出现在 anchors（>=5）
     assert "公交" in lp.get("core_anchors", []), f"多站应含公交锚点: {lp['core_anchors']}"
     print(f"T10 bus multi-station: deduped={deduped} PASS")
+
+
+# T11: traffic_anchor_list 地铁/汽车站不得误当公交站
+def test_non_bus_anchors_not_counted():
+    rd = _base_rd()
+    rd["stats_500m"]["bus"] = 2
+    # 无 poi_lists.bus_stops，仅 traffic_anchor_list 含地铁/汽车站
+    rd["traffic_anchor_list"] = [
+        {"name": "高新大道地铁站", "category": "地铁站"},
+        {"name": "宝鸡汽车站", "category": "汽车站"},
+    ]
+    result = dedup_bus_count(rd)
+    assert result["deduped"] == 2, f"traffic_anchor_list 无公交站时 deduped 应回退 raw=2: {result}"
+    print(f"T11 non-bus anchors not counted: {result} PASS")
 
 
 if __name__ == "__main__":
@@ -247,5 +261,6 @@ if __name__ == "__main__":
     test_k12_schools_still_school_zone()
     test_bus_dedup_same_station()
     test_bus_multi_station()
+    test_non_bus_anchors_not_counted()
     print()
     print("ALL LOCATION PROFILE TESTS PASSED")

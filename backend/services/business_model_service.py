@@ -250,7 +250,7 @@ def compute_location_fundamentals(real_data: dict) -> dict:
     if subway_500 >= 1:
         strengths.append(f"500米内有{subway_500}个地铁站，公共交通便捷")
     if bus_500 >= 5:
-        strengths.append(f"500米内{bus_500}条公交线路，地面交通覆盖较好")
+        strengths.append(f"500米内{bus_500}个公交站点，地面交通覆盖较好")
     if restaurants_1k >= 30:
         strengths.append(f"1000米内{restaurants_1k}家餐饮门店，餐饮生态活跃")
 

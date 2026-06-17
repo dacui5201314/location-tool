@@ -104,12 +104,14 @@ def _has_meaningful_breakdown(sab: dict) -> bool:
 # ── 公交站去重 ──
 
 _BUS_NOISE_RE = _re.compile(
-    r'[-\s]*(上行|下行|内环|外环|东行|西行|南行|北行|东南|东北|西南|西北|往东|往西|往南|往北|[东西南北]站牌|站牌[东西南北]?|东侧|南侧|西侧|北侧|主站|辅站|[东西南北](?:侧|区|口|方向|行)?|内|外)$'
+    r'[-\s]*(上行|下行|内环|外环|东行|西行|南行|北行|往东|往西|往南|往北|[东西南北]站牌|站牌[东西南北]?|东侧|南侧|西侧|北侧|主站|辅站|[东西南北](?:侧|口|方向|行)?|内|外(?:环)?)$'
 )
 
 
 def _normalize_bus_name(name: str) -> str:
-    """标准化公交站名：去括号内容 + 方向/方位尾缀。"""
+    """标准化公交站名：去括号内容 + 方向/方位尾缀。
+    保留 东区/西区/南区/北区（真实站点标识），不去除。
+    """
     n = _re.sub(r'[（(][^)）]*[)）]', '', (name or "").strip())
     n = _BUS_NOISE_RE.sub('', n)
     n = _re.sub(r'\s+', '', n)
@@ -142,13 +144,13 @@ def dedup_bus_count(real_data: dict) -> dict:
                     bus_names.append(n)
             break
 
-    # 也从 traffic_anchor_list 提取公交锚点
+    # 也从 traffic_anchor_list 提取公交锚点（仅当 category/type 明确含"公交"时）
     if not bus_names:
         anchors = r.get("traffic_anchor_list", []) or []
         for e in anchors:
             n = (e.get("name") or "").strip()
             cat = (e.get("category") or e.get("type") or "").strip()
-            if n and ("公交" in cat or "公交" in n or "站" in n):
+            if n and "公交" in cat:
                 bus_names.append(n)
 
     if not bus_names:
@@ -267,7 +269,7 @@ def compute_location_profile(real_data: dict) -> dict:
     if subway_500 >= 1:
         strengths.append(f"500m 内有 {subway_500} 个地铁站，公共交通便捷")
     if bus_500 >= 5:
-        strengths.append(f"500m 内 {bus_500} 条公交线路，地面交通覆盖较好")
+        strengths.append(f"500m 内 {bus_500} 个公交站点，地面交通覆盖较好")
     if not strengths:
         strengths.append("该位置具备基础商业条件，需线下核验补充判断")
 

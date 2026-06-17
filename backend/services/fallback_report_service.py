@@ -171,7 +171,7 @@ def build_fallback_report(real_data: dict, address: str = "",
     if subway_applicable and subway_500 >= 1:
         advantages.append(f"500米内有{sn_count(subway_500, '个地铁站')}，公共交通可导入客群")
     if bus_500 >= 5:
-        advantages.append(f"500米内{dh_count(bus_500, '条公交线路')}，地面公交网络较密")
+        advantages.append(f"500米内{dh_count(bus_500, '个公交站点')}，地面公交网络较密")
     if school_500 >= 3:
         if family_adv in ("education_childcare", "education_training"):
             advantages.append(f"500米半径内{dh_count(school_500, '所教育机构')}，需核验生源与家庭消费力匹配")
@@ -862,13 +862,13 @@ def _traffic_text(subway_n, bus_n, subway_applicable):
     if not subway_applicable:
         total = bus_n
         level = "较便利" if total >= 8 else "一般" if total >= 3 else "偏弱"
-        return f"本城市暂无地铁系统，500米内{bus_n}条公交线路，交通评估参考公交可达性，公交{level}"
+        return f"本城市暂无地铁系统，500米内{bus_n}个公交站点，交通评估参考公交可达性，公交{level}"
     total = subway_n + bus_n
     level = "较便利" if total >= 5 else "一般" if total > 0 else "偏弱"
-    return f"500米内{subway_n}个地铁站、{bus_n}条公交线路，交通{level}"
+    return f"500米内{subway_n}个地铁站、{bus_n}个公交站点，交通{level}"
 
 
 def _traffic_detail(subway_n, bus_n, parking_n, subway_applicable, score):
     if not subway_applicable:
-        return f"本城市暂无地铁系统，交通评估参考公交线路、道路可达性和停车设施。500米内{bus_n}条公交线路、{parking_n}个停车设施。评分：{score}"
-    return f"500米内{subway_n}个地铁站、{bus_n}条公交线路、{parking_n}个停车设施。评分：{score}"
+        return f"本城市暂无地铁系统，交通评估参考公交线路、道路可达性和停车设施。500米内{bus_n}个公交站点、{parking_n}个停车设施。评分：{score}"
+    return f"500米内{subway_n}个地铁站、{bus_n}个公交站点、{parking_n}个停车设施。评分：{score}"
