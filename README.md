@@ -17,9 +17,10 @@
 - **数据充分度评估** — 确定性函数确保 normal / retry / fallback 报告均返回数据质量标签（数据较充分 / 数据一般 / 数据不足）
 - **报告分享** — 分享标题模板支持占位符（{address} / {verdict} / {score}），分享页自动脱敏内部字段
 - **双重计费系统** — 会员订阅制（月度/季度/年度）+ 点数余额制 + CDK 兑换码激活
-- **管理后台** — key 池管理、业态配置热更新、用户管理、SKU 套餐管理、分享配置、操作审计日志
+- **管理后台 v2** — 全新 IA 分组（概览/客户与报告/交易与权益/配置中心），仪表盘实时运营指标（今日新增用户/报告/反馈/实收），报告库结构化预览（对齐小程序展示，支持 HTML 下载），用户反馈处理（查看反馈/报告来源/处理状态/运营回复），存储配置状态修正，全站北京时间统一
 - **微信支付** — JSAPI v3 完整链路（prepay + notify 验签解密 + PaymentOrder 持久化）+ 小程序虚拟支付（wx.requestVirtualPayment 道具直购）
-- **选址知识蒸馏框架** — 12 族 YAML 确定性业务模型 + 两层判断架构（location_profile / business_model）+ 五类竞争类型（排斥型/半聚集型/暗竞品型/聚集型/中性型）+ school 流 K12 归并 + 公交去重 + 18 张 source card + 27 条 manifest + 71 样本回归库。测试基线：BM 46 / LP 12 / Schema 18 / Fact Guard 188。详见 `docs/location_knowledge_framework_progress.md`。
+- **用户反馈闭环** — 报告详情/个人中心提交反馈 → 管理后台查看处理 → 运营回复同步到用户端"我的反馈"
+- **选址知识蒸馏框架** — 12 族 YAML 确定性业务模型 + 两层判断架构（location_profile / business_model）+ 五类竞争类型 + school 流 K12 归并 + 公交去重 + 18 张 source card + 27 条 manifest + 71 样本回归库。测试基线：BM 46 / LP 12 / Schema 18 / Fact Guard 188 / Sample 71。详见 `docs/location_knowledge_framework_progress.md`。
 
 ---
 
@@ -54,8 +55,9 @@ location-tool/
 │   ├── models/                        # Pydantic 请求模型 + SQLAlchemy ORM（9 张表）
 │   ├── prompts/                       # 提示词系统（14 套 Master 业态规则）
 │   ├── routers/                       # RESTful API 路由（11 个模块）
-│   ├── services/                      # 业务服务（amap / billing / storage / poi_name_guard / fallback_report / report_quality / report_decision / substitute_pharmacy_filter / runtime_config）
-│   ├── tests/                         # 测试套件（industry 2178 PASS / fact guard 188 PASS / fallback / P0.5 回归）
+│   ├── knowledge/                     # 选址知识库（12 族 YAML / location_profiles / 18 张 source card / manifest 27 条）
+│   ├── services/                      # 业务服务（14 个模块：amap / business_model / location_profile / fallback_report / report_enrichment / poi_name_guard / billing / storage / cloud_storage / report_quality / report_decision / substitute_pharmacy_filter / runtime_config）
+│   ├── tests/                         # 测试套件（industry 2178 / fact guard 188 / BM 46 / sample 71 / LP 12 / schema 18 / enrichment 11 全 PASS）
 │   └── storage/                       # 运行时文件存储（reports / assets）
 ├── uniapp/                            # uni-app 多端客户端
 │   ├── src/pages/                     # 页面（home / records / favorites / report-detail / profile）
@@ -180,6 +182,8 @@ http://localhost:8000/docs           # Swagger API 文档
 
 ## 版本历史
 
+- **v4.2.0** (2026-06-18) — 前端/管理后台体验 + 上线收口：小程序首页流程重排（选位置→选业态→填画像→出报告），报告详情页按评分/结论/证据/核验/边界重排，登录审核文案脱敏（"手机号快捷登录"），用户反馈闭环（报告详情/个人中心提交 → 后台回复 → 用户端查看），管理后台 IA 分组（概览/客户与报告/交易与权益/配置中心），仪表盘新增今日运营指标，报告库结构化预览对齐小程序展示，反馈处理页支持运营回复，存储配置状态修正，全站时间按北京时间统一。报告生成逻辑/YAML/guard/prompt 保持冻结，测试基线 188/2178/71/46/12/18 全 PASS。
+- **v4.1.0** (2026-06-17) — 选址知识蒸馏框架收口：12 族 YAML 全部 source_refs 追溯，school 流量化归并全线关闭，小餐饮竞品分层五类竞争语义落地，公交站名去重，宠物店 category-only 修复。详见 `docs/location_knowledge_framework_progress.md`。
 - **v4.1.0** (2026-06-15) — P1 第一优先级体验提升：12 族群生意模型模板（小吃快餐/教育托管/教育培训/正餐/茶饮咖啡/便利零售/购物零售/美业/基础服务/酒店/娱乐/通用），同一地址不同业态共享地点基本面但输出不同业务判断；教育托管从教育培训拆出独立模板，禁止餐饮词（外卖骑手/出餐速度/上座率/午晚高峰堂食），0 竞品必须提示暗竞品/漏收录；竞争/品类评分增加需求侧约束封顶（弱需求+0竞品不拿高分）；小吃快餐结论更锋利（低租金/小档口/午市/外卖 vs 高租金/晚餐弱/外卖不足）；统一 P1 enrichment 服务确保 normal/retry/fallback 三条链路模块一致；HTML 与小程序报告模块对齐（fallback 标识/地点基本面/生意模型快照/竞品口径/证据摘要/数据边界/营收免责）；category 参数全链路传播支持 category-only 托管识别；数据充分度文案克制化（POI 数据充分 ≠ 经营数据充分）；严格 regression：188/2178/fallback/28 P0.5/22 P1 全 PASS。
 - **v4.0.0** (2026-06-16) — P0.5-final 报告可信度与判断力收口：HTML footer 去 AI 兜底、normal/retry/fallback 统一 deterministic decision_snapshot（三档阈值：可优先现场核验 / 谨慎考察 / 低优先级候选点）、营收测算模型免责、action_plan 与 field_checklist 分开展示、小餐饮替代消费过滤药店/医疗 POI 并同步重算计数、fallback 禁词稳态矩阵（7 场景全量 guard 验证）、公交分类稳健化（7 种中文 type 变体不丢到 None + fetch 层 distance 缺失保留 + BUS_DIAG 诊断日志）、同品牌分店自我分流检测与评分封顶（competition≤45 / category≤40）、低维详情解释增强（为什么低 / 怎么验证 / 什么情况淘汰）、现场核验清单淘汰信号 eliminate_hint、bus_seen distance 兜底 + fetch 层 keep_missing_distance 参数。测试：188 / 2178 / fallback / 28 P0.5 回归全 PASS。
 - **v3.9.3** (2026-06-12) — 微信审核合规：小程序前端所有用户可见 AI 文案替换（AI智能选址→商业选址分析、AI分析→分析、高级模型→多维评估、深度分析→多维分析、AI商业评估→商业评估），manifest/app-header/ProfilePanel/home 共 9 处；编译产物零敏感词匹配
@@ -193,7 +197,6 @@ http://localhost:8000/docs           # Swagger API 文档
 - **v1.14.0** (2026-06-01) — 上线闭环与安全加固：支付 queryOrder 确认闭环、.gitignore 防护、管理后台 search→phone 修复、innerHTML XSS 转义、匿名设备 ID 去硬编码、退款幂等保护、location key 池完整重试、文档统一
 - **v1.13.0** (2026-05-30) — 管理后台重建 + 微信支付接入：全新独立 HTML 管理后台（`/admin`），8 模块功能完整对齐旧版；系统设置含 7 子标签（核心配置/UI/分享/二维码/SKU/Key池/存储）；业态规则从 industry_config.py 直接读取；仪表盘含 15 天趋势图；微信支付 JSAPI v3 完整链路（prepay + notify）；小程序充值页接入真实支付；死代码清理 ~1,000 行；P0 计费时序修复；B26/B27 修复
 - **v1.12.0** (2026-05-30) — 项目简化与安全加固：移除 Web 前端（React），uni-app 成为唯一客户端；后端 location 端点接入 Key 池实现配额自动切换；计费扣点时序优化（AMap 成功后再 commit，失败则 rollback）；uniapp 4 页面 safe-area-inset-bottom iPhone 适配
-- **v4.1.0** (2026-06-17) — 选址知识蒸馏框架收口：12 族 YAML 全部 source_refs 追溯，school 流量化归并全线关闭（K12/大学/培训三档），小餐饮竞品分层五类竞争语义落地（排斥型/半聚集型/暗竞品型/聚集型/中性型），公交站名为单位去重，宠物店 category-only 路径修复，71 样本回归 + 46 BM + 12 LP + 18 Schema + 188 Fact Guard 全 PASS。详见 `docs/location_knowledge_framework_progress.md`。
 - **v1.11.0** (2026-05-29) — 小程序 UI 精细化收口：`compactAddress` 地址简写增强，四 tab 底部间距统一，guest 未登录态布局修复，Profile 页脚文案优化，首页/收藏页脚 padding 平衡，Profile 页面重构。check_industry_rigor_rules.py 2168 PASS / check_report_fact_guard.py 147 PASS
 - **v1.10.0** (2026-05-26) — 上线收口：微信支付后台 PEM 证书配置闭环，头像持久化上传，登录后 onboarding 流程，快捷登录错误引导，法律页面（用户协议/隐私政策），Admin 用户管理展示头像昵称。2168/147 PASS
 - **v1.9.0** (2026-05-26) — uni-app 登录/充值/CDK 独立页面化：快捷登录/密码登录/注册、兑换码独立页、充值中心独立页，微信支付后端（JSAPI v3），User.nickname 字段 DB 迁移。2168/147 PASS

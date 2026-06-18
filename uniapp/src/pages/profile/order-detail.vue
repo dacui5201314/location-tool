@@ -77,6 +77,7 @@
 
 <script>
 import api from '../../utils/api'
+import { formatTime } from '../../utils/format'
 
 const STATUS_MAP = {
   CREATED: '待支付',
@@ -164,23 +165,7 @@ export default {
   },
   methods: {
     fmt (iso) {
-      if (!iso) return '-'
-      const text = String(iso).trim()
-      const normalized = text.replace(' ', 'T')
-      const m = normalized.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})/)
-      let utcMs = NaN
-      if (m) {
-        const hasZone = /(?:Z|[+-]\d{2}:?\d{2})$/.test(normalized)
-        utcMs = hasZone
-          ? new Date(normalized).getTime()
-          : Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3]), Number(m[4]), Number(m[5]), Number(m[6]))
-      } else {
-        utcMs = new Date(normalized).getTime()
-      }
-      if (Number.isNaN(utcMs)) return text
-      const d = new Date(utcMs + 8 * 60 * 60 * 1000)
-      const pad = n => String(n).padStart(2, '0')
-      return d.getUTCFullYear() + '-' + pad(d.getUTCMonth() + 1) + '-' + pad(d.getUTCDate()) + ' ' + pad(d.getUTCHours()) + ':' + pad(d.getUTCMinutes()) + ':' + pad(d.getUTCSeconds())
+      return iso ? formatTime(iso) : '-'
     },
     async fetchOrder (no) {
       this.loading = true

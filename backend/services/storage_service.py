@@ -54,7 +54,7 @@ def save_report(record_id: int, report_data: dict, address: str = "", brand_name
 
     html = _build_report_html(record_id, report_data, address, brand_name)
 
-    # 始终先存本地（兜底）
+    # 先写本地临时文件；云端上传成功后会清理，仅上传失败时作为兜底保留。
     STORAGE_DIR.mkdir(parents=True, exist_ok=True)
     local_path = STORAGE_DIR / safe_name
     local_path.write_text(html, encoding="utf-8")
@@ -69,6 +69,10 @@ def save_report(record_id: int, report_data: dict, address: str = "", brand_name
                 cloud_key = f"reports/{safe_name}"
                 if upload_to_cloud(str(local_path), cloud_key, client_data):
                     cloud_url = get_cloud_url(cloud_key, client_data)
+                    try:
+                        local_path.unlink(missing_ok=True)
+                    except Exception as e:
+                        print(f"[StorageService] 本地临时报告清理失败: {e}", flush=True)
         except Exception as e:
             print(f"[StorageService] 云端报告上传失败: {e}", flush=True)
 
@@ -77,21 +81,18 @@ def save_report(record_id: int, report_data: dict, address: str = "", brand_name
 
 def get_report_content(record_id: int, report_file: str = "", report_url: str = "") -> bytes:
     """获取报告文件内容，支持本地+云端 Try-Fallback"""
-    # 本地文件优先
-    if report_file and os.path.exists(report_file):
-        return Path(report_file).read_bytes()
-
-    # 云端模式：从 COS 下载
+    # 云端 URL 优先；云端失败时再回退本地兜底。
     if report_url:
         try:
-            from services.cloud_storage import get_cloud_client
             import httpx
-            # 先尝试直接 HTTP 下载
             r = httpx.get(report_url, timeout=15)
             if r.status_code == 200:
                 return r.content
         except Exception:
             pass
+
+    if report_file and os.path.exists(report_file):
+        return Path(report_file).read_bytes()
 
     return b""
 
@@ -570,4 +571,3 @@ def _build_report_html(record_id: int, report_data: dict, address: str, brand_na
 </main>
 </body>
 </html>"""
-

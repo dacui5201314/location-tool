@@ -26,7 +26,7 @@ class Base(DeclarativeBase):
 
 def init_db():
     """创建所有表 + 兼容迁移"""
-    from models.db_models import User, AnalysisRecord, SavedLocation, RedeemCode, SystemConfig, BillingRecord, OperationLog, BusinessIndustry, PaymentOrder  # noqa: F401
+    from models.db_models import User, AnalysisRecord, SavedLocation, RedeemCode, SystemConfig, BillingRecord, OperationLog, BusinessIndustry, PaymentOrder, Feedback  # noqa: F401
     Base.metadata.create_all(bind=engine)
     # ── 轻量兼容迁移：给已有 users 表补 nickname 列 ──
     import sqlite3
@@ -59,17 +59,34 @@ def init_db():
             conn.commit()
             print("[DB] 已为 payment_orders 表添加 pay_channel 列", flush=True)
         # ── 虚拟支付: 为 users 添加 wx_session_key ──
-        if 'wx_session_key' not in cols:
-            conn.execute("ALTER TABLE users ADD COLUMN wx_session_key TEXT")
-            conn.commit()
-            print("[DB] 已为 users 表添加 wx_session_key 列", flush=True)
-        # ── 反馈: 为 feedbacks 添加 image_urls ──
+        cols_users = [r[1] for r in conn.execute("PRAGMA table_info(users)").fetchall()]
+        if 'wx_session_key' not in cols_users:
+            try:
+                conn.execute("ALTER TABLE users ADD COLUMN wx_session_key TEXT")
+                conn.commit()
+                print("[DB] 已为 users 表添加 wx_session_key 列", flush=True)
+            except Exception as e:
+                print(f"[DB] 添加 users.wx_session_key 失败: {e}", flush=True)
+        # ── 反馈: 为 feedbacks 添加截图、报告上下文与回复字段 ──
         try:
             cols_fb = [r[1] for r in conn.execute("PRAGMA table_info(feedbacks)").fetchall()]
-            if 'image_urls' not in cols_fb:
-                conn.execute("ALTER TABLE feedbacks ADD COLUMN image_urls TEXT DEFAULT '[]'")
-                conn.commit()
-                print("[DB] 已为 feedbacks 表添加 image_urls 列", flush=True)
+            fb_migrations = [
+                ("image_urls", "TEXT DEFAULT '[]'"),
+                ("credits_granted", "INTEGER DEFAULT 0"),
+                ("report_uuid", "VARCHAR(64) DEFAULT ''"),
+                ("report_title", "VARCHAR(200) DEFAULT ''"),
+                ("report_address", "TEXT DEFAULT ''"),
+                ("source", "VARCHAR(40) DEFAULT 'profile'"),
+                ("status", "VARCHAR(20) DEFAULT 'pending'"),
+                ("admin_reply", "TEXT DEFAULT ''"),
+                ("replied_at", "DATETIME DEFAULT NULL"),
+                ("updated_at", "DATETIME DEFAULT NULL"),
+            ]
+            for col_name, col_def in fb_migrations:
+                if col_name not in cols_fb:
+                    conn.execute(f"ALTER TABLE feedbacks ADD COLUMN {col_name} {col_def}")
+                    conn.commit()
+                    print(f"[DB] 已为 feedbacks 表添加 {col_name} 列", flush=True)
         except Exception:
             pass
         # ── 兼容迁移: 为 analysis_records 补齐所有字段 ──

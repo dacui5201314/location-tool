@@ -118,6 +118,10 @@ def get_stats(
     today_reports = db.query(AnalysisRecord).filter(func.date(AnalysisRecord.created_at) == today).count()
     total_favorites = db.query(SavedLocation).count()
     today_feedbacks = db.query(Feedback).filter(func.date(Feedback.created_at) == today).count()
+    today_revenue_fen = db.query(func.coalesce(func.sum(PaymentOrder.amount_fen), 0)).filter(
+        PaymentOrder.status == "PAID",
+        func.date(PaymentOrder.paid_at) == today,
+    ).scalar() or 0
 
     return {
         "total_users": total_users,
@@ -125,6 +129,8 @@ def get_stats(
         "today_users": today_users,
         "today_reports": today_reports,
         "today_feedbacks": today_feedbacks,
+        "today_revenue_fen": int(today_revenue_fen),
+        "today_revenue_yuan": f"{int(today_revenue_fen) / 100:.2f}",
         "total_favorites": total_favorites,
         "api_remaining": "—",
     }

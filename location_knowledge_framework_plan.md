@@ -2,6 +2,8 @@
 
 版本：2026-06-15.v1
 
+> 当前状态（2026-06-18）：本方案的主体工程已经完成并进入回归保护阶段。它保留为历史设计方案和架构依据，不再作为新的执行清单逐项推进。当前进度与最终基线以 `docs/location_knowledge_framework_progress.md` 为准；后续如有新书源或高质量资料，按 `docs/source_material_absorption_checklist.md` 执行。2026-06-18 的小程序/管理后台展示优化只消费 `report_json`，不改变本知识框架、YAML、prompt、guard 或评分语义。
+
 ## 一、项目目标
 
 本方案用于把选址书籍、行业报告、官方资料、一线访谈和真实报告复盘，沉淀为可执行、可测试、可迭代的选址判断框架。
@@ -541,12 +543,12 @@ Phase 4：持续样本回归
 
 1. 不把整本书直接喂给模型。
 2. 不在产品报告里复制书籍或报告长段原文。
-3. 不新增候选点池、多点对比、支付链路、PDF、长图。
+3. 不把非知识框架功能塞进本方案。
 4. 不放宽 report_fact_guard.py。
 5. 不放宽 poi_name_guard.py。
 6. 不重构 prompt 主体来掩盖业务模型问题。
 7. 不让 HTML 或小程序各自生成业务判断。
-8. Phase 1 不一次性铺满所有业态，先验证打样族群。
+8. 后续如需新增资料或规则，必须走 source card → YAML source_refs → service/report_json → regression 流程。
 
 ## 十二、第一批执行清单
 

@@ -14,7 +14,13 @@ export function scoreColor (s) {
 /** 格式化时间 */
 export function formatTime (iso) {
   if (!iso) return ''
-  const d = new Date(iso)
+  const raw = String(iso).trim()
+  let normalized = raw.replace(' ', 'T')
+  const hasClock = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(normalized)
+  const hasZone = /(?:Z|[+-]\d{2}:?\d{2})$/.test(normalized)
+  if (hasClock && !hasZone) normalized += 'Z'
+  const d = new Date(normalized)
+  if (Number.isNaN(d.getTime())) return raw.slice(0, 16)
   const pad = (n) => String(n).padStart(2, '0')
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`
 }

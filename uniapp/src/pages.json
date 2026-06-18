@@ -52,7 +52,7 @@
     },
     {
       "path": "pages/profile/feedback",
-      "style": { "navigationBarTitleText": "意见反馈", "navigationBarBackgroundColor": "#0b3fbd", "navigationBarTextStyle": "white", "enablePullDownRefresh": true, "backgroundTextStyle": "light" }
+      "style": { "navigationBarTitleText": "我的反馈", "navigationBarBackgroundColor": "#0b3fbd", "navigationBarTextStyle": "white", "enablePullDownRefresh": true, "backgroundTextStyle": "light" }
     },
     {
       "path": "pages/profile/contact",

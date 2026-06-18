@@ -2,6 +2,12 @@
 
 > **注意**：此为登录联调参考项目，功能开发已全面迁移至 `uniapp/`，此处不再继续开发。
 
+## 当前维护口径（2026-06-18）
+
+- 小程序主工程是 `uniapp/`，微信开发者工具应导入 `uniapp/dist/build/mp-weixin`。
+- 本目录只保留原生微信登录调用参考，不同步报告详情、首页、反馈、充值、订单等新功能。
+- 不在本目录修复 UI、报告预览或审核文案；相关问题统一改 `uniapp/`。
+
 ## 导入微信开发者工具
 
 1. 下载[微信开发者工具](https://developers.weixin.qq.com/miniprogram/dev/devtools/download.html)

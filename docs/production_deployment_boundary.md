@@ -1,10 +1,25 @@
-# 生产部署文件边界 v2026-06-17
+# 生产部署文件边界 v2026-06-18
 
 ## 审计结论
 
 - **docs/ 是否被运行时引用**：❌ 否。`backend/` 中零处引用 `docs/` 路径。
 - **CURRENT_HANDOFF / 方案文档是否被引用**：❌ 否。均为人类可读文档，不参与程序执行。
 - **backend/knowledge 是否必须**：✅ 是。`backend/knowledge/business_models/*.yaml` + `location_profiles.yaml` + `sources/source_manifest.yaml` 被 `business_model_service.py` 和 `location_profile_service.py` 在运行时动态加载，用于报告生成。
+
+## 2026-06-18 部署提醒
+
+如服务器还没有同步本轮前端/后台优化，需要同步以下运行文件：
+
+| 变更范围 | 需要同步 |
+|----------|----------|
+| 管理后台 IA、仪表盘、报告库预览、反馈处理、存储配置 | `backend/admin/index.html`、`backend/routers/admin.py` |
+| 用户反馈闭环 | `backend/routers/feedback.py`、`backend/database.py`、`backend/models/db_models.py` |
+| 云存储上传成功后清理本地临时文件 | `backend/services/storage_service.py` |
+| 小程序首页、报告详情、登录文案、我的反馈、时间展示 | 重新构建并上传 `uniapp/dist/build/mp-weixin` |
+
+如果只修复“报告库预览标题英文 / 内容不全”这类后台展示问题，通常只需要同步 `backend/admin/index.html` 并刷新后台页面；若涉及 API 字段或反馈链路，则同步对应后端文件并重启服务。
+
+服务器已知项目路径：`/www/wwwroot/location-tool/`。服务器环境使用 `python3`，不要在 Linux 服务器执行 Windows 路径或 `npm.cmd`。
 
 ## 生产必须保留
 
@@ -110,8 +125,13 @@ rsync -av --exclude 'docs/' --exclude 'backend/logs/' --exclude '__pycache__/' \
 cd /path/to/local/location-tool/uniapp && npm run build:mp-weixin
 
 # 重启后端
-pkill -f "python main.py" || true
-cd /www/wwwroot/location-tool/backend && nohup python main.py > app.log 2>&1 &
+cd /www/wwwroot/location-tool/backend
+python3 -c "from database import init_db; init_db()"
+pkill -f "uvicorn main:app" || true
+nohup python3 -m uvicorn main:app --host 0.0.0.0 --port 8000 > logs/server.log 2>&1 &
+sleep 2
+tail -n 80 logs/server.log
+ss -lntp | grep 8000
 ```
 
 ## 禁止进入生产

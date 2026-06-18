@@ -26,10 +26,34 @@
         </view>
       </view>
 
+      <!-- ── 评分卡：移动端先给用户结论锚点 ── -->
+      <view class="score-card" v-if="rptScore > 0">
+        <view class="sc-left">
+          <text class="score-title">综合评分</text>
+          <view class="score-ring" :style="ringStyle">
+            <view class="sr-inner">
+              <text class="sr-num" :style="{ color: sc(scorePct) }">{{ scorePct }}</text>
+              <text class="sr-unit">分</text>
+            </view>
+          </view>
+        </view>
+        <view class="sc-right">
+          <text class="sc-verdict" :style="{ color: sc(scorePct) }">{{ scoreLevel }}</text>
+          <text class="sc-caption">商业选址初筛参考</text>
+          <text class="sc-addr">{{ record.address || '-' }}</text>
+          <view class="sc-tags">
+            <text class="sct" v-if="record.business_type">{{ record.business_type }}</text>
+            <text class="sct" v-if="record.brand_desc && record.brand_desc !== record.business_type">{{ record.brand_desc }}</text>
+            <text class="sct" v-if="record.store_size > 0">{{ record.store_size }}㎡</text>
+          </view>
+          <text class="sc-time">{{ rptGeneratedAt || fmtTime(record.created_at) || '' }}</text>
+        </view>
+      </view>
+
       <!-- P0-A: fallback 标识（分享页也展示，但文案使用用户可理解表述） -->
       <view class="fb-badge" v-if="rptFallbackNote">
         <text class="fb-badge-icon">📋</text>
-        <text class="fb-badge-text">保守版数据摘要 — 基于采集数据生成，深度分析未展开。建议结合现场核验。</text>
+        <text class="fb-badge-text">保守版数据摘要 — 基于地图数据生成，深度分析未展开。建议结合现场核验。</text>
       </view>
 
       <!-- P0-B: 决策卡片（优先展示，缺字段时降级到评分卡） -->
@@ -63,6 +87,29 @@
         </view>
       </view>
 
+      <view class="read-path" v-if="hasContent">
+        <view class="rp-step">
+          <text class="rp-index">1</text>
+          <text class="rp-title">先看结论</text>
+          <text class="rp-desc">评分与一句话判断</text>
+        </view>
+        <view class="rp-step">
+          <text class="rp-index">2</text>
+          <text class="rp-title">再看依据</text>
+          <text class="rp-desc">地点与周边数据</text>
+        </view>
+        <view class="rp-step">
+          <text class="rp-index">3</text>
+          <text class="rp-title">识别风险</text>
+          <text class="rp-desc">优势、风险与条件</text>
+        </view>
+        <view class="rp-step">
+          <text class="rp-index">4</text>
+          <text class="rp-title">现场核验</text>
+          <text class="rp-desc">任务清单与边界</text>
+        </view>
+      </view>
+
       <!-- P0-B: 数据充分度标签 -->
       <!-- P1: 地点基本面 -->
       <view class="section" v-if="rptLocationFundamentals">
@@ -87,30 +134,6 @@
         <text class="ds-icon">{{ suffIcon }}</text>
         <text class="ds-label">{{ rptDataSufficiency.label }}</text>
         <text class="ds-summary" v-if="rptDataSufficiency.summary">{{ rptDataSufficiency.summary }}</text>
-      </view>
-
-      <!-- ── 评分卡 ── -->
-      <view class="score-card" v-if="rptScore > 0">
-        <view class="sc-left">
-          <text class="score-title">综合评分</text>
-          <view class="score-ring" :style="ringStyle">
-            <view class="sr-inner">
-              <text class="sr-num" :style="{ color: sc(scorePct) }">{{ scorePct }}</text>
-              <text class="sr-unit">分</text>
-            </view>
-          </view>
-        </view>
-        <view class="sc-right">
-          <text class="sc-verdict" :style="{ color: sc(scorePct) }">{{ scoreLevel }}</text>
-          <text class="sc-caption">商业选址初筛参考</text>
-          <text class="sc-addr">{{ record.address || '-' }}</text>
-          <view class="sc-tags">
-            <text class="sct" v-if="record.business_type">{{ record.business_type }}</text>
-            <text class="sct" v-if="record.brand_desc && record.brand_desc !== record.business_type">{{ record.brand_desc }}</text>
-            <text class="sct" v-if="record.store_size > 0">{{ record.store_size }}㎡</text>
-          </view>
-          <text class="sc-time">{{ rptGeneratedAt || fmtTime(record.created_at) || '' }}</text>
-        </view>
       </view>
 
       <!-- ── 维度雷达 ── -->
@@ -178,7 +201,7 @@
           <view class="cc-item"><text class="cc-num" style="color:#dc2626">{{ rptDir1000 }}</text><text class="cc-label">1km</text></view>
         </view>
         <view class="comp-list" v-if="rptDirList.length">
-          <text class="cl-item" v-for="(n,i) in rptDirList" :key="'d'+i">{{ n }}</text>
+          <text class="comp-chip" v-for="(n,i) in rptDirList" :key="'d'+i">{{ n }}</text>
           <text class="more-hint" v-if="rptDirMore > 0">还有 {{ rptDirMore }} 条</text>
         </view>
         <view class="comp-sub" v-if="rptSub500 > 0 || rptSub1000 > 0">
@@ -257,7 +280,7 @@
       <!-- ── 严谨度 / 数据质量 ── -->
       <view class="section" v-if="rptIrr > 0 || rptQual.length">
         <view class="sec-title">🛡️ 数据质量</view>
-        <text class="ql" v-if="rptIrr > 0">严谨度规则剔除 {{ rptIrr }} 个无关 POI</text>
+        <text class="ql" v-if="rptIrr > 0">严谨度规则剔除 {{ rptIrr }} 个无关点位</text>
         <text class="ql" v-for="(q,i) in rptQual" :key="'q'+i">{{ q }}</text>
         <view class="item-sm" v-for="(n,i) in rptIrrList" :key="'irr'+i">{{ n }}</view>
       </view>
@@ -298,13 +321,14 @@
         <view class="cl-hint">以下为建议的现场核验任务，以观察和记录为主，不输出绝对开店阈值。</view>
         <view class="cl-item" v-for="(item, i) in rptFieldChecklist" :key="'cl'+i">
           <view class="cl-head">
-            <text class="cl-num">{{ i + 1 }}</text>
-            <view class="cl-head-body">
-              <text class="cl-title">{{ item.title }}</text>
-              <text class="cl-risk" v-if="item.risk_type">风险：{{ item.risk_type }}</text>
-            </view>
+            <text class="cl-num">{{ checklistIndexIcon(i) }}</text>
+            <text class="cl-title">{{ item.title }}</text>
           </view>
-          <view class="cl-body" v-if="item.time_window || item.action">
+          <view class="cl-body" v-if="item.risk_type || item.time_window || item.action">
+            <view class="cl-row cl-row-danger" v-if="item.risk_type">
+              <text class="cl-row-label">风险</text>
+              <text class="cl-row-text danger">{{ item.risk_type }}</text>
+            </view>
             <view class="cl-row" v-if="item.time_window">
               <text class="cl-row-label">建议时间</text>
               <text class="cl-row-text">{{ item.time_window }}</text>
@@ -324,8 +348,8 @@
               <text class="cl-row-text hint">{{ item.pass_hint }}</text>
             </view>
             <view class="cl-row" v-if="item.eliminate_hint">
-              <text class="cl-row-label" style="color:#dc2626">淘汰信号</text>
-              <text class="cl-row-text" style="color:#b91c1c">{{ item.eliminate_hint }}</text>
+              <text class="cl-row-label danger-label">淘汰信号</text>
+              <text class="cl-row-text danger-text">{{ item.eliminate_hint }}</text>
             </view>
           </view>
         </view>
@@ -335,25 +359,17 @@
       <view class="section" v-if="rptCaliberExplanation">
         <view class="sec-title">📖 竞品口径说明</view>
         <text class="sec-text">{{ rptCaliberExplanation }}</text>
-        <view class="ev-grid" v-if="rptEvidenceSummary">
-          <view class="ev-col">
-            <text class="ev-col-title">直接竞品</text>
-            <text class="ev-col-num">{{ evVal('direct_competitors', '200m') }}</text>
-            <text class="ev-col-num">{{ evVal('direct_competitors', '500m') }}</text>
-            <text class="ev-col-num">{{ evVal('direct_competitors', '1000m') }}</text>
+        <view class="ev-table" v-if="evidenceRows.length">
+          <view class="ev-head">
+            <text>范围</text><text>直接竞品</text><text>替代消费</text><text>客流锚点</text>
           </view>
-          <view class="ev-col">
-            <text class="ev-col-title">替代消费</text>
-            <text class="ev-col-num">{{ evVal('substitute_consumption', '200m') }}</text>
-            <text class="ev-col-num">{{ evVal('substitute_consumption', '500m') }}</text>
-            <text class="ev-col-num">{{ evVal('substitute_consumption', '1000m') }}</text>
+          <view class="ev-row" v-for="row in evidenceRows" :key="row.radius">
+            <text class="ev-radius">{{ row.radius }}</text>
+            <text>{{ row.direct }}</text>
+            <text>{{ row.substitute }}</text>
+            <text>{{ row.anchor }}</text>
           </view>
-          <view class="ev-col">
-            <text class="ev-col-title">客流锚点</text>
-            <text class="ev-col-num">{{ evVal('traffic_anchors', '200m') }}</text>
-            <text class="ev-col-num">{{ evVal('traffic_anchors', '500m') }}</text>
-            <text class="ev-col-num">{{ evVal('traffic_anchors', '1000m') }}</text>
-          </view>
+          <text class="ev-note">用于说明不同距离内的竞争、替代消费和客流设施分布，需结合现场动线继续核验。</text>
         </view>
       </view>
 
@@ -363,10 +379,11 @@
         <text class="sec-text">{{ rptDataBoundary }}</text>
       </view>
 
-      <!-- Bottom bar -->
-      <view class="bottom-bar">
-        <button class="bb-back" @tap="goBack">返回</button>
-      </view>
+        <!-- Bottom bar -->
+        <view class="bottom-bar">
+          <button class="bb-feedback" v-if="!isShared" @tap="goFeedback">提交报告反馈</button>
+          <button class="bb-back" @tap="goBack">返回</button>
+        </view>
 
       <!-- Share CTA -->
       <view class="share-cta" v-if="isShared">
@@ -426,6 +443,15 @@ export default {
     hasContent () { return this.rptScore > 0 || this.rptSummary || this.rptAdv.length || this.rptDims.length || this.rptQual.length || this.rptBrands.length || this.rptIrr > 0 || this.rptCity || this.hasStats || this.rptDirList.length || this.rptDetailTexts.length || this.rptPoiCats.length },
     hasStats () { return this.rptStats.length > 0 },
     visiblePoiCats () { return this.poiExpanded ? this.rptPoiCats : this.rptPoiCats.slice(0, 10) },
+    evidenceRows () {
+      if (!this.rptEvidenceSummary) return []
+      return ['200m', '500m', '1000m'].map(radius => ({
+        radius,
+        direct: this.evVal('direct_competitors', radius),
+        substitute: this.evVal('substitute_consumption', radius),
+        anchor: this.evVal('traffic_anchors', radius)
+      }))
+    },
     scorePct () {
       const v = Number(this.rptScore)
       return (isNaN(v) || v < 0) ? 0 : Math.min(100, Math.round(v))
@@ -554,6 +580,38 @@ export default {
   },
   methods: {
     sc: scoreColor, fmtTime: formatTime,
+    maskProviderText (text) {
+      if (typeof text !== 'string') return text
+      return text
+        .replace(/高德地图POI采集/g, '地图数据采集')
+        .replace(/高德地图\s*POI/g, '地图数据')
+        .replace(/高德地图/g, '地图数据')
+        .replace(/高德/g, '地图服务')
+        .replace(/POI数据采集/g, '周边数据采集')
+        .replace(/POI/g, '点位数据')
+    },
+    maskDeep (value) {
+      if (typeof value === 'string') return this.maskProviderText(value)
+      if (Array.isArray(value)) return value.map(v => this.maskDeep(v))
+      if (value && typeof value === 'object') {
+        const out = {}
+        Object.keys(value).forEach(k => { out[k] = this.maskDeep(value[k]) })
+        return out
+      }
+      return value
+    },
+    applyReportDisplayMask () {
+      ;['rptDisclaimer','rptWarning','rptSummary','rptCaliberExplanation','rptDataBoundary','rptRevenueDisclaimer','rptBizAreas','rptRoads'].forEach(k => {
+        this[k] = this.maskProviderText(this[k])
+      })
+      ;['rptAdv','rptDis','rptAction','rptQual','rptDirList','rptSubList','rptAncList','rptIrrList','rptDetailTexts','rptPoiCats','rptFieldChecklist','rptBrands','rptStats'].forEach(k => {
+        this[k] = this.maskDeep(this[k])
+      })
+      this.rptDecisionSnapshot = this.maskDeep(this.rptDecisionSnapshot)
+      this.rptDataSufficiency = this.maskDeep(this.rptDataSufficiency)
+      this.rptLocationFundamentals = this.maskDeep(this.rptLocationFundamentals)
+      this.rptBusinessModelSnapshot = this.maskDeep(this.rptBusinessModelSnapshot)
+    },
     resolveShareImage (url) {
       if (!url) return ''
       if (url.startsWith('/assets/')) return config.API_BASE_URL + url
@@ -593,6 +651,20 @@ export default {
       }
       return map[key] || '•'
     },
+    goFeedback () {
+      const token = uni.getStorageSync('token')
+      if (!token) {
+        uni.showToast({ title: '登录后才能提交反馈', icon: 'none' })
+        return
+      }
+      const params = [
+        'source=report_detail',
+        'report_uuid=' + encodeURIComponent(this.record.report_uuid || ''),
+        'report_title=' + encodeURIComponent(this.recordTitle || '选址报告'),
+        'report_address=' + encodeURIComponent(this.record.address || '')
+      ].join('&')
+      uni.navigateTo({ url: '/pages/profile/feedback?' + params })
+    },
     goBack () { uni.navigateBack({ delta: 1 }).catch(() => uni.reLaunch({ url: '/pages/home/index?tab=records' })) },
     goToHome () { uni.reLaunch({ url: '/pages/home/index' }) },
     evVal (group, radius) {
@@ -600,6 +672,9 @@ export default {
       if (!es || !es[group] || typeof es[group] !== 'object') return 0
       const v = es[group][radius]
       return (v !== undefined && v !== null) ? v : 0
+    },
+    checklistIndexIcon (i) {
+      return ['1️⃣', '2️⃣', '3️⃣', '4️⃣', '5️⃣', '6️⃣', '7️⃣', '8️⃣', '9️⃣'][i] || String(i + 1)
     },
     compactAddress (addr, maxLen = 18) {
       if (!addr) return '门店'
@@ -919,7 +994,7 @@ export default {
 
       // report_type fallback 提示
       if (this.rptFallbackNote && !this.rptDataBoundary) {
-        this.rptDataBoundary = '本报告为保守版数据摘要，仅基于采集数据生成，不包含完整深度分析。建议结合现场核验。'
+        this.rptDataBoundary = '本报告为保守版数据摘要，仅基于地图数据生成，不包含完整深度分析。建议结合现场核验。'
       }
 
       // P1: 地点基本面与生意模型快照
@@ -931,6 +1006,7 @@ export default {
       }
       // P1: 营收免责（按业态区分）
       this.rptRevenueDisclaimer = rpt.revenue_disclaimer || ''
+      this.applyReportDisplayMask()
     }
   }
 }
@@ -946,48 +1022,48 @@ export default {
 .err-icon { font-size:80rpx; display:block; }
 .err-text { font-size:28rpx; color:#64748b; display:block; margin:16rpx 0; }
 .err-btn { margin-top:20rpx; background:#f1f5f9; color:#475569; border-radius:16rpx; padding:16rpx 40rpx; font-size:28rpx; }
-.err-btn::after, .bb-back::after, .share-cta-btn::after { border:none; }
+.err-btn::after, .bb-back::after, .bb-feedback::after, .share-cta-btn::after { border:none; }
 
-.header { margin:0 0 20rpx; padding:34rpx 28rpx 38rpx; background:linear-gradient(180deg,#0b3fbd 0%,#1236a3 58%,#172554 100%); position:relative; overflow:hidden; }
+.header { margin:0 0 16rpx; padding:30rpx 28rpx 34rpx; background:linear-gradient(180deg,#0b3fbd 0%,#1236a3 58%,#172554 100%); position:relative; overflow:hidden; }
 .header::before { content:''; position:absolute; left:26rpx; right:26rpx; bottom:-72rpx; height:120rpx; border-radius:24rpx; background:rgba(255,255,255,0.08); transform:skewY(-4deg); }
-.header-nav { position:relative; z-index:1; display:flex; align-items:center; justify-content:space-between; margin-bottom:34rpx; }
+.header-nav { position:relative; z-index:1; display:flex; align-items:center; justify-content:space-between; margin-bottom:24rpx; }
 .back { width:64rpx; height:64rpx; border-radius:18rpx; background:rgba(255,255,255,0.18); border:1rpx solid rgba(255,255,255,0.24); color:#fff; font-size:40rpx; font-weight:800; line-height:60rpx; text-align:center; display:block; box-shadow:inset 0 1rpx 0 rgba(255,255,255,0.18); }
 .hd-pill { height:50rpx; line-height:50rpx; padding:0 22rpx; border-radius:999rpx; background:rgba(255,255,255,0.14); border:1rpx solid rgba(255,255,255,0.26); color:#eaf0ff; font-size:24rpx; font-weight:700; }
 .hd-text { position:relative; z-index:1; }
 .hd-brand { display:block; font-size:22rpx; color:rgba(255,255,255,0.68); letter-spacing:6rpx; }
-.hd-title { display:block; font-size:44rpx; font-weight:900; color:#fff; margin-top:8rpx; line-height:1.18; }
-.hd-name { display:block; font-size:30rpx; font-weight:800; color:#f7d77b; margin-top:16rpx; line-height:1.4; word-break:break-all; }
-.hd-sub { display:block; font-size:27rpx; color:rgba(232,240,255,0.84); margin-top:8rpx; line-height:1.6; word-break:break-all; }
+.hd-title { display:block; font-size:38rpx; font-weight:900; color:#fff; margin-top:8rpx; line-height:1.2; }
+.hd-name { display:block; font-size:29rpx; font-weight:800; color:#f7d77b; margin-top:14rpx; line-height:1.38; word-break:break-all; }
+.hd-sub { display:block; font-size:26rpx; color:rgba(232,240,255,0.84); margin-top:8rpx; line-height:1.55; word-break:break-all; }
 
-.score-card { background:#fff; margin:0 24rpx 22rpx; border-radius:18rpx; padding:32rpx 30rpx; box-shadow:0 18rpx 42rpx rgba(36,70,128,0.10); border:1rpx solid rgba(213,224,246,0.95); display:flex; align-items:center; }
+.score-card { background:#fff; margin:0 24rpx 22rpx; border-radius:22rpx; padding:30rpx 28rpx; box-shadow:0 18rpx 42rpx rgba(36,70,128,0.10); border:1rpx solid rgba(213,224,246,0.95); display:flex; align-items:center; }
 .sc-left { flex-shrink:0; width:154rpx; margin-right:30rpx; display:flex; flex-direction:column; align-items:center; }
 .sc-right { flex:1; min-width:0; }
-.score-title { display:block; width:150rpx; height:36rpx; line-height:36rpx; margin:0 0 12rpx; color:#17244e; font-size:26rpx; font-weight:900; text-align:center; }
+.score-title { display:block; width:150rpx; height:36rpx; line-height:36rpx; margin:0 0 12rpx; color:#17244e; font-size:25rpx; font-weight:900; text-align:center; }
 .score-ring { width:150rpx; height:150rpx; border-radius:50%; display:flex; align-items:center; justify-content:center; }
 .sr-inner { width:112rpx; height:112rpx; border-radius:50%; background:#fff; display:flex; flex-direction:column; align-items:center; justify-content:center; box-shadow:inset 0 0 0 1rpx #edf2f7; }
 .sr-num { font-size:46rpx; font-weight:900; line-height:1.02; }
 .sr-unit { font-size:20rpx; font-weight:700; color:#8b99b6; line-height:1; margin-top:3rpx; }
-.sc-verdict { font-size:32rpx; font-weight:900; display:block; line-height:1.2; }
-.sc-caption { font-size:24rpx; color:#8b99b6; display:block; margin:4rpx 0 12rpx; }
-.sc-addr { font-size:27rpx; color:#4b5872; display:block; margin-bottom:14rpx; line-height:1.6; word-break:break-all; }
+.sc-verdict { font-size:30rpx; font-weight:900; display:block; line-height:1.2; }
+.sc-caption { font-size:23rpx; color:#8b99b6; display:block; margin:5rpx 0 12rpx; }
+.sc-addr { font-size:26rpx; color:#4b5872; display:block; margin-bottom:14rpx; line-height:1.58; word-break:break-all; }
 .sc-tags { display:flex; flex-wrap:wrap; gap:8rpx; margin-bottom:10rpx; }
 .sct { font-size:24rpx; font-weight:800; background:#f3f7ff; color:#315bff; border:1rpx solid rgba(49,91,255,0.14); border-radius:999rpx; padding:7rpx 16rpx; }
 .sc-time { font-size:24rpx; color:#9aa6bd; }
 
-.section, .content-box { background:rgba(255,255,255,0.96); margin:20rpx 24rpx 0; border-radius:18rpx; padding:32rpx 30rpx; box-shadow:0 12rpx 30rpx rgba(61,88,135,0.07); border:1rpx solid rgba(213,224,246,0.86); }
-.sec-title { font-size:32rpx; font-weight:900; color:#17244e; margin-bottom:20rpx; line-height:1.28; }
+.section, .content-box { background:rgba(255,255,255,0.96); margin:22rpx 24rpx 0; border-radius:22rpx; padding:30rpx 28rpx; box-shadow:0 12rpx 30rpx rgba(61,88,135,0.07); border:1rpx solid rgba(213,224,246,0.86); }
+.sec-title { font-size:30rpx; font-weight:900; color:#17244e; margin-bottom:20rpx; line-height:1.3; }
 .sec-title::before { content:''; display:inline-block; width:8rpx; height:24rpx; border-radius:6rpx; background:#315bff; margin-right:12rpx; vertical-align:-3rpx; }
 .sec-green { color:#047857; }
 .sec-green::before { background:#16a34a; }
 .sec-red { color:#b91c1c; }
 .sec-red::before { background:#ef4444; }
-.sec-text, .item, .dt-text, .ql, .cb-text { font-size:29rpx; color:#4b5872; line-height:1.82; word-break:break-all; }
+.sec-text, .item, .dt-text, .ql, .cb-text { font-size:27rpx; color:#4b5872; line-height:1.78; word-break:break-all; }
 .item { padding:8rpx 0; }
 .item-sm { font-size:27rpx; color:#64748b; padding:7rpx 0; line-height:1.62; word-break:break-all; }
 .more-hint { font-size:25rpx; color:#8b99b6; display:block; margin-top:10rpx; line-height:1.55; }
 
-.disc { background:#fff9e6; border:1rpx solid #f3d38a; border-radius:18rpx; padding:24rpx 26rpx; margin:20rpx 24rpx 0; font-size:27rpx; line-height:1.72; color:#8a5a12; box-shadow:0 10rpx 24rpx rgba(141,96,18,0.05); }
-.warn { background:#fff1f2; border:1rpx solid #fecdd3; border-radius:18rpx; padding:24rpx 26rpx; margin:20rpx 24rpx 0; font-size:28rpx; line-height:1.75; color:#be123c; }
+.disc { background:#fff9e6; border:1rpx solid #f3d38a; border-radius:18rpx; padding:24rpx 26rpx; margin:22rpx 24rpx 0; font-size:26rpx; line-height:1.72; color:#8a5a12; box-shadow:0 10rpx 24rpx rgba(141,96,18,0.05); }
+.warn { background:#fff1f2; border:1rpx solid #fecdd3; border-radius:18rpx; padding:24rpx 26rpx; margin:22rpx 24rpx 0; font-size:26rpx; line-height:1.72; color:#be123c; }
 .warn-bold { font-weight:900; }
 .cb-title { font-size:30rpx; font-weight:900; color:#17244e; display:block; margin-bottom:10rpx; }
 
@@ -995,17 +1071,17 @@ export default {
 .adv-item:last-child { border-bottom:0; padding-bottom:2rpx; }
 .adv-num { width:44rpx; height:44rpx; border-radius:14rpx; background:#dcfce7; color:#047857; font-size:22rpx; font-weight:900; line-height:44rpx; text-align:center; flex-shrink:0; margin-right:16rpx; }
 .adv-num.risk { background:#fff1f2; color:#be123c; }
-.adv-text { font-size:28rpx; color:#344256; line-height:1.75; flex:1; word-break:break-all; }
+.adv-text { font-size:27rpx; color:#344256; line-height:1.72; flex:1; word-break:break-all; }
 
 .radar-card { background:linear-gradient(180deg,#ffffff,#f8fbff); }
 .radar-head { margin-bottom:12rpx; }
 .radar-title-row { display:flex; align-items:center; margin-bottom:8rpx; }
 .radar-mark { width:42rpx; height:42rpx; line-height:42rpx; border-radius:12rpx; background:#eef4ff; text-align:center; font-size:24rpx; margin-right:12rpx; }
-.radar-main { color:#17244e; font-size:33rpx; font-weight:900; line-height:1.25; }
+.radar-main { color:#17244e; font-size:30rpx; font-weight:900; line-height:1.25; }
 .radar-sub { display:block; padding-left:54rpx; font-size:26rpx; color:#8b99b6; line-height:1.55; }
 .radar-bars { padding:8rpx 0 2rpx; }
 .rb-row { display:flex; align-items:center; padding:16rpx 0; }
-.rb-label { width:170rpx; font-size:27rpx; color:#4b5872; flex-shrink:0; line-height:1.35; }
+.rb-label { width:170rpx; font-size:26rpx; color:#4b5872; flex-shrink:0; line-height:1.35; }
 .rb-track { flex:1; height:16rpx; background:#e5ebf4; border-radius:10rpx; overflow:hidden; margin:0 16rpx; box-shadow:inset 0 1rpx 2rpx rgba(23,36,78,0.05); }
 .rb-fill { height:100%; border-radius:10rpx; min-width:4rpx; transition:width 0.3s; }
 .rb-val { width:58rpx; font-size:27rpx; font-weight:900; text-align:right; flex-shrink:0; }
@@ -1019,8 +1095,8 @@ export default {
 .cc-num { display:block; font-size:42rpx; font-weight:900; line-height:1.05; }
 .cc-label { font-size:25rpx; color:#8b99b6; margin-top:6rpx; display:block; }
 .comp-list { display:flex; flex-wrap:wrap; gap:10rpx; margin-top:12rpx; }
-.cl-item { font-size:26rpx; color:#4b5872; background:#f3f7ff; padding:9rpx 16rpx; border-radius:999rpx; border:1rpx solid rgba(49,91,255,0.12); max-width:100%; word-break:break-all; }
-.comp-sub { margin-top:16rpx; padding-top:16rpx; border-top:1rpx solid #edf2f7; font-size:27rpx; color:#64748b; line-height:1.65; }
+.comp-chip { font-size:26rpx; color:#4b5872; background:#f3f7ff; padding:9rpx 16rpx; border-radius:999rpx; border:1rpx solid rgba(49,91,255,0.12); max-width:100%; word-break:break-all; }
+.comp-sub { margin-top:16rpx; padding-top:16rpx; border-top:1rpx solid #edf2f7; font-size:26rpx; color:#64748b; line-height:1.65; }
 .cs-label { font-weight:900; color:#344256; }
 
 .stats-grid { display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:12rpx; }
@@ -1035,8 +1111,8 @@ export default {
 .sg.good { background:linear-gradient(180deg,#fbfffd,#ecfdf5); border-color:#bbf7d0; }
 .sg.info { background:linear-gradient(180deg,#fbfdff,#eff6ff); border-color:#bfdbfe; }
 
-.loc-row { font-size:29rpx; color:#344256; line-height:1.72; word-break:break-all; }
-.loc-sub { font-size:27rpx; color:#64748b; margin-top:10rpx; line-height:1.65; word-break:break-all; }
+.loc-row { font-size:27rpx; color:#344256; line-height:1.72; word-break:break-all; }
+.loc-sub { font-size:26rpx; color:#64748b; margin-top:10rpx; line-height:1.65; word-break:break-all; }
 .poi-cat { padding:18rpx 0; border-bottom:1rpx solid #edf2f7; }
 .poi-cat:last-child { border-bottom:0; padding-bottom:2rpx; }
 .poi-cat-head { display:flex; justify-content:space-between; align-items:center; margin-bottom:8rpx; gap:16rpx; }
@@ -1048,52 +1124,61 @@ export default {
 .dt-item { padding:20rpx 0; border-bottom:1rpx solid #edf2f7; }
 .dt-item:last-child { border-bottom:0; padding-bottom:2rpx; }
 .dt-head { display:flex; align-items:center; margin-bottom:10rpx; gap:16rpx; }
-.dt-label { font-size:29rpx; font-weight:900; color:#17244e; flex:1; line-height:1.38; }
+.dt-label { font-size:28rpx; font-weight:900; color:#17244e; flex:1; line-height:1.38; }
 .dt-score { font-size:27rpx; font-weight:900; flex-shrink:0; }
 .brands { display:flex; flex-wrap:wrap; gap:10rpx; }
-.brand { font-size:27rpx; padding:10rpx 17rpx; background:#f3f7ff; border-radius:999rpx; color:#344256; border:1rpx solid rgba(49,91,255,0.12); max-width:100%; word-break:break-all; }
+.brand { font-size:26rpx; padding:10rpx 17rpx; background:#f3f7ff; border-radius:999rpx; color:#344256; border:1rpx solid rgba(49,91,255,0.12); max-width:100%; word-break:break-all; }
 .brand-count { color:#8b99b6; }
 .ql { display:block; padding:6rpx 0; }
 
-.bottom-bar { margin-top:24rpx; padding:16rpx 24rpx 28rpx; display:flex; }
+.bottom-bar { margin-top:24rpx; padding:16rpx 24rpx 28rpx; display:flex; gap:14rpx; }
+.bb-feedback { flex:1.15; height:88rpx; line-height:88rpx; padding:0; background:#fff; color:#315bff; border-radius:18rpx; font-size:29rpx; font-weight:900; border:1rpx solid rgba(49,91,255,0.22); box-shadow:0 10rpx 24rpx rgba(61,88,135,0.08); }
 .bb-back { flex:1; height:88rpx; line-height:88rpx; padding:0; background:linear-gradient(135deg,#315bff,#5b4be6); color:#fff; border-radius:18rpx; font-size:30rpx; font-weight:900; box-shadow:0 14rpx 28rpx rgba(49,91,255,0.22), inset 0 1rpx 0 rgba(255,255,255,0.24); }
 .share-cta { margin:28rpx 24rpx 40rpx; background:linear-gradient(135deg,#172554,#0b3fbd); border-radius:16rpx; padding:32rpx 24rpx; text-align:center; box-shadow:0 18rpx 38rpx rgba(21,31,143,0.18); }
 .share-cta-title { display:block; color:rgba(255,255,255,0.88); font-size:26rpx; margin-bottom:20rpx; }
 .share-cta-btn { width:100%; background:#fff; color:#0b3fbd; border-radius:16rpx; font-size:30rpx; font-weight:900; padding:20rpx 0; }
 
 /* P0-A: fallback badge */
-.fb-badge { margin:16rpx 24rpx; padding:20rpx 24rpx; background:#fef3c7; border-radius:14rpx; display:flex; align-items:center; gap:12rpx; }
+.fb-badge { margin:22rpx 24rpx 0; padding:18rpx 22rpx; background:#fff7d6; border:1rpx solid #f5dda2; border-radius:18rpx; display:flex; align-items:center; gap:12rpx; }
 .fb-badge-icon { font-size:36rpx; }
 .fb-badge-text { font-size:26rpx; color:#92400e; line-height:1.5; flex:1; }
 
 /* P0-B: decision card */
-.decision-card { margin:16rpx 24rpx; padding:28rpx; background:#fff; border-radius:18rpx; box-shadow:0 6rpx 22rpx rgba(0,0,0,0.06); }
-.dc-verdict-row { display:flex; justify-content:space-between; align-items:center; margin-bottom:12rpx; }
-.dc-verdict { font-size:36rpx; font-weight:900; }
+.decision-card { margin:22rpx 24rpx 0; padding:32rpx 28rpx 34rpx; background:#fff; border-radius:22rpx; box-shadow:0 12rpx 30rpx rgba(61,88,135,0.07); border:1rpx solid rgba(213,224,246,0.86); }
+.dc-verdict-row { display:flex; justify-content:space-between; align-items:flex-start; gap:18rpx; margin-bottom:20rpx; }
+.dc-verdict { font-size:32rpx; font-weight:900; line-height:1.28; flex:1; min-width:0; }
 .verdict-ok { color:#16a34a; }
 .verdict-warn { color:#d97706; }
 .verdict-no { color:#dc2626; }
-.dc-score { font-size:48rpx; font-weight:900; color:#1e293b; }
-.dc-one-sentence { font-size:28rpx; color:#475569; line-height:1.6; margin-bottom:16rpx; }
-.dc-pills { display:flex; flex-direction:column; gap:10rpx; }
-.dc-pill { padding:16rpx; border-radius:12rpx; }
-.dc-pill.strength { background:#f0fdf4; border-left:6rpx solid #16a34a; }
-.dc-pill.risk { background:#fef2f2; border-left:6rpx solid #dc2626; }
-.dc-pill-label { font-size:22rpx; font-weight:700; display:block; margin-bottom:4rpx; color:#64748b; }
-.dc-pill-text { font-size:26rpx; color:#1e293b; line-height:1.4; }
-.dc-next { margin-top:16rpx; padding:14rpx; background:#eff6ff; border-radius:10rpx; }
+.dc-score { font-size:42rpx; font-weight:900; color:#1e293b; line-height:1.1; flex-shrink:0; }
+.dc-one-sentence { display:block; font-size:27rpx; color:#475569; line-height:1.72; margin:0 0 32rpx; }
+.dc-pills { display:flex; flex-direction:column; gap:18rpx; margin-top:0; }
+.dc-pill { padding:20rpx 22rpx; border-radius:16rpx; }
+.dc-pill.strength { background:#effdf5; border-left:7rpx solid #16a34a; }
+.dc-pill.risk { background:#fff5f5; border-left:7rpx solid #ef4444; }
+.dc-pill-label { font-size:23rpx; font-weight:900; display:block; margin-bottom:6rpx; color:#64748b; }
+.dc-pill.strength .dc-pill-label { color:#047857; }
+.dc-pill.risk .dc-pill-label { color:#b91c1c; }
+.dc-pill-text { font-size:26rpx; color:#1e293b; line-height:1.68; }
+.dc-next { margin-top:20rpx; padding:16rpx; background:#eff6ff; border-radius:12rpx; }
 .dc-next-label { font-size:24rpx; color:#3b82f6; font-weight:700; }
-.dc-next-text { font-size:26rpx; color:#1e40af; }
-.dc-cond { margin-top:10rpx; padding:10rpx 14rpx; border-radius:8rpx; }
+.dc-next-text { font-size:25rpx; color:#1e40af; line-height:1.58; }
+.dc-cond { margin-top:12rpx; padding:12rpx 16rpx; border-radius:10rpx; }
 .dc-cond.fit { background:#f0fdf4; }
 .dc-cond.stop { background:#fef2f2; }
 .dc-cond-label { font-size:22rpx; font-weight:700; }
 .dc-cond.fit .dc-cond-label { color:#16a34a; }
 .dc-cond.stop .dc-cond-label { color:#dc2626; }
-.dc-cond-text { font-size:24rpx; color:#475569; }
+.dc-cond-text { font-size:25rpx; color:#475569; line-height:1.58; }
+
+.read-path { margin:22rpx 24rpx 0; padding:14rpx 12rpx; border-radius:20rpx; background:rgba(255,255,255,0.96); border:1rpx solid rgba(213,224,246,0.88); box-shadow:0 10rpx 24rpx rgba(61,88,135,0.06); display:grid; grid-template-columns:repeat(4, minmax(0, 1fr)); gap:8rpx; }
+.rp-step { min-width:0; min-height:112rpx; padding:12rpx 6rpx; border-radius:14rpx; background:#f8fbff; border:1rpx solid #edf2f7; text-align:center; display:flex; flex-direction:column; align-items:center; justify-content:flex-start; }
+.rp-index { width:38rpx; height:38rpx; line-height:38rpx; border-radius:12rpx; background:#315bff; color:#fff; font-size:21rpx; font-weight:900; text-align:center; flex-shrink:0; }
+.rp-title { display:block; width:100%; margin-top:8rpx; font-size:22rpx; font-weight:900; color:#17244e; line-height:1.2; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.rp-desc { display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; overflow:hidden; margin-top:5rpx; font-size:19rpx; line-height:1.32; color:#7a879e; word-break:break-all; }
 
 /* P0-B: data sufficiency tag */
-.ds-tag { margin:12rpx 24rpx; padding:16rpx 20rpx; border-radius:12rpx; display:flex; align-items:center; gap:10rpx; flex-wrap:wrap; }
+.ds-tag { margin:22rpx 24rpx 0; padding:16rpx 20rpx; border-radius:12rpx; display:flex; align-items:center; gap:10rpx; flex-wrap:wrap; }
 .ds-sufficient { background:#f0fdf4; }
 .ds-moderate { background:#f8fafc; }
 .ds-insufficient { background:#fef2f2; }
@@ -1105,37 +1190,44 @@ export default {
 .ds-summary { font-size:24rpx; color:#64748b; }
 
 /* P0-B: checklist */
-.checklist-section { margin:20rpx 24rpx; padding:28rpx; background:#fff; border-radius:18rpx; }
-.cl-hint { font-size:24rpx; color:#94a3b8; margin-bottom:20rpx; }
-.cl-item { margin-bottom:20rpx; border-bottom:1rpx solid #f1f5f9; padding-bottom:16rpx; }
-.cl-item:last-child { border-bottom:none; margin-bottom:0; }
-.cl-head { display:flex; align-items:flex-start; gap:12rpx; margin-bottom:10rpx; }
-.cl-num { width:44rpx; height:44rpx; border-radius:50%; background:#eff6ff; color:#3b82f6; font-size:26rpx; font-weight:900; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
-.cl-head-body { flex:1; }
-.cl-title { font-size:28rpx; font-weight:700; color:#1e293b; display:block; }
-.cl-risk { font-size:22rpx; color:#dc2626; background:#fef2f2; padding:2rpx 10rpx; border-radius:6rpx; margin-top:4rpx; display:inline-block; }
-.cl-body { padding-left:56rpx; }
-.cl-row { display:flex; gap:8rpx; margin-bottom:6rpx; }
-.cl-row-label { font-size:22rpx; color:#94a3b8; min-width:100rpx; flex-shrink:0; }
-.cl-row-text { font-size:24rpx; color:#475569; line-height:1.5; flex:1; }
-.cl-row-text.hint { color:#64748b; font-style:italic; }
-.cl-tags { display:flex; gap:6rpx; flex-wrap:wrap; }
-.cl-tag { font-size:20rpx; padding:2rpx 10rpx; background:#f1f5f9; color:#64748b; border-radius:6rpx; }
+.checklist-section { margin:22rpx 24rpx 0; padding:30rpx 28rpx; background:#fff; border-radius:22rpx; }
+.cl-hint { font-size:25rpx; color:#7a879e; margin-bottom:24rpx; line-height:1.65; }
+.cl-item { margin-bottom:20rpx; padding:24rpx 22rpx 24rpx; border-radius:20rpx; background:linear-gradient(180deg,#f9fbff,#ffffff); border:1rpx solid #dbe7fb; box-shadow:0 10rpx 22rpx rgba(61,88,135,0.06); }
+.cl-item:last-child { margin-bottom:0; }
+.cl-head { display:flex; align-items:flex-start; gap:14rpx; margin-bottom:18rpx; }
+.cl-num { width:46rpx; min-width:46rpx; height:38rpx; line-height:38rpx; color:#315bff; font-size:34rpx; font-weight:900; text-align:left; flex-shrink:0; }
+.cl-head-body { flex:1; min-width:0; padding-top:1rpx; }
+.cl-title { flex:1; min-width:0; font-size:28rpx; font-weight:900; color:#17244e; display:block; line-height:1.42; word-break:break-all; padding-top:2rpx; }
+.cl-risk { font-size:22rpx; color:#b91c1c; background:#fff1f2; padding:5rpx 12rpx; border-radius:999rpx; margin-top:9rpx; display:inline-block; line-height:1.25; }
+.cl-body { padding-left:0; }
+.cl-row { display:flex; gap:14rpx; margin-bottom:14rpx; align-items:flex-start; padding-left:0; box-sizing:border-box; }
+.cl-row:last-child { margin-bottom:0; }
+.cl-row-label { font-size:23rpx; color:#8795ad; width:116rpx; flex-shrink:0; line-height:1.62; font-weight:900; text-align:left; }
+.cl-row-text { font-size:25rpx; color:#475569; line-height:1.62; flex:1; word-break:break-all; }
+.cl-row-text.hint { color:#315bff; font-style:normal; }
+.cl-row-text.danger,.danger-text { color:#b91c1c; }
+.danger-label { color:#dc2626 !important; }
+.cl-row-danger .cl-row-label { color:#dc2626; }
+.cl-tags { display:flex; gap:8rpx; flex-wrap:wrap; }
+.cl-tag { font-size:22rpx; padding:4rpx 12rpx; background:#eef4ff; color:#315bff; border-radius:999rpx; line-height:1.3; }
 
-/* P0-B: evidence grid */
-.ev-grid { display:flex; gap:12rpx; margin-top:16rpx; }
-.ev-col { flex:1; text-align:center; padding:12rpx 6rpx; background:#f8fafc; border-radius:10rpx; }
-.ev-col-title { font-size:22rpx; color:#94a3b8; display:block; margin-bottom:6rpx; }
-.ev-col-num { font-size:24rpx; font-weight:700; color:#334155; display:block; padding:4rpx 0; }
+/* P0-B: evidence table */
+.ev-table { margin-top:20rpx; overflow:hidden; border-radius:16rpx; border:1rpx solid #dbe7fb; background:#f8fbff; }
+.ev-head,.ev-row { display:grid; grid-template-columns:1fr 1fr 1fr 1fr; align-items:center; }
+.ev-head { background:#eef4ff; }
+.ev-head text { padding:14rpx 6rpx; text-align:center; font-size:22rpx; color:#66758f; font-weight:900; }
+.ev-row text { padding:16rpx 6rpx; text-align:center; font-size:26rpx; color:#334155; font-weight:800; border-top:1rpx solid #e6eefb; }
+.ev-radius { color:#315bff !important; }
+.ev-note { display:block; padding:16rpx 18rpx; border-top:1rpx solid #e6eefb; font-size:24rpx; line-height:1.58; color:#7a879e; }
 
 .disc-section { margin:20rpx 24rpx; }
 
 /* P1: 地点基本面 */
 .loc-fund-box { background:#f8fafc; border:1rpx solid #e2e8f0; border-radius:12rpx; padding:18rpx 20rpx; margin-bottom:18rpx; }
 .loc-fund-type { display:block; font-size:26rpx; font-weight:900; color:#1f4aa8; margin-bottom:8rpx; }
-.loc-fund-summary { font-size:26rpx; color:#475569; line-height:1.75; }
-.split-mini { display:flex; gap:12rpx; flex-wrap:wrap; }
-.sm-item { flex:1; min-width:280rpx; border-radius:12rpx; padding:16rpx; }
+.loc-fund-summary { font-size:26rpx; color:#475569; line-height:1.72; }
+.split-mini { display:flex; flex-direction:column; gap:14rpx; }
+.sm-item { width:100%; box-sizing:border-box; border-radius:16rpx; padding:18rpx 20rpx; }
 .sm-item.good { background:#effdf5; border:1rpx solid #bbf7d0; }
 .sm-item.bad { background:#fff5f5; border:1rpx solid #fecaca; }
 .sm-title { display:block; font-size:24rpx; font-weight:900; margin-bottom:10rpx; }

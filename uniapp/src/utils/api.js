@@ -1,9 +1,9 @@
 import config from './config'
 
 // ── 内部封装 ──
-function request ({ url, method = 'GET', data = {}, auth = true }) {
+function request ({ url, method = 'GET', data = {}, auth = true, header: extraHeader = {} }) {
   return new Promise((resolve, reject) => {
-    const header = { 'Content-Type': 'application/json' }
+    const header = { 'Content-Type': 'application/json', ...extraHeader }
     if (auth) {
       const token = uni.getStorageSync('token')
       if (token) header['Authorization'] = 'Bearer ' + token
@@ -291,7 +291,14 @@ function queryVirtualOrder (orderNo) { return request({ url: `/api/virtual-pay/o
 function reconcileVirtualOrder (orderNo) { return request({ url: `/api/virtual-pay/reconcile/${orderNo}`, method: 'POST' }) }
 function refundRequestVirtual (orderNo) { return request({ url: `/api/virtual-pay/refund-request/${orderNo}`, method: 'POST' }) }
 function fetchMyOrders () { return request({ url: '/api/user/orders' }) }
-function submitFeedback (content, contact) { return request({ url: '/api/feedback', method: 'POST', data: { content, contact } }) }
+function submitFeedback (content, contact) {
+  return request({
+    url: '/api/feedback',
+    method: 'POST',
+    header: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    data: { content, contact }
+  })
+}
 
 // ── Health ──
 function getHealth () { return request({ url: '/api/health', auth: false }) }

@@ -319,6 +319,14 @@ class Feedback(Base):
     contact = Column(String(120), default="")
     image_urls = Column(Text, default="[]")
     credits_granted = Column(Integer, default=0)
+    report_uuid = Column(String(64), default="")
+    report_title = Column(String(200), default="")
+    report_address = Column(Text, default="")
+    source = Column(String(40), default="profile")
+    status = Column(String(20), default="pending")
+    admin_reply = Column(Text, default="")
+    replied_at = Column(DateTime, nullable=True)
+    updated_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=func.now())
 
 

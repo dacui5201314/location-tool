@@ -11,9 +11,13 @@ AI 选址初筛参考工具 · 主力客户端（Vue3 + Vite）
 ## 当前阶段
 
 - **地址自动联想** — `@input` 显式绑定 + 400ms debounce + 竞态守卫，Timeout 三级降级
+- **首页选址流程** — 已按“选位置 -> 选业态 -> 填画像 -> 出报告”重排，地址展示做压缩，生成前说明弱化第三方平台名称
 - **SSE 分析接口** — `/api/analyze` 流式集成：401/402/5xx/成功 → 跳转 `report-detail?id=<record_id>`
-- **登录/充值/CDK** — 快捷登录、密码登录、注册、兑换码、充值中心均已独立页面化
+- **报告详情** — 只消费后端 `report_json`，展示顺序向评分、结论、证据、现场核验、边界说明收口
+- **登录/充值/CDK/反馈** — 快捷登录、密码登录、注册、兑换码、充值中心、我的反馈均已独立页面化
+- **审核文案** — 手机号授权提示使用“手机号快捷登录”，不得出现混淆腾讯官方的“微信”登录提示或官方 logo
 - **微信支付** — JSAPI v3 prepay + notify 后端已就绪，前端已接入真实支付含 queryOrder 确认闭环，待公网 HTTPS 真机验收
+- **报告分享** — 继续使用公开分享 token 查看，不强制被分享人先登录
 - 未接：PDF unlock/download
 
 ## 构建方式
@@ -70,7 +74,7 @@ uniapp/
 ├── package.json                  # 依赖声明
 ├── src/
 │   ├── manifest.json             # uni-app 应用配置 (AppID: wx3e2e1bbabfa164dd)
-│   ├── pages.json                # 路由 + TabBar (13 页面)
+│   ├── pages.json                # 路由 + TabBar
 │   ├── App.vue                   # 根组件
 │   ├── main.js                   # Vue3 createSSRApp 入口
 │   ├── components/               # 组件
@@ -92,6 +96,9 @@ uniapp/
 │   │   │   ├── login.vue         # 登录/注册
 │   │   │   ├── recharge.vue      # 充值中心
 │   │   │   ├── redeem.vue        # CDK 兑换
+│   │   │   ├── feedback.vue      # 我的反馈/提交反馈
+│   │   │   ├── orders.vue        # 订单列表
+│   │   │   ├── order-detail.vue  # 订单详情
 │   │   │   ├── contact.vue       # 客服
 │   │   │   └── edit.vue          # 编辑资料
 │   │   └── legal/                # 法律页面
@@ -101,10 +108,12 @@ uniapp/
 │       ├── api.js                # HTTP 客户端
 │       ├── auth.js               # Token 管理
 │       ├── config.js             # API_BASE_URL
-│       └── format.js             # 格式化工具 (compactAddress 等)
+│       └── format.js             # 格式化工具 (compactAddress、北京时间展示等)
 ```
 
 ## 注意事项
 
 - 不提交 AppID / Secret / 密钥到 Git
 - `src/manifest.json` 中的小程序 AppID 仅用于本地联调
+- 小程序报告页和管理后台报告预览必须展示后端 `report_json`，不得在前端自行生成业务判断
+- `miniprogram/` 仅作旧登录参考，新页面和 UI 优化都在 `uniapp/` 内完成

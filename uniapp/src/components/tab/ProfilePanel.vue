@@ -120,7 +120,7 @@
         <text class="mi-icon">📋</text><view class="mi-body"><text class="mi-label">充值记录</text><text class="mi-desc">查看充值订单和到账状态</text></view><text class="mi-arrow">›</text>
       </view>
       <view class="menu-item" @tap="openFeedback">
-        <text class="mi-icon">✎</text><view class="mi-body"><text class="mi-label">意见反馈</text><text class="mi-desc">告诉我们你的想法，赠送1点</text></view><text class="mi-arrow">›</text>
+        <text class="mi-icon">✎</text><view class="mi-body"><text class="mi-label">我的反馈</text><text class="mi-desc">查看反馈进度和运营回复</text></view><text class="mi-arrow">›</text>
       </view>
       <view class="menu-item" @tap="openContact">
         <text class="mi-icon">☎</text><view class="mi-body"><text class="mi-label">联系客服</text><text class="mi-desc">购买咨询与售后支持</text></view><text class="mi-arrow">›</text>
@@ -292,7 +292,7 @@ export default {
       uni.navigateTo({ url: '/pages/profile/orders' })
     },
     openFeedback () {
-      if (!this.requireLogin('登录后才能提交反馈并同步奖励点数')) return
+      if (!this.requireLogin('登录后才能查看和提交反馈')) return
       uni.navigateTo({ url: '/pages/profile/feedback' })
     },
     openContact () {

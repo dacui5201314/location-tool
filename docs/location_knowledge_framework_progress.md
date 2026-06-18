@@ -1,4 +1,4 @@
-# 址得选 选址知识框架建设进度 v2026-06-16
+# 址得选 选址知识框架建设进度 v2026-06-18
 
 ## 已完成
 
@@ -63,6 +63,15 @@
 - 发现 **6 个测试缺口**、**fallback scoring 对非教育业态误用 school**、**location_profile 学区判定不区分学校类型**
 - **Phase 4L-B P0 已实施**（e30241f2）：`_weighted_school()` 按业态区分 school 权重、7 处评分路径走加权、通用优势三档输出、T31-T33 + 2 样本。P1-A（4L-C）+ G2/G3（4L-D）+ P2（4L-E）全部实施，school 流全线关闭。
 
+### Phase 4S：前端/后台展示对齐（不改变知识框架）
+
+2026-06-18 进入前端体验和管理后台优化窗口。此阶段只调整展示层、运营后台和反馈闭环：
+
+- 小程序报告详情按用户阅读顺序重排，仍只消费 `report_json`。
+- 管理后台报告库预览改为结构化渲染 `report_json`，维度标题改中文，内容向小程序展示对齐。
+- 新增用户反馈和运营回复闭环，用于收集报告体验问题，不改变报告生成结果。
+- 未改 `business_models/*.yaml`、`sources/*.yaml`、prompt、guard、`/api/analyze` 主链路。
+
 ## 当前测试矩阵
 
 | 测试文件 | 项数 | 状态 |
@@ -78,7 +87,7 @@
 | check_knowledge_schema_rules.py | 18 | PASS |
 | check_sample_regression.py | 71 | PASS |
 
-## 当前基线总览 (2026-06-17)
+## 当前基线总览 (2026-06-18)
 
 | 指标 | 值 |
 |------|-----|
@@ -116,4 +125,5 @@
 - ~~12 业态 evidence coverage + 茶饮追溯 + 蒸馏 checklist~~ ✅ 已完成（Phase 4P-B/C）。
 - ~~生产部署文件边界收口~~ ✅ 已完成（Phase 4P-D）。
 - ~~代码体检 + 前端/后台交接~~ ✅ 已完成（Phase 4R）。codebase_optimization_audit.md + FRONTEND_ADMIN_NEXT_WINDOW_HANDOFF.md + api.js console.log dev-gate。
+- ~~前端/后台展示对齐首轮~~ ✅ 已完成（Phase 4S）。首页流程、报告详情、管理后台 IA、报告库预览、反馈闭环完成首轮体验优化；知识框架和报告判断逻辑保持冻结。
 - ~~学校/校园客流源归并 P0 实施~~ ✅ 已完成（Phase 4L-B）。`_weighted_school()` 按业态区分 school 权重；consumer_profile / traffic_flow / executive_summary / category_advantage / competition 五个评分路径全部走加权；通用优势 school_500>=3 按 family 分教育/餐饮/禁止三档输出。新增 T31-T33 + 2 样本（retail_convenience_06, hotel_06）。

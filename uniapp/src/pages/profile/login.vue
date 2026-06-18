@@ -18,7 +18,7 @@
       <!-- 快捷登录 -->
       <view v-if="mode === 'quick'">
         <view class="quick-copy">
-          <text class="quick-title">使用微信手机号登录</text>
+          <text class="quick-title">手机号快捷登录</text>
           <text class="quick-desc">同步会员、点数、报告记录和收藏地址</text>
         </view>
         <button v-if="agreed" class="btn-phone" open-type="getPhoneNumber" @getphonenumber="onWxPhoneLogin">
@@ -142,7 +142,7 @@ export default {
         const loginRes = await new Promise((resolve, reject) => {
           uni.login({ provider: 'weixin', success: resolve, fail: reject })
         })
-        if (!loginRes.code) { uni.hideLoading(); this.errMsg = '微信登录失败'; return }
+        if (!loginRes.code) { uni.hideLoading(); this.errMsg = '登录失败，请稍后重试'; return }
         const r = await api.phoneLogin(loginRes.code, phoneCode)
         uni.hideLoading()
         if (r.ok) {
@@ -152,7 +152,7 @@ export default {
         } else {
           const sc = r.statusCode
           if (sc === 404) this.errMsg = '后端登录接口未更新，请重启服务'
-          else if (sc === 503) this.errMsg = '微信登录配置未完成'
+          else if (sc === 503) this.errMsg = '登录配置未完成'
           else if (sc === 400) {
             if (r.data?.detail === 'invalid_code') {
               this.errMsg = '当前环境无法使用手机号快捷登录，请切换至密码登录'

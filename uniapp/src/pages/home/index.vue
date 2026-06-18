@@ -30,11 +30,11 @@
       </view>
       <view class="hero-copy">
         <text class="hero-title">商铺选址<text class="hero-hl">先看数据分析</text></text>
-        <text class="hero-desc">结合周边 POI、业态与经营信息，生成商业选址分析参考</text>
+        <text class="hero-desc">结合周边数据、业态与经营信息，生成商业选址分析参考</text>
       </view>
       <view class="hero-tags">
         <text class="htag">全国城市适用</text>
-        <text class="htag">POI 周边洞察</text>
+        <text class="htag">周边数据洞察</text>
         <text class="htag">实地复核建议</text>
       </view>
       <view class="hero-city" aria-hidden="true">
@@ -65,7 +65,7 @@
         </view>
         <view class="sc-input-row">
           <text class="sc-icon">定位</text>
-          <input class="sc-field" :value="addressKeyword" placeholder="输入地址搜索门店位置" :disabled="analyzing" @input="onAddressInput" @focus="onAddressFocus" @confirm="onSearch" confirm-type="search" adjust-position="true" :cursor-spacing="80" />
+          <input class="sc-field" :value="addressText ? compactAddress : addressKeyword" placeholder="输入地址搜索门店位置" :disabled="analyzing" @input="onAddressInput" @focus="onAddressFocus" @confirm="onSearch" confirm-type="search" adjust-position="true" :cursor-spacing="80" />
           <button class="sc-action" :disabled="analyzing" @tap="onLocate" v-if="!addressText">定位</button>
           <button class="sc-action fav" :class="{ active: favId }" :disabled="favLoading || analyzing" @tap="toggleFav" v-if="addressText">
             <text class="fav-star">{{ favId ? '★' : '☆' }}</text>
@@ -85,6 +85,16 @@
       </view>
     </view>
 
+    <view class="flow-strip">
+      <view class="flow-step" v-for="item in flowSteps" :key="item.key" :class="item.status">
+        <text class="flow-index">{{ item.status === 'done' ? '✓' : item.index }}</text>
+        <view class="flow-copy">
+          <text class="flow-title">{{ item.title }}</text>
+          <text class="flow-desc">{{ item.desc }}</text>
+        </view>
+      </view>
+    </view>
+
     <!-- ── 地图区域 ── -->
     <view class="map-section">
       <view class="section-line">
@@ -99,7 +109,7 @@
         <view class="ab-left">
           <text class="ab-pin">📍</text>
           <view class="ab-mid">
-            <text class="ab-name">{{ addressText }}</text>
+            <text class="ab-name">{{ compactAddress }}</text>
           </view>
         </view>
         <button class="ab-edit" @tap="clearAddress">重选</button>
@@ -130,7 +140,7 @@
         <view class="analyzing-card" v-if="mapMode === 'analyzing'">
           <view class="ac-grid" />
           <view class="ac-code">
-            <text>POI_SYNC</text>
+            <text>DATA_SYNC</text>
             <text>RISK_SCAN</text>
             <text>MODEL_GUARD</text>
           </view>
@@ -138,7 +148,7 @@
             <view class="ac-pulse" />
             <view>
               <text class="ac-title">商业数据引擎运行中</text>
-              <text class="ac-sub">正在交叉校验 POI、竞品、客流与风险线索</text>
+              <text class="ac-sub">正在交叉校验周边数据、竞品、客流与风险线索</text>
             </view>
           </view>
           <view class="ac-meter">
@@ -215,7 +225,7 @@
       </view>
       <view class="un-row">
         <text class="un-icon">📋</text>
-        <text class="un-text">报告包含：选址决策参考、关键数据摘要、竞品分析、现场核验清单。适用于商铺选址初筛，不替代实地考察与投资决策。地址、业态、品牌/特色填写越准确，报告越有参考价值。</text>
+            <text class="un-text">报告包含选址参考、关键数据摘要、竞品分析和现场核验清单；仅用于初筛，不替代实地考察与投资决策。</text>
       </view>
       <view class="un-row" v-if="userCredits !== null && userCredits < 1 && !canAnalyzeFree">
         <text class="un-icon">⚠️</text>
@@ -398,7 +408,7 @@ export default {
       errors: { address: '', industry: '', brand: '', size: '' },
       industryList: [],
       trusts: [
-        { title: 'POI 数据', desc: '周边实时采集' },
+        { title: '周边数据', desc: '地图点位采集' },
         { title: '多维分析', desc: '竞品客流消费力' },
         { title: '实地验证', desc: '仅供参考不构成建议' }
       ]
@@ -411,9 +421,27 @@ export default {
       return 'map'
     },
     canAnalyze () { return !this.analyzing && this.addressText && this.industry && this.brandName && this.storeSize },
+    flowSteps () {
+      const ready = {
+        address: !!this.addressText,
+        industry: !!this.industry,
+        profile: !!(this.brandName && this.brandName.trim() && this.storeSize),
+        report: this.canAnalyze
+      }
+      const current = ready.address ? (ready.industry ? (ready.profile ? 'report' : 'profile') : 'industry') : 'address'
+      return [
+        { key: 'address', index: '1', title: '选位置', desc: ready.address ? '门店位置已确认' : '搜索、定位或点选地图' },
+        { key: 'industry', index: '2', title: '选业态', desc: ready.industry ? this.industry : '匹配最接近的小类目' },
+        { key: 'profile', index: '3', title: '填画像', desc: ready.profile ? '品牌和面积已填写' : '补充品牌/特色与面积' },
+        { key: 'report', index: '4', title: '出报告', desc: this.analyzing ? '正在生成报告' : (ready.report ? '可以生成选址报告' : '完成前三步后生成') }
+      ].map(item => ({
+        ...item,
+        status: item.key !== 'report' && ready[item.key] ? 'done' : (item.key === current || (item.key === 'report' && (ready.report || this.analyzing)) ? 'active' : 'pending')
+      }))
+    },
     analyzeStepItems () {
       const steps = [
-        { step: 1, label: 'POI 数据采集', icon: '01' },
+        { step: 1, label: '周边数据采集', icon: '01' },
         { step: 2, label: '数据交叉比对', icon: '02' },
         { step: 3, label: '商业评估', icon: '03' },
         { step: 4, label: '报告生成完毕', icon: 'OK' }
@@ -1219,11 +1247,11 @@ export default {
 .sc-icon { position:relative; width:56rpx; height:58rpx; text-align:center; font-size:0; color:transparent; flex-shrink:0; display:block; }
 .sc-icon::before { content:''; position:absolute; left:13rpx; top:7rpx; width:30rpx; height:30rpx; border-radius:18rpx 18rpx 18rpx 4rpx; transform:rotate(-45deg); background:linear-gradient(145deg,#ff6b6b,#ef4444); box-shadow:0 8rpx 18rpx rgba(239,68,68,0.22); }
 .sc-icon::after { content:''; position:absolute; left:24rpx; top:18rpx; width:8rpx; height:8rpx; border-radius:50%; background:#fff; box-shadow:0 0 0 5rpx rgba(255,255,255,0.24); }
-.sc-field { flex:1; height:76rpx; font-size:29rpx; color:#0f172a; padding:0 8rpx; border:none; background:transparent; font-weight:700; }
+.sc-field { flex:1; min-width:0; height:76rpx; font-size:29rpx; color:#0f172a; padding:0 8rpx; border:none; background:transparent; font-weight:700; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .sc-action { width:96rpx; height:66rpx; min-width:96rpx; padding:0; margin:0; border-radius:999rpx; background:linear-gradient(135deg,#315bff,#0b3fbd); color:#fff; font-size:25rpx; font-weight:900; line-height:66rpx; display:flex; align-items:center; justify-content:center; flex-shrink:0; box-shadow:0 10rpx 22rpx rgba(49,91,255,0.20); }
 .sc-action::after { border:none; }
 .sc-action[disabled] { background:#eef2f7; color:#94a3b8; box-shadow:none; opacity:1; }
-.sc-action.fav { width:168rpx; min-width:168rpx; gap:6rpx; background:linear-gradient(180deg,#fffdf5,#fff6df); color:#ad7a12; box-shadow:0 10rpx 22rpx rgba(216,162,61,0.12),inset 0 1rpx 0 rgba(255,255,255,0.8); border:1px solid #f8d98a; }
+.sc-action.fav { width:150rpx; min-width:150rpx; gap:5rpx; background:linear-gradient(180deg,#fffdf5,#fff6df); color:#ad7a12; box-shadow:0 10rpx 22rpx rgba(216,162,61,0.12),inset 0 1rpx 0 rgba(255,255,255,0.8); border:1px solid #f8d98a; font-size:23rpx; }
 .sc-action.fav.active { background:linear-gradient(135deg,#fff3c4,#f8c861 58%,#dba640); color:#17244e; border-color:rgba(255,255,255,0.56); box-shadow:0 12rpx 26rpx rgba(216,162,61,0.20); }
 .fav-star { font-size:28rpx; line-height:1; }
 .sc-hint { margin-top:10rpx; padding:12rpx 14rpx; background:#f8fbff; border-radius:12rpx; color:#64748b; font-size:24rpx; line-height:1.45; border:1px solid rgba(219,230,255,0.64); }
@@ -1231,6 +1259,19 @@ export default {
 .suggest-item { padding:22rpx 20rpx; border-top:1px solid #f1f5f9; }
 .sg-name { font-size:28rpx; color:#1e293b; display:block; } .sg-addr { font-size:22rpx; color:#94a3b8; margin-top:4rpx; display:block; }
 .suggest-empty { padding:20rpx; font-size:24rpx; color:#94a3b8; text-align:center; }
+
+/* ── Flow strip ── */
+.flow-strip { margin:18rpx 24rpx 0; padding:18rpx 18rpx 16rpx; border-radius:20rpx; background:rgba(255,255,255,0.96); border:1rpx solid rgba(219,230,255,0.92); box-shadow:0 12rpx 26rpx rgba(79,119,186,0.08); display:grid; grid-template-columns:repeat(4, minmax(0, 1fr)); gap:0; position:relative; }
+.flow-strip::before { content:''; position:absolute; left:70rpx; right:70rpx; top:39rpx; height:4rpx; border-radius:999rpx; background:#e5ecf7; }
+.flow-step { min-width:0; min-height:88rpx; padding:0 8rpx; display:flex; flex-direction:column; align-items:center; text-align:center; justify-content:flex-start; position:relative; z-index:1; }
+.flow-step.active .flow-title { color:#315bff; }
+.flow-step.done .flow-title { color:#079455; }
+.flow-index { width:44rpx; height:44rpx; line-height:44rpx; border-radius:999rpx; background:#eef3f9; color:#8a98af; font-size:22rpx; font-weight:900; text-align:center; flex-shrink:0; border:4rpx solid #fff; box-shadow:0 4rpx 10rpx rgba(40,76,130,0.08); }
+.flow-step.active .flow-index { background:#315bff; color:#fff; box-shadow:0 10rpx 20rpx rgba(49,91,255,0.20); }
+.flow-step.done .flow-index { background:#16a34a; color:#fff; }
+.flow-copy { width:100%; min-width:0; margin-top:9rpx; }
+.flow-title { display:block; font-size:24rpx; font-weight:900; color:#17244e; line-height:1.2; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.flow-desc { display:block; margin-top:4rpx; font-size:20rpx; line-height:1.25; color:#8b99b6; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 
 /* ── Map section ── */
 .map-section { margin:24rpx 20rpx 0; padding:26rpx 22rpx 24rpx; background:rgba(255,255,255,0.96); border:1rpx solid rgba(219,230,255,0.92); border-radius:22rpx; box-shadow:0 16rpx 34rpx rgba(79,119,186,0.10); }
@@ -1242,7 +1283,7 @@ export default {
 .ab-left { display:flex; align-items:center; flex:1; min-width:0; }
 .ab-pin { font-size:28rpx; margin-right:12rpx; flex-shrink:0; }
 .ab-mid { flex:1; min-width:0; }
-.ab-name { font-size:26rpx; color:#1e293b; font-weight:500; display:block; word-break:break-all; display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; overflow:hidden; }
+.ab-name { font-size:26rpx; color:#1e293b; font-weight:700; display:block; word-break:break-all; display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; overflow:hidden; }
 .ab-src { font-size:22rpx; color:#8b99b6; line-height:1.35; }
 .ab-edit { width:auto; min-width:92rpx; margin:0; padding:8rpx 16rpx; background:#eef3ff; border-radius:999rpx; color:#315bff; font-size:25rpx; line-height:36rpx; font-weight:800; flex-shrink:0; }
 .ab-edit::after { border:none; }
@@ -1394,11 +1435,11 @@ export default {
 .ctb-item.active .ctb-label { color:#315bff; font-weight:900; }
 
 /* P0-B: 生成前预期说明 */
-.usage-notice { margin:16rpx 24rpx; padding:20rpx 24rpx; background:#f8fafc; border-radius:14rpx; border:1rpx solid #e2e8f0; }
-.un-row { display:flex; align-items:flex-start; gap:10rpx; margin-bottom:12rpx; }
+.usage-notice { margin:18rpx 28rpx 0; padding:18rpx 20rpx; background:linear-gradient(180deg,#f8fbff,#f3f7fd); border-radius:18rpx; border:1rpx solid rgba(219,230,255,0.92); box-shadow:0 10rpx 24rpx rgba(79,119,186,0.06); }
+.un-row { display:flex; align-items:flex-start; gap:10rpx; margin-bottom:10rpx; }
 .un-row:last-child { margin-bottom:0; }
-.un-icon { font-size:28rpx; flex-shrink:0; }
-.un-text { font-size:24rpx; color:#64748b; line-height:1.5; flex:1; }
+.un-icon { font-size:24rpx; flex-shrink:0; line-height:1.55; }
+.un-text { font-size:23rpx; color:#66758f; line-height:1.55; flex:1; }
 .un-text.warn { color:#dc2626; font-weight:600; }
 
 /* P0-A: 失败卡片 */
