@@ -168,6 +168,11 @@ def enrich_report_business_context(report: dict, real_data: dict,
         report["field_checklist"] = build_business_field_checklist(
             rd, business_type, brand_name, store_size, category=category)
 
+    # ★ Phase 3: 表达归位 + 矛盾解释
+    from services.report_expression_normalizer import normalize_advantage_risk_phrasing, add_demand_contradiction_note
+    report = normalize_advantage_risk_phrasing(report)
+    report = add_demand_contradiction_note(report, rd)
+
     return report
 
 

@@ -185,6 +185,10 @@
           <text class="adv-num">{{ i+1 }}</text><text class="adv-text">{{ a }}</text>
         </view>
       </view>
+      <view class="section" v-if="rptDemandContradiction">
+        <view class="sec-title" style="color:#92400e">🔍 客源来源待核验</view>
+        <view class="contradiction-note" style="background:#fffbeb;padding:10px 14px;border-radius:8px;border:1px solid #fde68a;color:#92400e;font-size:14px;line-height:1.8">{{ rptDemandContradiction }}</view>
+      </view>
       <view class="section" v-if="rptDis.length">
         <view class="sec-title sec-red">⚠ 主要风险</view>
         <view class="adv-item" v-for="(d,i) in rptDis" :key="'d'+i">
@@ -408,6 +412,7 @@ export default {
       poiExpanded: false,
       rptScore: 0, rptDisclaimer: '', rptWarning: '', rptSummary: '',
       rptAdv: [], rptDis: [], rptDims: [], rptAction: [],
+      rptDemandContradiction: '',
       rptDir200: 0, rptDir500: 0, rptDir1000: 0,
       rptSub200: 0, rptSub500: 0, rptSub1000: 0,
       rptAnc200: 0, rptAnc500: 0, rptAnc1000: 0,
@@ -742,6 +747,7 @@ export default {
 
       this.rptAdv = _sa(rpt.advantages)
       this.rptDis = _sa(rpt.disadvantages)
+      this.rptDemandContradiction = rpt.demand_contradiction_note || ''
       this.rptAction = _sa(rpt.action_plan)
 
       this.rptDims = dimScores.map(d => {

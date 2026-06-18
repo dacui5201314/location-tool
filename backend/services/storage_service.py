@@ -254,6 +254,18 @@ def _build_report_html(record_id: int, report_data: dict, address: str, brand_na
     {f'<div class="note-line">住宅: {kp.get("residential", {}).get("200m", 0)}/{kp.get("residential", {}).get("500m", 0)}/{kp.get("residential", {}).get("1000m", 0)} | 学校: {kp.get("schools", {}).get("200m", 0)}/{kp.get("schools", {}).get("500m", 0)}/{kp.get("schools", {}).get("1000m", 0)} | 办公: {kp.get("office", {}).get("200m", 0)}/{kp.get("office", {}).get("500m", 0)}/{kp.get("office", {}).get("1000m", 0)}</div>' if kp else ''}
   </section>"""
 
+    # ── Phase 3: 客源矛盾解释 ──
+    demand_contradiction_note = report_data.get("demand_contradiction_note") or ""
+    contradiction_html = ""
+    if demand_contradiction_note:
+        contradiction_html = f"""
+  <section class="section">
+    <h2>🔍 客源来源待核验</h2>
+    <div class="detail-block" style="border-left-color:#f59e0b;">
+      <p>{_esc(demand_contradiction_note)}</p>
+    </div>
+  </section>"""
+
     # ── P1: 数据边界 ──
     data_boundary = report_data.get("data_boundary") or ""
     boundary_html = ""
@@ -571,6 +583,7 @@ def _build_report_html(record_id: int, report_data: dict, address: str, brand_na
   {biz_snap_html}
   {caliber_html}
   {evidence_html}
+  {contradiction_html}
 
   {f'<section class="section"><h2>📝 各维度详细分析</h2>{detail_blocks}</section>' if detail_blocks else ''}
 

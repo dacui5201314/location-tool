@@ -580,6 +580,7 @@ function arRenderReport(p,m){const score=parseInt(p.score??p.overall_score??m.ov
   html+=arSection('分析摘要',`<div class="ar-text">${esc(arText(p.summary||exec.summary||''))}</div>`);
   html+=arSection('关键优势',arList(p.advantages));
   html+=arSection('主要风险',arList(p.disadvantages));
+  if(p.demand_contradiction_note){html+=arSection('客源来源待核验','<p style="color:#92400e;background:#fffbeb;padding:10px 14px;border-radius:8px;border:1px solid #fde68a;">'+escHtml(String(p.demand_contradiction_note))+'</p>');}
   html+=arSection('竞争环境',arRenderCompetition(p,real));
   if(Object.keys(real).length){const loc=[real.city,real.district,real.township].filter(Boolean).join(' · ');html+=arSection('周边数据（200m / 500m / 1km）',`${loc?`<div class="ar-card ar-text" style="margin-bottom:10px">${esc(arText(loc))}</div>`:''}${arRenderStats(real)}`)}
   const scopeParts=[];if(real.business_areas)scopeParts.push(arRow('商圈',Array.isArray(real.business_areas)?real.business_areas.join('、'):real.business_areas));if(real.nearby_roads)scopeParts.push(arRow('周边道路',Array.isArray(real.nearby_roads)?real.nearby_roads.join('、'):real.nearby_roads));if(scopeParts.length)html+=arSection('位置范围',scopeParts.join(''));

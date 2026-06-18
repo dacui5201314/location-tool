@@ -14,6 +14,7 @@ _USER_VISIBLE_FIELDS = [
     "details", "advantages", "disadvantages", "executive_summary",
     "action_plan", "summary", "location_profile", "location_fundamentals",
     "business_model_snapshot", "decision_snapshot", "field_checklist", "evidence_summary",
+    "risk_notes", "demand_contradiction_note",
 ]
 
 
