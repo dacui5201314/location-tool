@@ -169,9 +169,15 @@ def dedup_bus_count(real_data: dict) -> dict:
     if deduped == 0:
         deduped = raw
 
+    # 保守上限：去重数不得大于 stats_500m.bus（站名列表可能含超出500m的公交站）
+    if deduped > raw:
+        deduped = raw
+
     note = None
     if raw > deduped:
         note = f"同站多线路/上下行噪声去重：{raw}→{deduped}"
+    elif raw < len(seen):
+        note = f"站名列表可能包含超出500m的公交站，已按stats_500m.bus={raw}保守上限"
     return {"raw": raw, "deduped": deduped, "note": note}
 
 

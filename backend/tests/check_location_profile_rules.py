@@ -266,6 +266,26 @@ def test_bus_anchor_by_type():
     print(f"T12 bus anchor by type: deduped={result['deduped']} PASS")
 
 
+# T13: bus dedup cap — 站名去重后数量不得大于 raw
+def test_bus_dedup_cap():
+    rd = _base_rd()
+    rd["stats_500m"]["bus"] = 2
+    # 5 个不同站名但 raw=2 → 必须 cap 为 2
+    rd["poi_lists"] = {
+        "bus_stops": [
+            {"name": "宝鸡文理学院"},
+            {"name": "高新人民医院"},
+            {"name": "高新管委会"},
+            {"name": "天下汇"},
+            {"name": "高新广场"},
+        ]
+    }
+    result = dedup_bus_count(rd)
+    assert result["deduped"] == 2, f"cap 后必须为2: got {result}"
+    assert result["raw"] == 2
+    print(f"T13 bus dedup cap: deduped={result['deduped']} (raw={result['raw']}) PASS")
+
+
 if __name__ == "__main__":
     test_location_profile_consistent()
     test_no_dining_as_edu_advantage()
@@ -279,5 +299,6 @@ if __name__ == "__main__":
     test_bus_multi_station()
     test_non_bus_anchors_not_counted()
     test_bus_anchor_by_type()
+    test_bus_dedup_cap()
     print()
     print("ALL LOCATION PROFILE TESTS PASSED")

@@ -370,7 +370,7 @@ def _filter_json_artifact_errors(fact_errors: list) -> list:
     return filtered
 
 
-from report_fact_guard import validate_report_fact_consistency
+from report_fact_guard import validate_report_fact_consistency, build_user_visible_report_text, split_final_guard_issues
 
 
 def _int_guard(v, default=0):
@@ -701,13 +701,7 @@ async def analyze_location(req: AnalyzeRequest, user: dict = Depends(get_current
                 fact_errors = validate_report_fact_consistency(result, real_data)
                 # ★ 过滤 JSON 序列化数字泄露到分句中的假阳性
                 fact_errors = _filter_json_artifact_errors(fact_errors)
-                full_text = (
-                    json.dumps(result.get("details", {}) or {}, ensure_ascii=False) + " " +
-                    json.dumps(result.get("advantages", []), ensure_ascii=False) + " " +
-                    json.dumps(result.get("disadvantages", []), ensure_ascii=False) + " " +
-                    json.dumps(result.get("executive_summary", {}) or {}, ensure_ascii=False) + " " +
-                    str(result.get("summary", ""))
-                )
+                full_text = build_user_visible_report_text(result)
 
                 # ★ P0: POI 名称引用校验 → hard-error (Phase 11)
                 from services.poi_name_guard import check_poi_name_hallucination, check_poi_context_mismatch, check_direct_competitor_count_mismatch, build_retry_name_constraints
@@ -815,13 +809,7 @@ async def analyze_location(req: AnalyzeRequest, user: dict = Depends(get_current
                             retry_fe = _filter_json_artifact_errors(retry_fe)
                             if not retry_fe:
                                 # ★ Phase 11: retry 后重新检查 P0/P2/P3，有残留则 retry 失败
-                                retry_full_text = (
-                                    json.dumps(retry_result.get("details", {}) or {}, ensure_ascii=False) + " " +
-                                    json.dumps(retry_result.get("advantages", []), ensure_ascii=False) + " " +
-                                    json.dumps(retry_result.get("disadvantages", []), ensure_ascii=False) + " " +
-                                    json.dumps(retry_result.get("executive_summary", {}) or {}, ensure_ascii=False) + " " +
-                                    str(retry_result.get("summary", ""))
-                                )
+                                retry_full_text = build_user_visible_report_text(retry_result)
                                 retry_p0 = check_poi_name_hallucination(retry_full_text, real_data, strict=True)
                                 retry_p2 = check_poi_context_mismatch(retry_full_text, real_data)
                                 retry_p3 = check_direct_competitor_count_mismatch(retry_full_text, real_data)
@@ -895,13 +883,7 @@ async def analyze_location(req: AnalyzeRequest, user: dict = Depends(get_current
                         _fallback_triggered = True  # ★ 统计标记
 
                         # 兜底报告必须通过全部 guard
-                        fallback_text = (
-                            json.dumps(fallback_result.get("details", {}) or {}, ensure_ascii=False) + " " +
-                            json.dumps(fallback_result.get("advantages", []), ensure_ascii=False) + " " +
-                            json.dumps(fallback_result.get("disadvantages", []), ensure_ascii=False) + " " +
-                            json.dumps(fallback_result.get("executive_summary", {}) or {}, ensure_ascii=False) + " " +
-                            str(fallback_result.get("summary", ""))
-                        )
+                        fallback_text = build_user_visible_report_text(fallback_result)
                         fb_issues = validate_report_fact_consistency(fallback_result, real_data)
                         fb_issues = _filter_json_artifact_errors(fb_issues)
                         if not fb_issues:
@@ -972,6 +954,17 @@ async def analyze_location(req: AnalyzeRequest, user: dict = Depends(get_current
                 category=_category_p1,
                 store_size=req.store_size or 0,
                 is_fallback=_fallback_triggered)
+            # ★ Phase 4N: 最终交付前 guard（enrichment 后所有字段已补齐）
+            _final_guard_issues = validate_report_fact_consistency(result, real_data)
+            _final_guard_issues = _filter_json_artifact_errors(_final_guard_issues)
+            if _final_guard_issues:
+                _final_hard, _final_warn = split_final_guard_issues(_final_guard_issues)
+                if _final_hard:
+                    print(f"[SSE Guard] {request_id} 最终交付前guard硬阻断({len(_final_hard)}条): {'; '.join(_final_hard[:5])}", flush=True)
+                    raise ValueError(f"REPORT_FINAL_FACT_GUARD_FAILED: {_final_hard[0][:120]}")
+                if _final_warn:
+                    print(f"[SSE Guard] {request_id} 最终交付前guard告警({len(_final_warn)}条): {'; '.join(_final_warn[:5])}", flush=True)
+                    result["_final_guard_warnings"] = _final_warn[:5]
             # 保存到数据库
             _db_save_ok = False
             db = SessionLocal()
