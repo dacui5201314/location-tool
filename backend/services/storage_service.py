@@ -46,7 +46,10 @@ def get_storage_mode() -> str:
 
 
 def save_report(record_id: int, report_data: dict, address: str = "", brand_name: str = "") -> str:
-    """将分析报告保存为 HTML 文件，返回文件路径（本地模式）或 URL（云端模式）"""
+    """将分析报告保存为 HTML 文件。
+    返回云端 URL（成功时）或本地文件路径（云端未配置/失败时）。
+    兼容旧调用方（返回字符串）。
+    """
     cfg = _get_config()
     mode = cfg.get("storage_mode", "local")
     ts = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -54,29 +57,47 @@ def save_report(record_id: int, report_data: dict, address: str = "", brand_name
 
     html = _build_report_html(record_id, report_data, address, brand_name)
 
-    # 先写本地临时文件；云端上传成功后会清理，仅上传失败时作为兜底保留。
     STORAGE_DIR.mkdir(parents=True, exist_ok=True)
     local_path = STORAGE_DIR / safe_name
     local_path.write_text(html, encoding="utf-8")
 
-    # 云端模式：同时上传到 COS
-    cloud_url = ""
     if mode == "cloud":
-        try:
-            from services.cloud_storage import get_cloud_client, upload_to_cloud, get_cloud_url
-            _, client_data = get_cloud_client()
-            if client_data:
-                cloud_key = f"reports/{safe_name}"
-                if upload_to_cloud(str(local_path), cloud_key, client_data):
-                    cloud_url = get_cloud_url(cloud_key, client_data)
-                    try:
-                        local_path.unlink(missing_ok=True)
-                    except Exception as e:
-                        print(f"[StorageService] 本地临时报告清理失败: {e}", flush=True)
-        except Exception as e:
-            print(f"[StorageService] 云端报告上传失败: {e}", flush=True)
+        from services.cloud_storage import upload_report_to_cloud
+        cloud_key = f"reports/{safe_name}"
+        result = upload_report_to_cloud(str(local_path), cloud_key)
+        if result.ok and result.url:
+            return result.url
+        # 云模式失败：保留本地文件 + 打印错误
+        print(f"[StorageService] 云端报告上传失败: {result.error}，保留本地文件: {local_path}", flush=True)
+        return str(local_path)
 
-    return cloud_url or str(local_path)
+    return str(local_path)
+
+
+def save_report_structured(record_id: int, report_data: dict, address: str = "", brand_name: str = ""):
+    """与 save_report 相同，但返回 StorageResult 对象供 main.py 使用。"""
+    from services.cloud_storage import StorageResult, upload_report_to_cloud
+
+    cfg = _get_config()
+    mode = cfg.get("storage_mode", "local")
+    ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+    safe_name = f"report_{record_id}_{ts}.html"
+
+    html = _build_report_html(record_id, report_data, address, brand_name)
+
+    STORAGE_DIR.mkdir(parents=True, exist_ok=True)
+    local_path = STORAGE_DIR / safe_name
+    local_path.write_text(html, encoding="utf-8")
+
+    if mode != "cloud":
+        return StorageResult(ok=True, local_path=str(local_path), mode="local")
+
+    cloud_key = f"reports/{safe_name}"
+    result = upload_report_to_cloud(str(local_path), cloud_key)
+    # 云模式失败时保留 local_path
+    if not result.ok:
+        result.local_path = str(local_path)
+    return result
 
 
 def get_report_content(record_id: int, report_file: str = "", report_url: str = "") -> bytes:

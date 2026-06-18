@@ -1301,6 +1301,26 @@ def save_storage_config(body: StorageConfigBody, admin: dict = Depends(get_curre
 
 
 # ============================================================
+# COS 存储配置验证 — 健康检查上传
+# ============================================================
+@router.post("/storage-config/test")
+def test_storage_upload(admin: dict = Depends(get_current_admin)):
+    """上传测试文件到 COS 验证配置。key 格式: healthcheck/<timestamp>.txt。"""
+    from services.cloud_storage import upload_healthcheck_to_cloud
+
+    result = upload_healthcheck_to_cloud()
+    return {
+        "ok": result.ok,
+        "provider": result.provider,
+        "key": result.key,
+        "url": result.url,
+        "error": result.error,
+        "mode": result.mode,
+        "checked_at": datetime.now().isoformat(),
+    }
+
+
+# ============================================================
 # 公众号二维码上传 & 获取
 # ============================================================
 ASSETS_DIR = Path(__file__).resolve().parent.parent / "storage" / "assets"

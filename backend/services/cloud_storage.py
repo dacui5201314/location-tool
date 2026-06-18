@@ -1,7 +1,32 @@
 """腾讯云 COS / 阿里云 OSS 对象存储上传"""
-import os, hashlib
+import os, hashlib, json
+from datetime import datetime
 from pathlib import Path
 from qcloud_cos import CosConfig, CosS3Client
+
+
+# ═══════════════════════════════════════════════════════════════
+# 统一存储结果对象
+# ═══════════════════════════════════════════════════════════════
+
+class StorageResult:
+    """统一对象存储返回结构。"""
+    __slots__ = ("ok", "url", "key", "provider", "error", "local_path", "mode")
+
+    def __init__(self, ok=False, url="", key="", provider="", error="", local_path="", mode="local"):
+        self.ok = ok
+        self.url = url
+        self.key = key
+        self.provider = provider
+        self.error = error
+        self.local_path = local_path
+        self.mode = mode
+
+    def to_dict(self):
+        return {k: getattr(self, k, "") for k in self.__slots__}
+
+    def __repr__(self):
+        return json.dumps(self.to_dict(), ensure_ascii=False, default=str)
 
 
 def get_cloud_client(db_session=None):
@@ -72,8 +97,111 @@ def get_cloud_url(cloud_key: str, client_and_bucket) -> str:
     """获取云存储文件的公开 URL"""
     try:
         client, bucket = client_and_bucket
-        # 生成预签名 URL（永久有效 or 1年）
         url = client.get_object_url(Bucket=bucket, Key=cloud_key)
         return url
     except Exception:
         return f"/{cloud_key}"
+
+
+def upload_report_to_cloud(local_path: str, cloud_key: str, provider: str = "tencent_cos") -> StorageResult:
+    """为报告 HTML 提供结构化云上传结果。失败时保留 local_path，绝不静默成功。"""
+    result = StorageResult(mode="local", local_path=local_path)
+
+    try:
+        mode, client_data = get_cloud_client()
+        if mode != "cloud" or not client_data:
+            result.error = "cloud_mode_not_configured"
+            return result
+
+        result.mode = "cloud"
+        result.provider = provider
+
+        client, bucket = client_data
+        try:
+            client.upload_file(
+                Bucket=bucket,
+                Key=cloud_key,
+                LocalFilePath=local_path,
+                EnableMD5=False,
+            )
+            url = client.get_object_url(Bucket=bucket, Key=cloud_key)
+            result.ok = True
+            result.url = url
+            result.key = cloud_key
+            # 上传成功后清理本地临时文件
+            try:
+                Path(local_path).unlink(missing_ok=True)
+            except Exception:
+                pass
+        except Exception as upload_err:
+            result.ok = False
+            result.error = f"upload_failed: {upload_err}"
+    except Exception as e:
+        result.ok = False
+        result.error = f"client_init_failed: {e}"
+
+    return result
+
+
+def upload_healthcheck_to_cloud() -> StorageResult:
+    """上传健康检查文件到 COS，用于后台配置验证。"""
+    ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+    key = f"healthcheck/{ts}.txt"
+    tmp = Path(__file__).resolve().parent.parent / "storage" / f"_hc_{ts}.txt"
+    tmp.parent.mkdir(parents=True, exist_ok=True)
+    tmp.write_text(f"healthcheck {ts}", encoding="utf-8")
+
+    result = upload_report_to_cloud(str(tmp), key)
+    result.key = key  # 确保 key 始终正确
+
+    try:
+        tmp.unlink(missing_ok=True)
+    except Exception:
+        pass
+
+    return result
+
+
+def backfill_local_reports(dry_run=True) -> list[dict]:
+    """扫描本地有 report_file 无 report_url 的记录，补传到 COS。
+    返回每条的补传结果列表。
+    """
+    from database import SessionLocal
+    from models.db_models import AnalysisRecord
+
+    results = []
+    db = SessionLocal()
+    try:
+        records = db.query(AnalysisRecord).filter(
+            AnalysisRecord.report_file.isnot(None),
+            AnalysisRecord.report_file != "",
+            AnalysisRecord.report_url.is_(None) | (AnalysisRecord.report_url == ""),
+        ).order_by(AnalysisRecord.id).all()
+
+        for rec in records:
+            item = {"id": rec.id, "report_file": str(rec.report_file), "dry_run": dry_run}
+            if not os.path.exists(rec.report_file):
+                item["error"] = "local_file_missing"
+                results.append(item)
+                continue
+
+            if dry_run:
+                item["status"] = "dry_run_would_upload"
+                results.append(item)
+                continue
+
+            cloud_key = f"reports/backfill_{rec.id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.html"
+            sr = upload_report_to_cloud(rec.report_file, cloud_key)
+            item["status"] = "uploaded" if sr.ok else "failed"
+            item["url"] = sr.url
+            item["error"] = sr.error
+
+            if sr.ok and sr.url:
+                rec.report_url = sr.url
+                db.commit()
+
+            results.append(item)
+    finally:
+        db.close()
+
+    return results

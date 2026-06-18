@@ -32,7 +32,7 @@ from services.amap_service import collect_location_data
 from ai_providers.unified import generate_llm_response
 from database import init_db, SessionLocal, get_db
 from models.db_models import AnalysisRecord, User, BusinessIndustry
-from services.storage_service import save_report
+from services.storage_service import save_report, save_report_structured
 from services.billing_service import check_billing_access, refund_credits
 from services.report_quality_service import assess_data_sufficiency
 from services.report_decision_service import compute_decision_snapshot
@@ -997,17 +997,25 @@ async def analyze_location(req: AnalyzeRequest, user: dict = Depends(get_current
                 _db_save_ok = True  # ★ DB 主记录保存成功
 
                 try:
-                    file_path = save_report(
+                    storage_result = save_report_structured(
                         _saved_id, result,
                         address=req.address, brand_name=req.brand_name or "",
                     )
                     # ★ record 可能已脱管，重新查询后更新 report_url/file
                     _r = db.query(AnalysisRecord).filter(AnalysisRecord.id == _saved_id).first()
                     if _r:
-                        if file_path.startswith("http"):
-                            _r.report_url = file_path
+                        if storage_result.ok:
+                            if storage_result.mode == "cloud" and storage_result.url:
+                                _r.report_url = storage_result.url
+                            else:
+                                _r.report_file = storage_result.local_path
                         else:
-                            _r.report_file = file_path
+                            # 云模式失败：保留本地兜底文件 + 写入诊断
+                            _r.report_file = storage_result.local_path
+                            result["_storage_error"] = storage_result.error
+                            result["_storage_result"] = storage_result.to_dict()
+                            _r.report_json = json.dumps(result, ensure_ascii=False)
+                            print(f"[SSE] {request_id} 云存储失败: {storage_result.error}，已保留本地文件", flush=True)
                         db.commit()
                 except Exception:
                     import traceback
