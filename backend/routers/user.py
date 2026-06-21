@@ -152,6 +152,16 @@ async def upload_avatar(
     with open(filepath, "wb") as f:
         f.write(content)
     avatar_url = f"/assets/user_avatars/{filename}"
+    # 尝试云存储
+    from services.storage_service import save_user_asset_structured
+    try:
+        result = save_user_asset_structured("avatars", filename, content,
+                                             content_type=f"image/{ext}",
+                                             metadata={"user_id": uid})
+        if result.ok and result.url:
+            avatar_url = result.url
+    except Exception:
+        pass  # 云失败静默，保持本地 URL
     # 更新数据库
     db_user = db.query(User).filter(User.id == uid).first()
     if db_user:

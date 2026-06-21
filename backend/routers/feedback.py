@@ -57,9 +57,15 @@ async def upload_feedback_image(
     if ext not in ("png", "jpg", "jpeg", "webp"):
         ext = "jpg"
     fname = f"fb_{uuid.uuid4().hex[:10]}.{ext}"
-    fpath = FEEDBACK_ASSETS / fname
-    fpath.write_bytes(raw)
-    return {"ok": True, "url": f"/assets/feedback/{fname}"}
+    from services.storage_service import save_user_asset_structured
+    result = save_user_asset_structured("feedback", fname, raw, content_type=f"image/{ext}")
+    if result.ok and result.url:
+        return {"ok": True, "url": result.url}
+    # 云失败回退本地 — 使用 result.local_path 对应的真实文件名
+    from pathlib import Path
+    real_name = Path(result.local_path).name if result.local_path else fname
+    return {"ok": True, "url": f"/assets/feedback/{real_name}",
+            "storage_error": result.error}
 
 
 @router.post("")

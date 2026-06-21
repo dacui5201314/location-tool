@@ -40,6 +40,47 @@ def _get_config(db_session=None) -> dict:
     return cfg
 
 
+_ASSET_CATEGORIES = {"feedback", "avatars", "qrcode", "share", "reports", "healthcheck"}
+
+
+def save_user_asset_structured(category: str, filename: str, content_bytes: bytes,
+                                content_type: str = "", metadata: dict | None = None) -> "StorageResult":
+    """通用用户生成文件云存储入口。返回 StorageResult，云失败保留本地兜底。"""
+    from services.cloud_storage import StorageResult, upload_report_to_cloud
+
+    if category not in _ASSET_CATEGORIES:
+        return StorageResult(ok=False, error=f"invalid_category: {category}",
+                             mode="local")
+
+    # 本地兜底
+    asset_dir = STORAGE_DIR.parent / "assets" / category
+    asset_dir.mkdir(parents=True, exist_ok=True)
+    ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+    actual_name = f"{ts}-{filename}"
+    local_path = asset_dir / actual_name
+    local_path.write_bytes(content_bytes)
+
+    # 构造 COS key（单次 timestamp）
+    if category == "feedback":
+        cloud_key = f"feedback/{actual_name}"
+    elif category == "avatars":
+        uid = str((metadata or {}).get("user_id", "anonymous"))
+        cloud_key = f"avatars/{uid}/{actual_name}"
+    elif category == "qrcode":
+        cloud_key = f"qrcode/{actual_name}"
+    elif category == "share":
+        cloud_key = f"share/{actual_name}"
+    elif category == "healthcheck":
+        cloud_key = f"healthcheck/{ts}.txt"
+    else:
+        cloud_key = f"reports/{actual_name}"
+
+    result = upload_report_to_cloud(str(local_path), cloud_key)
+    if not result.ok:
+        result.local_path = str(local_path)
+    return result
+
+
 def get_storage_mode() -> str:
     """返回当前存储模式: local 或 cloud"""
     return _get_config().get("storage_mode", "local")

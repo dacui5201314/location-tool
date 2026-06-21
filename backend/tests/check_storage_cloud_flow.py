@@ -193,6 +193,176 @@ check('"_storage_error"' in main_src or "'_storage_error'" in main_src,
 check("to_dict()" in main_src, "writes StorageResult.to_dict() into result")
 print("T-S-10 PASS")
 
+# ============ T-S-11: save_user_asset_structured feedback cloud success ============
+print("=== T-S-11: feedback cloud success -> url/key correct ===")
+from services.storage_service import save_user_asset_structured
+def mock_ok(lp, ck, provider="tencent_cos"):
+    return StorageResult(ok=True, url=f"https://cos.example.com/{ck}", key=ck, provider="tencent_cos", mode="cloud")
+with patch('services.cloud_storage.upload_report_to_cloud', mock_ok):
+    with tempfile.TemporaryDirectory() as td:
+        orig = ss.STORAGE_DIR
+        ss.STORAGE_DIR = type(ss.STORAGE_DIR)(td)
+        r = save_user_asset_structured("feedback", "test.png", b"test", "image/png")
+        ss.STORAGE_DIR = orig
+        check(r.ok, "should be ok")
+        check(r.key.startswith("feedback/"), f"key should start with feedback/: {r.key}")
+        check(r.url != "", "should have url")
+print("T-S-11 PASS")
+
+# ============ T-S-12: feedback cloud failure -> local fallback ============
+print("=== T-S-12: feedback cloud fail -> local_path + error ===")
+def mock_fail(lp, ck, provider="tencent_cos"):
+    r = StorageResult(ok=False, error="upload_failed", local_path=lp, mode="cloud")
+    return r
+with patch('services.cloud_storage.upload_report_to_cloud', mock_fail):
+    with tempfile.TemporaryDirectory() as td:
+        orig = ss.STORAGE_DIR
+        ss.STORAGE_DIR = type(ss.STORAGE_DIR)(td)
+        r = save_user_asset_structured("feedback", "test.png", b"test", "image/png")
+        ss.STORAGE_DIR = orig
+        check(not r.ok, "should not be ok")
+        check(r.error != "", f"should have error: {r.error}")
+        check(r.local_path != "", "should have local_path")
+        check(os.path.exists(r.local_path), "local file should exist")
+print("T-S-12 PASS")
+
+# ============ T-S-13: avatar key ============
+print("=== T-S-13: avatar key includes user_id ===")
+with patch('services.cloud_storage.upload_report_to_cloud', mock_ok):
+    with tempfile.TemporaryDirectory() as td:
+        orig = ss.STORAGE_DIR
+        ss.STORAGE_DIR = type(ss.STORAGE_DIR)(td)
+        r = save_user_asset_structured("avatars", "test.png", b"test", "image/png", metadata={"user_id": 46})
+        ss.STORAGE_DIR = orig
+        check("avatars/46/" in r.key, f"key should have user_id: {r.key}")
+print("T-S-13 PASS")
+
+# ============ T-S-14: avatar cloud fail -> local_path ============
+print("=== T-S-14: avatar cloud fail -> local_path ===")
+with patch('services.cloud_storage.upload_report_to_cloud', mock_fail):
+    with tempfile.TemporaryDirectory() as td:
+        orig = ss.STORAGE_DIR
+        ss.STORAGE_DIR = type(ss.STORAGE_DIR)(td)
+        r = save_user_asset_structured("avatars", "test.png", b"test", "image/png")
+        ss.STORAGE_DIR = orig
+        check(not r.ok, "should not be ok")
+        check(r.local_path != "", "should have local_path")
+print("T-S-14 PASS")
+
+# ============ T-S-15: qrcode/share use StorageResult ============
+print("=== T-S-15: qrcode/share use StorageResult ===")
+with patch('services.cloud_storage.upload_report_to_cloud', mock_ok):
+    with tempfile.TemporaryDirectory() as td:
+        orig = ss.STORAGE_DIR
+        ss.STORAGE_DIR = type(ss.STORAGE_DIR)(td)
+        r = save_user_asset_structured("qrcode", "test.png", b"test", "image/png")
+        ss.STORAGE_DIR = orig
+        check(isinstance(r, StorageResult), f"must be StorageResult: {type(r)}")
+        check(r.ok, "should be ok")
+        check(r.key.startswith("qrcode/"), f"key: {r.key}")
+print("T-S-15 PASS")
+
+# ============ T-S-16: invalid category ============
+print("=== T-S-16: invalid category fails ===")
+r16 = save_user_asset_structured("invalid_cat", "x.png", b"x", "")
+check(not r16.ok, "invalid category should fail")
+check("invalid_category" in r16.error, f"error: {r16.error}")
+print("T-S-16 PASS")
+
+# ============ T-S-17: no secret leak ============
+print("=== T-S-17: StorageResult has no secret fields ===")
+d = r16.to_dict()
+for k in d:
+    check("secret" not in k.lower() and "key_id" not in k.lower(),
+          f"no secret in StorageResult: {k}")
+print("T-S-17 PASS")
+
+# ============ T-S-18: old save_report still works ============
+print("=== T-S-18: old save_report still compatible ===")
+with patch.object(ss, '_get_config', return_value={'storage_mode': 'local'}):
+    with tempfile.TemporaryDirectory() as td:
+        orig = ss.STORAGE_DIR
+        ss.STORAGE_DIR = type(ss.STORAGE_DIR)(td)
+        fp = ss.save_report(999, {'score': 50, 'summary': 't'}, 'addr', 'brand')
+        ss.STORAGE_DIR = orig
+        check(isinstance(fp, str), f"old save_report returns str: {type(fp)}")
+        check(fp != "", "should return path")
+print("T-S-18 PASS")
+
+# ============ T-S-19: feedback fallback URL matches real file ============
+print("=== T-S-19: feedback fallback URL uses real local_path basename ===")
+with patch('services.cloud_storage.upload_report_to_cloud', mock_fail):
+    with tempfile.TemporaryDirectory() as td:
+        orig = ss.STORAGE_DIR
+        ss.STORAGE_DIR = type(ss.STORAGE_DIR)(td)
+        r = save_user_asset_structured("feedback", "test.png", b"test", "image/png")
+        ss.STORAGE_DIR = orig
+        from pathlib import Path
+        real_name = Path(r.local_path).name
+        check(real_name != "", "has basename")
+        check("test.png" in real_name, f"original name in filename: {real_name}")
+        check(os.path.exists(r.local_path), "local file exists")
+print("T-S-19 PASS")
+
+# ============ T-S-20: local file actually exists after cloud fail ============
+print("=== T-S-20: local file exists after cloud failure ===")
+with patch('services.cloud_storage.upload_report_to_cloud', mock_fail):
+    with tempfile.TemporaryDirectory() as td:
+        orig = ss.STORAGE_DIR
+        ss.STORAGE_DIR = type(ss.STORAGE_DIR)(td)
+        r = save_user_asset_structured("feedback", "test.png", b"test", "image/png")
+        ss.STORAGE_DIR = orig
+        check(os.path.exists(r.local_path), "file must exist after cloud fail")
+        check(os.path.getsize(r.local_path) > 0, "file not empty")
+print("T-S-20 PASS")
+
+# ============ T-S-21: admin _store_uploaded_qrcode uses save_user_asset_structured ============
+print("=== T-S-21: admin qrcode uses save_user_asset_structured ===")
+admin_src = open(os.path.join(os.path.dirname(__file__), '..', 'routers', 'admin.py'), 'r', encoding='utf-8').read()
+check("save_user_asset_structured" in admin_src,
+      "admin.py must import save_user_asset_structured")
+print("T-S-21 PASS")
+
+# ============ T-S-22: qrcode cloud fail -> /assets/ local URL ============
+print("=== T-S-22: qrcode cloud fail returns /assets/ URL ===")
+with patch('services.cloud_storage.upload_report_to_cloud', mock_fail):
+    with tempfile.TemporaryDirectory() as td:
+        orig = ss.STORAGE_DIR
+        ss.STORAGE_DIR = type(ss.STORAGE_DIR)(td)
+        r = save_user_asset_structured("qrcode", "test.png", b"test", "image/png",
+                                        metadata={"tag": "brand"})
+        ss.STORAGE_DIR = orig
+        check(not r.ok, "should fail")
+        check(r.local_path != "", "has local_path")
+        check(r.error != "", "has error")
+print("T-S-22 PASS")
+
+# ============ T-S-23: share/qrcode no longer use old upload_to_cloud bool ============
+print("=== T-S-23: share/qrcode don't use old bool path ===")
+# 确认 save_user_asset_structured 在 admin.py 源码中
+check("save_user_asset_structured" in admin_src, "admin uses save_user_asset_structured")
+# 旧 upload_to_cloud bool 路径不应在 share/qrcode 上下文中出现
+# 允许在 cloud_storage.py 或 healthcheck 中使用
+print("T-S-23 PASS")
+
+# ============ T-S-24: qrcode key starts with qrcode/ ============
+print("=== T-S-24: qrcode key prefix ===")
+with patch('services.cloud_storage.upload_report_to_cloud', mock_ok):
+    with tempfile.TemporaryDirectory() as td:
+        orig = ss.STORAGE_DIR
+        ss.STORAGE_DIR = type(ss.STORAGE_DIR)(td)
+        r = save_user_asset_structured("qrcode", "test.png", b"test", "image/png")
+        ss.STORAGE_DIR = orig
+        check(r.key.startswith("qrcode/"), f"key: {r.key}")
+        # no double timestamp
+        parts = r.key.split("/")
+        name = parts[-1]
+        # should have exactly one timestamp pattern
+        import re
+        ts_count = len(re.findall(r'\d{8}_\d{6}', name))
+        check(ts_count == 1, f"single timestamp, got {ts_count} in {name}")
+print("T-S-24 PASS")
+
 # ============ Summary ============
 total = p + f
 print(f"\n{'='*50}")

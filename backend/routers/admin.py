@@ -955,21 +955,22 @@ def upload_share_image(
     filepath = assets_dir / filename
     filepath.write_bytes(raw)
 
-    # 云存储上传（COS/Oss 兜底）
+    # 云存储上传（使用统一入口）
     cloud_url = ""
+    storage_error = ""
     try:
-        from services.cloud_storage import get_cloud_client, upload_to_cloud, get_cloud_url
-        mode, client_data = get_cloud_client(db)
-        if mode == "cloud" and client_data:
-            cloud_key = f"share/{filename}"
-            if upload_to_cloud(str(filepath), cloud_key, client_data):
-                cloud_url = get_cloud_url(cloud_key, client_data)
-                print(f"[Admin] 分享图已上传至云存储: {cloud_url}", flush=True)
+        from services.storage_service import save_user_asset_structured
+        result = save_user_asset_structured("share", filename, raw, content_type="image/png")
+        if result.ok and result.url:
+            cloud_url = result.url
+        else:
+            storage_error = result.error
     except Exception as e:
-        print(f"[Admin] 云存储上传异常: {e}", flush=True)
+        storage_error = str(e)
 
     url = cloud_url or f"/assets/share/{filename}"
-    return {"url": url, "filename": filename}
+    return {"url": url, "filename": filename,
+            "storage_error": storage_error} if storage_error else {"url": url, "filename": filename}
 
 
 @router.get("/customer-service-qrcode")
@@ -1321,6 +1322,33 @@ def test_storage_upload(admin: dict = Depends(get_current_admin)):
 
 
 # ============================================================
+# 存量报告重新校验
+# ============================================================
+class RevalidateBody(BaseModel):
+    limit: int = 100
+
+class RevalidateRunBody(BaseModel):
+    limit: int = 100
+    dry_run: bool = True
+
+
+@router.post("/reports/revalidate/dry-run")
+def revalidate_dry_run(body: RevalidateBody, admin: dict = Depends(get_current_admin), db: Session = Depends(get_db)):
+    """存量报告扫描（只读，不写库）。"""
+    from services.report_revalidation_service import scan_legacy_reports
+    limit = max(1, min(body.limit, 500))
+    return scan_legacy_reports(db, dry_run=True, limit=limit)
+
+
+@router.post("/reports/revalidate/run")
+def revalidate_run(body: RevalidateRunBody, admin: dict = Depends(get_current_admin), db: Session = Depends(get_db)):
+    """存量报告扫描并写入 meta。只有 dry_run=false 才写库。"""
+    from services.report_revalidation_service import scan_legacy_reports
+    limit = max(1, min(body.limit, 500))
+    return scan_legacy_reports(db, dry_run=body.dry_run, limit=limit)
+
+
+# ============================================================
 # 公众号二维码上传 & 获取
 # ============================================================
 ASSETS_DIR = Path(__file__).resolve().parent.parent / "storage" / "assets"
@@ -1477,7 +1505,28 @@ async def _store_uploaded_qrcode(file: UploadFile, tag: str) -> dict:
 
     asset_url = f"/assets/{safe_name}"
 
+    # 尝试云存储上传
+    storage_error = ""
+    try:
+        from services.storage_service import save_user_asset_structured
+        result = save_user_asset_structured("qrcode", safe_name, final_bytes,
+                                             content_type="image/png",
+                                             metadata={"tag": tag})
+        if result.ok and result.url:
+            asset_url = result.url
+        else:
+            storage_error = result.error
+    except Exception as e:
+        storage_error = str(e)
+
     return {
+        "ok": True,
+        "tag": tag,
+        "filename": safe_name,
+        "url": asset_url,
+        "size": len(final_bytes),
+        "message": "二维码已上传并裁剪为正方形",
+        "storage_error": storage_error} if storage_error else {
         "ok": True,
         "tag": tag,
         "filename": safe_name,
