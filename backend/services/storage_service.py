@@ -382,14 +382,37 @@ def _build_report_html(record_id: int, report_data: dict, address: str, brand_na
         suff_summary = _esc(data_sufficiency.get("summary") or "")
         suff_html = f'<div class="notice" style="background:#f0fdf4;color:#047857;border:1px solid #bbf7d0;margin-bottom:28px;">📊 数据充分度：{_esc(suff_level)} — {suff_summary}</div>'
 
+    score_meta_list = report_data.get("dimension_score_meta") or []
+    score_meta_by_key = {}
+    if isinstance(score_meta_list, list):
+        for m in score_meta_list:
+            if not isinstance(m, dict):
+                continue
+            k = str(m.get("key") or "").strip()
+            if not k:
+                continue
+            score_meta_by_key[k] = m
+
     dim_cards = ""
     for item in (dimension_scores or [])[:8]:
         label = _dimension_name(item)
         val = _score_int(item.get("score"))
+        key = str(item.get("key") or "").strip()
+        meta = score_meta_by_key.get(key, {})
+        low_note = ""
+        if meta.get("score_confidence") == "low":
+            note_text = _esc(meta.get("note") or "")
+            if key == "cost_estimate":
+                note_text = "低置信：缺少租金、人工、营收测算，当前分数为占位参考"
+            elif key == "population_density":
+                note_text = _esc(meta.get("note") or "低置信：近场客源依据偏弱")
+            if note_text:
+                low_note = f'<div style="font-size:11px;color:#f59e0b;margin-top:4px">⚠ {note_text}</div>'
         dim_cards += f"""
         <div class="metric-card">
           <div class="metric-row"><strong>{_esc(label)}</strong><b style="color:{'#18bf82' if val >= 70 else '#f59e0b' if val >= 50 else '#ef4444'}">{val}</b></div>
           {_bar(val)}
+          {low_note}
         </div>"""
 
     detail_labels = {

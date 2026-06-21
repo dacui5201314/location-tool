@@ -162,6 +162,16 @@
         </view>
       </view>
 
+      <view class="section" v-if="rptScoreMeta.filter(m => m.confidence === 'low' || m.missing).length">
+        <view class="sec-title" style="color:#f59e0b">⚠ 评分置信度提示</view>
+        <view class="contradiction-note" style="background:#fffbeb;padding:10px 14px;border-radius:8px;border:1px solid #fde68a;color:#92400e;font-size:13px;line-height:1.8" v-for="m in rptScoreMeta.filter(x => x.confidence === 'low' || x.missing)" :key="'sm'+m.key">
+          <text style="font-weight:700">{{ m.label || m.key }}</text>
+          <text v-if="m.confidence === 'low'" style="color:#f59e0b"> 低置信</text>
+          <text v-if="m.note" style="color:#64748b"> · {{ m.note }}</text>
+          <text v-if="m.missing" style="color:#94a3b8;font-size:12px"> · 缺失: {{ m.missing }}</text>
+        </view>
+      </view>
+
       <!-- Old/empty report content -->
       <view class="content-box" v-if="!hasContent">
         <text class="cb-title">暂无完整报告内容</text>
@@ -412,7 +422,7 @@ export default {
       poiExpanded: false,
       rptScore: 0, rptDisclaimer: '', rptWarning: '', rptSummary: '',
       rptAdv: [], rptDis: [], rptDims: [], rptAction: [],
-      rptDemandContradiction: '',
+      rptDemandContradiction: '', rptScoreMeta: [],
       rptDir200: 0, rptDir500: 0, rptDir1000: 0,
       rptSub200: 0, rptSub500: 0, rptSub1000: 0,
       rptAnc200: 0, rptAnc500: 0, rptAnc1000: 0,
@@ -748,6 +758,12 @@ export default {
       this.rptAdv = _sa(rpt.advantages)
       this.rptDis = _sa(rpt.disadvantages)
       this.rptDemandContradiction = rpt.demand_contradiction_note || ''
+      this.rptScoreMeta = (rpt.dimension_score_meta || []).filter(m => m && typeof m === 'object').map(m => ({
+        key: (m.key || '').trim() || 'unknown', label: m.label || m.key || 'unknown',
+        confidence: m.score_confidence || 'medium', note: m.note || '',
+        missing: Array.isArray(m.missing_required_inputs) ? m.missing_required_inputs.join(', ') : '',
+        applicable: m.is_score_applicable !== false
+      }))
       this.rptAction = _sa(rpt.action_plan)
 
       this.rptDims = dimScores.map(d => {
