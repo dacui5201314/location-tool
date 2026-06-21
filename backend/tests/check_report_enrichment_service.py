@@ -235,6 +235,37 @@ def test_miniprogram_field_consumption():
     print(f"T11 miniprogram fields: {len(required_reads)} P1 fields consumed PASS")
 
 
+def test_enrichment_has_dimension_score_meta():
+    """T12: enrichment 后存在 dimension_score_meta，cost_estimate 低置信。"""
+    from services.fallback_report_service import build_fallback_report
+    from services.report_enrichment_service import enrich_report_business_context
+
+    rd = {
+        "stats_200m": {"residential":0,"office":0,"schools":1,"subway":0,"bus":0,"parking":1,"shopping":0,"hotels":0,"restaurants":2},
+        "stats_500m": {"residential":1,"office":0,"schools":2,"subway":0,"bus":2,"parking":1,"shopping":0,"hotels":0,"restaurants":4},
+        "stats_1000m": {"residential":10,"office":0,"schools":4,"subway":0,"bus":5,"parking":2,"shopping":1,"hotels":14,"restaurants":79},
+        "direct_competitors_200m":0,"direct_competitors_500m":2,"direct_competitors_1000m":4,
+        "substitute_competitors_200m":0,"substitute_competitors_500m":0,"substitute_competitors_1000m":0,
+        "traffic_anchors_200m":0,"traffic_anchors_500m":3,"traffic_anchors_1000m":8,
+        "direct_competitor_list":[],"substitute_list":[],"traffic_anchor_list":[],"poi_lists":{},"hot_brands":[],"nearby_roads":[],
+        "rigor_enabled":True,"subway_applicable":True,"city_has_subway":False,
+    }
+    fb = build_fallback_report(rd, business_type="小吃快餐", brand_name="", store_size=0)
+    enr = enrich_report_business_context(fb, rd, business_type="小吃快餐", brand_name="", store_size=0, is_fallback=True)
+
+    meta = enr.get("dimension_score_meta")
+    assert meta is not None, "enrichment must add dimension_score_meta"
+    assert isinstance(meta, list), f"meta must be list, got {type(meta)}"
+    assert len(meta) >= 8, f"meta must have 8+ entries, got {len(meta)}"
+
+    cost_m = [m for m in meta if m["key"] == "cost_estimate"]
+    assert len(cost_m) == 1, "cost_estimate meta must exist"
+    assert cost_m[0]["score_confidence"] == "low", f"cost should be low conf: {cost_m[0]}"
+    assert cost_m[0]["is_score_applicable"] == False, f"cost should not be applicable: {cost_m[0]}"
+
+    print("T12 enrichment has dimension_score_meta: PASS")
+
+
 if __name__ == "__main__":
     test_all_paths_have_location_profile()
     test_both_snapshot_and_profile()
@@ -248,5 +279,6 @@ if __name__ == "__main__":
     test_storage_service_business_logic_gate()
     test_html_display_field_coverage()
     test_miniprogram_field_consumption()
+    test_enrichment_has_dimension_score_meta()
     print()
     print("ALL ENRICHMENT SERVICE TESTS PASSED")

@@ -170,8 +170,10 @@ def enrich_report_business_context(report: dict, real_data: dict,
 
     # ★ Phase 3: 表达归位 + 矛盾解释
     from services.report_expression_normalizer import normalize_advantage_risk_phrasing, add_demand_contradiction_note
+    from services.report_score_meta_service import add_dimension_score_meta
     report = normalize_advantage_risk_phrasing(report)
     report = add_demand_contradiction_note(report, rd)
+    report = add_dimension_score_meta(report, rd, store_size=store_size)
 
     return report
 
