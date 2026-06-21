@@ -448,3 +448,143 @@
 - 外圈生态活跃、近场客源弱等矛盾会被解释。
 - 缺少成本或营收测算时，不再给出看似确定的成本压力中位分。
 - 所有修复保持全业态适用，不绑定单一案例。
+
+
+## 11. 执行状态
+
+### Phase 0: 现状核实与样本固定
+**状态**: Done
+
+- ✅ 已核实 report/feedback/avatar/qrcode/share image 保存入口。
+- ✅ 已核实 location_profile/location_fundamentals 调用方。
+- ✅ 已核实公交 distance 来源（amap_service 三条采集路径均保留 distance）。
+- ⬜ 服务器样本盘点待执行（Server Action Required）。
+
+### Phase 1: 报告事实层与守卫层
+**状态**: Done
+
+Commit:
+- `5992d304` Fix report fact guard radius consistency
+- `95797928` Unify location fact snapshot for bus counts
+
+- ✅ guard 扫描范围扩大至 12 字段 + 2 新字段（risk_notes / demand_contradiction_note）。
+- ✅ 半径错配硬校验（`check_radius_mismatch`，类别感知 + 逐半径片段）。
+- ✅ 小数字严格校验（`_validate_small_counts`，数字+单位与类别关键词相邻）。
+- ✅ final guard hard block（`split_final_guard_issues` → `raise ValueError`，enrichment 后 DB 保存前执行）。
+- ✅ distance-aware bus dedup 进入 profile/fundamentals/fallback 三条主链路（`build_location_fact_snapshot` → `max_distance=500`）。
+- ✅ `build_user_visible_report_text()` 统一文本构造器。
+
+### Phase 2: 云存储闭环
+**状态**: Done / Server Action Required
+
+Commit:
+- `ab52da11` Fix cloud storage report persistence
+- `de5dc6f3` Add legacy report revalidation and asset cloud storage
+
+- ✅ report HTML 主链路 `save_report_structured()` → `StorageResult`，云失败写 `_storage_error` + `_storage_result` 到 report_json。
+- ✅ feedback/avatar/qrcode/share/healthcheck 接入 `save_user_asset_structured()`。
+- ✅ 历史报告补传函数 `backfill_local_reports(dry_run=True)` 已具备。
+- ✅ COS 测试上传端点 `POST /api/admin/storage-config/test`。
+- ⬜ 服务器需执行 COS 配置测试和历史补传 dry-run（Server Action Required）。
+
+### Phase 3: 表达层和矛盾解释
+**状态**: Done
+
+Commit:
+- `d82f070a` Normalize report advantages and demand explanation
+
+- ✅ 优势/风险归位（`normalize_advantage_risk_phrasing`，转折拆分）。
+- ✅ `demand_contradiction_note` 外圈热+近场弱解释。
+- ✅ HTML/admin/uniapp 三端展示。
+
+### Phase 4: 存量报告处理
+**状态**: Code Done / Server Action Required
+
+Commit:
+- `de5dc6f3` Add legacy report revalidation and asset cloud storage
+
+- ✅ `classify_legacy_report_status` 状态机（current_ok / legacy_warning / legacy_failed_fact_guard / legacy_unchecked / storage_pending / storage_synced）。
+- ✅ `POST /api/admin/reports/revalidate/dry-run` 只读接口。
+- ✅ `POST /api/admin/reports/revalidate/run` 默认 dry_run=true。
+- ✅ 失败旧报告 run 后再次 classify 保持 legacy_failed_fact_guard 不被洗白。
+- ⬜ 服务器需执行 revalidate dry-run 后再决定是否写入状态（Server Action Required）。
+
+### Phase 5: 评分影响评估
+**状态**: Done
+
+Commit:
+- `fa4fef99` Add score confidence metadata
+
+- ✅ `check_score_distribution_compare.py` 评分分布对比脚本。
+- ✅ `propose_adjusted_dimension_scores()` 候选评分不覆盖原分。
+- ✅ 6 样本推荐等级迁移为 0/6。
+
+### Phase 6: 评分缺失值上线
+**状态**: Partial Done
+
+Commit:
+- `fa4fef99` Add score confidence metadata
+- `949d2a1c` Show score confidence metadata in reports
+
+- ✅ `dimension_score_meta` 已写入 report_json 并在 HTML/admin/uniapp 三端展示。
+- ✅ 成本压力缺依据时显示"低置信：缺少租金、人工、营收测算，当前分数为占位参考"。
+- ✅ 人口密集度弱近场时显示 meta.note。
+- ⬜ 当前仍不改变真实总分和 `dimension_scores[].score`。
+- ⬜ 如未来要调整总分，必须另开风险评估并先做新旧评分分布对比。
+
+
+## 12. 服务器执行清单
+
+以下操作在服务器 `/www/wwwroot/location-tool/` 上执行，不在本地：
+
+1. **COS 配置测试**（只读）:
+   ```
+   POST /api/admin/storage-config/test
+   ```
+   预期 `ok=true`，返回 `healthcheck/<timestamp>.txt` key 和 url。
+
+2. **存量报告 dry-run**（只读，不写库）:
+   ```
+   POST /api/admin/reports/revalidate/dry-run
+   {"limit": 500}
+   ```
+   记录 `current_ok` / `legacy_warning` / `legacy_failed_fact_guard` / `legacy_unchecked` / `storage_pending` / `storage_synced` 各状态数量。
+
+3. **历史本地报告补传 dry-run**（只读）:
+   使用 `backfill_local_reports(dry_run=True)`，先看待补传数量和 missing file 数量。不直接删除本地文件。
+
+4. **确认后写入**（谨慎执行）:
+   - `POST /api/admin/reports/revalidate/run` with `{"dry_run": false, "limit": 500}`
+   - `backfill_local_reports(dry_run=False)`
+
+
+## 13. 当前验收结果
+
+| 测试 | 结果 |
+|------|------|
+| check_report_fact_guard.py | 188 PASS |
+| check_storage_cloud_flow.py | 80 PASS |
+| check_report_revalidation_service.py | 26 PASS |
+| check_location_profile_rules.py | 22 PASS |
+| check_score_meta_display.py | 41 PASS |
+| check_score_distribution_compare.py | 28 PASS |
+| check_report_enrichment_service.py | 12 PASS |
+| check_p1_business_model_quality.py | 22 PASS |
+| check_sample_regression.py | 71 PASS |
+| check_business_model_rules.py | 46 PASS |
+| check_report_expression_normalization.py | 32 PASS |
+| check_report_radius_mismatch.py | 30 PASS |
+| compileall | OK |
+| npm run build:mp-weixin | DONE Build complete |
+
+
+## 14. 仍不做事项
+
+- ❌ 不直接删除旧报告。
+- ❌ 不把旧报告全部判为无效。
+- ❌ 不静默覆盖服务器数据。
+- ❌ 不改真实评分总分。
+- ❌ 不改 prompt。
+- ❌ 不删除旧函数。
+- ❌ 不在本地假装服务器存量已处理完成。
+- ❌ 不把 candidate_only source card 吸收进 YAML。
