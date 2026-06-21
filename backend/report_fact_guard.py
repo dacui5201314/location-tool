@@ -18,6 +18,25 @@ _USER_VISIBLE_FIELDS = [
 ]
 
 
+def _check_segment(seg, field_path, expected, radius_key, subject_kw, units):
+    """在一个半径片段内校验数字。要求数字+单位与类别关键词相邻出现。"""
+    if not any(kw in seg for kw in subject_kw):
+        return []
+    unit_pat = "|".join(units)
+    kw_pat = "|".join(re.escape(k) for k in subject_kw)
+    errors = []
+    for m in re.finditer(rf'(\d+)\s*({unit_pat})\s*({kw_pat})|({kw_pat})\s*(\d+)\s*({unit_pat})', seg):
+        reported_str = m.group(1) or m.group(5)
+        reported = int(reported_str)
+        if expected == 0 and reported > 0:
+            errors.append(f"{field_path}={expected} but report says {reported} in '{seg[:40]}'")
+        elif expected > 0:
+            limit = max(expected + 3, expected * 2)
+            if reported > limit:
+                errors.append(f"{field_path}={expected} but report says {reported} (>{limit}) in '{seg[:40]}'")
+    return errors
+
+
 def build_user_visible_report_text(result: dict) -> str:
     """统一构造用户可见报告字段的文本，供所有 guard 扫描使用。
     不包含 real_data 等内部原始数据。
@@ -55,73 +74,32 @@ def validate_report_fact_consistency(result: dict, real_data: dict) -> list[str]
     sentences = re.split(r'[。，；;、\n]+', full_text)
     sentences = [s.strip() for s in sentences if s.strip()]
 
-    # 3. 半径识别
-    R200 = re.compile(r'200米|200m|贴身')
-    R500 = re.compile(r'500米|500m|步行圈')
-    R1K  = re.compile(r'1km|1000米|1000m')
-    GENERIC = re.compile(r'附近|周边|区域内|范围内|周围')
-
-    def _get_radius(sentence):
-        if R200.search(sentence): return "200m"
-        if R500.search(sentence): return "500m"
-        if R1K.search(sentence): return "1000m"
-        if GENERIC.search(sentence): return "1000m"
-        return None
-
-    def _check_sentence(sentence, field_path, expected, radius, subject_kw, units):
-        sent_radius = _get_radius(sentence)
-        if sent_radius != radius:
-            return []
-        if not any(kw in sentence for kw in subject_kw):
-            return []
-        unit_pat = "|".join(units)
-        for m in re.finditer(rf'(\d+)\s*({unit_pat})', sentence, re.IGNORECASE):
-            reported = int(m.group(1))
-            if expected == 0 and reported > 0:
-                return [f"{field_path}={expected} but report says {reported}{m.group(2)} in '{sentence[:40]}'"]
-            elif expected > 0:
-                limit = max(expected + 3, expected * 2)
-                if reported > limit:
-                    return [f"{field_path}={expected} but report says {reported}{m.group(2)} (>{limit}) in '{sentence[:40]}'"]
-        return []
-
-    s2 = real_data.get("stats_200m", {}) or {}
-    s5 = real_data.get("stats_500m", {}) or {}
-    s10 = real_data.get("stats_1000m", {}) or {}
-
-    # 4. 逐句扫描：direct / substitute / anchor / stats
+    # 3. 全业态逐半径片段扫描（先拆 200m/500m/1000m 片段，再相邻校验）
     for sent in sentences:
-        # 直接竞品
-        for radius, dc_field in [("200m","direct_competitors_200m"),("500m","direct_competitors_500m"),("1000m","direct_competitors_1000m")]:
-            expected = real_data.get(dc_field)
-            if expected is not None:
-                fact_errors += _check_sentence(sent, dc_field, int(expected), radius,
-                    ("直接竞品","同类竞品","同品类竞品","竞争品牌","同品类门店","同业竞品"), ("家",))
-        # 替代竞品
-        for radius, sc_field in [("200m","substitute_competitors_200m"),("500m","substitute_competitors_500m"),("1000m","substitute_competitors_1000m")]:
-            expected = real_data.get(sc_field)
-            if expected is not None:
-                fact_errors += _check_sentence(sent, sc_field, int(expected), radius,
-                    ("替代消费","替代业态","替代压力","替代竞争","分流压力","非同业态竞争"), ("家",))
-        # 客流锚点
-        for radius, ta_field in [("200m","traffic_anchors_200m"),("500m","traffic_anchors_500m"),("1000m","traffic_anchors_1000m")]:
-            expected = real_data.get(ta_field)
-            if expected is not None:
-                fact_errors += _check_sentence(sent, ta_field, int(expected), radius,
-                    ("客流锚点","客流来源","人流导入","导流","流量锚点"), ("个",))
-        # 基础设施 POI
-        for radius, stats_dict in [("200m",s2),("500m",s5),("1000m",s10)]:
-            for cat, keywords, units in [
-                ("subway",("地铁站","地铁","轨道交通"),("个","座","条")),
-                ("bus",("公交站","公交线路","公交车"),("个","条")),
-                ("schools",("学校","中小学","大学","学院","高校","校区"),("所","个")),
-                ("hospitals",("医院","医疗机构","三甲","综合医院"),("家","所","个")),
-                ("residential",("住宅小区","小区","社区","居民区"),("个","座")),
-                ("office",("写字楼","办公楼","商务楼","办公区"),("栋","座","幢")),
+        segments = _split_into_radius_segments(sent)
+        for radius_key, seg in segments:
+            if not radius_key:
+                continue
+            stats = (real_data.get(f"stats_{radius_key}", {}) or {})
+
+            # 直接竞品 / 替代竞品 / 客流锚点（跨半径跳过）
+            for field_map in [
+                ("direct_competitors", ("直接竞品","同类竞品","同品类竞品","竞争品牌","同品类门店","同业竞品"), ("家",)),
+                ("substitute_competitors", ("替代消费","替代业态","替代压力","替代竞争","分流压力","非同业态竞争"), ("家",)),
+                ("traffic_anchors", ("客流锚点","客流来源","人流导入","导流","流量锚点"), ("个",)),
             ]:
-                expected = stats_dict.get(cat)
+                fname, fkw, funits = field_map
+                field_key = f"{fname}_{radius_key}"
+                expected = real_data.get(field_key)
                 if expected is not None:
-                    fact_errors += _check_sentence(sent, f"stats_{radius}.{cat}", int(expected), radius, keywords, units)
+                    fact_errors += _check_segment(seg, field_key, int(expected), radius_key, fkw, funits)
+
+            # 基础设施 POI — 全业态 _CATEGORY_MAP
+            for cat, keywords, units in _CATEGORY_MAP:
+                expected = stats.get(cat)
+                if expected is not None:
+                    fact_errors += _check_segment(seg, f"stats_{radius_key}.{cat}",
+                        int(expected), radius_key, keywords, units)
 
     # 5. 异常大数字
     details = result.get("details", {}) or {}
@@ -213,9 +191,9 @@ def check_single_point_financial(report_text: str) -> list[str]:
 # ═══════════════════════════════════════════════════════════════
 
 _RADIUS_KEYWORDS = {
-    "500m": ["500m", "500米", "五百米", "500 米"],
+    "500m": ["500m", "500米", "五百米", "500 米", "500米半径", "500米覆盖范围", "500米范围内", "500米范围"],
     "200m": ["200m", "200米", "二百米", "200 米"],
-    "1000m": ["1000m", "1000米", "一千米", "1km", "1000 米"],
+    "1000m": ["1000m", "1000米", "一千米", "1km", "1公里", "1000 米", "1 公里", "一公里", "1公里商圈", "1公里范围"],
 }
 
 _RADIUS_STATS_MAP = {
@@ -229,7 +207,7 @@ _CATEGORY_MAP = [
     ("bus", ("公交站","公交线路","公交车"), ("个","条")),
     ("subway", ("地铁站","地铁","轨道交通"), ("个","座","条")),
     ("schools", ("学校","中小学","大学","学院","高校","校区"), ("所","个")),
-    ("hospitals", ("医院","医疗机构","三甲","综合医院"), ("家","所","个")),
+    ("hospitals", ("医院","医疗机构","三甲","综合医院","诊所","卫生院"), ("家","所","个")),
     ("residential", ("住宅小区","小区","社区","居民区"), ("个","座")),
     ("office", ("写字楼","办公楼","商务楼","办公区"), ("栋","座","幢")),
     ("shopping", ("商业体","商场","购物中心","商圈"), ("个","座")),
@@ -262,17 +240,21 @@ def _find_category_in_sentence(sentence: str):
 
 
 def _split_into_radius_segments(sentence: str):
-    """将含多个半径关键词的句子拆成逐半径的短片段。
-    例如 '500米内2个公交站，1000米内5个公交站' →
-         [('500m','500米内2个公交站'), ('1000m','1000米内5个公交站')]
-    """
-    # 找到所有半径关键词的位置
+    """将含多个半径关键词的句子拆成逐半径的短片段。"""
     matches = []
+    seen_positions = set()
     for radius_key, labels in _RADIUS_KEYWORDS.items():
         for label in labels:
-            idx = sentence.find(label)
-            if idx >= 0:
-                matches.append((idx, label, radius_key))
+            start = 0
+            while True:
+                idx = sentence.find(label, start)
+                if idx < 0:
+                    break
+                if idx not in seen_positions:
+                    matches.append((idx, label, radius_key))
+                    seen_positions.add(idx)
+                start = idx + 1
+
     if not matches:
         return [(None, sentence)]
 
@@ -286,45 +268,49 @@ def _split_into_radius_segments(sentence: str):
 
 
 def check_radius_mismatch(report_text: str, real_data: dict) -> list[str]:
-    """检测半径错配：文案写500m但数值来自1000m（类别感知，必须同时命中半径+类别+数字单位）。"""
+    """检测半径错配：文案写500m但数值来自1000m。要求数字+单位与类别关键词相邻出现。"""
     errors = []
     reported_text = str(report_text)
     sentences = re.split(r'[。\n]+', reported_text)
     sentences = [s.strip() for s in sentences if s.strip()]
 
     for sent in sentences:
-        # 拆分为逐半径片段
         segments = _split_into_radius_segments(sent)
         for radius_key, seg in segments:
             if not radius_key:
                 continue
-            cat, _, units = _find_category_in_sentence(seg)
-            if not cat:
-                continue
-
-            unit_pat = "|".join(units)
-            for m in re.finditer(rf'(\d+)\s*({unit_pat})', seg):
-                claimed = int(m.group(1))
-                if claimed <= 0:
-                    continue
-                if str(claimed) in _RADIUS_NUMBER_KEYWORDS:
-                    continue
-
+            for cat, keywords, units in _CATEGORY_MAP:
                 current_stats_key = _RADIUS_STATS_MAP.get(radius_key)
                 current_stats = (real_data.get(current_stats_key, {}) or {})
                 current_val = int(current_stats.get(cat, -1))
+                if current_val < 0:
+                    continue
 
-                for other_radius, other_stats_key in _RADIUS_STATS_MAP.items():
-                    if other_radius == radius_key:
+                unit_pat = "|".join(units)
+                kw_pat = "|".join(re.escape(k) for k in keywords)
+                # 数字+单位 与 类别关键词 相邻
+                for m in re.finditer(
+                    rf'(\d+)\s*({unit_pat})\s*({kw_pat})|({kw_pat})\s*(\d+)\s*({unit_pat})',
+                    seg
+                ):
+                    claimed_str = m.group(1) or m.group(5)
+                    claimed = int(claimed_str)
+                    if claimed <= 0:
                         continue
-                    other_stats = (real_data.get(other_stats_key, {}) or {})
-                    other_val = int(other_stats.get(cat, -1))
-                    if other_val == claimed and current_val != claimed:
-                        errors.append(
-                            f"[RADIUS-MISMATCH] 文案写{_RADIUS_KEYWORDS[radius_key][0]}但{cat}={claimed}实际来自{other_radius}"
-                            f"（{radius_key}内{cat}={current_val}，{other_radius}内{cat}={claimed}）"
-                            f" in '{seg[:60]}'"
-                        )
+                    if claimed_str in _RADIUS_NUMBER_KEYWORDS:
+                        continue
+
+                    for other_radius, other_stats_key in _RADIUS_STATS_MAP.items():
+                        if other_radius == radius_key:
+                            continue
+                        other_stats = (real_data.get(other_stats_key, {}) or {})
+                        other_val = int(other_stats.get(cat, -1))
+                        if other_val == claimed and current_val != claimed:
+                            errors.append(
+                                f"[RADIUS-MISMATCH] 文案写{_RADIUS_KEYWORDS[radius_key][0]}但{cat}={claimed}实际来自{other_radius}"
+                                f"（{radius_key}内{cat}={current_val}，{other_radius}内{cat}={claimed}）"
+                                f" in '{seg[:60]}'"
+                            )
     return errors[:10]
 
 
