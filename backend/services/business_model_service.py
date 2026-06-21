@@ -8,7 +8,7 @@ import os as _os
 import yaml as _yaml
 
 # P2: 小吃快餐学校午休动线按 K12 触发，需学校类型细分
-from services.location_profile_service import compute_school_anchor_breakdown, dedup_bus_count
+from services.location_profile_service import compute_school_anchor_breakdown, build_location_fact_snapshot
 
 _KNOWLEDGE_DIR = _os.path.join(_os.path.dirname(__file__), "..", "knowledge")
 _MODELS_DIR = _os.path.join(_KNOWLEDGE_DIR, "business_models")
@@ -188,18 +188,17 @@ def classify_business_model_family(business_type: str, brand_name: str = "",
 def compute_location_fundamentals(real_data: dict) -> dict:
     """从 real_data 计算与业态无关的地点基本面。"""
     r = real_data or {}
-    s5 = r.get("stats_500m", {}) or {}
-    s10 = r.get("stats_1000m", {}) or {}
     s2 = r.get("stats_200m", {}) or {}
+    facts = build_location_fact_snapshot(r)
 
-    res_500 = _int(s5.get("residential", 0))
-    office_500 = _int(s5.get("office", 0))
-    school_500 = _int(s5.get("schools", 0))
-    shopping_500 = _int(s5.get("shopping", 0))
-    parking_500 = _int(s5.get("parking", 0))
-    subway_500 = _int(s5.get("subway", 0))
-    bus_500 = dedup_bus_count(real_data)["deduped"]
-    restaurants_1k = _int(s10.get("restaurants", 0))
+    res_500 = facts["residential_500m"]
+    office_500 = facts["office_500m"]
+    school_500 = facts["schools_500m"]
+    shopping_500 = facts["shopping_500m"]
+    parking_500 = facts["parking_500m"]
+    subway_500 = facts["subway_500m"]
+    bus_500 = facts["bus_500m_deduped"]
+    restaurants_1k = facts["restaurants_1000m"]
     subway_applicable = r.get("subway_applicable", True)
 
     # 判定地点类型

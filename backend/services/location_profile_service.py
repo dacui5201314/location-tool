@@ -118,7 +118,20 @@ def _normalize_bus_name(name: str) -> str:
     return n.strip()
 
 
-def dedup_bus_count(real_data: dict) -> dict:
+def _parse_distance(val) -> float | None:
+    """解析距离值为 float 米。支持 int/float/字符串如 '480'/'480m'。无法解析返回 None。"""
+    if val is None:
+        return None
+    if isinstance(val, (int, float)):
+        return float(val)
+    try:
+        s = str(val).strip().rstrip("mM")
+        return float(s)
+    except (ValueError, TypeError):
+        return None
+
+
+def dedup_bus_count(real_data: dict, max_distance: float | None = None) -> dict:
     """从 real_data 的 POI 列表中提取去重后的公交站数。
 
     Returns:
@@ -132,8 +145,8 @@ def dedup_bus_count(real_data: dict) -> dict:
     if raw == 0:
         return {"raw": 0, "deduped": 0}
 
-    # 从 poi_lists 中提取公交站名称
-    bus_names = []
+    # 从 poi_lists / traffic_anchor_list 中提取公交站名称+距离
+    bus_entries = []  # (name, distance_or_None)
     poi_lists = r.get("poi_lists", {}) or {}
     for key in ("bus_stops", "bus", "transport"):
         entries = poi_lists.get(key, []) or []
@@ -141,26 +154,33 @@ def dedup_bus_count(real_data: dict) -> dict:
             for e in entries:
                 n = (e.get("name") or "").strip()
                 if n:
-                    bus_names.append(n)
+                    dist = _parse_distance(e.get("distance"))
+                    bus_entries.append((n, dist))
             break
 
-    # 也从 traffic_anchor_list 提取公交锚点（category 或 type 任一明确含"公交"）
-    if not bus_names:
+    # 也从 traffic_anchor_list 提取公交锚点
+    if not bus_entries:
         anchors = r.get("traffic_anchor_list", []) or []
         for e in anchors:
             n = (e.get("name") or "").strip()
             cat = (e.get("category") or "").strip()
             typ = (e.get("type") or "").strip()
             if n and ("公交" in cat or "公交" in typ):
-                bus_names.append(n)
+                dist = _parse_distance(e.get("distance"))
+                bus_entries.append((n, dist))
 
-    if not bus_names:
-        # 无名称数据，回退到 raw
+    if not bus_entries:
         return {"raw": raw, "deduped": raw, "note": "无站名数据，使用原始计数"}
+
+    # max_distance 过滤
+    if max_distance is not None:
+        filtered = [(n, d) for n, d in bus_entries if d is None or d <= max_distance]
+        if filtered:
+            bus_entries = filtered
 
     # 归一化去重
     seen = set()
-    for name in bus_names:
+    for name, _dist in bus_entries:
         norm = _normalize_bus_name(name)
         if norm and len(norm) >= 2:
             seen.add(norm)
@@ -169,7 +189,7 @@ def dedup_bus_count(real_data: dict) -> dict:
     if deduped == 0:
         deduped = raw
 
-    # 保守上限：去重数不得大于 stats_500m.bus（站名列表可能含超出500m的公交站）
+    # 保守上限
     if deduped > raw:
         deduped = raw
 
@@ -181,6 +201,34 @@ def dedup_bus_count(real_data: dict) -> dict:
     return {"raw": raw, "deduped": deduped, "note": note}
 
 
+def build_location_fact_snapshot(real_data: dict) -> dict:
+    """统一提取位置基础事实。compute_location_profile 和 compute_location_fundamentals 共用此 helper。"""
+    r = real_data or {}
+    s2 = r.get("stats_200m", {}) or {}
+    s5 = r.get("stats_500m", {}) or {}
+    s10 = r.get("stats_1000m", {}) or {}
+    bus_dd = dedup_bus_count(r, max_distance=500)
+
+    return {
+        "residential_200m": _int(s2.get("residential", 0)),
+        "residential_500m": _int(s5.get("residential", 0)),
+        "residential_1000m": _int(s10.get("residential", 0)),
+        "office_200m": _int(s2.get("office", 0)),
+        "office_500m": _int(s5.get("office", 0)),
+        "office_1000m": _int(s10.get("office", 0)),
+        "schools_200m": _int(s2.get("schools", 0)),
+        "schools_500m": _int(s5.get("schools", 0)),
+        "schools_1000m": _int(s10.get("schools", 0)),
+        "bus_500m_raw": bus_dd["raw"],
+        "bus_500m_deduped": bus_dd["deduped"],
+        "subway_500m": _int(s5.get("subway", 0)),
+        "shopping_500m": _int(s5.get("shopping", 0)),
+        "parking_500m": _int(s5.get("parking", 0)),
+        "restaurants_1000m": _int(s10.get("restaurants", 0)),
+        "hotels_1000m": _int(s10.get("hotels", 0)),
+    }
+
+
 def compute_location_profile(real_data: dict) -> dict:
     """从 real_data 计算与业态无关的位置基本面。"""
     r = real_data or {}
@@ -188,17 +236,17 @@ def compute_location_profile(real_data: dict) -> dict:
     s10 = r.get("stats_1000m", {}) or {}
     s2 = r.get("stats_200m", {}) or {}
 
-    res_500 = _int(s5.get("residential", 0))
-    office_500 = _int(s5.get("office", 0))
-    school_500 = _int(s5.get("schools", 0))
-    shopping_500 = _int(s5.get("shopping", 0))
-    parking_500 = _int(s5.get("parking", 0))
-    subway_500 = _int(s5.get("subway", 0))
-    bus_raw = _int(s5.get("bus", 0))
-    # P2: 公交去重 — 使用去重后站数参与评分/优势/anchor，原始值保留在 evidence
-    bus_dd = dedup_bus_count(r)
-    bus_500 = bus_dd["deduped"]
-    restaurants_1k = _int(s10.get("restaurants", 0))
+    # P2: 使用统一事实快照（含 500m distance-aware 公交去重）
+    facts = build_location_fact_snapshot(r)
+    res_500 = facts["residential_500m"]
+    office_500 = facts["office_500m"]
+    school_500 = facts["schools_500m"]
+    shopping_500 = facts["shopping_500m"]
+    parking_500 = facts["parking_500m"]
+    subway_500 = facts["subway_500m"]
+    bus_raw = facts["bus_500m_raw"]
+    bus_500 = facts["bus_500m_deduped"]
+    restaurants_1k = facts["restaurants_1000m"]
     subway_applicable = r.get("subway_applicable", True)
 
     # ── P1: 学区判定按学校类型细分 ──

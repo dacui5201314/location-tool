@@ -5,7 +5,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from services.location_profile_service import (
     compute_location_profile, compute_school_anchor_breakdown,
     get_dining_not_advantage_families, _classify_school,
-    _k12_school_count, dedup_bus_count,
+    _k12_school_count, dedup_bus_count, build_location_fact_snapshot,
 )
 
 
@@ -286,6 +286,143 @@ def test_bus_dedup_cap():
     print(f"T13 bus dedup cap: deduped={result['deduped']} (raw={result['raw']}) PASS")
 
 
+def test_bus_distance_filter():
+    rd = _base_rd()
+    rd["stats_500m"]["bus"] = 10
+    rd["poi_lists"] = {"bus_stops": [
+        {"name": "站A", "distance": 300}, {"name": "站B", "distance": 450},
+        {"name": "站C", "distance": 800}, {"name": "站D", "distance": 1200}]}
+    r = dedup_bus_count(rd, max_distance=500)
+    assert r["deduped"] == 2, f"only 2 within 500m: {r}"
+    print(f"T14 distance filter: deduped={r['deduped']} PASS")
+
+
+def test_bus_distance_string_parse():
+    rd = _base_rd()
+    rd["stats_500m"]["bus"] = 6
+    rd["poi_lists"] = {"bus_stops": [
+        {"name": "站A", "distance": "480m"}, {"name": "站B", "distance": "300"}]}
+    r = dedup_bus_count(rd, max_distance=500)
+    assert r["deduped"] == 2, f"string distances: {r}"
+    print("T15 string distance parse: PASS")
+
+
+def test_bus_partial_distance():
+    rd = _base_rd()
+    rd["stats_500m"]["bus"] = 6
+    rd["poi_lists"] = {"bus_stops": [
+        {"name": "站A", "distance": 300}, {"name": "站B"}, {"name": "站C", "distance": 800}]}
+    r = dedup_bus_count(rd, max_distance=500)
+    assert r["deduped"] == 2, f"A(300)+B(missing): {r}"
+    print(f"T16 partial distance: deduped={r['deduped']} PASS")
+
+
+def test_bus_distance_with_cap():
+    rd = _base_rd()
+    rd["stats_500m"]["bus"] = 2
+    rd["poi_lists"] = {"bus_stops": [
+        {"name": "站A", "distance": 300}, {"name": "站B", "distance": 400},
+        {"name": "站C", "distance": 450}, {"name": "站D", "distance": 200}]}
+    r = dedup_bus_count(rd, max_distance=500)
+    assert r["deduped"] <= 2, f"cap at raw=2: {r}"
+    print(f"T17 cap after distance: deduped={r['deduped']} PASS")
+
+
+def test_bus_no_max_distance_old_behavior():
+    rd = _base_rd()
+    rd["stats_500m"]["bus"] = 5
+    rd["poi_lists"] = {"bus_stops": [
+        {"name": "宝鸡文理学院(上行)", "distance": 300},
+        {"name": "宝鸡文理学院(下行)", "distance": 400},
+        {"name": "高新管委会(上行)", "distance": 200},
+        {"name": "高新管委会(下行)", "distance": 250},
+        {"name": "高新广场", "distance": 600}]}
+    r = dedup_bus_count(rd)
+    assert r["deduped"] >= 2, f"old behavior: {r}"
+    print(f"T18 old behavior: deduped={r['deduped']} PASS")
+
+
+def test_location_fact_snapshot_consistency():
+    from services.business_model_service import compute_location_fundamentals
+    rd = _base_rd()
+    rd["stats_500m"]["bus"] = 2
+    rd["stats_1000m"]["bus"] = 5
+    rd["poi_lists"] = {"bus_stops": [
+        {"name": "站A", "distance": 300}, {"name": "站B", "distance": 450},
+        {"name": "站C", "distance": 800}, {"name": "站D", "distance": 1200},
+        {"name": "站E", "distance": 900}]}
+    snap = build_location_fact_snapshot(rd)
+    lp = compute_location_profile(rd)
+    lf = compute_location_fundamentals(rd)
+    assert snap["bus_500m_deduped"] == 2, f"snap deduped: {snap['bus_500m_deduped']}"
+    assert lp["evidence"].get("bus_deduped") == 2, f"lp deduped: {lp['evidence']}"
+    lf_text = str(lf.get("summary", "")) + " " + " ".join(lf.get("strengths", []))
+    assert "5个公交站" not in lf_text
+    assert "5 个公交" not in lf_text
+    print("T19 fact snapshot consistency: PASS")
+
+
+def test_attachment_bus_not_leak_500m():
+    rd = _base_rd()
+    rd["stats_500m"]["bus"] = 2
+    rd["stats_1000m"]["bus"] = 5
+    rd["poi_lists"] = {"bus_stops": [
+        {"name": "站A", "distance": 300}, {"name": "站B", "distance": 450},
+        {"name": "站C", "distance": 800}, {"name": "站D", "distance": 1200},
+        {"name": "站E", "distance": 900}]}
+    lp = compute_location_profile(rd)
+    from services.business_model_service import compute_location_fundamentals
+    lf = compute_location_fundamentals(rd)
+    # location_profile
+    strengths = " ".join(lp.get("strengths", []))
+    assert "5个公交站" not in strengths
+    assert lp["evidence"].get("bus_deduped", 0) <= 2
+    # location_fundamentals
+    lf_text = str(lf.get("summary", "")) + " " + " ".join(lf.get("strengths", []))
+    assert "5个公交站" not in lf_text
+    # fallback report
+    from services.fallback_report_service import build_fallback_report
+    fb = build_fallback_report(rd, business_type="小吃快餐", brand_name="", store_size=50)
+    from report_fact_guard import build_user_visible_report_text
+    fb_text = build_user_visible_report_text(fb)
+    assert "500米内5个公交" not in fb_text
+    assert "500米内 5 个公交" not in fb_text
+    print("T20 attachment bus not leak: PASS")
+
+
+def test_fallback_uses_fact_snapshot():
+    rd = _base_rd()
+    rd["stats_500m"]["bus"] = 2
+    rd["stats_1000m"]["bus"] = 8
+    rd["poi_lists"] = {"bus_stops": [
+        {"name": "站A", "distance": 300}, {"name": "站B", "distance": 450},
+        {"name": "站C", "distance": 900}, {"name": "站D", "distance": 900},
+        {"name": "站E", "distance": 900}]}
+    from services.fallback_report_service import build_fallback_report
+    from report_fact_guard import build_user_visible_report_text
+    fb = build_fallback_report(rd, business_type="小吃快餐", brand_name="", store_size=50)
+    text = build_user_visible_report_text(fb)
+    assert "500米内5个公交" not in text
+    assert "500米内 5 个公交" not in text
+    # 2个在500m内的站，去重后不应超过2
+    assert "500米内8个公交" not in text
+    print("T21 fallback uses fact snapshot: PASS")
+
+
+def test_production_paths_no_direct_dedup():
+    import os
+    lp_src = open(os.path.join(os.path.dirname(__file__), '..', 'services', 'location_profile_service.py'), 'r', encoding='utf-8').read()
+    bm_src = open(os.path.join(os.path.dirname(__file__), '..', 'services', 'business_model_service.py'), 'r', encoding='utf-8').read()
+    fb_src = open(os.path.join(os.path.dirname(__file__), '..', 'services', 'fallback_report_service.py'), 'r', encoding='utf-8').read()
+    # compute_location_profile 不应直接调用 dedup_bus_count(r)（应走 helper）
+    assert "dedup_bus_count(r)" not in lp_src
+    # compute_location_fundamentals 不应直接调用 dedup_bus_count(real_data)
+    assert "dedup_bus_count(real_data)" not in bm_src
+    # fallback 不应直接调用 dedup_bus_count(real_data)["deduped"]
+    assert 'dedup_bus_count(real_data)["deduped"]' not in fb_src
+    print("T22 no direct dedup calls: PASS")
+
+
 if __name__ == "__main__":
     test_location_profile_consistent()
     test_no_dining_as_edu_advantage()
@@ -300,5 +437,14 @@ if __name__ == "__main__":
     test_non_bus_anchors_not_counted()
     test_bus_anchor_by_type()
     test_bus_dedup_cap()
+    test_bus_distance_filter()
+    test_bus_distance_string_parse()
+    test_bus_partial_distance()
+    test_bus_distance_with_cap()
+    test_bus_no_max_distance_old_behavior()
+    test_location_fact_snapshot_consistency()
+    test_attachment_bus_not_leak_500m()
+    test_fallback_uses_fact_snapshot()
+    test_production_paths_no_direct_dedup()
     print()
     print("ALL LOCATION PROFILE TESTS PASSED")

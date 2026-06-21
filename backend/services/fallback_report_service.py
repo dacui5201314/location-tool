@@ -61,7 +61,7 @@ def _default_action_plan(family):
     ]
 
 
-from services.location_profile_service import dedup_bus_count
+from services.location_profile_service import build_location_fact_snapshot
 
 
 def _int(v, default=0):
@@ -107,9 +107,10 @@ def build_fallback_report(real_data: dict, address: str = "",
     office_500 = _int(s5.get("office", 0))
     hospital_500 = _int(s5.get("hospitals", 0))
     subway_500 = _int(s5.get("subway", 0))
-    bus_raw = _int(s5.get("bus", 0))
-    bus_500 = dedup_bus_count(real_data)["deduped"]
-    parking_500 = _int(s5.get("parking", 0))
+    facts = build_location_fact_snapshot(real_data)
+    bus_raw = facts["bus_500m_raw"]
+    bus_500 = facts["bus_500m_deduped"]
+    parking_500 = facts["parking_500m"] if "parking_500m" in facts else _int(s5.get("parking", 0))
     shopping_500 = _int(s5.get("shopping", 0))
     restaurants_1k = _int(s10.get("restaurants", 0))
     hotel_1000 = _int(s10.get("hotels", 0))
