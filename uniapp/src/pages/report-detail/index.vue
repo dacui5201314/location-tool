@@ -156,19 +156,17 @@
         </view>
         <view class="dim-compact" v-if="extraDims.length">
           <view class="dc-chip" v-for="d in extraDims" :key="d.key" :style="{ borderColor: sc(d.value) }">
-            <text class="dc-chip-label">{{ d.label || d.key }}</text>
+            <text class="dc-chip-label">{{ d.label || '指标' }}</text>
             <text class="dc-chip-val" :style="{ color: sc(d.value) }">{{ d.value }}</text>
           </view>
         </view>
       </view>
 
-      <view class="section" v-if="rptScoreMeta.filter(m => m.confidence === 'low' || m.missing).length">
-        <view class="sec-title" style="color:#f59e0b">⚠ 评分置信度提示</view>
-        <view class="contradiction-note" style="background:#fffbeb;padding:10px 14px;border-radius:8px;border:1px solid #fde68a;color:#92400e;font-size:13px;line-height:1.8" v-for="m in rptScoreMeta.filter(x => x.confidence === 'low' || x.missing)" :key="'sm'+m.key">
-          <text style="font-weight:700">{{ m.label || m.key }}</text>
-          <text v-if="m.confidence === 'low'" style="color:#f59e0b"> 低置信</text>
-          <text v-if="m.note" style="color:#64748b"> · {{ m.note }}</text>
-          <text v-if="m.missing" style="color:#94a3b8;font-size:12px"> · 缺失: {{ m.missing }}</text>
+      <view class="section" v-if="rptScoreMeta.filter(m => m.note).length">
+        <view class="sec-title" style="color:#f59e0b">⚠ 需要补充的信息</view>
+        <view class="contradiction-note" style="background:#fffbeb;padding:10px 14px;border-radius:8px;border:1px solid #fde68a;color:#92400e;font-size:13px;line-height:1.8" v-for="m in rptScoreMeta.filter(x => x.note)" :key="'sm'+m.key">
+          <text style="font-weight:700">{{ m.label || '指标' }}</text>
+          <text style="color:#64748b"> · {{ m.note }}</text>
         </view>
       </view>
 
@@ -207,24 +205,29 @@
       </view>
 
       <!-- ── 竞争环境 ── -->
-      <view class="section" v-if="hasCompetition || rptDirList.length">
+      <view class="section comp-section" v-if="hasCompetitionCounts || rptMergedCompetitors.length">
         <view class="sec-title">🏪 竞争环境</view>
-        <view class="comp-cols" v-if="hasCompetition">
-          <view class="cc-item"><text class="cc-num" style="color:#dc2626">{{ rptDir200 }}</text><text class="cc-label">200m</text></view>
-          <view class="cc-item"><text class="cc-num" style="color:#dc2626">{{ rptDir500 }}</text><text class="cc-label">500m</text></view>
-          <view class="cc-item"><text class="cc-num" style="color:#dc2626">{{ rptDir1000 }}</text><text class="cc-label">1km</text></view>
+        <view class="comp-metrics" v-if="hasCompetitionCounts">
+          <view class="comp-metric-card"><text class="cm-label">直接竞品</text><text class="cm-val">{{ rptDir200 }} / {{ rptDir500 }} / {{ rptDir1000 }}</text><text class="cm-unit">200m / 500m / 1km</text></view>
+          <view class="comp-metric-card"><text class="cm-label">间接竞品</text><text class="cm-val">{{ rptSub200 }} / {{ rptSub500 }} / {{ rptSub1000 }}</text><text class="cm-unit">200m / 500m / 1km</text></view>
+          <view class="comp-metric-card"><text class="cm-label">客流锚点</text><text class="cm-val">{{ rptAnc200 }} / {{ rptAnc500 }} / {{ rptAnc1000 }}</text><text class="cm-unit">200m / 500m / 1km</text></view>
         </view>
-        <view class="comp-list" v-if="rptDirList.length">
-          <text class="comp-chip" v-for="(n,i) in rptDirList" :key="'d'+i">{{ n }}</text>
-          <text class="more-hint" v-if="rptDirMore > 0">还有 {{ rptDirMore }} 条</text>
-        </view>
-        <view class="comp-sub" v-if="rptSub500 > 0 || rptSub1000 > 0">
-          <text class="cs-label">替代消费压力：</text>
-          <text>200m {{ rptSub200 }} · 500m {{ rptSub500 }} · 1km {{ rptSub1000 }}</text>
-        </view>
-        <view class="comp-sub" v-if="rptAnc500 > 0 || rptAnc1000 > 0">
-          <text class="cs-label">客流锚点：</text>
-          <text>200m {{ rptAnc200 }} · 500m {{ rptAnc500 }} · 1km {{ rptAnc1000 }}</text>
+        <view class="comp-sample-box" v-if="rptMergedCompetitors.length">
+          <view class="comp-list-head">
+            <text class="comp-merged-title">竞品样本</text>
+            <text class="comp-merged-sub">近到远</text>
+          </view>
+          <view class="comp-merged-item" v-for="(c,i) in displayMergedCompetitors" :key="'mc'+i">
+            <text class="cmi-index">{{ i + 1 }}</text>
+            <view class="cmi-line">
+              <text class="cmi-name">{{ c.name }}</text>
+              <text class="cmi-dist" v-if="c.dist > 0"> {{ c.dist }}m</text>
+            </view>
+          </view>
+          <view class="fold-line comp-expand" v-if="rptMergedCompetitors.length > 10" @tap="rptMergedExpand = !rptMergedExpand">
+            <text>{{ rptMergedExpand ? '收起' : '共 ' + rptMergedCompetitors.length + ' 条，展开全部' }}</text>
+            <text class="fold-arrow">{{ rptMergedExpand ? '⌃' : '⌄' }}</text>
+          </view>
         </view>
       </view>
 
@@ -257,11 +260,16 @@
             <text class="poi-cat-label">{{ cat.label }}</text>
             <text class="poi-cat-count">{{ cat.total }}</text>
           </view>
-          <text class="poi-cat-names">{{ cat.names.slice(0, 5).join(' · ') }}</text>
-          <text class="more-hint" v-if="cat.names.length > 5">共 {{ cat.total }} 条，展示前 5 条</text>
+          <text class="poi-cat-names">{{ cat._displayNames.join(' · ') }}</text>
+          <text class="poi-cat-names poi-extra" v-if="cat._expanded && cat.names.length > 5">{{ cat.names.slice(5).join(' · ') }}</text>
+          <view class="fold-line poi-expand" v-if="cat.names.length > 5" @tap="cat._expanded = !cat._expanded">
+            <text>{{ cat._expanded ? '收起' : '共 ' + cat.names.length + ' 条，展开全部' }}</text>
+            <text class="fold-arrow">{{ cat._expanded ? '⌃' : '⌄' }}</text>
+          </view>
         </view>
-        <view class="poi-toggle" v-if="rptPoiCats.length > 10" @tap="poiExpanded = !poiExpanded">
+        <view class="fold-line poi-toggle" v-if="rptPoiCats.length > 10" @tap="poiExpanded = !poiExpanded">
           <text>{{ poiExpanded ? '收起' : '展开全部 ' + rptPoiCats.length + ' 类' }}</text>
+          <text class="fold-arrow">{{ poiExpanded ? '⌃' : '⌄' }}</text>
         </view>
       </view>
 
@@ -293,10 +301,24 @@
 
       <!-- ── 严谨度 / 数据质量 ── -->
       <view class="section" v-if="rptIrr > 0 || rptQual.length">
-        <view class="sec-title">🛡️ 数据质量</view>
+        <view class="sec-title">🛡️ 数据解释与边界</view>
         <text class="ql" v-if="rptIrr > 0">严谨度规则剔除 {{ rptIrr }} 个无关点位</text>
         <text class="ql" v-for="(q,i) in rptQual" :key="'q'+i">{{ q }}</text>
         <view class="item-sm" v-for="(n,i) in rptIrrList" :key="'irr'+i">{{ n }}</view>
+      </view>
+
+      <!-- P3: 成本输入（用户填写租金） -->
+      <view class="section" v-if="rptCostInputs">
+        <view class="sec-title">💰 成本输入</view>
+        <view class="cost-input-box">
+          <text class="cost-input-row" v-if="rptCostInputs.rent_source && rptCostInputs.rent_source.startsWith('user_input')">
+            ⏤ 来源：用户填写{{ rptCostInputs.rent_source.includes('per_sqm') ? '（单平租金）' : '（月租金）' }}
+          </text>
+          <text class="cost-input-row" v-else>⏤ 来源：模型估算</text>
+          <text class="cost-input-row" v-if="rptCostInputs.monthly_rent">月租金：{{ fmtMoney(rptCostInputs.monthly_rent) }} 元/月</text>
+          <text class="cost-input-row" v-if="rptCostInputs.rent_per_sqm">单平租金：{{ fmtMoney(rptCostInputs.rent_per_sqm) }} 元/㎡/月</text>
+          <text class="cost-input-row" v-if="rptCostInputs.store_size">门店面积：{{ rptCostInputs.store_size }} ㎡</text>
+        </view>
       </view>
 
       <!-- P1: 生意模型快照 -->
@@ -428,12 +450,14 @@ export default {
       rptAnc200: 0, rptAnc500: 0, rptAnc1000: 0,
       rptIrr: 0, rptBrands: [],
       rptQual: [],
+      rptCostInputs: null,
       rptCity: '', rptDistrict: '', rptTownship: '',
       rptBizAreas: '', rptRoads: '',
       rptStats: [],
       rptDetailTexts: [],
       rptPoiCats: [],
       rptDirList: [], rptSubList: [], rptAncList: [],
+      rptMergedCompetitors: [], rptMergedExpand: false,
       rptIrrList: [],
       rptDirMore: 0, rptSubMore: 0, rptAncMore: 0,
       // P0-B: 新报告结构
@@ -455,6 +479,18 @@ export default {
   computed: {
     recordTitle () { return this.record.brand_desc || this.record.business_type || '报告详情' },
     hasCompetition () { return this.rptDir200 + this.rptDir500 + this.rptDir1000 > 0 },
+    hasCompetitionCounts () { return this.rptDir200 + this.rptDir500 + this.rptDir1000 + this.rptSub200 + this.rptSub500 + this.rptSub1000 + this.rptAnc200 + this.rptAnc500 + this.rptAnc1000 > 0 },
+    competitionSummary () {
+      const total = this.rptMergedCompetitors.length
+      if (total > 0) {
+        const direct = this.rptMergedCompetitors.filter(c => c.type === '直接竞品').length
+        const indirect = Math.max(0, total - direct)
+        return `1km 内共 ${total} 个竞品样本，直接竞品 ${direct} 个，间接竞品 ${indirect} 个`
+      }
+      if (this.hasCompetition) return `1km 内识别到 ${this.rptDir1000} 个直接竞品，需重点看 200m 和 500m 的贴身竞争`
+      return ''
+    },
+    displayMergedCompetitors () { return this.rptMergedExpand ? this.rptMergedCompetitors : this.rptMergedCompetitors.slice(0, 10) },
     hasContent () { return this.rptScore > 0 || this.rptSummary || this.rptAdv.length || this.rptDims.length || this.rptQual.length || this.rptBrands.length || this.rptIrr > 0 || this.rptCity || this.hasStats || this.rptDirList.length || this.rptDetailTexts.length || this.rptPoiCats.length },
     hasStats () { return this.rptStats.length > 0 },
     visiblePoiCats () { return this.poiExpanded ? this.rptPoiCats : this.rptPoiCats.slice(0, 10) },
@@ -479,7 +515,7 @@ export default {
     },
     radarDims () {
       const order = ['population_density','traffic_accessibility','traffic_flow','consumer_profile','competition','complementary_businesses','category_advantage','cost_estimate']
-      const labelMap = { population_density:'人口密集度',traffic_accessibility:'交通可达性',traffic_flow:'客流特征',consumer_profile:'消费人群',competition:'竞争环境',complementary_businesses:'互补业态',category_advantage:'品类优势',cost_estimate:'成本预估' }
+      const labelMap = { population_density:'周边客源密度',traffic_accessibility:'到店方便程度',traffic_flow:'门前客流情况',consumer_profile:'周边消费人群',competition:'同类竞争情况',complementary_businesses:'互补业态',category_advantage:'品类优势',cost_estimate:'房租压力' }
       return order.map(key => {
         const d = this.rptDims.find(x => x.key === key)
         return { key, label: labelMap[key] || key, value: d ? d.value : 0 }
@@ -649,6 +685,23 @@ export default {
         fail: (err) => { console.warn('[share-report] downloadFile failed:', (err && err.errMsg) || err) }
       })
     },
+    fmtMoney (v) { if (v == null) return ''; return Number(v).toLocaleString() },
+    dimLabel (key) {
+      const map = { population_density:'周边客源密度', traffic_accessibility:'到店方便程度',
+        traffic_flow:'门前客流情况', consumer_profile:'周边消费人群', competition:'同类竞争情况',
+        complementary_businesses:'互补业态', category_advantage:'品类优势', cost_estimate:'房租压力',
+        revenue_estimation:'营收测算', site_suggestion:'选址建议' }
+      return map[key] || ''
+    },
+    humanMetaNote (m) {
+      const note = (m && m.note) || ''
+      if (!note) return ''
+      if (note.includes('不具备成本压力精算依据') || note.includes('50分为占位值') || note.includes('人工成本') || note.includes('预估营业额') || note.includes('成本判断仍需结合实际经营情况')) {
+        var hasRent = (m.missing_required_inputs || []).indexOf('rent_per_sqm') < 0
+        return hasRent ? '' : '未填写月租金，房租压力只能粗略参考；如方便，建议补充月租金后再看成本判断。'
+      }
+      return note
+    },
     statIcon (key) {
       const map = {
         residential: '🏘️',
@@ -656,6 +709,7 @@ export default {
         restaurants: '🍜',
         cafe_tea: '☕',
         shopping: '🛍️',
+        market_anchor: '🏪',
         schools: '🎓',
         hospitals: '🏥',
         subway: '🚇',
@@ -724,10 +778,11 @@ export default {
        'rptAnc200','rptAnc500','rptAnc1000','rptIrr','rptBrands','rptQual',
        'rptCity','rptDistrict','rptTownship','rptBizAreas','rptRoads',
        'rptStats','rptDirList','rptSubList','rptAncList','rptIrrList',
-       'rptDirMore','rptSubMore','rptAncMore','rptDetailTexts','rptPoiCats'
+       'rptDirMore','rptSubMore','rptAncMore','rptDetailTexts','rptPoiCats','rptMergedCompetitors'
       ].forEach(k => { this[k] = Array.isArray(this[k]) ? [] : (typeof this[k] === 'number' ? 0 : '') })
       // P0-B: 重置新字段
       this.rptType = ''; this.rptGeneratedAt = ''; this.rptDecisionSnapshot = null; this.rptFieldChecklist = []
+      this.rptCostInputs = null
       this.rptCaliberExplanation = ''; this.rptDataSufficiency = null
       this.rptEvidenceSummary = null; this.rptDataBoundary = ''; this.rptFallbackNote = false
       this.rptLocationFundamentals = null; this.rptBusinessModelSnapshot = null
@@ -759,9 +814,11 @@ export default {
       this.rptDis = _sa(rpt.disadvantages)
       this.rptDemandContradiction = rpt.demand_contradiction_note || ''
       this.rptScoreMeta = (rpt.dimension_score_meta || []).filter(m => m && typeof m === 'object').map(m => ({
-        key: (m.key || '').trim() || 'unknown', label: m.label || m.key || 'unknown',
-        confidence: m.score_confidence || 'medium', note: m.note || '',
-        missing: Array.isArray(m.missing_required_inputs) ? m.missing_required_inputs.join(', ') : '',
+        key: (m.key || '').trim() || 'unknown',
+        label: m.label || this.dimLabel(m.key) || '指标',
+        confidence: m.score_confidence || 'medium',
+        note: this.humanMetaNote(m),
+        missing: Array.isArray(m.missing_labels) ? m.missing_labels.join('、') : '',
         applicable: m.is_score_applicable !== false
       }))
       this.rptAction = _sa(rpt.action_plan)
@@ -771,10 +828,13 @@ export default {
         if (typeof v === 'string') { const p = parseFloat(v); v = isNaN(p) ? 0 : p }
         if (typeof v !== 'number' || isNaN(v)) v = 0
         v = Math.max(0, Math.min(100, Math.round(v)))
-        return { key: d.key || d.name || '', label: d.label || d.title || d.key || '', value: v }
+        return { key: d.key || '', label: d.label || d.title || this.dimLabel(d.key) || '指标', value: v }
       })
 
       this.rptQual = _sa(rd.data_quality_notes)
+      // P3: 成本输入 — 有租金数据才赋值，否则保持 null
+      const rptCi = rpt.cost_inputs
+      this.rptCostInputs = (rptCi && (rptCi.monthly_rent || rptCi.rent_per_sqm)) ? rptCi : null
 
       this.rptDir200 = rd.direct_competitors_200m ?? 0
       this.rptDir500 = rd.direct_competitors_500m ?? 0
@@ -809,6 +869,7 @@ export default {
       const s5 = rd.stats_500m || {}
       const s10 = rd.stats_1000m || {}
       const _val = (stats, aliases) => {
+        if (!Array.isArray(aliases)) return ''
         for (const a of aliases) { const v = stats[a]; if (v !== undefined && v !== null) return v }
         return ''
       }
@@ -824,9 +885,10 @@ export default {
         bus: ['bus','buses','bus_stops'],
         hotels: ['hotels','hotel'],
         banks: ['banks','bank'],
-        parking: ['parking','parking_lots']
+        parking: ['parking','parking_lots'],
+        market_anchor: ['market_anchor']
       }
-      const metricLabels = { residential:'住宅小区',office:'写字楼',restaurants:'餐饮',cafe_tea:'咖啡茶饮',shopping:'购物商场',schools:'学校',hospitals:'医院',subway:'地铁站',bus:'公交站',hotels:'酒店',banks:'银行',parking:'停车场' }
+      const metricLabels = { residential:'住宅小区',office:'写字楼',restaurants:'餐饮',cafe_tea:'咖啡茶饮',shopping:'购物商场',market_anchor:'市场/专业市场',schools:'学校',hospitals:'医院',subway:'地铁站',bus:'公交站',hotels:'酒店',banks:'银行',parking:'停车场' }
       const poiCounts = rd.poi_counts || {}
       const _highlight = (key) => {
         const v1k = parseInt(_val(s10, metricAliases[key])) || 0
@@ -841,7 +903,7 @@ export default {
         if (key === 'residential' || key === 'office') return 'info'
         return ''
       }
-      const tripleKeys = ['residential','office','restaurants','cafe_tea','shopping','schools','hospitals','subway','bus','hotels']
+      const tripleKeys = ['residential','office','restaurants','cafe_tea','shopping','market_anchor','schools','hospitals','subway','bus','hotels']
       const singleKeys = ['banks','parking']
       const tripleStats = tripleKeys.map(key => {
         const s200 = _val(s2, metricAliases[key]); const s500 = _val(s5, metricAliases[key]); const s1000 = _val(s10, metricAliases[key])
@@ -863,21 +925,35 @@ export default {
       const dirList = rd.direct_competitor_list || rd.direct_competitors || rd.direct_pois
       const subList = rd.substitute_list || rd.substitute_competitors || rd.substitute_pois
       const ancList = rd.traffic_anchor_list || rd.traffic_anchors || rd.anchor_pois
+      const _dist = (d) => { const v = parseFloat(d.distance || 0); return isNaN(v) ? 0 : Math.round(v) }
       const dl = _names(dirList); const sl = _names(subList); const al = _names(ancList)
       this.rptDirList = dl.slice(0, 5); this.rptDirMore = dl.length > 5 ? dl.length - 5 : 0
       this.rptSubList = sl.slice(0, 5); this.rptSubMore = sl.length > 5 ? sl.length - 5 : 0
       this.rptAncList = al.slice(0, 5); this.rptAncMore = al.length > 5 ? al.length - 5 : 0
+      // 合并直接+间接竞品
+      const merged = []
+      ;(Array.isArray(dirList) ? dirList : []).forEach(x => {
+        if (typeof x === 'string') merged.push({ name: x, dist: 0, type: '直接竞品' })
+        else merged.push({ name: x.name || x.poi_name || '', dist: _dist(x), type: '直接竞品' })
+      })
+      ;(Array.isArray(subList) ? subList : []).forEach(x => {
+        if (typeof x === 'string') merged.push({ name: x, dist: 0, type: '间接竞品' })
+        else merged.push({ name: x.name || x.poi_name || '', dist: _dist(x), type: '间接竞品' })
+      })
+      merged.sort((a, b) => a.dist - b.dist)
+      this.rptMergedCompetitors = merged
+      this.rptMergedExpand = false
 
       // dimension detail texts
       const detailLabels = {
-        population_density: { label: '人口密集度', hasScore: true },
-        traffic_accessibility: { label: '交通可达性', hasScore: true },
-        traffic_flow: { label: '客流特征', hasScore: true },
-        consumer_profile: { label: '消费人群', hasScore: true },
-        competition: { label: '竞争环境', hasScore: true },
+        population_density: { label: '周边客源密度', hasScore: true },
+        traffic_accessibility: { label: '到店方便程度', hasScore: true },
+        traffic_flow: { label: '门前客流情况', hasScore: true },
+        consumer_profile: { label: '周边消费人群', hasScore: true },
+        competition: { label: '同类竞争情况', hasScore: true },
         complementary_businesses: { label: '互补业态', hasScore: true },
         category_advantage: { label: '品类优势', hasScore: true },
-        cost_estimate: { label: '成本估算', hasScore: true },
+        cost_estimate: { label: '房租压力', hasScore: true },
         revenue_estimation: { label: '营收预估', hasScore: false },
         site_suggestion: { label: '选址建议', hasScore: false }
       }
@@ -915,6 +991,7 @@ export default {
         { key: 'schools', label: '学校' },
         { key: 'hospitals', label: '医院/诊所' },
         { key: 'shopping', label: '购物商场' },
+        { key: 'market_anchor', label: '市场/专业市场' },
         { key: 'restaurants', label: '餐饮门店' },
         { key: 'cafe_tea', label: '咖啡茶饮' },
         { key: 'fast_food', label: '快餐' },
@@ -935,7 +1012,7 @@ export default {
       this.rptPoiCats = poiCats.map(cat => {
         const items = poiLists[cat.key]
         if (!Array.isArray(items) || !items.length) return null
-        const names = items.slice(0, 8).map(d => {
+        const names = items.map(d => {
           const name = d.name || d.title || d.poi_name || ''
           if (!name) return null
           const dist = d.distance ?? d.dist
@@ -943,7 +1020,7 @@ export default {
           return name
         }).filter(Boolean)
         if (!names.length) return null
-        return { ...cat, names, total: items.length }
+        return { ...cat, names, _displayNames: names.slice(0, 5), _expanded: false, total: names.length }
       }).filter(Boolean)
 
       // ═══ P0-B: 新报告结构解析 ═══
@@ -1072,28 +1149,28 @@ export default {
 .sct { font-size:24rpx; font-weight:800; background:#f3f7ff; color:#315bff; border:1rpx solid rgba(49,91,255,0.14); border-radius:999rpx; padding:7rpx 16rpx; }
 .sc-time { font-size:24rpx; color:#9aa6bd; }
 
-.section, .content-box { background:rgba(255,255,255,0.96); margin:22rpx 24rpx 0; border-radius:22rpx; padding:30rpx 28rpx; box-shadow:0 12rpx 30rpx rgba(61,88,135,0.07); border:1rpx solid rgba(213,224,246,0.86); }
-.sec-title { font-size:30rpx; font-weight:900; color:#17244e; margin-bottom:20rpx; line-height:1.3; }
+.section, .content-box { background:rgba(255,255,255,0.98); margin:24rpx 24rpx 0; border-radius:22rpx; padding:32rpx 28rpx; box-shadow:0 14rpx 32rpx rgba(61,88,135,0.08); border:1rpx solid rgba(213,224,246,0.9); }
+.sec-title { font-size:32rpx; font-weight:900; color:#17244e; margin-bottom:22rpx; line-height:1.34; }
 .sec-title::before { content:''; display:inline-block; width:8rpx; height:24rpx; border-radius:6rpx; background:#315bff; margin-right:12rpx; vertical-align:-3rpx; }
 .sec-green { color:#047857; }
 .sec-green::before { background:#16a34a; }
 .sec-red { color:#b91c1c; }
 .sec-red::before { background:#ef4444; }
-.sec-text, .item, .dt-text, .ql, .cb-text { font-size:27rpx; color:#4b5872; line-height:1.78; word-break:break-all; }
+.sec-text, .item, .dt-text, .ql, .cb-text { font-size:28rpx; color:#4b5872; line-height:1.8; word-break:break-all; }
 .item { padding:8rpx 0; }
-.item-sm { font-size:27rpx; color:#64748b; padding:7rpx 0; line-height:1.62; word-break:break-all; }
-.more-hint { font-size:25rpx; color:#8b99b6; display:block; margin-top:10rpx; line-height:1.55; }
+.item-sm { font-size:28rpx; color:#64748b; padding:7rpx 0; line-height:1.68; word-break:break-all; }
+.more-hint { font-size:26rpx; color:#8b99b6; display:block; margin-top:10rpx; line-height:1.6; }
 
-.disc { background:#fff9e6; border:1rpx solid #f3d38a; border-radius:18rpx; padding:24rpx 26rpx; margin:22rpx 24rpx 0; font-size:26rpx; line-height:1.72; color:#8a5a12; box-shadow:0 10rpx 24rpx rgba(141,96,18,0.05); }
-.warn { background:#fff1f2; border:1rpx solid #fecdd3; border-radius:18rpx; padding:24rpx 26rpx; margin:22rpx 24rpx 0; font-size:26rpx; line-height:1.72; color:#be123c; }
+.disc { background:#fff9e6; border:1rpx solid #f3d38a; border-radius:18rpx; padding:24rpx 26rpx; margin:22rpx 24rpx 0; font-size:28rpx; line-height:1.76; color:#8a5a12; box-shadow:0 10rpx 24rpx rgba(141,96,18,0.05); }
+.warn { background:#fff1f2; border:1rpx solid #fecdd3; border-radius:18rpx; padding:24rpx 26rpx; margin:22rpx 24rpx 0; font-size:28rpx; line-height:1.76; color:#be123c; }
 .warn-bold { font-weight:900; }
-.cb-title { font-size:30rpx; font-weight:900; color:#17244e; display:block; margin-bottom:10rpx; }
+.cb-title { font-size:31rpx; font-weight:900; color:#17244e; display:block; margin-bottom:10rpx; }
 
 .adv-item { display:flex; padding:18rpx 0; border-bottom:1rpx solid #edf2f7; }
 .adv-item:last-child { border-bottom:0; padding-bottom:2rpx; }
 .adv-num { width:44rpx; height:44rpx; border-radius:14rpx; background:#dcfce7; color:#047857; font-size:22rpx; font-weight:900; line-height:44rpx; text-align:center; flex-shrink:0; margin-right:16rpx; }
 .adv-num.risk { background:#fff1f2; color:#be123c; }
-.adv-text { font-size:27rpx; color:#344256; line-height:1.72; flex:1; word-break:break-all; }
+.adv-text { font-size:28rpx; color:#344256; line-height:1.76; flex:1; word-break:break-all; }
 
 .radar-card { background:linear-gradient(180deg,#ffffff,#f8fbff); }
 .radar-head { margin-bottom:12rpx; }
@@ -1112,14 +1189,29 @@ export default {
 .dc-chip-label { font-size:25rpx; color:#4b5872; margin-right:8rpx; }
 .dc-chip-val { font-size:27rpx; font-weight:900; }
 
-.comp-cols { display:flex; gap:14rpx; margin-bottom:18rpx; }
-.cc-item { flex:1; text-align:center; padding:18rpx 8rpx; background:#f8fafc; border-radius:16rpx; border:1rpx solid #edf2f7; }
-.cc-num { display:block; font-size:42rpx; font-weight:900; line-height:1.05; }
-.cc-label { font-size:25rpx; color:#8b99b6; margin-top:6rpx; display:block; }
+.comp-section { background:#fff; }
+.comp-metrics { display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:12rpx; margin-bottom:22rpx; }
+.comp-metric-card { min-width:0; padding:18rpx 16rpx; border-radius:16rpx; background:#f8fbff; border:1rpx solid #e5edf8; }
+.cm-label { display:block; font-size:24rpx; color:#7a879e; line-height:1.35; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.cm-val { display:block; margin-top:8rpx; font-size:31rpx; font-weight:900; color:#17244e; line-height:1.1; white-space:nowrap; }
+.cm-unit { display:block; margin-top:7rpx; font-size:22rpx; color:#7a879e; line-height:1.25; white-space:nowrap; }
+.comp-sample-box { margin-top:10rpx; padding:24rpx 22rpx 20rpx; border-radius:18rpx; border:1rpx solid #d8e5fb; background:#fff; }
+.comp-list-head { display:flex; align-items:center; justify-content:space-between; gap:16rpx; margin-bottom:18rpx; }
+.comp-merged-title { position:relative; padding-left:18rpx; font-size:30rpx; font-weight:900; color:#17244e; line-height:1.35; }
+.comp-merged-title::before { content:''; position:absolute; left:0; top:7rpx; width:7rpx; height:25rpx; border-radius:6rpx; background:#315bff; }
+.comp-merged-sub { font-size:23rpx; color:#8b99b6; flex-shrink:0; line-height:1.35; }
+.comp-merged-item { display:flex; align-items:flex-start; gap:14rpx; padding:11rpx 0; }
+.cmi-index { width:40rpx; height:40rpx; line-height:40rpx; border-radius:12rpx; text-align:center; flex-shrink:0; background:#eef4ff; color:#315bff; font-size:23rpx; font-weight:900; }
+.cmi-line { flex:1; min-width:0; font-size:28rpx; line-height:1.55; color:#24324a; word-break:break-all; }
+.cmi-name { font-size:28rpx; font-weight:800; color:#344256; }
+.cmi-dist { font-size:27rpx; font-weight:800; color:#17244e; }
+
 .comp-list { display:flex; flex-wrap:wrap; gap:10rpx; margin-top:12rpx; }
-.comp-chip { font-size:26rpx; color:#4b5872; background:#f3f7ff; padding:9rpx 16rpx; border-radius:999rpx; border:1rpx solid rgba(49,91,255,0.12); max-width:100%; word-break:break-all; }
-.comp-sub { margin-top:16rpx; padding-top:16rpx; border-top:1rpx solid #edf2f7; font-size:26rpx; color:#64748b; line-height:1.65; }
-.cs-label { font-weight:900; color:#344256; }
+.comp-chip { font-size:27rpx; color:#4b5872; background:#f3f7ff; padding:9rpx 16rpx; border-radius:999rpx; border:1rpx solid rgba(49,91,255,0.12); max-width:100%; word-break:break-all; }
+.fold-line { margin-top:12rpx; min-height:40rpx; color:#315bff; font-size:25rpx; font-weight:900; display:flex; align-items:center; justify-content:flex-start; gap:6rpx; }
+.comp-expand { padding-left:54rpx; }
+.poi-toggle { justify-content:center; }
+.fold-arrow { font-size:21rpx; font-weight:900; line-height:1; color:#315bff; }
 
 .stats-grid { display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:12rpx; }
 .sg { width:auto; min-width:0; min-height:142rpx; text-align:center; padding:16rpx 8rpx 18rpx; box-sizing:border-box; border-radius:18rpx; background:linear-gradient(180deg,#fbfdff,#f4f7fc); border:1rpx solid #dde7f3; box-shadow:0 8rpx 18rpx rgba(40,76,130,0.05); display:flex; flex-direction:column; align-items:center; justify-content:center; overflow:hidden; }
@@ -1133,23 +1225,25 @@ export default {
 .sg.good { background:linear-gradient(180deg,#fbfffd,#ecfdf5); border-color:#bbf7d0; }
 .sg.info { background:linear-gradient(180deg,#fbfdff,#eff6ff); border-color:#bfdbfe; }
 
-.loc-row { font-size:27rpx; color:#344256; line-height:1.72; word-break:break-all; }
-.loc-sub { font-size:26rpx; color:#64748b; margin-top:10rpx; line-height:1.65; word-break:break-all; }
-.poi-cat { padding:18rpx 0; border-bottom:1rpx solid #edf2f7; }
+.loc-row { font-size:28rpx; color:#344256; line-height:1.76; word-break:break-all; }
+.loc-sub { font-size:27rpx; color:#64748b; margin-top:10rpx; line-height:1.68; word-break:break-all; }
+.poi-cat { padding:20rpx 0; border-bottom:1rpx solid #edf2f7; }
 .poi-cat:last-child { border-bottom:0; padding-bottom:2rpx; }
-.poi-cat-head { display:flex; justify-content:space-between; align-items:center; margin-bottom:8rpx; gap:16rpx; }
-.poi-cat-label { font-size:28rpx; font-weight:900; color:#17244e; flex:1; }
+.poi-cat-head { display:flex; justify-content:space-between; align-items:center; margin-bottom:10rpx; gap:16rpx; }
+.poi-cat-label { font-size:29rpx; font-weight:900; color:#17244e; flex:1; }
 .poi-cat-count { font-size:24rpx; color:#315bff; background:#eef4ff; padding:5rpx 15rpx; border-radius:999rpx; font-weight:900; }
-.poi-cat-names { font-size:26rpx; color:#64748b; line-height:1.7; display:block; word-break:break-all; }
-.poi-toggle { text-align:center; padding:18rpx 0 2rpx; font-size:28rpx; font-weight:900; color:#315bff; }
+.poi-cat-names { font-size:27rpx; color:#64748b; line-height:1.72; display:block; word-break:break-all; }
+.poi-extra { margin-top:8rpx; }
+.poi-expand { margin-top:12rpx; }
+.poi-toggle { margin-top:18rpx; }
 
 .dt-item { padding:20rpx 0; border-bottom:1rpx solid #edf2f7; }
 .dt-item:last-child { border-bottom:0; padding-bottom:2rpx; }
 .dt-head { display:flex; align-items:center; margin-bottom:10rpx; gap:16rpx; }
-.dt-label { font-size:28rpx; font-weight:900; color:#17244e; flex:1; line-height:1.38; }
-.dt-score { font-size:27rpx; font-weight:900; flex-shrink:0; }
+.dt-label { font-size:29rpx; font-weight:900; color:#17244e; flex:1; line-height:1.42; }
+.dt-score { font-size:28rpx; font-weight:900; flex-shrink:0; }
 .brands { display:flex; flex-wrap:wrap; gap:10rpx; }
-.brand { font-size:26rpx; padding:10rpx 17rpx; background:#f3f7ff; border-radius:999rpx; color:#344256; border:1rpx solid rgba(49,91,255,0.12); max-width:100%; word-break:break-all; }
+.brand { font-size:27rpx; padding:10rpx 17rpx; background:#f3f7ff; border-radius:999rpx; color:#344256; border:1rpx solid rgba(49,91,255,0.12); max-width:100%; word-break:break-all; }
 .brand-count { color:#8b99b6; }
 .ql { display:block; padding:6rpx 0; }
 
@@ -1261,6 +1355,8 @@ export default {
 .biz-snap-box { background:#f0fdf4; border:1rpx solid #bbf7d0; border-radius:12rpx; padding:18rpx 20rpx; margin-bottom:18rpx; }
 .biz-snap-core { font-size:26rpx; color:#334155; line-height:1.75; display:block; }
 .biz-snap-comp { font-size:24rpx; color:#64748b; line-height:1.75; display:block; margin-top:10rpx; }
+.cost-input-box { background:#fefce8; border:1rpx solid #fef08a; border-radius:12rpx; padding:18rpx 20rpx; margin-bottom:18rpx; }
+.cost-input-row { font-size:26rpx; color:#334155; line-height:1.75; display:block; }
 .biz-must-verify { margin-bottom:18rpx; }
 .bmv-title { font-size:26rpx; font-weight:900; color:#0f172a; display:block; margin-bottom:10rpx; }
 .bmv-item { display:flex; gap:10rpx; padding:10rpx 0; border-bottom:1rpx solid #f1f5f9; }
@@ -1274,3 +1370,4 @@ export default {
 .biz-cond.stop .biz-cond-label { color:#dc2626; }
 .biz-cond-text { font-size:24rpx; color:#475569; line-height:1.7; }
 </style>
+

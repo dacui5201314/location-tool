@@ -65,7 +65,8 @@ def build_system_prompt(business_type: str = "", config: dict = None) -> str:
 3. 数据引用必须标注所属半径（"200米步行圈内""500米覆盖范围""1公里商圈内"），严禁500米数据冒充200米
 4. 【数值防幻觉——POI 数量】报告正文中出现的所有 POI 数量（如"200米内X家""500米内X所""周边X个"），必须逐字照抄上方「周边 POI 数据」表格和「直接竞品/替代消费/客流锚点」字段中的数字。严禁：根据 POI 名称列表人工计数、根据城市经验自行估算、将相似品类数量混用、将 raw_count 写成精确数字。如果数据源没有该数字或不确定，不得输出任何数量（包括区间），改用"需线下核验""数据源未提供明确数量"等定性表达。POI 数量禁止写区间。
 5. 【强制声明】每份报告的 summary 末尾必须包含："本报告为选址初筛参考，需线下实地核验。"
-6. 【绝对红线：禁止地名幻觉】绝不允许凭借自身知识库盲猜或捏造具体的 POI 名称（学校名、小区名、医院名、商场名等）！如果输入数据只有数量没有名称，只能用泛指代词（如"周边高校""周边社区""附近医疗机构"）。如果输入数据中有竞品清单或POI列表，则只能引用清单中真实存在的名称。凭空捏造输入数据中不存在的具体实体名称将被视为严重违规，报告全毁。
+	6. 【绝对红线：禁止地名幻觉】绝不允许凭借自身知识库盲猜或捏造具体的 POI 名称（学校名、小区名、医院名、商场名等）！如果输入数据只有数量没有名称，只能用泛指代词（如"周边高校""周边社区""附近医疗机构"）。如果输入数据中有竞品清单或POI列表，则只能引用清单中真实存在的名称。凭空捏造输入数据中不存在的具体实体名称将被视为严重违规，报告全毁。
+	7. 【维度分析表达约束】各维度详细分析（details 字段）禁止出现"数据来自""名称脱水""POI采集""地图服务采集""已脱水"等数据来源说明句。这些说明统归于 data_boundary 字段。维度正文必须说清：事实是什么 → 对经营意味着什么 → 现场怎么验证 → 什么情况下应降级。用白话，不堆系统术语。
 
 # 品牌匹配度校验（仅当分析任务包含品牌名称时激活）
 1. 基于知识库推断品牌客单价、目标客群、品牌势能。未知品牌仅以业态通用逻辑推演，绝不虚构品牌背景。
@@ -217,7 +218,8 @@ def build_analysis_prompt(address: str, lng: float, lat: float,
                           location_data: dict = None,
                           brand_name: str = "",
                           store_size: int = 0,
-                          config: dict = None) -> str:
+                          config: dict = None,
+                          cost_inputs: dict = None) -> str:
     """构建包含业态专属阈值和三层半径数据的分析提示词（config 由调用方通过 config_key 获取）"""
     def _int(v, default=0):
         try: return int(v)
@@ -243,8 +245,21 @@ def build_analysis_prompt(address: str, lng: float, lat: float,
         else:
             store_type = "大型餐饮——高租金+高人工+高翻台压力，停车和环境是硬门槛"
         size_info += f"\n店型判断：{store_type}"
+    # P3: 租金输入上下文
+    rent_context = ""
+    if cost_inputs and (cost_inputs.get("rent_input_type") in ("monthly", "per_sqm")):
+        ci = cost_inputs
+        rit = ci.get("rent_input_type", "")
+        if rit == "monthly" and ci.get("monthly_rent"):
+            rent_context = f"\n用户已填写月租金：{ci['monthly_rent']:.0f} 元/月（来源：用户输入，非模型估算）。成本估算维度必须优先引用此租金，不要写假设租金或模型按面积估算。仍须提示建议现场与相邻商户核实实际成交租金。"
+        elif rit == "per_sqm" and ci.get("rent_per_sqm"):
+            parts = [f"\n用户已填写单平租金：{ci['rent_per_sqm']:.0f} 元/㎡/月"]
+            if store_size > 0:
+                parts.append(f"，面积 {store_size} ㎡，换算月租约 {ci['rent_per_sqm'] * store_size:.0f} 元")
+            parts.append("（来源：用户输入）。成本估算维度必须优先引用此租金。仍须提示建议现场与相邻商户核实实际成交租金。")
+            rent_context = "".join(parts)
 
-    brand_info = biz_desc_info + size_info
+    brand_info = biz_desc_info + size_info + rent_context
 
     if not location_data:
         return f"""请分析以下地址是否适合开设「{label}」：

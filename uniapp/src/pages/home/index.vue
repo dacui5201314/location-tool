@@ -212,6 +212,17 @@
           <view class="label">门店面积 <text class="req">*</text></view>
           <input class="field" v-model="storeSize" type="number" placeholder="平方米" :disabled="analyzing" @input="onSizeInput" />
         </view>
+        <view class="bf-item">
+          <view class="label">月租金 <text class="opt">选填</text></view>
+          <view class="rent-row">
+            <input class="field rent-val" v-model="rentValue" type="number" placeholder="金额" :disabled="analyzing" />
+            <view class="rent-type-group">
+              <view class="rent-type-btn" :class="{ active: rentInputType === 'monthly' }" @click="rentInputType = 'monthly'">元/月</view>
+              <view class="rent-type-btn" :class="{ active: rentInputType === 'per_sqm' }" @click="rentInputType = 'per_sqm'">元/㎡/月</view>
+            </view>
+          </view>
+          <text class="rent-hint">填了会让成本和盈亏测算更准，不确定可留空</text>
+        </view>
       </view>
       <text class="field-err" v-if="errors.brand">{{ errors.brand }}</text>
       <text class="field-err" v-if="errors.size">{{ errors.size }}</text>
@@ -375,6 +386,8 @@ export default {
       industry: '',
       brandName: '',
       storeSize: '',
+      rentInputType: 'monthly', // 'monthly' | 'per_sqm'
+      rentValue: '',     // 用户输入的租金数值
       analyzing: false,
       analyzeSteps: [],
       analyzeErr: '',
@@ -1054,6 +1067,18 @@ export default {
         brand_name: this.brandName,
         store_size: Math.max(0, Number(this.storeSize) || 0)
       }
+      // P3: 租金可选输入 — 默认 monthly，填了金额就传
+      const rentVal = Number(this.rentValue)
+      if (Number.isFinite(rentVal) && rentVal > 0) {
+        const rit = this.rentInputType || 'monthly'
+        if (rit === 'per_sqm') {
+          payload.rent_per_sqm = rentVal
+          payload.rent_input_type = 'per_sqm'
+        } else {
+          payload.monthly_rent = rentVal
+          payload.rent_input_type = 'monthly'
+        }
+      }
       if (industryId !== undefined && Number.isFinite(industryId)) payload.industry_id = Number(industryId)
       // ★ favorite_id 只在有效正整数时传入
       if (typeof this._favoriteId === 'number' && Number.isSafeInteger(this._favoriteId) && this._favoriteId > 0) {
@@ -1289,6 +1314,15 @@ export default {
 .ab-edit::after { border:none; }
 .map-wrap { position:relative; border-radius:18rpx; overflow:hidden; box-shadow:none; border:1rpx solid rgba(219,230,255,0.92); background:#dce4f2; min-height:360rpx; }
 .map-view { width:100%; height:360rpx; }
+/* P3: 租金输入 */
+.opt { font-size:20rpx; color:#8b99b6; background:#eef3ff; padding:2rpx 10rpx; border-radius:6rpx; margin-left:8rpx; }
+.rent-row { display:flex; gap:12rpx; align-items:center; }
+.rent-val { flex:1; }
+.rent-type-group { display:flex; gap:0; border:1rpx solid #dbe6ff; border-radius:10rpx; overflow:hidden; flex-shrink:0; }
+.rent-type-btn { padding:10rpx 18rpx; font-size:22rpx; color:#64748b; background:#f8fafd; cursor:pointer; white-space:nowrap; }
+.rent-type-btn.active { background:#315bff; color:#fff; font-weight:700; }
+.rent-type-btn:first-child { border-right:1rpx solid #dbe6ff; }
+.rent-hint { font-size:20rpx; color:#94a3b8; margin-top:6rpx; display:block; }
 
 /* State A: Placeholder card */
 .map-placeholder { height:360rpx; background:linear-gradient(180deg,#e8edf5,#dce4f2); display:flex; flex-direction:column; align-items:center; justify-content:center; position:relative; overflow:hidden; }

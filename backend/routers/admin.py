@@ -1240,12 +1240,14 @@ def save_pdf_config(body: PdfConfigBody, admin: dict = Depends(get_current_admin
 # ============================================================
 _DEFAULT_STORAGE = {
     "storage_mode": "local",
-    "storage_provider": "aliyun_oss",
+    "storage_provider": "tencent_cos",
     "oss_endpoint": "",
     "oss_bucket": "",
     "oss_access_key_id": "",
     "oss_access_key_secret": "",
 }
+# 仅腾讯云 COS 已实现；OSS 未实现，不允许选择
+_AVAILABLE_STORAGE_PROVIDERS = {"tencent_cos"}
 
 
 def _load_storage_config(db: Session) -> dict:
@@ -1273,7 +1275,7 @@ def _save_storage_config(db: Session, cfg: dict):
 
 class StorageConfigBody(BaseModel):
     storage_mode: str = "local"
-    storage_provider: str = "aliyun_oss"
+    storage_provider: str = "tencent_cos"
     oss_endpoint: str = ""
     oss_bucket: str = ""
     oss_access_key_id: str = ""
@@ -1289,6 +1291,16 @@ def get_storage_config(admin: dict = Depends(get_current_admin), db: Session = D
 @router.put("/storage-config")
 def save_storage_config(body: StorageConfigBody, admin: dict = Depends(get_current_admin), db: Session = Depends(get_db)):
     """保存对象存储配置（需管理员权限）"""
+    if body.storage_provider not in _AVAILABLE_STORAGE_PROVIDERS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"不支持的对象存储服务商: {body.storage_provider}，仅支持: {', '.join(sorted(_AVAILABLE_STORAGE_PROVIDERS))}",
+        )
+    if body.storage_mode == "cloud" and not all([body.oss_bucket, body.oss_access_key_id, body.oss_access_key_secret]):
+        raise HTTPException(
+            status_code=400,
+            detail="云存储模式下 bucket / access_key_id / access_key_secret 不能为空。配置不完整，报告不会写入存储桶。",
+        )
     cfg = {
         "storage_mode": body.storage_mode,
         "storage_provider": body.storage_provider,
@@ -1310,14 +1322,26 @@ def test_storage_upload(admin: dict = Depends(get_current_admin)):
     from services.cloud_storage import upload_healthcheck_to_cloud
 
     result = upload_healthcheck_to_cloud()
+    # 增强错误提示 — detail 直接返回给前端
+    detail = ""
+    if not result.ok:
+        raw_error = result.error or "未知错误"
+        if "cloud_mode_not_configured" in raw_error:
+            detail = "云存储未启用或配置不完整。请确认：1) storage_mode=cloud 2) provider=tencent_cos 3) bucket/密钥信息完整。"
+        elif "upload_failed" in raw_error:
+            detail = f"上传到 COS 失败。请检查 bucket 名称、region、密钥权限是否正确：{raw_error}"
+        else:
+            detail = raw_error
     return {
         "ok": result.ok,
         "provider": result.provider,
         "key": result.key,
         "url": result.url,
         "error": result.error,
+        "detail": detail,
         "mode": result.mode,
         "checked_at": datetime.now().isoformat(),
+        "hint": "配置测试失败意味着新报告不会写入对象存储，仅保存在数据库和本地兜底文件。" if not result.ok else "",
     }
 
 
@@ -1975,6 +1999,7 @@ def get_report_detail(
     report_url = record.report_url or ""
     report_json_raw = record.report_json or ""
 
+    report_json_len = len(report_json_raw) if report_json_raw else 0
     meta = {
         "id": record.id,
         "report_uuid": record.report_uuid,
@@ -1988,6 +2013,10 @@ def get_report_detail(
         "report_type": _parse_report_type(report_json_raw),
         "report_file": report_file,
         "report_url": report_url,
+        "report_json_length": report_json_len,
+        "has_report_json": bool(report_json_raw),
+        "has_report_file": bool(report_file),
+        "has_report_url": bool(report_url),
         "created_at": record.created_at.isoformat() if record.created_at else None,
     }
 

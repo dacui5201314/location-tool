@@ -14,7 +14,7 @@ STORAGE_DIR = Path(__file__).resolve().parent.parent / "storage" / "reports"
 # 默认配置
 _DEFAULTS = {
     "storage_mode": "local",
-    "storage_provider": "aliyun_oss",
+    "storage_provider": "tencent_cos",
     "oss_endpoint": "",
     "oss_bucket": "",
     "oss_access_key_id": "",
@@ -185,6 +185,33 @@ def _build_report_html(record_id: int, report_data: dict, address: str, brand_na
     def _esc(value):
         return html.escape(str(value or ""))
 
+    def _render_merged_competitor_list(rd):
+        dl = rd.get("direct_competitor_list") or rd.get("direct_competitors") or rd.get("direct_pois") or []
+        sl = rd.get("substitute_list") or rd.get("substitute_competitors") or rd.get("substitute_pois") or []
+        merged = []
+        for x in dl:
+            n = x if isinstance(x, str) else (x.get("name") or x.get("poi_name") or "")
+            d = float(x.get("distance", 0)) if isinstance(x, dict) else 0
+            if n: merged.append((n, d, "直接竞品"))
+        for x in sl:
+            n = x if isinstance(x, str) else (x.get("name") or x.get("poi_name") or "")
+            d = float(x.get("distance", 0)) if isinstance(x, dict) else 0
+            if n: merged.append((n, d, "间接竞品"))
+        if not merged: return ""
+        merged.sort(key=lambda t: t[1])
+        items_html = ""
+        for i, (name, dist, _tag) in enumerate(merged[:10]):
+            dist_str = f"{int(dist)}m" if dist > 0 else ""
+            items_html += f'<div class="poi-row"><span class="poi-name">{_esc(name)}</span><span class="poi-dist">{_esc(dist_str)}</span></div>'
+        more = ''
+        if len(merged) > 10:
+            rest = ''
+            for i, (name, dist, _tag) in enumerate(merged[10:]):
+                dist_str2 = f'{int(dist)}m' if dist > 0 else ''
+                rest += f'<div class="poi-row"><span class="poi-name">{_esc(name)}</span><span class="poi-dist">{_esc(dist_str2)}</span></div>'
+            more = f'<details style="margin-top:8px"><summary style="cursor:pointer;font-weight:700;color:#315bff">展开全部 {len(merged)} 条</summary>{rest}</details>'
+        return f"""<div class="poi-section"><h3>竞品样本</h3>{items_html}{more}</div>"""
+
     def _score_int(value):
         try:
             return max(0, min(100, int(value or 0)))
@@ -282,7 +309,7 @@ def _build_report_html(record_id: int, report_data: dict, address: str, brand_na
         <div class="poi-sub">200m / 500m / 1000m</div>
       </div>
       <div class="poi-card">
-        <div class="poi-label">替代消费</div>
+        <div class="poi-label">间接竞品/替代消费</div>
         <div class="poi-value">{sc.get('200m', 0)} / {sc.get('500m', 0)} / {sc.get('1000m', 0)}</div>
         <div class="poi-sub">200m / 500m / 1000m</div>
       </div>
@@ -292,6 +319,7 @@ def _build_report_html(record_id: int, report_data: dict, address: str, brand_na
         <div class="poi-sub">200m / 500m / 1000m</div>
       </div>
     </div>
+    {_render_merged_competitor_list(report_data)}
     {f'<div class="note-line">住宅: {kp.get("residential", {}).get("200m", 0)}/{kp.get("residential", {}).get("500m", 0)}/{kp.get("residential", {}).get("1000m", 0)} | 学校: {kp.get("schools", {}).get("200m", 0)}/{kp.get("schools", {}).get("500m", 0)}/{kp.get("schools", {}).get("1000m", 0)} | 办公: {kp.get("office", {}).get("200m", 0)}/{kp.get("office", {}).get("500m", 0)}/{kp.get("office", {}).get("1000m", 0)}</div>' if kp else ''}
   </section>"""
 
@@ -348,8 +376,19 @@ def _build_report_html(record_id: int, report_data: dict, address: str, brand_na
         color = "#18bf82" if n >= 70 else "#f59e0b" if n >= 50 else "#ef4444"
         return f'<div class="bar"><i style="width:{n}%;background:{color}"></i></div>'
 
+    # 维度中文名映射（旧报告 + 兜底兼容）
+    _CN_DIM_LABELS = {
+        "population_density": "周边客源密度", "traffic_accessibility": "到店方便程度",
+        "traffic_flow": "门前客流情况", "consumer_profile": "周边消费人群",
+        "competition": "同类竞争情况", "complementary_businesses": "互补业态",
+        "category_advantage": "品类优势", "cost_estimate": "房租压力",
+        "revenue_estimation": "营收测算", "site_suggestion": "选址建议",
+    }
+
     def _dimension_name(item):
-        return str(item.get("label") or item.get("name") or item.get("key") or "指标")
+        key = str(item.get("key") or "")
+        cn = _CN_DIM_LABELS.get(key, "")
+        return cn or str(item.get("label") or item.get("name") or key or "指标")
 
     # ── P0.5: 决策快照卡片 ──
     decision_html = ""
@@ -402,10 +441,21 @@ def _build_report_html(record_id: int, report_data: dict, address: str, brand_na
         low_note = ""
         if meta.get("score_confidence") == "low":
             note_text = _esc(meta.get("note") or "")
-            if key == "cost_estimate":
-                note_text = "低置信：缺少租金、人工、营收测算，当前分数为占位参考"
-            elif key == "population_density":
-                note_text = _esc(meta.get("note") or "低置信：近场客源依据偏弱")
+            # 旧报告兼容：如果 note 是旧技术文案，替换为白话
+            if note_text and ("不具备成本压力精算依据" in note_text or "50分为占位值" in note_text
+                              or "人工成本" in note_text or "预估营业额" in note_text
+                              or "成本判断仍需结合实际经营情况" in note_text):
+                if key == "cost_estimate":
+                    _has_rent = bool((meta.get("missing_required_inputs") or []) and
+                                     "rent_per_sqm" not in (meta.get("missing_required_inputs") or []))
+                    note_text = "" if _has_rent else "未填写月租金，房租压力只能粗略参考；如方便，建议补充月租金后再看成本判断。"
+            if not note_text:
+                # 兜底：旧报告完全无 note，从 missing_required_inputs 构造但必须过滤英文 key
+                old_missing = meta.get("missing_required_inputs") or []
+                safe_labels = {"rent_per_sqm": "月租金", "monthly_rent": "月租金", "store_area": "门店面积"}
+                cn_parts = [safe_labels[k] for k in old_missing if k in safe_labels]
+                if cn_parts:
+                    note_text = "因未填写" + "、".join(cn_parts[:3]) + "，当前分数为占位参考"
             if note_text:
                 low_note = f'<div style="font-size:11px;color:#f59e0b;margin-top:4px">⚠ {note_text}</div>'
         dim_cards += f"""
@@ -416,15 +466,15 @@ def _build_report_html(record_id: int, report_data: dict, address: str, brand_na
         </div>"""
 
     detail_labels = {
-        "population_density": ("🏘️", "人口密集度"),
-        "traffic_accessibility": ("🚇", "交通与可达性"),
-        "traffic_flow": ("🚶", "客流特征"),
-        "consumer_profile": ("🛍️", "消费人群属性"),
-        "competition": ("⚔️", "竞争环境"),
+        "population_density": ("🏘️", "周边客源密度"),
+        "traffic_accessibility": ("🚇", "到店方便程度"),
+        "traffic_flow": ("🚶", "门前客流情况"),
+        "consumer_profile": ("🛍️", "周边消费人群"),
+        "competition": ("⚔️", "同类竞争情况"),
         "complementary_businesses": ("🤝", "周边互补业态"),
-        "category_advantage": ("🌟", "品类优势与差异化"),
-        "cost_estimate": ("💰", "房租成本预估"),
-        "revenue_estimation": ("💵", "营收测算模型"),
+        "category_advantage": ("🌟", "品类优势"),
+        "cost_estimate": ("💰", "房租压力"),
+        "revenue_estimation": ("💵", "营收测算"),
         "site_suggestion": ("📋", "选址分析与运营策略"),
     }
     detail_blocks = ""
@@ -448,7 +498,7 @@ def _build_report_html(record_id: int, report_data: dict, address: str, brand_na
         poi_defs = [
             ("🏘️", "住宅小区", "residential"), ("🏢", "写字楼", "office"),
             ("🍽️", "餐饮门店", "restaurants"), ("☕", "咖啡茶饮", "cafe_tea"),
-            ("🛍️", "购物商场", "shopping"), ("🏫", "学校", "schools"),
+            ("🛍️", "购物商场", "shopping"), ("🏪", "市场/专业市场", "market_anchor"), ("🏫", "学校", "schools"),
             ("🏥", "医院", "hospitals"), ("🚇", "地铁站", "subway"),
             ("🚌", "公交站", "bus"), ("🏨", "酒店", "hotels"),
             ("🏦", "银行", "banks"), ("🅿️", "停车场", "parking"),
@@ -589,6 +639,15 @@ def _build_report_html(record_id: int, report_data: dict, address: str, brand_na
   .poi-value {{ font-size:18px; line-height:1.15; color:#0f172a; font-weight:900; font-variant-numeric:tabular-nums; }}
   .poi-sub {{ font-size:10px; color:#a8b0bd; margin-top:4px; }}
   .note-line {{ text-align:center; color:#94a3b8; font-size:11px; margin-top:14px; }}
+  .poi-section {{ background:#fff; border-radius:10px; padding:16px; border:1px solid #edf2f7; margin-bottom:14px; }}
+  .poi-section h3 {{ font-size:13px; color:#334155; margin:0 0 10px 0; font-weight:800; }}
+  .poi-row {{ display:flex; align-items:center; gap:8px; padding:6px 0; border-bottom:1px solid #f1f5f9; font-size:12px; }}
+  .poi-name {{ flex:1; color:#1e293b; }}
+  .poi-dist {{ color:#64748b; font-size:11px; white-space:nowrap; }}
+  .poi-tag {{ padding:1px 8px; border-radius:99px; font-size:10px; font-weight:700; white-space:nowrap; }}
+  .poi-tag.tag-danger {{ background:#fef2f2; color:#991b1b; }}
+  .poi-tag.tag-info {{ background:#eff6ff; color:#1e40af; }}
+  .poi-more {{ color:#94a3b8; font-size:11px; text-align:center; margin-top:8px; }}
   .chain-card {{ background:#f0fdf4; border:1px solid #bbf7d0; border-radius:10px; margin-top:18px; padding:16px; text-align:center; }}
   .chain-card h3 {{ color:#047857; font-size:17px; }}
   .chain-card p {{ margin:0; font-size:15px; font-weight:800; color:#64748b; }}

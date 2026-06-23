@@ -639,12 +639,31 @@ async def analyze_location(req: AnalyzeRequest, user: dict = Depends(get_current
                     pass
                 finally:
                     db_local.close()
+            # P3: 提前构造 request_cost_inputs（normal/retry/fallback 共用）
+            # 兜底：rent_input_type 为空时按 monthly 处理；prefer monthly_rent
+            _req_ci = None
+            _rit = req.rent_input_type or ""
+            _mr = req.monthly_rent
+            _pr = req.rent_per_sqm
+            if _mr is not None and _mr > 0 and _rit in ("", "monthly"):
+                _req_ci = {"rent_input_type": "monthly", "rent_source": "user_input_monthly",
+                           "monthly_rent": _mr, "store_size": req.store_size or 0}
+            elif _pr is not None and _pr > 0 and _rit in ("", "per_sqm"):
+                _req_ci = {"rent_input_type": "per_sqm", "rent_per_sqm": _pr,
+                           "store_size": req.store_size or 0}
+                if req.store_size and req.store_size > 0:
+                    _req_ci["rent_source"] = "user_input_per_sqm"
+                    _req_ci["monthly_rent"] = _pr * req.store_size
+                else:
+                    _req_ci["rent_source"] = "user_input_per_sqm_no_size"
+
             prompt = system_prompt + "\n\n" + build_analysis_prompt(
                 req.address, req.location.lng, req.location.lat,
                 industry_name, real_data,
                 brand_name=req.brand_name or "",
                 store_size=req.store_size or 0,
                 config=industry_config,
+                cost_inputs=_req_ci,
             )
 
             try:
@@ -870,6 +889,7 @@ async def analyze_location(req: AnalyzeRequest, user: dict = Depends(get_current
                             business_type=req.business_type or "",
                             brand_name=req.brand_name or "",
                             store_size=req.store_size or 0,
+                            cost_inputs=_req_ci or {},
                         )
                         fallback_result["provider"] = "fallback"
                         fallback_result["error"] = None
@@ -947,6 +967,10 @@ async def analyze_location(req: AnalyzeRequest, user: dict = Depends(get_current
             from services.report_enrichment_service import enrich_report_business_context
             # category: 使用 brand_name 作为业态细分描述（brand_name 通常包含托管/小吃等关键词）
             _category_p1 = req.brand_name or ""
+            # P3: 复用提前构造的 request_cost_inputs
+            if _req_ci:
+                result["cost_inputs"] = _req_ci
+
             result = enrich_report_business_context(
                 result, real_data,
                 business_type=req.business_type or "",

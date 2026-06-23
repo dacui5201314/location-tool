@@ -19,6 +19,10 @@ class AnalyzeRequest(BaseModel):
     real_data: Optional[dict] = None  # 前端采集的高德数据
     industry_id: Optional[int] = None  # 业态专属规则ID（business_industries表）
     favorite_id: Optional[int] = None  # 收藏ID（从收藏页发起分析时传入）
+    # P3: 租金可选输入
+    monthly_rent: Optional[float] = None  # 月租金（元/月）
+    rent_per_sqm: Optional[float] = None  # 单平月租金（元/㎡/月）
+    rent_input_type: str = ""  # "monthly" 或 "per_sqm"，为空表示未填
 
 
 class AnalyzeResponse(BaseModel):

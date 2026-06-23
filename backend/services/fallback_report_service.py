@@ -87,8 +87,11 @@ def _weighted_school(school_count: int, family: str) -> int:
 
 def build_fallback_report(real_data: dict, address: str = "",
                           business_type: str = "", brand_name: str = "",
-                          store_size: int = 0, category: str = "") -> dict:
+                          store_size: int = 0, category: str = "",
+                          cost_inputs: dict | None = None) -> dict:
     """从 real_data 生成纯数据兜底报告。"""
+    if cost_inputs is None:
+        cost_inputs = {}
 
     s2 = real_data.get("stats_200m", {}) or {}
     s5 = real_data.get("stats_500m", {}) or {}
@@ -301,8 +304,22 @@ def build_fallback_report(real_data: dict, address: str = "",
         res_500, office_500, school_500, hotel_1000,
         _clamp(25, 80, 20 + office_500 + _weighted_school(school_500, family_adv)))
 
-    def _cost_estimate_detail(ss, score):
-        if ss > 0:
+    def _cost_estimate_detail(ss, score, cost_inputs=None):
+        cost_inputs = cost_inputs or {}
+        user_rent = cost_inputs.get("monthly_rent")
+        user_rent_sqm = cost_inputs.get("rent_per_sqm")
+        rent_source = cost_inputs.get("rent_source", "")
+        if user_rent:
+            txt = f"用户填写月租金 {user_rent:.0f} 元/月（{rent_source}），门店{ss}㎡。"
+            detail = (f"门店面积{ss}㎡，用户提供月租金 {user_rent:.0f} 元（来源：{rent_source}）。"
+                      f"对比周边同类业态，如果月租金占比超过预估月营收的20%，建议重新评估财务模型。"
+                      f"请到现场与相邻商户核实租金是否真实。评分：{score}")
+        elif user_rent_sqm and ss > 0:
+            txt = f"用户填写单平租金 {user_rent_sqm:.0f} 元/㎡/月，门店{ss}㎡，换算月租约 {user_rent_sqm * ss:.0f} 元。"
+            detail = (f"门店{ss}㎡ × 单平租金 {user_rent_sqm:.0f} 元/㎡/月 ≈ 月租 {user_rent_sqm * ss:.0f} 元。"
+                      f"如果月租金占比超过预估月营收的20%，建议重新评估财务模型。"
+                      f"请到现场核实相邻商户实际成交租金。评分：{score}")
+        elif ss > 0:
             txt = f"门店{ss}㎡，月租金需线下询价后结合面积测算。"
             detail = (f"门店面积{ss}㎡。建议线下询问3-5家相邻商户实际租金（元/㎡/月），"
                       f"乘以门店面积得出月租金范围。不要只看线上挂牌价，线下实际成交通常低于挂牌。"
@@ -313,7 +330,7 @@ def build_fallback_report(real_data: dict, address: str = "",
                       "如果月租金占比超过预估月营收的20%，建议重新评估财务模型。评分：50")
         return txt, detail
 
-    _cs_text, _cs_detail = _cost_estimate_detail(store_size, 50)
+    _cs_text, _cs_detail = _cost_estimate_detail(store_size, 50, cost_inputs)
 
     def _revenue_estimation_detail(bt, ss):
         family = classify_business_model_family(bt, brand_name, _category)
@@ -376,16 +393,16 @@ def build_fallback_report(real_data: dict, address: str = "",
     # ── details（P0.5: 具体解释为什么低/怎么验证/什么情况淘汰）──
     _tf_text, _tf_detail = _traffic_flow_detail(res_500, office_500, school_500, subway_500, bus_500, dims[2]["score"])
     _cp_text, _cp_detail = _consumer_profile_detail(res_500, office_500, school_500, hotel_1000, dims[3]["score"])
-    _cs_text, _cs_detail = _cost_estimate_detail(store_size, dims[7]["score"])
+    _cs_text, _cs_detail = _cost_estimate_detail(store_size, dims[7]["score"], cost_inputs)
     _rev_detail = _revenue_estimation_detail(business_type, store_size)
     _site_detail = _site_suggestion_detail(business_type)
 
     details = {
         "population_density": (
-            f"500米半径内{res_500}个住宅小区、{office_500}栋办公建筑、"
-            f"{school_500}所教育机构、{hospital_500}家医院。"
-            f"数据来自高德POI采集，已做名称脱水处理。"
-            f"如现场发现数据中未收录的新建小区或写字楼，人口密度可能高于采集结果。评分：{dims[0]['score']}"
+            f"500米内{res_500}个住宅小区、{office_500}栋办公建筑、"
+            f"{school_500}所学校、{hospital_500}家医院。"
+            f"{'住宅充足，说明日常居住客源基础好。' if res_500 >= 10 else '住宅偏少，客源主要依赖外部导入。' if res_500 > 0 else '周边无住宅小区，基本没有居住客源。'}"
+            f"现场应确认小区入住率、办公出租率、早晚人流方向。评分：{dims[0]['score']}"
         ),
         "traffic_accessibility": _traffic_detail(subway_500, bus_500, parking_500, subway_applicable, dims[1]['score']),
         "traffic_flow": _tf_detail,
@@ -491,8 +508,7 @@ def build_fallback_report(real_data: dict, address: str = "",
 
     # ── P0-A: data_boundary（含保守版价值说明）──
     data_boundary = (
-        "数据来源：高德地图POI采集 + 系统规则分析。"
-        "覆盖范围：以选址点为中心1000米半径。"
+        "覆盖范围：以选址点为中心1000米半径，基于周边公开地图点位和系统规则。"
         "数据可能存在更新延迟，店铺经营状态以实际为准。"
         "本报告仅用于选址初筛参考，不替代现场调研、租金测算和实际商业判断。"
         " 虽为保守版，但已基于周边真实数据给出初筛判断和现场核验任务；"

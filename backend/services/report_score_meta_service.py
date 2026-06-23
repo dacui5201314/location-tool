@@ -11,6 +11,47 @@ def _int(v, default=0):
 # S2: 评分 meta 字段（纯追加）
 # ═══════════════════════════════════════════════════════════════
 
+# 全局中文标签映射 — 所有用户可见区域禁止出现英文 key
+DIMENSION_LABELS = {
+    "population_density": "周边客源密度",
+    "traffic_accessibility": "到店方便程度",
+    "traffic_flow": "门前客流情况",
+    "consumer_profile": "周边消费人群",
+    "competition": "同类竞争情况",
+    "complementary_businesses": "互补业态",
+    "category_advantage": "品类优势",
+    "cost_estimate": "房租压力",
+    "revenue_estimation": "营收测算",
+    "site_suggestion": "选址建议",
+}
+
+SCORE_CONFIDENCE_LABEL = "本项判断说明"
+
+
+def dimension_label(key):
+    if not key: return ''
+    return DIMENSION_LABELS.get(key, key)
+
+# Chinese labels for missing_required_inputs
+_MISSING_INPUT_LABELS = {
+    "rent_per_sqm": "月租金",
+    "monthly_rent": "月租金",
+    "rent": "月租金",
+    "labor_cost": "人工成本",
+    "revenue_estimate": "预估营业额",
+    "store_area": "门店面积",
+}
+
+def _missing_labels(keys: list) -> list:
+    """将 missing_required_inputs 的英文 key 转为中文标签"""
+    return [_MISSING_INPUT_LABELS.get(k, k) for k in keys]
+
+def _cost_note(has_rent: bool, missing: list) -> str:
+    """用户可读的房租压力说明。选址初筛只看房租，不做完整盈亏测算。"""
+    if has_rent:
+        return ""
+    return "未填写月租金，房租压力只能粗略参考；如方便，建议补充月租金后再看成本判断。"
+
 def add_dimension_score_meta(report: dict, real_data: dict, store_size: int = 0) -> dict:
     """为 dimension_scores 追加 meta 信息。不改变 score 值，不改变总分。"""
     r = real_data or {}
@@ -23,35 +64,40 @@ def add_dimension_score_meta(report: dict, real_data: dict, store_size: int = 0)
 
     for d in dims:
         key = d.get("key", "")
-        meta = {"key": key, "score_basis": "deterministic",
+        label = dimension_label(key)
+        meta = {"key": key, "label": label, "score_basis": "deterministic",
                 "score_confidence": "medium", "missing_required_inputs": [],
-                "is_score_applicable": True}
+                "missing_labels": [], "is_score_applicable": True}
 
         if key == "cost_estimate":
             missing = []
             if store_size <= 0:
                 missing.append("store_area")
-            # 租金、人工、营收在当前链路几乎一定缺失，保守标记
-            missing.append("rent_per_sqm")
-            missing.append("labor_cost")
-            missing.append("revenue_estimate")
+            _cost_inputs = report.get("cost_inputs") or {}
+            _has_user_rent = bool(_cost_inputs.get("monthly_rent") or _cost_inputs.get("rent_per_sqm"))
+            if not _has_user_rent:
+                missing.append("rent_per_sqm")
             meta["missing_required_inputs"] = missing
-            meta["score_confidence"] = "low"
-            meta["score_basis"] = "placeholder_no_inputs"
-            meta["is_score_applicable"] = False
-            meta["note"] = "不具备成本压力精算依据，50分为占位值"
+            meta["missing_labels"] = _missing_labels(missing)
+            if _has_user_rent:
+                meta["score_confidence"] = "medium"
+                meta["score_basis"] = "user_rent_provided"
+            else:
+                meta["score_confidence"] = "low"
+                meta["score_basis"] = "placeholder_no_inputs"
+            meta["note"] = _cost_note(_has_user_rent, missing)
+            meta["is_score_applicable"] = _has_user_rent
 
         elif key == "population_density":
             if res_500 < 3 and office_500 == 0:
                 meta["score_confidence"] = "low"
                 meta["score_basis"] = "weak_near_field_demand"
-                meta["note"] = f"近场住宅{res_500}、办公{office_500}，人口密集度依据偏弱"
+                meta["note"] = f"近处小区和办公楼都偏少，稳定到店客源依据不足，建议现场观察午晚高峰和周末客流"
 
         meta_list.append(meta)
 
     report["dimension_score_meta"] = meta_list
     return report
-
 
 # ═══════════════════════════════════════════════════════════════
 # S3: 候选评分调整（不覆盖原分，仅返回候选建议）

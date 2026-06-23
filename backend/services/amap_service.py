@@ -268,14 +268,26 @@ def is_real_office(name: str) -> bool:
 
 # 购物商场脱水
 SHOPPING_KEEP = [
-    "购物中心", "百货商场", "百货", "商场", "商城", "商业广场",
+    "购物中心", "百货商场", "百货大楼", "商场", "商城", "商业广场",
     "购物广场", "万达广场", "吾悦广场", "银泰城", "奥特莱斯", "奥莱",
     "商业街", "步行街", "购物公园", "MALL",
+    # 新增品牌购物中心
+    "万象城", "万象汇", "龙湖天街", "大悦城", "印象城", "宝龙广场",
+    "生活广场", "商业中心", "商贸中心",
 ]
 SHOPPING_DROP = [
     "建材", "批发", "农贸", "汽配", "五金", "家具", "灯饰", "石材", "印刷", "旧货", "二手",
     "便利店", "超市", "专卖店", "服装店", "鞋店", "数码店", "药店", "烟酒店",
     "水果店", "生鲜店", "母婴店", "维修店", "文具店", "眼镜店",
+    "百货商店", "日用百货", "便利百货", "小卖部", "服务中心", "单体零售",
+]
+
+# 市场/专业市场参考层 — 不计入购物商场，但在数据解释中体现
+MARKET_ANCHOR_KEYWORDS = [
+    "农贸市场", "菜市场", "批发市场", "建材市场", "五金市场",
+    "家居市场", "汽配城", "商贸城", "水产市场", "花卉市场",
+    "果蔬市场", "粮油市场", "茶叶市场", "布料市场", "皮革市场",
+    "电子市场", "数码广场", "电脑城",
 ]
 
 def is_real_shopping(name: str) -> bool:
@@ -283,6 +295,13 @@ def is_real_shopping(name: str) -> bool:
         if kw in name:
             return False
     for kw in SHOPPING_KEEP:
+        if kw in name:
+            return True
+    return False
+
+def is_market_anchor(name: str) -> bool:
+    """判断 POI 是否为市场/专业市场类型"""
+    for kw in MARKET_ANCHOR_KEYWORDS:
         if kw in name:
             return True
     return False
@@ -463,7 +482,7 @@ TYPE_CLASSIFIERS = [
 ALL_CATEGORY_KEYS = [
     "restaurants", "chinese_restaurants", "foreign_restaurants",
     "fast_food", "cafe_tea", "bars",
-    "shopping", "convenience",
+    "shopping", "market_anchor", "convenience",
     "residential", "office", "schools", "hotels",
     "subway", "bus", "parking", "hospitals", "pharmacy", "banks",
     "beauty", "pets",
@@ -505,6 +524,7 @@ CATEGORY_LABELS = {
     "tobacco_liquor": "烟酒零售",
     "low_freq_retail": "低频目的零售",
     "immersive_entertainment": "沉浸式娱乐",
+    "market_anchor": "市场/专业市场",
 }
 
 KNOWN_BRANDS = [
@@ -1089,6 +1109,53 @@ class AmapService:
                 pass
         all_pois.extend(bus_seen.values())
 
+        # P1: 购物商场 + 市场/专业市场关键词补采
+        shopping_kw_seen = {}
+        shopping_keywords = [
+            "购物中心", "百货商场", "商业广场", "购物广场", "万象城", "龙湖天街",
+            "大悦城", "印象城", "宝龙广场", "吾悦广场", "万达广场", "奥特莱斯",
+        ]
+        for kw in shopping_keywords:
+            try:
+                for p in await self._fetch_by_keyword(lng, lat, kw, radius=1000, max_results=60):
+                    name = p.get("name", "")
+                    key = f"{name}|{p.get('distance', 0)}"
+                    if key not in shopping_kw_seen:
+                        shopping_kw_seen[key] = p
+            except Exception:
+                pass
+        all_pois.extend(shopping_kw_seen.values())
+
+        # P1: 写字楼关键词补采（"写字楼"类型码可能漏采）
+        office_kw_seen = {}
+        office_keywords = ["写字楼", "办公楼", "商务楼", "商务中心", "企业中心", "产业园", "科技园"]
+        for kw in office_keywords:
+            try:
+                for p in await self._fetch_by_keyword(lng, lat, kw, radius=1000, max_results=60):
+                    name = p.get("name", "")
+                    key = f"{name}|{p.get('distance', 0)}"
+                    if key not in office_kw_seen:
+                        office_kw_seen[key] = p
+            except Exception:
+                pass
+        all_pois.extend(office_kw_seen.values())
+
+        market_kw_seen = {}
+        market_keywords = [
+            "农贸市场", "菜市场", "批发市场", "建材市场", "五金市场",
+            "家居市场", "汽配城", "商贸城",
+        ]
+        for kw in market_keywords:
+            try:
+                for p in await self._fetch_by_keyword(lng, lat, kw, radius=1000, max_results=60):
+                    name = p.get("name", "")
+                    key = f"{name}|{p.get('distance', 0)}"
+                    if key not in market_kw_seen:
+                        market_kw_seen[key] = p
+            except Exception:
+                pass
+        all_pois.extend(market_kw_seen.values())
+
         # 合并后去重
         seen = set()
         deduped = []
@@ -1155,6 +1222,10 @@ class AmapService:
                     elif any(kw in business_type for kw in ("零售店","服装店","数码店")):
                         if is_real_low_freq_retail(name):
                             cat = "low_freq_retail"
+
+                # === 市场/专业市场识别 — 在购物商场脱水前先分离 ===
+                if cat == "shopping" and is_market_anchor(name):
+                    cat = "market_anchor"
 
                 # === 四类数据脱水：写字楼/商场/住宅/酒店 ===
                 if cat == "office" and not is_real_office(name):
@@ -1464,11 +1535,57 @@ class AmapService:
         ld.traffic_anchor_list_500m = anchor_list_500m
         ld.traffic_anchor_list_1000m = anchor_list_1000m
         ld.irrelevant_excluded = irrelevant_count
+        # ★ 数据解释与边界 — 展示更有价值的分类统计
+        market_200 = stats_200m.get("market_anchor", 0)
+        market_500 = stats_500m.get("market_anchor", 0)
+        market_1000 = stats_1000m.get("market_anchor", 0)
+        market_list = poi_lists.get("market_anchor", [])
+        shopping_500 = stats_500m.get("shopping", 0)
+        shopping_1000 = stats_1000m.get("shopping", 0)
+        low_freq_list = poi_lists.get("low_freq_retail", [])
+        convenience_500 = stats_500m.get("convenience", 0)
+        parking_500 = stats_500m.get("parking", 0)
+        banks_500 = stats_500m.get("banks", 0)
+
+        quality_notes.append(f"有效保留 {valid_kept} 个周边POI（原始采集 {len(all_pois)} 个）")
         if dewater_excluded > 0:
-            quality_notes.append(f"名称脱水剔除 {dewater_excluded} 个POI（公司/厂房/建材/培训/养生/中介等）")
+            quality_notes.append(f"名称脱水剔除 {dewater_excluded} 个（公司/厂房/培训/养生/中介等）")
         if irrelevant_count > 0:
-            quality_notes.append(f"严谨度规则剔除 {irrelevant_count} 个无关POI（会计/律所/广告/中介/SPA等）")
-        quality_notes.append(f"原始抓取 {len(all_pois)} 个POI，有效保留 {valid_kept} 个")
+            quality_notes.append(f"严谨度规则剔除 {irrelevant_count} 个（律所/广告/SPA等无关业态）")
+        if shopping_1000 > 0:
+            quality_notes.append(f"购物商场：500米{shopping_500}个 / 1000米{shopping_1000}个 — 代表逛街休闲类综合客流")
+        if market_1000 > 0:
+            market_samples = [p.get("name", "") for p in market_list[:5] if p.get("name")]
+            mkt_note = f"市场/专业市场：500米{market_500}个 / 1000米{market_1000}个"
+            if market_samples:
+                mkt_note += f"（示例：{'、'.join(market_samples[:3])}）"
+            mkt_note += " — 代表目的性采购客流，不等同于购物商场"
+            quality_notes.append(mkt_note)
+        if low_freq_list:
+            lf_names = [p.get("name", "") for p in low_freq_list[:5] if p.get("name")]
+            lf_note = f"低频目的零售：{len(low_freq_list)} 个（服装/数码/眼镜/品牌零售等）"
+            if lf_names:
+                lf_note += f"（示例：{'、'.join(lf_names[:3])}）"
+            lf_note += " — 代表目的性消费，非高频日常客流"
+            quality_notes.append(lf_note)
+        if convenience_500 > 0:
+            quality_notes.append(f"便利超市：500米{convenience_500}个 — 满足日常即时需求")
+        if parking_500 > 0:
+            quality_notes.append(f"停车场：500米{parking_500}个 — 驾车便利性参考")
+        if banks_500 > 0:
+            quality_notes.append(f"银行：500米{banks_500}个 — 周边成熟度和中高端客群参考")
+        # 零计数诊断：严格口径为 0 但有原始候选时说明
+        office_raw = raw_poi_counts.get("office", 0)
+        hospital_raw = raw_poi_counts.get("hospitals", 0)
+        office_500s = stats_500m.get("office", 0)
+        hospital_500s = stats_500m.get("hospitals", 0)
+        market_500s = stats_500m.get("market_anchor", 0)
+        if office_500s == 0 and office_raw > 0:
+            quality_notes.append("写字楼：严格口径下为 0（已排除公司/厂房/培训等名称脱水），不代表周边无办公人群")
+        if hospital_500s == 0 and hospital_raw > 0:
+            quality_notes.append("医院：严格口径下为 0（医院=大型医疗机构，不含诊所/药店/门诊）")
+        if market_500s == 0:
+            quality_notes.append("市场/专业市场：周边未识别到农贸/建材/五金等专业市场")
         # ★ P0.5: 公交采集诊断
         bus_s200 = stats_200m.get("bus", 0)
         bus_s500 = stats_500m.get("bus", 0)

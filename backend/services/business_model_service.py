@@ -869,13 +869,13 @@ def build_business_caliber_explanation(real_data: dict, business_type: str,
             "注意：该类业态对隔音/消防/环保有特殊要求。"
         ),
         "generic": (
-            "本报告基于高德地图POI数据采集和系统规则分析。数据可能存在更新延迟。"
+            "基于周边公开地图点位和系统规则生成，"
             "建议结合现场核验确认实际经营状态。"
         ),
     }
 
     note = family_notes.get(family, family_notes["generic"])
-    return f"{base} {note} 本报告基于高德地图POI数据采集和系统规则分析，数据可能存在更新延迟。"
+    return f"{base} {note}"
 
 
 # ═══════════════════════════════════════════════════════════

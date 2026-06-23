@@ -211,6 +211,7 @@ function H(id){document.getElementById(id).classList.add('hidden')}
 function S(id){document.getElementById(id).classList.remove('hidden')}
 function E(id,msg){const e=document.getElementById(id);e.textContent=msg;e.classList.remove('hidden')}
 function esc(s){if(s==null)return'';return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;')}
+function escHtml(v){return esc(v)}
 function escUrl(s){if(s==null)return'';return String(s).replace(/"/g,'&quot;').replace(/'/g,'&#39;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
 
 // Auto-login
@@ -404,8 +405,8 @@ function renderStorageConfig(){return `<div class="card"><div class="flex-betwee
 async function loadStorageConfig(){const r=await af('GET','/api/admin/storage-config');window._storeCfg=r.ok?r.data:{storage_mode:'local'};renderStorageRadio()}
 function storageModeBtn(label,mode,provider){const cfg=window._storeCfg||{};const active=mode==='local'?cfg.storage_mode!=='cloud':cfg.storage_mode==='cloud'&&cfg.storage_provider===provider;return `<button class="btn ${active?'btn-primary':'btn-outline'}" onclick="setStorageMode('${mode}','${provider||''}')">${label}</button>`}
 function setStorageMode(mode,provider){window._storeCfg=window._storeCfg||{};window._storeCfg.storage_mode=mode;if(provider)window._storeCfg.storage_provider=provider;renderStorageRadio()}
-function renderStorageRadio(){const cfg=window._storeCfg||{};const btns=document.getElementById('storageModeBtns');if(btns)btns.innerHTML=storageModeBtn('本地存储','local','')+storageModeBtn('阿里云 OSS','cloud','aliyun_oss')+storageModeBtn('腾讯云 COS','cloud','tencent_cos');const provider=cfg.storage_provider==='tencent_cos'?'腾讯云 COS':'阿里云 OSS';document.getElementById('ossFields').innerHTML=cfg.storage_mode==='cloud'?`<div class="mini-note mb">当前模式：${provider}。上传成功后报告以云端 URL 为准；本地临时文件会自动清理。</div><div class="grid2"><div class="form-group"><label>Endpoint / Region</label><input id="oss_ep" value="${esc(cfg.oss_endpoint||'')}" placeholder="${cfg.storage_provider==='tencent_cos'?'ap-guangzhou 或 https://bucket.cos.ap-region.myqcloud.com':'https://oss-cn-region.aliyuncs.com'}"></div><div class="form-group"><label>Bucket</label><input id="oss_bkt" value="${esc(cfg.oss_bucket||'')}"></div><div class="form-group"><label>Access Key ID / SecretId</label><input id="oss_akid" value="${esc(cfg.oss_access_key_id||'')}"></div><div class="form-group"><label>Access Key Secret / SecretKey</label><input id="oss_aksec" type="password" value="${esc(cfg.oss_access_key_secret||'')}"></div></div>`:'<div class="mini-note">当前模式：本地存储。报告 HTML 会保存到服务器本地目录。</div>'}
-async function saveStorageConfig(){const d={storage_mode:window._storeCfg.storage_mode,storage_provider:window._storeCfg.storage_provider||'aliyun_oss'};if(d.storage_mode==='cloud'){d.oss_endpoint=qv('oss_ep');d.oss_bucket=qv('oss_bkt');d.oss_access_key_id=qv('oss_akid');d.oss_access_key_secret=qv('oss_aksec')}const r=await af('PUT','/api/admin/storage-config',d);toast(r.ok?'已保存':(r.data?.detail||'失败'),r.ok)}
+function renderStorageRadio(){const cfg=window._storeCfg||{};const btns=document.getElementById('storageModeBtns');if(btns)btns.innerHTML=storageModeBtn('本地存储','local','')+storageModeBtn('腾讯云 COS','cloud','tencent_cos');document.getElementById('ossFields').innerHTML=cfg.storage_mode==='cloud'?`<div class="mini-note mb">当前模式：腾讯云 COS。上传成功后报告以云端 URL 为准；本地临时文件会自动清理。</div><div class="grid2"><div class="form-group"><label>Endpoint / Region</label><input id="oss_ep" value="${esc(cfg.oss_endpoint||'')}" placeholder="ap-guangzhou 或 https://bucket.cos.ap-region.myqcloud.com"></div><div class="form-group"><label>Bucket</label><input id="oss_bkt" value="${esc(cfg.oss_bucket||'')}"></div><div class="form-group"><label>Access Key ID / SecretId</label><input id="oss_akid" value="${esc(cfg.oss_access_key_id||'')}"></div><div class="form-group"><label>Access Key Secret / SecretKey</label><input id="oss_aksec" type="password" value="${esc(cfg.oss_access_key_secret||'')}"></div></div>`:'<div class="mini-note">当前模式：本地存储。报告 HTML 会保存到服务器本地目录。</div>'}
+async function saveStorageConfig(){const d={storage_mode:window._storeCfg.storage_mode,storage_provider:window._storeCfg.storage_provider||'tencent_cos'};if(d.storage_mode==='cloud'){d.oss_endpoint=qv('oss_ep');d.oss_bucket=qv('oss_bkt');d.oss_access_key_id=qv('oss_akid');d.oss_access_key_secret=qv('oss_aksec')}const r=await af('PUT','/api/admin/storage-config',d);toast(r.ok?'已保存':(r.data?.detail||'失败'),r.ok)}
 
 // ── Logs ──
 
@@ -545,20 +546,85 @@ function arList(items){items=arArr(items);return items.length?`<div class="ar-li
 function arChips(items){items=arArr(items);return items.length?`<div class="ar-chip-wrap">${items.map(x=>`<span class="ar-chip">${esc(arText(x.name||x.label||x))}</span>`).join('')}</div>`:''}
 function arSection(title,body){return body?`<section class="ar-section"><h3>${title}</h3>${body}</section>`:''}
 function arMetric(label,value,sub){return `<div class="ar-metric"><div class="text-xs">${esc(label)}</div><b>${esc(value)}</b>${sub?`<div class="text-xs">${esc(sub)}</div>`:''}</div>`}
-const arDetailLabels={population_density:{label:'人口密集度',hasScore:true},traffic_accessibility:{label:'交通可达性',hasScore:true},traffic_flow:{label:'客流特征',hasScore:true},consumer_profile:{label:'消费人群',hasScore:true},competition:{label:'竞争环境',hasScore:true},complementary_businesses:{label:'互补业态',hasScore:true},category_advantage:{label:'品类优势',hasScore:true},cost_estimate:{label:'成本估算',hasScore:true},revenue_estimation:{label:'营收预估',hasScore:false},site_suggestion:{label:'选址建议',hasScore:false}}
+const arDetailLabels={population_density:{label:'周边客源密度',hasScore:true},traffic_accessibility:{label:'到店方便程度',hasScore:true},traffic_flow:{label:'门前客流情况',hasScore:true},consumer_profile:{label:'周边消费人群',hasScore:true},competition:{label:'同类竞争情况',hasScore:true},complementary_businesses:{label:'互补业态',hasScore:true},category_advantage:{label:'品类优势',hasScore:true},cost_estimate:{label:'房租压力',hasScore:true},revenue_estimation:{label:'营收预估',hasScore:false},site_suggestion:{label:'选址建议',hasScore:false}}
 const arDetailOrder=['population_density','traffic_accessibility','traffic_flow','consumer_profile','competition','complementary_businesses','category_advantage','cost_estimate','revenue_estimation','site_suggestion']
-const arPoiDefs=[['residential','住宅小区'],['office','写字楼'],['schools','学校'],['hospitals','医院/诊所'],['shopping','购物商场'],['restaurants','餐饮门店'],['cafe_tea','咖啡茶饮'],['fast_food','快餐'],['chinese_restaurants','中餐'],['foreign_restaurants','异国料理'],['hotels','酒店'],['subway','地铁站'],['bus','公交站'],['parking','停车场'],['banks','银行'],['convenience','便利店'],['pharmacy','药店'],['beauty','美容美发'],['pets','宠物'],['bars','酒吧']]
+const arPoiDefs=[['residential','住宅小区'],['office','写字楼'],['schools','学校'],['hospitals','医院/诊所'],['shopping','购物商场'],['market_anchor','市场/专业市场'],['restaurants','餐饮门店'],['cafe_tea','咖啡茶饮'],['fast_food','快餐'],['chinese_restaurants','中餐'],['foreign_restaurants','异国料理'],['hotels','酒店'],['subway','地铁站'],['bus','公交站'],['parking','停车场'],['banks','银行'],['convenience','便利店'],['pharmacy','药店'],['beauty','美容美发'],['pets','宠物'],['bars','酒吧']]
 function arVal(stats,aliases){for(const a of aliases){const v=stats?.[a];if(v!==undefined&&v!==null)return v}return''}
 function arPoiName(d){if(typeof d==='string')return d;if(!d||typeof d!=='object')return'';const name=d.name||d.title||d.poi_name||'';const dist=d.distance??d.dist;if(name&&dist!==undefined&&dist!==null&&dist!=='')return `${name}（${dist}m）`;return name}
 function arNames(arr,limit=5){return Array.isArray(arr)?arr.map(arPoiName).filter(Boolean).slice(0,limit):[]}
 function arCountMore(arr,limit=5){return Array.isArray(arr)&&arr.length>limit?arr.length-limit:0}
 function arFallbackLabel(k){return arText(String(k||'').replace(/_/g,' '))}
 function arStripScore(t){return typeof t==='string'?t.replace(/(?:评分|得分)[：:]\s*\d+\s*分?/g,'').replace(/\d+\s*分/g,'').trim():t}
-function arRenderStats(real){const s2=real?.stats_200m||{},s5=real?.stats_500m||{},s10=real?.stats_1000m||{};const aliases={residential:['residential','residences','communities','residential_areas'],office:['office','offices','office_buildings'],restaurants:['restaurants','restaurant','dining'],cafe_tea:['cafe_tea','cafes','cafe','tea','coffee'],shopping:['shopping','malls','shopping_malls'],schools:['schools','school'],hospitals:['hospitals','hospital','clinics','clinic'],subway:['subway','subways','subway_stations','metro'],bus:['bus','buses','bus_stops'],hotels:['hotels','hotel'],banks:['banks','bank'],parking:['parking','parking_lots']};const defs=[['住宅小区','residential'],['写字楼','office'],['餐饮门店','restaurants'],['咖啡茶饮','cafe_tea'],['购物商场','shopping'],['学校','schools'],['医院','hospitals'],['地铁站','subway'],['公交站','bus'],['酒店','hotels'],['银行','banks'],['停车场','parking']];const cards=defs.map(d=>{const al=aliases[d[1]]||[d[1]],v2=arVal(s2,al),v5=arVal(s5,al),v10=arVal(s10,al);if(v2===''&&v5===''&&v10==='')return'';return arMetric(d[0],`${v2===''?'-':v2} / ${v5===''?'-':v5} / ${v10===''?'-':v10}`,'200m / 500m / 1km')}).join('');return cards?`<div class="ar-grid">${cards}</div>`:''}
+function arRenderStats(real){const s2=real?.stats_200m||{},s5=real?.stats_500m||{},s10=real?.stats_1000m||{};const aliases={residential:['residential','residences','communities','residential_areas'],office:['office','offices','office_buildings'],restaurants:['restaurants','restaurant','dining'],cafe_tea:['cafe_tea','cafes','cafe','tea','coffee'],shopping:['shopping','malls','shopping_malls'],schools:['schools','school'],hospitals:['hospitals','hospital','clinics','clinic'],subway:['subway','subways','subway_stations','metro'],bus:['bus','buses','bus_stops'],hotels:['hotels','hotel'],banks:['banks','bank'],parking:['parking','parking_lots'],market_anchor:['market_anchor']};const defs=[['住宅小区','residential'],['写字楼','office'],['餐饮门店','restaurants'],['咖啡茶饮','cafe_tea'],['购物商场','shopping'],['市场/专业市场','market_anchor'],['学校','schools'],['医院','hospitals'],['地铁站','subway'],['公交站','bus'],['酒店','hotels'],['银行','banks'],['停车场','parking']];const cards=defs.map(d=>{const al=aliases[d[1]]||[d[1]],v2=arVal(s2,al),v5=arVal(s5,al),v10=arVal(s10,al);if(v2===''&&v5===''&&v10==='')return'';return arMetric(d[0],`${v2===''?'-':v2} / ${v5===''?'-':v5} / ${v10===''?'-':v10}`,'200m / 500m / 1km')}).join('');return cards?`<div class="ar-grid">${cards}</div>`:''}
 function arRenderEvidence(ev){if(!ev)return'';const val=(k,r)=>(ev[k]||{})[r]??0;const rows=['200m','500m','1000m'].map(r=>`<div class="ar-ev-row"><span>${r}</span><span>${val('direct_competitors',r)}</span><span>${val('substitute_consumption',r)}</span><span>${val('traffic_anchors',r)}</span></div>`).join('');return `<div class="ar-ev-table"><div class="ar-ev-row ar-ev-head"><span>范围</span><span>直接竞品</span><span>替代消费</span><span>客流锚点</span></div>${rows}<span class="ar-ev-note">用于说明不同距离内的竞争、替代消费和客流设施分布，需结合现场动线继续核验。</span></div>`}
-function arRenderNamedChips(title,names,more){if(!names.length)return'';return `<div class="ar-card"><div class="text-xs" style="font-weight:900;margin-bottom:8px;color:#66758f">${esc(title)}</div><div class="ar-chip-wrap">${names.map(n=>`<span class="ar-chip">${esc(arText(n))}</span>`).join('')}${more>0?`<span class="ar-chip">还有 ${more} 条</span>`:''}</div></div>`}
-function arRenderCompetition(p,real){const dir=[real.direct_competitors_200m??0,real.direct_competitors_500m??0,real.direct_competitors_1000m??0],sub=[real.substitute_competitors_200m??0,real.substitute_competitors_500m??0,real.substitute_competitors_1000m??0],anc=[real.traffic_anchors_200m??0,real.traffic_anchors_500m??0,real.traffic_anchors_1000m??0];const dl=real.direct_competitor_list||real.direct_competitors||real.direct_pois,sl=real.substitute_list||real.substitute_competitors||real.substitute_pois,al=real.traffic_anchor_list||real.traffic_anchors||real.anchor_pois;let body=`<div class="ar-grid3">${arMetric('直接竞品',dir.join(' / '),'200m / 500m / 1km')}${arMetric('替代消费压力',sub.join(' / '),'200m / 500m / 1km')}${arMetric('客流锚点',anc.join(' / '),'200m / 500m / 1km')}</div>`;body+=arRenderNamedChips('直接竞品样本',arNames(dl),arCountMore(dl));body+=arRenderNamedChips('替代消费样本',arNames(sl),arCountMore(sl));body+=arRenderNamedChips('客流锚点样本',arNames(al),arCountMore(al));body+=arRenderEvidence(p.evidence_summary);return body}
-function arRenderPoiCats(p,real){const explicit=p.poi_categories||real.poi_categories;if(Array.isArray(explicit)&&explicit.length){return explicit.slice(0,20).map(c=>`<div class="ar-row"><div class="ar-label">${esc(arText(c.label||c.name||c.key||'类目'))}</div><div class="ar-value">${esc(arText(arArr(c.names).slice(0,6).join(' · ')))}${c.total?` <span class="tag tag-gray">${esc(c.total)}</span>`:''}</div></div>`).join('')}const lists=real.poi_lists||{};return arPoiDefs.map(([key,label])=>{const items=lists[key];if(!Array.isArray(items)||!items.length)return'';const names=items.slice(0,8).map(arPoiName).filter(Boolean);if(!names.length)return'';return `<div class="ar-row"><div class="ar-label">${esc(label)}</div><div class="ar-value">${esc(arText(names.slice(0,5).join(' · ')))} <span class="tag tag-gray">${items.length}</span>${names.length>5?`<div class="text-xs mt">共 ${items.length} 条，展示前 5 条</div>`:''}</div></div>`}).join('')}
+var _arChipId=0;
+function arRenderNamedChips(title,names,more,allNames){
+  if(!names.length)return'';
+  _arChipId++;
+  var cid='arc_'+_arChipId;
+  var h='<div class="ar-card"><div class="text-xs" style="font-weight:900;margin-bottom:8px;color:#66758f">'+esc(title)+'</div><div class="ar-chip-wrap">'+names.map(function(n){return '<span class="ar-chip">'+esc(arText(n))+'</span>'}).join('');
+  if(more>0&&allNames&&allNames.length>names.length){
+    h+='<span class="ar-chip" style="cursor:pointer;background:#eff6ff;color:#315bff;font-weight:700" onclick="var e=document.getElementById(&quot;'+cid+'&quot;);var t=this;if(e.style.display==&quot;none&quot;){e.style.display=&quot;&quot;;t.textContent=&quot;收起&quot;}else{e.style.display=&quot;none&quot;;t.textContent=&quot;展开全部 '+allNames.length+' 条&quot;}">展开全部 '+allNames.length+' 条</span>';
+  }
+  h+='</div>';
+  if(more>0&&allNames&&allNames.length>names.length){
+    h+='<div id="'+cid+'" style="display:none;margin-top:6px"><div class="ar-chip-wrap">'+allNames.slice(names.length).map(function(n){return '<span class="ar-chip">'+esc(arText(n))+'</span>'}).join('')+'</div></div>';
+  }
+  h+='</div>';
+  return h;
+}
+function arCompetitorItem(x,idx){
+  return '<div class="ar-list-item"><span class="ar-num">'+idx+'</span><span class="ar-text">'+esc(arText(x.name))+'</span><span class="ar-tag">'+(x.dist>0?x.dist+'m':'')+'</span></div>';
+}
+function arRenderCompetition(p,real){
+  var dir=[real.direct_competitors_200m??0,real.direct_competitors_500m??0,real.direct_competitors_1000m??0],
+      sub=[real.substitute_competitors_200m??0,real.substitute_competitors_500m??0,real.substitute_competitors_1000m??0],
+      anc=[real.traffic_anchors_200m??0,real.traffic_anchors_500m??0,real.traffic_anchors_1000m??0];
+  var body='<div class="ar-grid3">'+arMetric('直接竞品',dir.join(' / '),'200m / 500m / 1km')+arMetric('间接竞品/替代消费',sub.join(' / '),'200m / 500m / 1km')+arMetric('客流锚点',anc.join(' / '),'200m / 500m / 1km')+'</div>';
+  var dl=real.direct_competitor_list||real.direct_competitors||real.direct_pois||[],
+      sl=real.substitute_list||real.substitute_competitors||real.substitute_pois||[],
+      al=real.traffic_anchor_list||real.traffic_anchors||real.anchor_pois||[];
+  var merged=[];
+  dl.forEach(function(x){var n=typeof x==='string'?x:(x.name||x.poi_name||'');var d=parseFloat(x.distance)||0;if(n)merged.push({name:n,dist:d})});
+  sl.forEach(function(x){var n=typeof x==='string'?x:(x.name||x.poi_name||'');var d=parseFloat(x.distance)||0;if(n)merged.push({name:n,dist:d})});
+  merged.sort(function(a,b){return a.dist-b.dist});
+  if(merged.length){
+    var topItems=merged.slice(0,10).map(function(x,i){return arCompetitorItem(x,i+1)}).join('');
+    var ext='';
+    if(merged.length>10){
+      var restItems=merged.slice(10).map(function(x,i){return arCompetitorItem(x,11+i)}).join('');
+      ext='<details style="margin-top:8px"><summary style="cursor:pointer;font-weight:700;color:#315bff">展开全部 '+merged.length+' 条</summary><div class="ar-list">'+restItems+'</div></details>';
+    }
+    body+=arSection('竞品样本','<div class="ar-list">'+topItems+'</div>'+ext);
+  }
+  body+=arRenderNamedChips('客流锚点样本',arNames(al),arCountMore(al),arNames(al,999));
+  body+=arRenderEvidence(p.evidence_summary);
+  return body;
+}
+
+function arRenderPoiCats(p,real){
+  var explicit=p.poi_categories||real.poi_categories;
+  if(Array.isArray(explicit)&&explicit.length){
+    return explicit.slice(0,20).map(function(c){
+      return '<div class="ar-row"><div class="ar-label">'+esc(arText(c.label||c.name||c.key||'类目'))+'</div><div class="ar-value">'+esc(arText(arArr(c.names).slice(0,6).join(' · ')))+(c.total?' <span class="tag tag-gray">'+esc(c.total)+'</span>':'')+'</div></div>'
+    }).join('')
+  }
+  var lists=real.poi_lists||{};
+  return arPoiDefs.map(function(kv){
+    var key=kv[0],label=kv[1];
+    var items=lists[key];
+    if(!Array.isArray(items)||!items.length)return'';
+    var names=items.map(arPoiName).filter(Boolean);
+    if(!names.length)return'';
+    var row='<div class="ar-row"><div class="ar-label">'+esc(label)+'</div><div class="ar-value">'+esc(arText(names.slice(0,5).join(' · ')))+' <span class="tag tag-gray">'+names.length+'</span>';
+    if(names.length>5){
+      row+='<details style="margin-top:6px"><summary style="cursor:pointer;color:#315bff;font-weight:700;font-size:12px">展开全部 '+names.length+' 条</summary><div style="margin-top:4px">'+names.slice(5).map(arPoiName).filter(Boolean).map(function(n){return '<span class="ar-chip">'+esc(arText(n))+'</span>'}).join('')+'</div></details>';
+    }
+    row+='</div></div>';
+    return row;
+  }).join('')
+}
+
 function arRenderDetails(p){const details=p.details||{},dims=Array.isArray(p.dimension_scores)?p.dimension_scores:[],scoreMap={};dims.forEach(d=>{if(d.key)scoreMap[d.key]=d.score??d.value??0});const keys=[...arDetailOrder,...Object.keys(details).filter(k=>!arDetailOrder.includes(k))];return keys.map(k=>{const raw=details[k];if(!raw)return'';const cfg=arDetailLabels[k]||{label:arFallbackLabel(k),hasScore:false};let rawText='';if(typeof raw==='string')rawText=raw;else if(typeof raw==='object')rawText=raw.text||raw.description||raw.content||raw.message||'';if(!rawText)return'';let score=0;if(cfg.hasScore){if(scoreMap[k]!==undefined)score=parseInt(scoreMap[k])||0;else{const m=rawText.match(/(?:评分|得分)[：:]\s*(\d+)/)||rawText.match(/(\d+)\s*分/);if(m)score=parseInt(m[1])||0}}score=Math.max(0,Math.min(100,score));return `<div class="ar-detail-block"><div class="flex-between" style="gap:12px"><h4>${esc(cfg.label)}</h4>${cfg.hasScore&&score>0?`<b style="color:${arScoreColor(score)}">${score} 分</b>`:''}</div><p>${esc(arText(arStripScore(rawText)))}</p></div>`}).join('')}
 function arRenderDataSufficiency(suff){if(!suff||!Object.keys(suff).length)return'';const reasons=Array.isArray(suff.reasons)&&suff.reasons.length?`<div class="ar-list" style="margin-top:10px">${suff.reasons.map((x,i)=>`<div class="ar-list-item"><span class="ar-num">${i+1}</span><span class="ar-text">${esc(arText(x))}</span></div>`).join('')}</div>`:'';return `<div class="ar-note ar-ok"><b>数据充分度：${esc(arText(suff.label||suff.level||'数据一般'))}</b>${suff.summary?` — ${esc(arText(suff.summary))}`:''}${reasons}</div>`}
 function arRenderBrands(brands){brands=Array.isArray(brands)?brands:[];const chips=brands.map(b=>{if(typeof b==='string')return {name:b,count:1};return {name:b.name||b.title||b.brand_name||'',count:b.count??1}}).filter(b=>b.name);return chips.length?`<div class="ar-chip-wrap">${chips.map(b=>`<span class="ar-chip">${esc(arText(b.name))}${b.count?` <b>×${esc(b.count)}</b>`:''}</span>`).join('')}</div>`:''}
@@ -567,28 +633,39 @@ function arScoreCard(score,p,m){const color=arScoreColor(score),deg=Math.max(0,M
 function arCheckIcon(i){return ['1️⃣','2️⃣','3️⃣','4️⃣','5️⃣','6️⃣','7️⃣','8️⃣','9️⃣'][i]||String(i+1)}
 function arCheckRow(label,value,cls){value=arText(value);return value?`<div class="ar-check-row"><span class="ar-check-label ${cls||''}">${esc(label)}</span><span class="ar-check-value ${cls||''}">${esc(value)}</span></div>`:''}
 function arRenderChecklist(checklist){return checklist.map((it,i)=>{if(typeof it==='string')return `<div class="ar-check-card"><div class="ar-check-head"><span class="ar-check-num">${arCheckIcon(i)}</span><span class="ar-check-title">${esc(arText(it))}</span></div></div>`;const records=arArr(it.record_method).map(x=>`<span class="ar-check-tag">${esc(arText(x))}</span>`).join('');return `<div class="ar-check-card"><div class="ar-check-head"><span class="ar-check-num">${arCheckIcon(i)}</span><span class="ar-check-title">${esc(arText(it.title||it.text||''))}</span></div>${arCheckRow('风险',it.risk_type,'ar-check-danger')}${arCheckRow('建议时间',it.time_window)}${arCheckRow('核验动作',it.action)}${records?`<div class="ar-check-row"><span class="ar-check-label">记录方式</span><span class="ar-check-value">${records}</span></div>`:''}${arCheckRow('通过信号',it.pass_hint)}${arCheckRow('淘汰信号',it.eliminate_hint,'ar-check-danger')}</div>`}).join('')}
+function humanMetaNote(m){var n=(m&&m.note)||'';if(!n)return'';if(n.indexOf('不具备成本压力精算依据')>=0||n.indexOf('50分为占位值')>=0||n.indexOf('人工成本')>=0||n.indexOf('预估营业额')>=0||n.indexOf('成本判断仍需结合实际经营情况')>=0){var missing=m.missing_required_inputs||[];var hasRent=missing.indexOf('rent_per_sqm')<0;return hasRent?'':'未填写月租金，房租压力只能粗略参考；如方便，建议补充月租金后再看成本判断。'}return n}
 function arRenderReport(p,m){const score=parseInt(p.score??p.overall_score??m.overall_score??0)||0;const exec=p.executive_summary||{};const decision=p.decision_snapshot||{};const real=p.real_data||{};let html=`<div class="admin-report"><div class="ar-hero"><div class="ar-kicker">址得选</div><div class="ar-title">商业选址初筛报告</div><div class="ar-name">${esc(arText(m.brand_desc||m.business_type||'报告详情'))}</div><div class="ar-sub">${esc(arText(m.address||''))}</div></div>`;
   if(score>0)html+=arScoreCard(score,p,m);
   if(p.report_type==='fallback')html+=`<div class="ar-note">保守版数据摘要 — 基于地图数据生成，深度分析未展开。建议结合现场核验。</div>`;
+  // P3: 用户填写租金展示
+  var ci=p.cost_inputs;if(ci&&(ci.monthly_rent||ci.rent_per_sqm)){
+    var ciLines=[],rs=ci.rent_source||'';
+    if(rs.startsWith('user_input'))ciLines.push('⏤ 来源：用户填写'+(rs.includes('per_sqm')?'（单平租金）':'（月租金）'));
+    else ciLines.push('⏤ 来源：模型估算');
+    if(ci.monthly_rent)ciLines.push('月租金：'+ci.monthly_rent.toLocaleString()+' 元/月');
+    if(ci.rent_per_sqm)ciLines.push('单平租金：'+ci.rent_per_sqm.toLocaleString()+' 元/㎡/月');
+    if(ci.store_size)ciLines.push('门店面积：'+ci.store_size+' ㎡');
+    html+=arSection('成本输入',`<div class="ar-text">${ciLines.map(function(l){return esc(l)}).join('<br>')}</div>`)
+  }
   const verdict=decision.verdict||exec.verdict||'待核验',one=decision.one_sentence||exec.summary||p.summary||'';
   const decisionBody=`<div class="ar-decision-head"><div class="ar-decision-verdict" style="color:${arScoreColor(score)}">${esc(arText(verdict))}</div>${score>0?`<div class="ar-decision-score">${score} 分</div>`:''}</div>${one?`<div class="ar-decision-summary">${esc(arText(one))}</div>`:''}<div class="ar-decision-pills">${decision.top_strength?`<div class="ar-decision-pill strength"><b>最大优势</b><span>${esc(arText(decision.top_strength))}</span></div>`:''}${decision.top_risk?`<div class="ar-decision-pill risk"><b>最大风险</b><span>${esc(arText(decision.top_risk))}</span></div>`:''}</div>${arRow('下一步',decision.next_action)}${arRow('成立条件',decision.fit_condition)}${arRow('降级条件',decision.stop_condition)}`;
   html+=arSection('选址决策参考',decisionBody||'<div class="ar-text">暂无结构化决策快照。</div>');
   html+=arReadPath();
   const lf=p.location_fundamentals||{};if(Object.keys(lf).length){html+=arSection('地点基本面',`<div class="ar-card">${arRow('位置类型',lf.label||lf.type)}${arRow('摘要',lf.summary)}</div><div class="ar-grid2" style="margin-top:10px"><div class="ar-card">${arList(lf.strengths)}</div><div class="ar-card">${arList(lf.risks)}</div></div>`)}
   html+=arRenderDataSufficiency(p.data_sufficiency||{});
-  const dims=Array.isArray(p.dimension_scores)?p.dimension_scores:[];if(dims.length){html+=arSection('关键维度评分',`<div class="ar-grid2">${dims.map(d=>{const v=parseInt(d.score??d.value??0)||0;const label=d.label||d.name||(arDetailLabels[d.key]?.label)||d.key||'指标';return `<div class="ar-metric"><div class="flex-between"><strong>${esc(arText(label))}</strong><b style="color:${arScoreColor(v)}">${v}</b></div><div class="ar-bar"><i style="width:${Math.max(0,Math.min(100,v))}%;background:${arScoreColor(v)}"></i></div></div>`}).join('')}</div>`)}
+  const dims=Array.isArray(p.dimension_scores)?p.dimension_scores:[];if(dims.length){html+=arSection('关键维度评分',`<div class="ar-grid2">${dims.map(d=>{const v=parseInt(d.score??d.value??0)||0;const label=d.label||d.name||(arDetailLabels[d.key]?.label)||'指标';return `<div class="ar-metric"><div class="flex-between"><strong>${esc(arText(label))}</strong><b style="color:${arScoreColor(v)}">${v}</b></div><div class="ar-bar"><i style="width:${Math.max(0,Math.min(100,v))}%;background:${arScoreColor(v)}"></i></div></div>`}).join('')}</div>`)}
   html+=arSection('分析摘要',`<div class="ar-text">${esc(arText(p.summary||exec.summary||''))}</div>`);
   html+=arSection('关键优势',arList(p.advantages));
   html+=arSection('主要风险',arList(p.disadvantages));
   if(p.demand_contradiction_note){html+=arSection('客源来源待核验','<p style="color:#92400e;background:#fffbeb;padding:10px 14px;border-radius:8px;border:1px solid #fde68a;">'+escHtml(String(p.demand_contradiction_note))+'</p>');}
-  var smeta=Array.isArray(p.dimension_score_meta)?p.dimension_score_meta:[];var slow=smeta.filter(function(m){return m&&typeof m==='object'&&(m.score_confidence==='low'||(Array.isArray(m.missing_required_inputs)&&m.missing_required_inputs.length>0));});if(slow.length>0){var sh='<div class="ar-list">';slow.forEach(function(m){var parts=[];if(m.score_confidence==='low')parts.push('<span style="color:#f59e0b;font-weight:700">低置信</span>');if(m.note)parts.push('<span style="color:#64748b">'+escHtml(String(m.note))+'</span>');var mi=Array.isArray(m.missing_required_inputs)?m.missing_required_inputs:[];if(mi.length>0)parts.push('<span style="color:#94a3b8;font-size:12px">缺失: '+escHtml(String(mi.join(', ')))+'</span>');sh+='<div class="ar-list-item" style="padding:6px 0"><span class="ar-text">'+escHtml(String(m.label||m.key||'unknown'))+': '+parts.join(' ')+'</span></div>';});sh+='</div>';html+=arSection('评分置信度提示',sh);}
+  var smeta=Array.isArray(p.dimension_score_meta)?p.dimension_score_meta:[];var slow=smeta.filter(function(m){return m&&typeof m==='object'&&(m.score_confidence==='low'||(Array.isArray(m.missing_labels)&&m.missing_labels.length>0));});if(slow.length>0){var sh='<div class="ar-list">';slow.forEach(function(m){var parts=[];if(m.score_confidence==='low')parts.push('<span style=\"color:#f59e0b;font-weight:700\">信息还不够完整</span>');if(m.note)parts.push('<span style=\"color:#475569;font-size:13px\">'+escHtml(humanMetaNote(m))+'</span>');var mi=Array.isArray(m.missing_labels)?m.missing_labels:[];if(mi.length>0&&!m.note)parts.push('<span style=\"color:#94a3b8;font-size:12px\">未填写: '+escHtml(String(mi.join('、')))+'</span>');sh+='<div class=\"ar-list-item\" style=\"padding:6px 0\"><span class=\"ar-text\">'+escHtml(String(m.label||(arDetailLabels[m.key]&&arDetailLabels[m.key].label)||'指标'))+': '+parts.join(' ')+'</span></div>';});sh+='</div>';html+=arSection('本项判断说明',sh);}
   html+=arSection('竞争环境',arRenderCompetition(p,real));
   if(Object.keys(real).length){const loc=[real.city,real.district,real.township].filter(Boolean).join(' · ');html+=arSection('周边数据（200m / 500m / 1km）',`${loc?`<div class="ar-card ar-text" style="margin-bottom:10px">${esc(arText(loc))}</div>`:''}${arRenderStats(real)}`)}
   const scopeParts=[];if(real.business_areas)scopeParts.push(arRow('商圈',Array.isArray(real.business_areas)?real.business_areas.join('、'):real.business_areas));if(real.nearby_roads)scopeParts.push(arRow('周边道路',Array.isArray(real.nearby_roads)?real.nearby_roads.join('、'):real.nearby_roads));if(scopeParts.length)html+=arSection('位置范围',scopeParts.join(''));
   html+=arSection('周边业态明细',arRenderPoiCats(p,real));
   html+=arSection('各维度详细分析',arRenderDetails(p));
   const brands=p.hot_brands||p.chain_brands||real.hot_brands||real.brands||real.chain_brands||real.brand_list||[];html+=arSection('周边连锁品牌',arRenderBrands(brands));
-  const irrList=real.irrelevant_excluded_list||real.irrelevant_list||real.excluded_pois||real.irrelevant_pois||[];const qual=[...(arArr(p.data_quality_notes)),...(real.irrelevant_excluded||p.irrelevant_poi_removed?['严谨度规则剔除 '+(real.irrelevant_excluded||p.irrelevant_poi_removed)+' 个无关点位']:[]),...arNames(irrList,5).map(n=>'已剔除：'+n)];html+=arSection('数据质量',arList(qual));
+  const irrList=real.irrelevant_excluded_list||real.irrelevant_list||real.excluded_pois||real.irrelevant_pois||[];const qual=[...(arArr(p.data_quality_notes)),...(real.irrelevant_excluded||p.irrelevant_poi_removed?['严谨度规则剔除 '+(real.irrelevant_excluded||p.irrelevant_poi_removed)+' 个无关点位']:[]),...arNames(irrList,5).map(n=>'已剔除：'+n)];html+=arSection('数据解释与边界',arList(qual));
   const bs=p.business_model_snapshot||{};if(Object.keys(bs).length){html+=arSection('行业生意模型：'+(m.business_type||'选址'),`<div class="ar-card">${arRow('核心逻辑',bs.core_logic)}${arRow('竞品口径',bs.competitor_note)}${arRow('成立条件',bs.fit_condition)}${arRow('降级条件',bs.stop_condition)}</div>${arList(bs.must_verify)}`)}
   html+=arSection('经营建议',arList(p.action_plan));
   const checklist=Array.isArray(p.field_checklist)?p.field_checklist:[];if(checklist.length){html+=arSection('现场核验清单',`<div class="ar-text" style="margin-bottom:12px">以下为建议的现场核验任务，以观察和记录为主，不输出绝对开店阈值。</div>${arRenderChecklist(checklist)}`)}
@@ -613,15 +690,29 @@ function downloadReportHtml(uuid,m){
 }
 
 async function viewReport(uuid){var d=document.getElementById('rpDetail');d.style.display='block';document.getElementById('rpAnchorBar').innerHTML='';document.getElementById('rpDetailContent').innerHTML='<p style="text-align:center;padding:60px;color:#64748b">加载中...</p>';
-  var r=await af('GET','/api/admin/reports/'+uuid);if(!r.ok){document.getElementById('rpDetailContent').innerHTML='<div style="background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:14px;color:#991b1b;font-size:13px">加载失败: '+esc(r.data?.detail||'')+'</div>';return}
+  var r; try { r=await af('GET','/api/admin/reports/'+uuid); } catch(e) { document.getElementById('rpDetailContent').innerHTML='<div style="background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:14px;color:#991b1b;font-size:13px"><b>请求异常</b><pre style="margin:8px 0 0;font-size:11px;white-space:pre-wrap">'+esc(String(e))+'</pre></div>'; return; }
+  if(!r.ok){document.getElementById('rpDetailContent').innerHTML='<div style="background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:14px;color:#991b1b;font-size:13px"><b>加载失败</b><p style="margin:4px 0 0">'+esc(r.data?.detail||'HTTP '+r.status)+'</p></div>';return}
   var m=r.data.meta||{},p=r.data.report||{},pe=r.data.parse_error||'',se=r.data.storage_error||'',hc=r.data.html_content||'',raw=r.data.raw_report_json||'';
   var srcMap={db_json:'DB JSON',local_file:'本地文件',cloud_url:'腾讯云 COS',missing:'缺失',db_json_parse_error:'DB JSON(解析失败)'}
   var html='<div style="display:flex;align-items:center;gap:12px;padding:10px 14px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;margin-bottom:12px;flex-wrap:wrap;font-size:12px">'
   html+='<span class="mono" style="font-size:11px;flex:1;min-width:200px">'+esc(uuid)+'</span><span style="color:#64748b">'+(srcMap[m.storage_source]||'-')+'</span><span style="color:#64748b">'+esc(fmtDateTime(m.created_at))+'</span><button class="btn btn-primary btn-xs" id="rpDownloadBtn">下载报告</button><button class="btn btn-outline btn-xs" onclick="navigator.clipboard.writeText(\x27'+esc(uuid)+'\x27);toast(\x27已复制\x27,1)">复制ID</button>'
   if(m.report_url)html+='<a href="'+escUrl(m.report_url)+'" target="_blank" class="btn btn-outline btn-xs">打开云端报告</a>';html+='</div>'
-  if(pe)html+='<div style="background:#fffbeb;border:1px solid #fde68a;border-radius:6px;padding:8px 12px;margin-bottom:10px;font-size:12px;color:#92400e">JSON 解析异常（已回退本地/COS）</div>'
-  if(se)html+='<div style="background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:8px 12px;margin-bottom:10px;font-size:12px;color:#991b1b">文件读取提示: '+esc(se)+'</div>'
-  html+=Object.keys(p).length?arRenderReport(p,m):'<div style="text-align:center;padding:40px;color:#64748b">报告 JSON 暂无，无法生成后台预览</div>'
+  // 诊断条
+  html+='<div style="display:flex;gap:8px;padding:6px 10px;background:#f1f5f9;border:1px solid #e2e8f0;border-radius:6px;margin-bottom:8px;flex-wrap:wrap;font-size:11px;color:#475569">'
+  html+='<span>JSON: '+(m.has_report_json?'<b style="color:#16a34a">有</b> ('+m.report_json_length+' 字节)':'<b style="color:#dc2626">空</b>')+'</span>'
+  html+='<span>| 云端: '+(m.has_report_url?'<b style="color:#16a34a">有</b>':'<b style="color:#94a3b8">无</b>')+'</span>'
+  html+='<span>| 文件: '+(m.has_report_file?'<b style="color:#16a34a">有</b>':'<b style="color:#94a3b8">无</b>')+'</span>'
+  html+='<span>| 来源: <b>'+esc(srcMap[m.storage_source]||'-')+'</b></span>'
+  html+='</div>'
+  if(pe)html+='<div style="background:#fffbeb;border:1px solid #fde68a;border-radius:6px;padding:8px 12px;margin-bottom:10px;font-size:12px;color:#92400e"><b>JSON 解析异常</b> — 已回退本地/COS<pre style="margin:4px 0 0;font-size:11px;white-space:pre-wrap">'+esc(pe)+'</pre></div>'
+  if(se)html+='<div style="background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:8px 12px;margin-bottom:10px;font-size:12px;color:#991b1b"><b>存储异常</b><pre style="margin:4px 0 0;font-size:11px;white-space:pre-wrap">'+esc(se)+'</pre></div>'
+  if(Object.keys(p).length){
+    try{ html+=arRenderReport(p,m); }catch(re){
+      html+='<div class="ar-error-card" style="background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:16px;color:#991b1b;font-size:13px"><h4 style="margin:0 0 8px">报告渲染异常</h4><p style="margin:0 0 4px">report_uuid: <code>'+esc(uuid)+'</code></p><p style="margin:0 0 4px">storage_source: '+esc(srcMap[m.storage_source]||'-')+'</p><pre style="margin:8px 0 0;font-size:11px;white-space:pre-wrap">'+esc(re.stack||String(re))+'</pre></div>';
+    }
+  }else{
+    html+='<div style="text-align:center;padding:40px;color:#64748b">报告 JSON 暂无，无法生成后台预览。</div>';
+  }
   if(hc){html+='<details style="margin-top:12px"><summary style="cursor:pointer;font-weight:800;padding:8px 14px;background:#f1f5f9;border-radius:6px;font-size:12px">旧 HTML 文件预览（技术排查用）</summary><iframe srcdoc="'+esc(hc).replace(/"/g,'&quot;')+'" style="width:100%;height:520px;border:1px solid #e2e8f0;background:#fff;margin-top:8px"></iframe></details>'}
   if(raw){var rawDisplay=raw;try{rawDisplay=JSON.stringify(JSON.parse(raw),null,2)}catch(e){}html+='<details style="margin-top:12px"><summary style="cursor:pointer;font-weight:800;padding:8px 14px;background:#f1f5f9;border-radius:6px;font-size:12px">原始数据（技术排查用）</summary><div style="padding:12px;border:1px solid #e2e8f0;border-top:0;border-radius:0 0 6px 6px"><div style="text-align:right;margin-bottom:6px"><button class="btn btn-outline btn-xs" id="rpCopyRawBtn">复制 JSON</button></div><pre id="rpRawJson" style="max-height:400px;overflow:auto;background:#0f172a;color:#dbeafe;padding:12px;border-radius:6px;font-size:11px;line-height:1.5;white-space:pre-wrap;word-break:break-all">'+esc(rawDisplay)+'</pre></div></details>'}
   document.getElementById('rpAnchorBar').innerHTML=''

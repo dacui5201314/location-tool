@@ -94,8 +94,7 @@ def enrich_report_business_context(report: dict, real_data: dict,
     # ── 数据边界 ──
     if not report.get("data_boundary") or not isinstance(report.get("data_boundary"), str) or len(report.get("data_boundary", "")) < 20:
         report["data_boundary"] = (
-            "数据来源：高德地图POI采集 + 系统规则分析。"
-            "覆盖范围：以选址点为中心1000米半径。"
+            "覆盖范围：以选址点为中心1000米半径，基于周边公开地图点位和系统规则。"
             "数据可能存在更新延迟，店铺经营状态以实际为准。"
             "本报告仅用于选址初筛参考，不替代现场调研、租金测算和实际商业判断。"
         )
