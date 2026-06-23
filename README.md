@@ -29,8 +29,13 @@
   - **租金可选输入**：前端小程序月租金/单平租金切换输入；后端 cost_inputs 全链路；report_json 写入租金；成本维度区分"用户填写"与"模型估算"
   - **维度文案白话化**：移除"数据来自高德POI采集/已做名称脱水"等模板废话；prompt 规则#7 约束表达；维度标签全部中文化（周边客源密度/到店方便程度/房租压力等）
   - **竞品展示优化**：三端合并直接+间接竞品样本，按距离排序，可展开全部，移除逐行重复类型标签
-  - **后台报告详情增强**：viewReport/arRenderReport 异常兜底；诊断字段（report_json_length/has_report_json/storage_source）；COS 默认 tencent_cos
-  - **测试基线提升**：206 PASS, 0 FAIL（redline 回归 + 严谨度规则 2178 + Fact Guard 188 + 云存储 80 + 充实服务）
+	  - **后台报告详情增强**：viewReport/arRenderReport 异常兜底；诊断字段（report_json_length/has_report_json/storage_source）；COS 默认 tencent_cos
+	  - **付费感文案修复**：移除保守版数据摘要/深度分析未展开/基于地图数据生成等半成品感措辞，统一为初筛版报告
+	  - **营收免责优化**：不再把人工食材成本列为必填缺失项；营收测算改为建议现场核验后再做
+	  - **POI 展开压缩**：后台周边业态明细展开区改为纵向 ar-list-item
+	  - **escHtml 生产修复**：旧报告 ReferenceError 兼容别名
+	  - **UnboundLocalError 修复**：cost_inputs 赋值位置修正
+	  - **测试基线提升**：274 PASS, 0 FAIL（redline 回归 + 严谨度规则 2178 + Fact Guard 188 + 云存储 80 + 充实服务）
 
 ---
 

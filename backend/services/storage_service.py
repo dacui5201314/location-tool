@@ -232,7 +232,7 @@ def _build_report_html(record_id: int, report_data: dict, address: str, brand_na
     # ── P1: fallback 标识 ──
     fallback_badge_html = ""
     if report_type == "fallback":
-        fallback_badge_html = '<div class="notice" style="background:#fef3c7;color:#92400e;border:1px solid #fde68a;margin-bottom:28px;">📋 保守版数据摘要 — 基于采集数据生成，深度分析未展开。建议结合现场核验。</div>'
+        fallback_badge_html = '<div class="notice" style="background:#fef3c7;color:#92400e;border:1px solid #fde68a;margin-bottom:28px;">📋 初筛版报告 — 适合先判断是否值得实地看铺。经营测算需现场核验后补充。</div>'
 
     # ── P1: 地点基本面 ──
     location_fundamentals = report_data.get("location_fundamentals") or {}

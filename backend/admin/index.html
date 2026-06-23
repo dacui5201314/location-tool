@@ -602,6 +602,9 @@ function arRenderCompetition(p,real){
   return body;
 }
 
+function arPoiListItem(name,idx){
+  return '<div class="ar-list-item"><span class="ar-num">'+idx+'</span><span class="ar-text">'+esc(arText(name))+'</span></div>';
+}
 function arRenderPoiCats(p,real){
   var explicit=p.poi_categories||real.poi_categories;
   if(Array.isArray(explicit)&&explicit.length){
@@ -618,7 +621,7 @@ function arRenderPoiCats(p,real){
     if(!names.length)return'';
     var row='<div class="ar-row"><div class="ar-label">'+esc(label)+'</div><div class="ar-value">'+esc(arText(names.slice(0,5).join(' · ')))+' <span class="tag tag-gray">'+names.length+'</span>';
     if(names.length>5){
-      row+='<details style="margin-top:6px"><summary style="cursor:pointer;color:#315bff;font-weight:700;font-size:12px">展开全部 '+names.length+' 条</summary><div style="margin-top:4px">'+names.slice(5).map(arPoiName).filter(Boolean).map(function(n){return '<span class="ar-chip">'+esc(arText(n))+'</span>'}).join('')+'</div></details>';
+      row+='<details style="margin-top:6px"><summary style="cursor:pointer;color:#315bff;font-weight:700;font-size:12px">展开全部 '+names.length+' 条</summary><div class="ar-list" style="margin-top:4px">'+names.slice(5).map(function(n,idx){return arPoiListItem(n,idx+6)}).join('')+'</div></details>';
     }
     row+='</div></div>';
     return row;
@@ -636,7 +639,7 @@ function arRenderChecklist(checklist){return checklist.map((it,i)=>{if(typeof it
 function humanMetaNote(m){var n=(m&&m.note)||'';if(!n)return'';if(n.indexOf('不具备成本压力精算依据')>=0||n.indexOf('50分为占位值')>=0||n.indexOf('人工成本')>=0||n.indexOf('预估营业额')>=0||n.indexOf('成本判断仍需结合实际经营情况')>=0){var missing=m.missing_required_inputs||[];var hasRent=missing.indexOf('rent_per_sqm')<0;return hasRent?'':'未填写月租金，房租压力只能粗略参考；如方便，建议补充月租金后再看成本判断。'}return n}
 function arRenderReport(p,m){const score=parseInt(p.score??p.overall_score??m.overall_score??0)||0;const exec=p.executive_summary||{};const decision=p.decision_snapshot||{};const real=p.real_data||{};let html=`<div class="admin-report"><div class="ar-hero"><div class="ar-kicker">址得选</div><div class="ar-title">商业选址初筛报告</div><div class="ar-name">${esc(arText(m.brand_desc||m.business_type||'报告详情'))}</div><div class="ar-sub">${esc(arText(m.address||''))}</div></div>`;
   if(score>0)html+=arScoreCard(score,p,m);
-  if(p.report_type==='fallback')html+=`<div class="ar-note">保守版数据摘要 — 基于地图数据生成，深度分析未展开。建议结合现场核验。</div>`;
+  if(p.report_type==='fallback')html+=`<div class="ar-note">初筛版报告 — 适合先判断是否值得实地看铺。经营测算需现场核验后补充。</div>`;
   // P3: 用户填写租金展示
   var ci=p.cost_inputs;if(ci&&(ci.monthly_rent||ci.rent_per_sqm)){
     var ciLines=[],rs=ci.rent_source||'';

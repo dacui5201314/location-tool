@@ -156,7 +156,7 @@ def compute_decision_snapshot(score, real_data, business_type="", brand_name="",
             stop_condition = "目标客群实测持续偏低，且经营条件难以改善"
 
     if is_fallback:
-        fit_condition += "（本报告为保守版数据摘要，深度分析未展开）"
+        fit_condition += "（本报告为初筛版参考）"
 
     # ── sanitize 所有用户可见字段 ──
     return {

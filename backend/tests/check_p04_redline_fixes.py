@@ -596,6 +596,58 @@ def test_competitor_no_type_tags():
         finally:
             os.unlink(tmp)
 
+
+# === T20: paid-feel text + POI expand ===
+def test_paid_feel_text():
+    import pathlib
+    ah = (pathlib.Path(__file__).resolve().parent.parent / "admin" / "index.html").read_text(encoding="utf-8")
+    import services.storage_service as ss
+    sh = open(ss.__file__, encoding="utf-8").read()
+    import services.fallback_report_service as fbs
+    fb = open(fbs.__file__, encoding="utf-8").read()
+    import services.report_quality_service as rqs
+    rq = open(rqs.__file__, encoding="utf-8").read()
+    import services.report_decision_service as rds
+    rd = open(rds.__file__, encoding="utf-8").read()
+    import services.report_enrichment_service as res
+    re = open(res.__file__, encoding="utf-8").read()
+    vue = pathlib.Path(__file__).resolve().parent.parent.parent / "uniapp" / "src" / "pages" / "report-detail" / "index.vue"
+    vt = vue.read_text(encoding="utf-8")
+
+    # Ban old phrases
+    banned = ["保守版数据摘要", "深度分析未展开", "数据数据", "计数钟", "基于地图数据生成",
+              "本报告未生成营收测算", "人工和食材成本"]
+    for phrase in banned:
+        t(f"T20a: admin no '{phrase}'", phrase not in ah)
+        t(f"T20b: storage no '{phrase}'", phrase not in sh)
+        t(f"T20c: fallback no '{phrase}'", phrase not in fb)
+        t(f"T20d: quality no '{phrase}'", phrase not in rq)
+        t(f"T20e: decision no '{phrase}'", phrase not in rd)
+        t(f"T20f: enrich no '{phrase}'", phrase not in re)
+        t(f"T20g: vue no '{phrase}'", phrase not in vt)
+
+    # New phrases must exist
+    t("T20h: admin has 初筛版报告", "初筛版报告" in ah)
+    t("T20i: storage has 初筛版报告", "初筛版报告" in sh)
+    t("T20j: enrich has 避免给出虚高预期", "避免给出虚高预期" in re)
+    t("T20k: enrich has 后续可结合人工配置", "后续可结合人工配置" in re)
+
+    # arRenderPoiCats expand uses ar-list-item not ar-chip
+    # Find the POI function and check expand section
+    poi_start = ah.find("function arRenderPoiCats")
+    poi_end = ah.find("function arRenderDetails", poi_start)
+    poi_func = ah[poi_start:poi_end]
+    t("T20l: POI expand no standalone ar-chip span", '<span class="ar-chip">' not in poi_func)
+    t("T20m: POI expand has arPoiListItem", "arPoiListItem" in poi_func)
+    t("T20n: POI expand has ar-list", 'ar-list' in poi_func)
+
+    # Dimension labels are plain Chinese
+    cn_dims = ["周边客源密度", "到店方便程度", "门前客流情况", "周边消费人群", "同类竞争情况", "房租压力"]
+    for label in cn_dims:
+        t(f"T20o: admin has '{label}'", label in ah)
+        t(f"T20p: storage has '{label}'", label in sh)
+
+
 for _fn, _label in [
     (test_storage_default, "T1-storage-default"),
     (test_admin_test_endpoint_detail, "T2-admin-test-detail"),
@@ -616,6 +668,7 @@ for _fn, _label in [
     (test_user_readability, "T17-user-readability"),
     (test_merged_competitors, "T18-merged-competitors"),
     (test_competitor_no_type_tags, "T19-competitor-no-type-tags"),
+    (test_paid_feel_text, "T20-paid-feel-text"),
 ]:
     try:
         _fn()

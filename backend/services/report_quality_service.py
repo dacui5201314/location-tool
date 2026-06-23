@@ -72,7 +72,7 @@ def assess_data_sufficiency(real_data: dict, business_type: str = "",
         level = "moderate"
 
     if flags["is_fallback"]:
-        reasons.append("本报告为保守版数据摘要，深度分析未展开")
+        reasons.append("本报告为初筛版参考，适合先判断是否值得实地看铺")
         if level == "sufficient":
             level = "moderate"
 
@@ -91,7 +91,7 @@ def assess_data_sufficiency(real_data: dict, business_type: str = "",
     # fallback 最高只能是 moderate
     if flags["is_fallback"] and level == "sufficient":
         level = "moderate"
-        reasons.insert(0, "保守版数据摘要，不包含完整深度分析")
+        reasons.insert(0, "初筛版参考，适合先判断是否值得实地看铺")
 
     # 未启用 rigor 且 POI 稀疏 → 直接 insufficient
     if not flags["rigor_enabled"] and flags["poi_sparse"]:

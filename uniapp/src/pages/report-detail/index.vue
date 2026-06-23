@@ -53,7 +53,7 @@
       <!-- P0-A: fallback 标识（分享页也展示，但文案使用用户可理解表述） -->
       <view class="fb-badge" v-if="rptFallbackNote">
         <text class="fb-badge-icon">📋</text>
-        <text class="fb-badge-text">保守版数据摘要 — 基于地图数据生成，深度分析未展开。建议结合现场核验。</text>
+        <text class="fb-badge-text">初筛版报告 — 适合先判断是否值得实地看铺。经营测算需现场核验后补充。</text>
       </view>
 
       <!-- P0-B: 决策卡片（优先展示，缺字段时降级到评分卡） -->
@@ -1093,7 +1093,7 @@ export default {
 
       // report_type fallback 提示
       if (this.rptFallbackNote && !this.rptDataBoundary) {
-        this.rptDataBoundary = '本报告为保守版数据摘要，仅基于地图数据生成，不包含完整深度分析。建议结合现场核验。'
+        this.rptDataBoundary = '本报告为初筛版参考，适合先判断是否值得实地看铺。经营测算需现场核验后补充。'
       }
 
       // P1: 地点基本面与生意模型快照
