@@ -368,51 +368,69 @@ async def wechat_notify(request: Request, db: Session = Depends(get_db)):
     if not transaction_id:
         return JSONResponse(status_code=400, content={"code": "FAIL", "message": "missing transaction_id"})
 
-    # 4. 幂等到账
+    # 4. 原子幂等到账
+    result = _process_notify_grant(db, out_trade_no, transaction_id, trade_data)
+    if result["http_status"] == 200:
+        return {"code": "SUCCESS", "message": result["message"]}
+    return JSONResponse(status_code=result["http_status"],
+                        content={"code": "FAIL", "message": result["message"]})
+
+
+def _process_notify_grant(db: Session, out_trade_no: str, transaction_id: str,
+                           trade_data: dict) -> dict:
+    """普通微信支付 notify 到账核心逻辑（可测试）。
+    返回 {"http_status": int, "message": str, "claimed": bool}。
+    """
+    from services.payment_idempotency import claim_payment_order, grant_payment_benefits
+
     order = db.query(PaymentOrder).filter(PaymentOrder.out_trade_no == out_trade_no).first()
     if not order:
-        return JSONResponse(status_code=404, content={"code": "FAIL", "message": "order not found"})
-    if order.status == "PAID":
-        return JSONResponse(status_code=200, content={"code": "SUCCESS", "message": "already paid"})
+        return {"http_status": 404, "message": "order not found", "claimed": False}
 
+    # ── 幂等快速返回 ──
+    if order.status == "PAID":
+        return {"http_status": 200, "message": "already paid", "claimed": False}
+
+    # ── 拒绝终态 ──
+    if order.status in ("REFUNDED", "CANCELLED", "CLOSED", "FAILED"):
+        print(f"[Pay] notify 拒绝终态订单 {out_trade_no} status={order.status}", flush=True)
+        return {"http_status": 400, "message": f"order is {order.status}", "claimed": False}
+
+    # ── 金额校验 ──
     wx_amount = trade_data.get("amount", {}).get("total", 0)
     if wx_amount != order.amount_fen:
-        return JSONResponse(status_code=400, content={"code": "FAIL", "message": "amount mismatch"})
+        return {"http_status": 400, "message": "amount mismatch", "claimed": False}
 
-    # 到账
-    order.transaction_id = transaction_id
-    order.status = "PAID"
-    order.paid_at = datetime.now()
-
+    # ── 用户 + openid 校验 ──
     db_user = db.query(User).filter(User.id == order.user_id).first()
     if not db_user:
-        return JSONResponse(status_code=404, content={"code": "FAIL", "message": "user not found"})
-    balance_before = db_user.balance_credits
+        return {"http_status": 404, "message": "user not found", "claimed": False}
+    payer_openid = (trade_data.get("payer", {}) or {}).get("openid", "")
+    if payer_openid:
+        user_openid = db_user.wx_mini_openid or ""
+        if payer_openid != user_openid:
+            print(f"[Pay] openid 不匹配 order={out_trade_no}", flush=True)
+            return {"http_status": 400, "message": "openid mismatch", "claimed": False}
 
-    if order.credits > 0:
-        db_user.balance_credits += order.credits
-        db.add(BillingRecord(
-            user_id=order.user_id, amount=order.credits,
-            balance_after=db_user.balance_credits,
-            record_type="PURCHASE", reason=f"微信支付充值 {order.credits}点 ({order.out_trade_no})",
-        ))
+    # ── 原子抢占 ──
+    claimed = claim_payment_order(db, order)
+    if not claimed:
+        db.refresh(order)
+        if order.status == "PAID":
+            return {"http_status": 200, "message": "already paid", "claimed": False}
+        return {"http_status": 400, "message": f"order is {order.status}", "claimed": False}
 
-    if order.membership_days > 0:
-        now = datetime.now()
-        if db_user.membership_expiry and db_user.membership_expiry > now:
-            db_user.membership_expiry += timedelta(days=order.membership_days)
-        else:
-            db_user.membership_expiry = now + timedelta(days=order.membership_days)
-        db_user.membership_tier = "monthly" if order.membership_days <= 90 else ("quarterly" if order.membership_days <= 180 else "yearly")
-        db.add(BillingRecord(
-            user_id=order.user_id, amount=0,
-            balance_after=db_user.balance_credits,
-            record_type="MEMBERSHIP", reason=f"微信支付开通会员 {order.membership_days}天 ({order.out_trade_no})",
-        ))
-
-    db.commit()
-    print(f"[Pay] 到账成功 out_trade_no={out_trade_no} credits={order.credits} days={order.membership_days} balance:{balance_before}->{db_user.balance_credits}", flush=True)
-    return {"code": "SUCCESS", "message": "OK"}
+    # ── 发权益（同事务）──
+    try:
+        order.transaction_id = transaction_id
+        grant_payment_benefits(db, order)
+        db.commit()
+        print(f"[Pay] 到账成功 out_trade_no={out_trade_no}", flush=True)
+        return {"http_status": 200, "message": "OK", "claimed": True}
+    except Exception:
+        db.rollback()
+        print(f"[Pay] 发权益事务失败 order={out_trade_no}", flush=True)
+        return {"http_status": 500, "message": "grant failed", "claimed": False}
 
 
 @router.get("/orders/{out_trade_no}")

@@ -181,7 +181,13 @@ export default {
         }
         const pp = r.data
 
-        // 2. 检查 wx.requestVirtualPayment 可用性
+        // 2. 客户端参数检查
+        if (!pp || !pp.mode || !pp.signData || !pp.paySig || !pp.signature || !pp.order_no) {
+          this.payErr = '订单参数异常，请重新下单'
+          return
+        }
+
+        // 3. 检查 wx.requestVirtualPayment 可用性
         if (!wx.requestVirtualPayment) {
           this.payErr = '当前微信版本暂不支持虚拟支付，请升级微信后重试'
           return
@@ -191,10 +197,10 @@ export default {
         try {
           await new Promise((resolve, reject) => {
             wx.requestVirtualPayment({
-              mode: pp.mode || 'short_series_goods',
-              signData: pp.signData || '',
-              paySig: pp.paySig || '',
-              signature: pp.signature || '',
+              mode: pp.mode,
+              signData: pp.signData,
+              paySig: pp.paySig,
+              signature: pp.signature,
               success: resolve,
               fail: reject
             })
@@ -227,8 +233,9 @@ export default {
           this.payErr = '支付处理中，请稍后刷新'
           return
         }
+        this.payErr = '支付确认中，请稍候...'
         let paid = false
-        for (let i = 0; i < 6; i++) {
+        for (let i = 0; i < 20; i++) {
           await new Promise(r => setTimeout(r, 1500))
           try {
             const qr = await api.queryVirtualOrder(orderNo)

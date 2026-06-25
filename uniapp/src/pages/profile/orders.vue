@@ -160,13 +160,17 @@ export default {
           return
         }
         const pp = r.data
+        if (!pp || !pp.mode || !pp.signData || !pp.paySig || !pp.signature || !pp.order_no || pp.order_no !== o.out_trade_no) {
+          uni.showToast({ title: '支付参数异常，请重新发起支付', icon: 'none' })
+          return
+        }
         if (!wx.requestVirtualPayment) {
           uni.showToast({ title: '当前微信版本不支持', icon: 'none' })
           return
         }
         try {
           await new Promise((resolve, reject) => {
-            wx.requestVirtualPayment({ mode: pp.mode || 'short_series_goods', signData: pp.signData || '', paySig: pp.paySig || '', signature: pp.signature || '', success: resolve, fail: reject })
+            wx.requestVirtualPayment({ mode: pp.mode, signData: pp.signData, paySig: pp.paySig, signature: pp.signature, success: resolve, fail: reject })
           })
         } catch (payErr) {
           const errMsg = (payErr && payErr.errMsg) || ''
@@ -175,7 +179,7 @@ export default {
           return
         }
         let paid = false
-        for (let i = 0; i < 6; i++) {
+        for (let i = 0; i < 20; i++) {
           await new Promise(r => setTimeout(r, 1500))
           try {
             const qr = await api.queryVirtualOrder(o.out_trade_no)

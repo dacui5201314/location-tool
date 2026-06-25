@@ -266,40 +266,47 @@ def query_virtual_order(
     }
 
 
-def _grant_order(db: Session, order, user_id: int):
-    """发放订单权益（仅 notify 验签通过后调用）"""
+def _grant_order(db: Session, order, user_id: int, db_user=None) -> bool:
+    """发放订单权益（原子抢占 + 同事务发权益）。
+    返回 True 表示发放成功或已 PAID（幂等）。
+    返回 False 表示订单是终态，不应发放。
+    """
+    from services.payment_idempotency import claim_payment_order, grant_payment_benefits
+
+    # ── 幂等快速返回 ──
     if order.status == "PAID":
-        return
-    db_user = db.query(User).filter(User.id == user_id).first()
-    if not db_user:
-        return
+        return True
+
+    # ── 拒绝终态 ──
+    if order.status in ("REFUNDED", "CANCELLED", "CLOSED", "FAILED"):
+        print(f"[VPAY] _grant_order 拒绝终态 {order.out_trade_no} status={order.status}", flush=True)
+        return False
+
+    # ── 原子抢占 ──
+    claimed = claim_payment_order(db, order)
+    if not claimed:
+        db.refresh(order)
+        if order.status == "PAID":
+            return True
+        print(f"[VPAY] claim 失败 order={order.out_trade_no} status={order.status}", flush=True)
+        return False
+
+    # ── 发权益（同事务）──
     try:
-        order.status = "PAID"
-        order.paid_at = datetime.now()
-        if order.credits > 0:
-            db_user.balance_credits += order.credits
-            db.add(BillingRecord(
-                user_id=user_id, amount=order.credits,
-                balance_after=db_user.balance_credits,
-                record_type="PURCHASE", reason=f"虚拟支付充值 {order.credits}点 ({order.out_trade_no})",
-            ))
-        if order.membership_days > 0:
-            now = datetime.now()
-            if db_user.membership_expiry and db_user.membership_expiry > now:
-                db_user.membership_expiry += timedelta(days=order.membership_days)
-            else:
-                db_user.membership_expiry = now + timedelta(days=order.membership_days)
-            db_user.membership_tier = "monthly" if order.membership_days <= 90 else ("quarterly" if order.membership_days <= 180 else "yearly")
-            db.add(BillingRecord(
-                user_id=user_id, amount=0,
-                balance_after=db_user.balance_credits,
-                record_type="MEMBERSHIP", reason=f"虚拟支付开通会员 {order.membership_days}天 ({order.out_trade_no})",
-            ))
+        if db_user is None:
+            db_user = db.query(User).filter(User.id == user_id).first()
+        if not db_user:
+            db.rollback()
+            print(f"[VPAY] 用户不存在 order={order.out_trade_no}", flush=True)
+            return False
+        grant_payment_benefits(db, order)
         db.commit()
         print(f"[VPAY] 到账成功 order={order.out_trade_no} credits={order.credits} days={order.membership_days}", flush=True)
+        return True
     except Exception:
         db.rollback()
         print(f"[VPAY] 发放权益事务失败 order={order.out_trade_no}", flush=True)
+        return False
 
 
 def _revoke_order(db: Session, order, db_user):
@@ -649,8 +656,9 @@ async def virtual_notify(request: Request, db: Session = Depends(get_db)):
         return JSONResponse(status_code=200, content={"ErrCode": 1, "ErrMsg": "amount mismatch"})
 
     # ═══ 支付到账，发放权益 ═══
-    _grant_order(db, order, order.user_id)
-    return JSONResponse(status_code=200, content={"ErrCode": 0, "ErrMsg": "Success"})
+    if _grant_order(db, order, order.user_id):
+        return JSONResponse(status_code=200, content={"ErrCode": 0, "ErrMsg": "Success"})
+    return JSONResponse(status_code=200, content={"ErrCode": 1, "ErrMsg": "grant failed"})
 
 
 # ═══════════════════════════════════════════════════════════
@@ -747,17 +755,19 @@ def reconcile_order(
     if order.status == "PAID":
         return {"ok": True, "status": "PAID", "credits": order.credits, "membership_days": order.membership_days}
 
-    # 只允许虚拟支付 + CREATED
+    # 只允许虚拟支付 + CREATED/PROCESSING
     if order.pay_channel != "WECHAT_VIRTUAL":
         raise HTTPException(status_code=400, detail="非虚拟支付订单")
-    if order.status != "CREATED":
+    if order.status not in ("CREATED", "PROCESSING"):
         raise HTTPException(status_code=400, detail=f"订单状态 {order.status} 不可同步")
 
     # 调用微信查单
     confirm = _wx_query_virtual_order(db, order)
     if confirm == "PAID":
-        _grant_order(db, order, user_id)
-        return {"ok": True, "status": "PAID", "credits": order.credits, "membership_days": order.membership_days, "synced": True}
+        ok = _grant_order(db, order, user_id)
+        return {"ok": True, "status": "PAID" if ok else order.status,
+                "credits": order.credits, "membership_days": order.membership_days,
+                "synced": ok}
     elif confirm == "NOT_PAID":
         return {"ok": True, "status": "CREATED", "message": "微信未确认支付"}
     else:
@@ -781,8 +791,8 @@ def admin_reconcile_order(
 
     confirm = _wx_query_virtual_order(db, order)
     if confirm == "PAID":
-        _grant_order(db, order, order.user_id)
-        return {"ok": True, "status": "PAID", "credits": order.credits, "synced": True}
+        ok = _grant_order(db, order, order.user_id)
+        return {"ok": True, "status": "PAID" if ok else order.status, "credits": order.credits, "synced": ok}
     elif confirm == "NOT_PAID":
         return {"ok": True, "status": "CREATED", "message": "微信未确认支付"}
     else:
