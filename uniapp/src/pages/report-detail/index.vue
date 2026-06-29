@@ -434,6 +434,8 @@
 import api from '../../utils/api'
 import config from '../../utils/config'
 import { scoreColor, formatTime } from '../../utils/format'
+import { resolveShareImage, downloadShareImage } from '../../utils/share-helper'
+import { createMaskDeep } from '../../utils/mask-deep'
 
 export default {
   data () {
@@ -549,6 +551,9 @@ export default {
       wx.showShareMenu({ menus: ['shareAppMessage', 'shareTimeline'] })
     }
   },
+  created () {
+    this._maskDeep = createMaskDeep((text) => this.maskProviderText(text))
+  },
   onLoad (options) {
     // 加载分享配置 — 下载分享图到本地临时路径
     api.fetchShareConfig().then(c => {
@@ -641,15 +646,8 @@ export default {
         .replace(/POI数据采集/g, '周边数据采集')
         .replace(/POI/g, '点位数据')
     },
-    maskDeep (value) {
-      if (typeof value === 'string') return this.maskProviderText(value)
-      if (Array.isArray(value)) return value.map(v => this.maskDeep(v))
-      if (value && typeof value === 'object') {
-        const out = {}
-        Object.keys(value).forEach(k => { out[k] = this.maskDeep(value[k]) })
-        return out
-      }
-      return value
+    maskDeep (value, depth, seen) {
+      return this._maskDeep(value, depth, seen)
     },
     applyReportDisplayMask () {
       ;['rptDisclaimer','rptWarning','rptSummary','rptCaliberExplanation','rptDataBoundary','rptRevenueDisclaimer','rptBizAreas','rptRoads'].forEach(k => {
@@ -663,11 +661,7 @@ export default {
       this.rptLocationFundamentals = this.maskDeep(this.rptLocationFundamentals)
       this.rptBusinessModelSnapshot = this.maskDeep(this.rptBusinessModelSnapshot)
     },
-    resolveShareImage (url) {
-      if (!url) return ''
-      if (url.startsWith('/assets/')) return config.API_BASE_URL + url
-      return url
-    },
+    resolveShareImage,  // from share-helper.js
     getReportShareImageUrl () {
       const cfg = this.shareConfig || {}
       const raw = cfg.report_share_image_url || cfg.share_image_url || ''
@@ -675,14 +669,8 @@ export default {
       return this.reportShareImageLocal || resolved
     },
     _downloadShareImage (url) {
-      uni.downloadFile({
-        url,
-        success: (res) => {
-          if (res.statusCode === 200 && res.tempFilePath) {
-            this.reportShareImageLocal = res.tempFilePath
-          }
-        },
-        fail: (err) => { console.warn('[share-report] downloadFile failed:', (err && err.errMsg) || err) }
+      downloadShareImage(url, (tempFilePath) => {
+        this.reportShareImageLocal = tempFilePath
       })
     },
     fmtMoney (v) { if (v == null) return ''; return Number(v).toLocaleString() },
@@ -697,7 +685,7 @@ export default {
       const note = (m && m.note) || ''
       if (!note) return ''
       if (note.includes('不具备成本压力精算依据') || note.includes('50分为占位值') || note.includes('人工成本') || note.includes('预估营业额') || note.includes('成本判断仍需结合实际经营情况')) {
-        var hasRent = (m.missing_required_inputs || []).indexOf('rent_per_sqm') < 0
+        var hasRent = Array.isArray(m.missing_required_inputs) ? m.missing_required_inputs.indexOf('rent_per_sqm') < 0 : true
         return hasRent ? '' : '未填写月租金，房租压力只能粗略参考；如方便，建议补充月租金后再看成本判断。'
       }
       return note

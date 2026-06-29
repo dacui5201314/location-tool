@@ -1,5 +1,6 @@
 """认证路由 — JWT 签发、设备指纹、微信授权、手机号注册/登录、新用户奖励（多端兼容）"""
 import hashlib
+import hmac
 import os
 import time as _time
 import threading
@@ -25,6 +26,17 @@ _login_rate_map: dict[str, list[float]] = {}
 _login_rate_lock = threading.Lock()
 _LOGIN_RATE_MAX = 5      # 每窗口最多尝试
 _LOGIN_RATE_WINDOW = 60.0  # 秒
+_LOGIN_RATE_MAX_KEYS = 5000
+
+
+def _prune_rate_map(rate_map: dict, now: float, window: float, max_keys: int):
+    """清理过期条目；超容量时淘汰最旧 key。调用方必须持有锁。"""
+    stale = [k for k, v in rate_map.items() if not any(t > now - window for t in v)]
+    for k in stale:
+        del rate_map[k]
+    while len(rate_map) > max_keys:
+        oldest = min(rate_map, key=lambda k: rate_map[k][0] if rate_map[k] else now + 1)
+        del rate_map[oldest]
 
 
 def _check_user_login_rate(identifier: str) -> bool:
@@ -35,9 +47,11 @@ def _check_user_login_rate(identifier: str) -> bool:
         attempts = [t for t in attempts if now - t < _LOGIN_RATE_WINDOW]
         if len(attempts) >= _LOGIN_RATE_MAX:
             _login_rate_map[identifier] = attempts
+            _prune_rate_map(_login_rate_map, now, _LOGIN_RATE_WINDOW, _LOGIN_RATE_MAX_KEYS)
             return False
         attempts.append(now)
         _login_rate_map[identifier] = attempts
+        _prune_rate_map(_login_rate_map, now, _LOGIN_RATE_WINDOW, _LOGIN_RATE_MAX_KEYS)
         return True
 
 router = APIRouter(prefix="/api/auth", tags=["认证"])
@@ -54,12 +68,12 @@ def _hash_password(password: str) -> str:
 
 
 def _verify_password(password: str, stored: str) -> bool:
-    """校验密码"""
+    """恒定时间校验密码"""
     try:
         salt_hex, dk_hex = stored.split(":", 1)
         salt = bytes.fromhex(salt_hex)
         dk = hashlib.pbkdf2_hmac("sha256", password.encode(), salt, 100000)
-        return dk.hex() == dk_hex
+        return hmac.compare_digest(dk.hex().encode(), dk_hex.encode())
     except (ValueError, AttributeError):
         return False
 
@@ -84,10 +98,8 @@ def _get_config_str(db: Session, key: str, default: str = "") -> str:
 
 
 def _get_client_ip(request: Request) -> str:
-    forwarded = request.headers.get("X-Forwarded-For", "")
-    if forwarded:
-        return forwarded.split(",")[0].strip()
-    return request.client.host if request.client else ""
+    from services.client_ip import get_client_ip
+    return get_client_ip(request)
 
 
 def find_user_by_phone(db: Session, phone: str) -> User | None:
@@ -305,7 +317,7 @@ def phone_register(
     db: Session = Depends(get_db),
 ):
     """手机号 + 密码注册。phone 必填且唯一，密码哈希入库，返回 JWT。"""
-    client_ip = request.client.host if request and request.client else "127.0.0.1"
+    client_ip = _get_client_ip(request) if request else "127.0.0.1"
     reg_key = f"reg:{client_ip}"
     if not _check_user_login_rate(reg_key):
         raise HTTPException(status_code=429, detail="注册尝试次数过多，请稍后再试")
@@ -315,8 +327,8 @@ def phone_register(
 
     if not phone or len(phone) < 11:
         raise HTTPException(status_code=400, detail="请输入有效的手机号")
-    if not password or len(password) < 6:
-        raise HTTPException(status_code=400, detail="密码至少 6 位")
+    if not password or len(password) < 8:
+        raise HTTPException(status_code=400, detail="密码至少 8 位")
 
     # 检查手机号是否已注册（双字段 OR 查询）
     existing = find_user_by_phone(db, phone)
@@ -403,7 +415,7 @@ def phone_login(
 ):
     """手机号 + 密码登录，校验成功返回 JWT。"""
     # 速率限制：基于 IP + phone 组合
-    client_ip = request.client.host if request and request.client else "127.0.0.1"
+    client_ip = _get_client_ip(request) if request else "127.0.0.1"
     rate_key = f"{client_ip}:{body.phone.strip()}"
     if not _check_user_login_rate(rate_key):
         raise HTTPException(status_code=429, detail="尝试次数过多，请稍后再试")
@@ -418,10 +430,15 @@ def phone_login(
 
     user = find_user_by_phone(db, phone)
     if not user:
-        raise HTTPException(status_code=401, detail="手机号未注册")
+        raise HTTPException(status_code=401, detail="账号或密码错误")
 
     if not user.password_hash or not _verify_password(password, user.password_hash):
-        raise HTTPException(status_code=401, detail="密码错误")
+        try:
+            from services.abuse_monitor import note_login_fail
+            note_login_fail(client_ip)
+        except Exception:
+            pass
+        raise HTTPException(status_code=401, detail="账号或密码错误")
 
     token = create_token(user.id, role="user")
     return {
@@ -495,14 +512,13 @@ def wechat_official_login(
         client_ip=client_ip,
     )
 
-    # 3. 签发 JWT
+    # 3. 签发 JWT（不返回 openid）
     token = create_token(user.id, role="user")
     return {
         "token": token,
         "user": user.to_dict(),
         "is_new_user": is_new,
         "gift_note": gift_note,
-        "wx_openid": openid,
     }
 
 
@@ -585,17 +601,14 @@ def wechat_mini_login(
         db.commit()
         db.refresh(user)
 
-    # 3. 签发 JWT
+    # 3. 签发 JWT（不返回 openid/unionid 给前端）
     token = create_token(user.id, role="user")
     resp = {
         "token": token,
         "user": user.to_dict(),
         "is_new_user": is_new,
         "gift_note": gift_note,
-        "wx_mini_openid": openid,
     }
-    if unionid:
-        resp["wx_unionid"] = unionid
     return resp
 
 
@@ -815,16 +828,13 @@ def wechat_mini_phone_login(
         db.rollback()
         raise HTTPException(status_code=409, detail="该手机号已绑定其他账号")
 
-    # Step 4: 签发 JWT
+    # Step 4: 签发 JWT（不返回 openid/unionid）
     token = create_token(user.id, role="user")
     resp = {
         "token": token,
         "user": user.to_dict(),
         "is_new_user": is_new,
         "gift_note": gift_note,
-        "wx_mini_openid": openid,
         "phone": phone_number,
     }
-    if unionid:
-        resp["wx_unionid"] = unionid
     return resp

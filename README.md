@@ -79,7 +79,7 @@ location-tool/
 │   ├── src/components/                # 组件（address-input / industry-picker / tab panels）
 │   ├── src/utils/                     # API 客户端 / 认证 / 格式化工具
 │   └── package.json
-├── miniprogram/                       # 原生微信小程序（登录参考 scaffold）
+├── miniprogram/                       # ⚠️ 历史废弃目录，不可发布/继续开发
 └── logo-1/                            # 品牌素材
 ```
 
@@ -93,10 +93,12 @@ location-tool/
 
 ```env
 # ★ 必填：大模型配置
-LLM_PROVIDER=deepseek
+# Key 优先级：provider 专用 env（如 DEEPSEEK_API_KEY）> 后台 DB ai_key > LLM_API_KEY 兜底 > 未配置
+LLM_PROVIDER=deepseek       # deepseek | openai | gemini | kimi | minimax | zhipu
 LLM_MODEL=deepseek-chat
 LLM_BASE_URL=https://api.deepseek.com/v1
-LLM_API_KEY=sk-your-key-here
+LLM_API_KEY=sk-your-key-here  # 兜底 Key（推荐设置 provider 专用 Key）
+# 各平台专用 Key（如 DEEPSEEK_API_KEY、OPENAI_API_KEY 等），优先级高于 LLM_API_KEY
 
 # ★ 必填：高德地图
 AMAP_WEB_KEY=your_amap_web_key
@@ -133,7 +135,7 @@ start_backend.bat
 ```bash
 curl http://localhost:8000/api/health
 # → {"status":"ok"}
-# Swagger 文档 → http://localhost:8000/docs
+# Swagger 文档（仅开发环境）→ http://localhost:8000/docs
 ```
 
 ### 3. 启动 uni-app 开发
@@ -158,7 +160,7 @@ npm run dev:h5            # H5 网页
 
 ```bash
 http://localhost:8000/admin          # 管理后台
-http://localhost:8000/docs           # Swagger API 文档
+http://localhost:8000/docs           # Swagger API 文档（仅开发环境）
 ```
 
 主要管理接口：
@@ -242,7 +244,6 @@ Nginx (HTTPS, 宝塔面板)
         │
         ├── /api/* → proxy_pass → localhost:8000 (FastAPI + uvicorn)
         ├── /assets/ → proxy_pass → localhost:8000
-        ├── /docs → proxy_pass → localhost:8000
         └── /admin → proxy_pass → localhost:8000
                 │
                 ▼
@@ -271,7 +272,7 @@ Nginx (HTTPS, 宝塔面板)
 ```bash
 cd /www/wwwroot/location-tool/backend
 pip install -r requirements.txt
-nohup python main.py > /tmp/zdx-api.log 2>&1 &
+nohup uv run --with-requirements requirements.txt python main.py > /tmp/zdx-api.log 2>&1 &
 ```
 
 ## 第三步：Nginx 反向代理
@@ -291,15 +292,11 @@ server {
         proxy_http_version 1.1;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-For $remote_addr;
         proxy_buffering off;           # ★ SSE 必须关闭缓冲
     }
 
     location /assets/ {
-        proxy_pass http://127.0.0.1:8000;
-    }
-
-    location /docs {
         proxy_pass http://127.0.0.1:8000;
     }
 
@@ -326,7 +323,19 @@ AMAP_SECURITY_CODE=real_security_code
 
 JWT_SECRET=<生成一个64位随机字符串>
 ADMIN_PASSWORD=<设置强密码>
+
+# ★ 生产环境必设（缺少会拒绝启动）
+ENVIRONMENT=production
+CORS_ORIGINS=https://your-domain.com
+
+# ★ 仅限本地开发调试，生产启用会拒绝启动
+# ALLOW_CLIENT_REALDATA_FALLBACK=false
 ```
+
+> **生产环境安全要求**：
+> - `ENVIRONMENT=production` 必须设置。
+> - `CORS_ORIGINS` 必须填写具体域名（如 `https://your-domain.com`），不允许空值或 `*`。
+> - `ALLOW_CLIENT_REALDATA_FALLBACK` 仅限本地开发调试，生产环境启用会导致启动失败。
 
 ## 第五步：SSL 证书
 
@@ -357,6 +366,52 @@ cp /www/wwwroot/location-tool/backend/location_tool.db \
 
 WAL 模式会自动生成 `-wal` 和 `-shm` 文件，备份时一起复制。
 
+### 兼容迁移台账
+
+所有运行时 schema 变更集中在两处，启动时自动执行，无需手动迁移：
+
+| 文件 | 函数 | 表 | 字段/操作 |
+|------|------|-----|----------|
+| `backend/database.py` | `init_db()` | `users` | `nickname` |
+| | | `analysis_records` | `share_token`, `report_uuid`, `report_file`, `report_url`, `is_pdf_unlocked` |
+| | | `amap_keys` | 建表 |
+| | | `saved_locations` | `latest_report_uuid` |
+| | | `payment_orders` | `pay_channel` |
+| | | `users` | `wx_session_key` |
+| | | `feedbacks` | `image_urls`, `credits_granted`, `report_uuid`, `report_title`, `report_address`, `source`, `status`, `admin_reply`, `replied_at`, `updated_at` |
+| `backend/routers/feedback.py` | `_ensure_feedback_schema()` | `feedbacks` | 同上 10 字段（防旧库缺列，幂等） |
+
+> 长期建议引入版本化迁移工具（如 Alembic），替代运行时 ALTER TABLE。
+
+---
+
+## Python 环境（统一使用 uv）
+
+```bash
+# 自检命令（复制即用）
+cd backend
+uv run --with-requirements requirements.txt python -m compileall -q .
+uv run --with-requirements requirements.txt python -c "import main; print('ok')"
+
+# 运行测试
+uv run --with-requirements requirements.txt python tests/check_*.py
+
+# 如缓存报错，设置项目内临时缓存
+# Linux/macOS
+export UV_CACHE_DIR=./.uv-cache
+# Windows PowerShell
+$env:UV_CACHE_DIR='C:\Users\admin\location-tool\.uv-cache-codex'
+```
+
+---
+
+## 项目目录说明
+
+| 目录 | 说明 |
+|------|------|
+| `uniapp/` | **唯一有效小程序工程**。uni-app 编译为微信小程序，发布审核。 |
+| `miniprogram/` | **历史目录，已废弃**。早期微信原生小程序占位（AppID 与 uni-app 不同）。请勿修改/发布。 |
+
 ---
 
 ## 常用运维命令
@@ -366,7 +421,7 @@ WAL 模式会自动生成 `-wal` 和 `-shm` 文件，备份时一起复制。
 tail -f /tmp/zdx-api.log
 
 # 重启后端
-pkill -f "python main.py" && cd /www/wwwroot/location-tool/backend && nohup python main.py > /tmp/zdx-api.log 2>&1 &
+pkill -f "python main.py" && cd /www/wwwroot/location-tool/backend && nohup uv run --with-requirements requirements.txt python main.py > /tmp/zdx-api.log 2>&1 &
 
 # 验证后端健康
 curl http://localhost:8000/api/health
@@ -377,29 +432,29 @@ curl http://localhost:8000/api/health
 **本地开发（推荐使用项目虚拟环境）**：
 
 ```bash
-# 首次：创建虚拟环境并安装依赖
-cd C:\Users\admin\location-tool
-uv venv backend\.venv --python 3.12
-uv pip install --python backend\.venv\Scripts\python.exe -r backend\requirements.txt
+# 首次安装依赖
+cd C:\Users\admin\location-tool\backend
+uv pip install -r requirements.txt
 
 # 回归测试（每次改动后必须全部通过）
-cd backend
-.venv\Scripts\python.exe -m compileall . -x ".*\\.venv.*"
-.venv\Scripts\python.exe tests\check_report_fact_guard.py
-.venv\Scripts\python.exe tests\check_industry_rigor_rules.py
-.venv\Scripts\python.exe tests\check_fallback_report.py
-.venv\Scripts\python.exe tests\check_p05_report_quality.py
+uv run --with-requirements requirements.txt python -m compileall -q .
+uv run --with-requirements requirements.txt python tests/check_report_fact_guard.py
+uv run --with-requirements requirements.txt python tests/check_industry_rigor_rules.py
+uv run --with-requirements requirements.txt python tests/check_fallback_report.py
+uv run --with-requirements requirements.txt python tests/check_p05_report_quality.py
+
+# 依赖安全审计（每次发布前执行）
+uv pip list --outdated                              # Python 依赖过期检查
+npm audit --production 2>/dev/null || true           # 前端依赖漏洞扫描（uniapp 目录）
 ```
 
 **生产服务器**：
 
 ```bash
 cd /www/wwwroot/location-tool/backend
-python -m compileall .
-python tests/check_industry_rigor_rules.py
-python tests/check_report_fact_guard.py
-python tests/check_fallback_report.py
-python tests/check_p05_report_quality.py
+uv run --with-requirements requirements.txt python -m compileall -q .
+uv run --with-requirements requirements.txt python tests/check_industry_rigor_rules.py
+uv run --with-requirements requirements.txt python tests/check_report_fact_guard.py
 ```
 
 ---
@@ -410,6 +465,7 @@ python tests/check_p05_report_quality.py
 - [ ] `JWT_SECRET` 已替换为高强度随机字符串（非默认值）
 - [ ] `ADMIN_PASSWORD` 已设置强密码
 - [ ] Nginx 已配置 SSL 证书
-- [ ] 管理后台 `/docs` 建议加 IP 白名单（宝塔 Nginx 可配 `allow/deny`）
+- [ ] Nginx `proxy_set_header X-Forwarded-For $remote_addr`（覆盖外部传入，不可使用 `$proxy_add_x_forwarded_for`）
+- [ ] 生产环境 `ENVIRONMENT=production` 下 `/docs`、`/redoc`、`/openapi.json` 已禁用；如需文档仅在受保护的 staging/dev 开启
 - [ ] 数据库文件权限设为 600（`chmod 600 location_tool.db`）
 - [ ] 高德 Key 已通过管理后台 Key 池配置（支持自动故障切换）

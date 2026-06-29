@@ -98,14 +98,37 @@ def check_billing_access(user: User, cost: int = 1, db_session=None) -> BillingR
     )
 
     if result.rowcount == 0:
-        # 并发冲突：余额在检查和扣款之间被其他请求消耗
-        db_session.refresh(user)  # 刷新 ORM 状态，确保调用方看到最新余额
+        # rowcount==0：并发冲突 或 余额在扣款瞬间不足
+        db_session.refresh(user)
+        # 刷新后按现有规则重新判断有效点数
+        effective = user.balance_credits
+        free_expired = False
+        if user.free_point_expire_at is not None and not user.free_point_active:
+            effective = max(0, user.balance_credits - 1)
+            free_expired = True
+        if effective < cost:
+            if free_expired and user.balance_credits > 0:
+                return BillingResult(
+                    allowed=False,
+                    reason="您的免费赠送点数已过期（注册后24小时有效），请充值后继续使用",
+                    source="blocked",
+                    points_before=before,
+                    points_after=user.balance_credits,
+                )
+            return BillingResult(
+                allowed=False,
+                reason="点数不足且会员已过期，请充值或续费会员",
+                source="blocked",
+                points_before=before,
+                points_after=user.balance_credits,
+            )
+        # 余额足够但 UPDATE 没命中 → 并发冲突
         return BillingResult(
             allowed=False,
             reason="操作冲突，请重试",
             source="blocked",
             points_before=before,
-            points_after=user.balance_credits,  # 使用刷新后的真实余额
+            points_after=user.balance_credits,
         )
 
     # 刷新 ORM 对象以反映数据库最新状态
@@ -130,17 +153,17 @@ def check_billing_access(user: User, cost: int = 1, db_session=None) -> BillingR
     )
 
 
-def refund_credits(user_id: int, amount: int = 1, reason: str = "", idempotency_key: str = ""):
-    """原子化退还点数 — LLM/JSON解析异常时的资损兜底回滚。写入REFUND记录。
-
-    idempotency_key: 可选幂等键。传入后先检查是否已有同 key 的 REFUND 记录，
-    存在则直接返回（不再重复加余额）。key 写入 BillingRecord.reason 的稳定前缀。
+def refund_credits(user_id: int, amount: int = 1, reason: str = "", idempotency_key: str = "",
+                    db_session=None):
+    """原子化退还点数。
+    传入 db_session 时复用调用方事务（不 commit/rollback/close）；
+    不传时自建 session（保持向后兼容）。
     """
     from database import SessionLocal
     from models.db_models import BillingRecord
-    db = SessionLocal()
+    own_session = db_session is None
+    db = db_session or SessionLocal()
     try:
-        # 幂等检查
         if idempotency_key:
             idem_prefix = f"AUTO_REFUND:{idempotency_key}:"
             existing = db.query(BillingRecord).filter(
@@ -170,12 +193,17 @@ def refund_credits(user_id: int, amount: int = 1, reason: str = "", idempotency_
             record_type="REFUND",
             reason=refund_reason,
         ))
-        db.commit()
+        if own_session:
+            db.commit()
         print(f"[SSE Guard] 退款成功 user_id={user_id} amount={amount} reason={reason} idem_key={idempotency_key or 'none'}", flush=True)
     except Exception:
-        db.rollback()
+        if own_session:
+            db.rollback()
         import traceback
         print(f"[CRITICAL] 点数退还失败！user_id={user_id}, amount={amount}，用户已损失点数，需手工补偿", flush=True)
         traceback.print_exc()
+        if not own_session:
+            raise
     finally:
-        db.close()
+        if own_session:
+            db.close()

@@ -678,10 +678,10 @@ def _get_wx_access_token(db: Session) -> str:
     if not mini_appid or not mini_secret:
         return ""
     try:
-        r = httpx.get(
+        from services.wechat_http import wechat_get_sync
+        r = wechat_get_sync(
             "https://api.weixin.qq.com/cgi-bin/token"
-            f"?grant_type=client_credential&appid={mini_appid}&secret={mini_secret}",
-            timeout=10,
+            f"?grant_type=client_credential&appid={mini_appid}&secret={mini_secret}"
         )
         data = r.json()
         return data.get("access_token", "")
@@ -716,9 +716,11 @@ def _wx_query_virtual_order(db: Session, order) -> str:
     pay_sig = _xpay_sig(endpoint, body_str, app_key)
     url = f"https://api.weixin.qq.com{endpoint}?access_token={access_token}&pay_sig={pay_sig}"
     try:
-        r = httpx.post(url, content=body_str.encode("utf-8"), headers={"Content-Type": "application/json"}, timeout=15)
+        from services.wechat_http import wechat_post_sync
+        r = wechat_post_sync(url, content=body_str.encode("utf-8"), headers={"Content-Type": "application/json"})
         result = r.json()
-        print(f"[VPAY-QUERY] endpoint={endpoint} env={env_val} order={order.out_trade_no} http={r.status_code} resp={json.dumps(result,ensure_ascii=False)[:4000]}", flush=True)
+        _qs = f"ec={result.get('errcode')} msg={(result.get('errmsg') or '')[:40]}"
+        print(f"[VPAY-QUERY] endpoint={endpoint} env={env_val} order={order.out_trade_no} http={r.status_code} {_qs}", flush=True)
         if result.get("errcode") == 0:
             pay_info = result.get("pay_info", {}) or {}
             status = str(pay_info.get("trade_state", "") or result.get("trade_state", ""))
@@ -870,26 +872,30 @@ def _xpay_sig(endpoint, body_str, app_key):
 
 
 def _rid_query(access_token, rid):
-    """查询微信 rid 详细信息，返回脱敏摘要"""
+    """查询微信 rid 详细信息，返回安全摘要（不含 request_body/response_body 原文）。"""
     try:
-        r = httpx.post(
+        from services.wechat_http import wechat_post_sync
+        r = wechat_post_sync(
             f"https://api.weixin.qq.com/cgi-bin/openapi/rid/get?access_token={access_token}",
-            json={"rid": rid},
-            timeout=15,
+            json_data={"rid": rid},
         )
         data = r.json()
-        req_url = str(data.get("request_url", "") or "")[:200]
-        req_body = str(data.get("request_body", "") or "")[:200]
-        resp_body = str(data.get("response_body", "") or "")[:200]
-        for secret in [access_token]:
-            if secret:
-                req_url = req_url.replace(secret, "TOKEN***")
-                req_body = req_body.replace(secret, "TOKEN***")
-        print(f"[VPAY-RID] rid={rid} req_url={req_url} req_body={req_body} resp_body={resp_body}", flush=True)
-        return f"rid_req_url={req_url} rid_req_body={req_body} rid_resp={resp_body}"
+        req_path = ""
+        req_url = str(data.get("request_url", "") or "")
+        if req_url:
+            try:
+                from urllib.parse import urlparse
+                req_path = urlparse(req_url).path or req_url[:80]
+            except Exception:
+                req_path = req_url[:80]
+        req_keys = list((data.get("request_body") or {}).keys()) if isinstance(data.get("request_body"), dict) else []
+        resp_keys = list((data.get("response_body") or {}).keys()) if isinstance(data.get("response_body"), dict) else []
+        summary = f"path={req_path} req_keys={req_keys[:5]} resp_keys={resp_keys[:5]}"
+        print(f"[VPAY-RID] rid={rid} {summary}", flush=True)
+        return f"rid_diag:{summary}"
     except Exception as e:
-        print(f"[VPAY-RID] 查询失败 rid={rid}: {e}", flush=True)
-        return f"rid_query_failed:{str(e)[:100]}"
+        print(f"[VPAY-RID] 查询失败 rid={rid}: {type(e).__name__}", flush=True)
+        return f"rid_query_failed:{type(e).__name__}"
 
 
 def _wx_query_order_status(db, order, app_key, offer_id, openid, access_token):
@@ -906,9 +912,11 @@ def _wx_query_order_status(db, order, app_key, offer_id, openid, access_token):
     pay_sig = _xpay_sig(endpoint, body_str, app_key)
     url = f"https://api.weixin.qq.com{endpoint}?access_token={access_token}&pay_sig={pay_sig}"
     try:
-        r = httpx.post(url, content=body_str.encode("utf-8"), headers={"Content-Type": "application/json"}, timeout=15)
+        from services.wechat_http import wechat_post_sync
+        r = wechat_post_sync(url, content=body_str.encode("utf-8"), headers={"Content-Type": "application/json"})
         result = r.json()
-        print(f"[VPAY-QUERY] endpoint={endpoint} env={env_val} order={order.out_trade_no} http={r.status_code} resp={json.dumps(result,ensure_ascii=False)[:4000]}", flush=True)
+        _qs = f"ec={result.get('errcode')} msg={(result.get('errmsg') or '')[:40]}"
+        print(f"[VPAY-QUERY] endpoint={endpoint} env={env_val} order={order.out_trade_no} http={r.status_code} {_qs}", flush=True)
         return result
     except Exception as e:
         print(f"[VPAY-QUERY] 异常 order={order.out_trade_no}: {e}", flush=True)
@@ -943,9 +951,9 @@ def _wx_refund_virtual_order(db: Session, order) -> tuple:
         return False, "小程序凭证未配置"
 
     try:
-        tr = httpx.get(
-            f"https://api.weixin.qq.com/cgi-bin/token?grant_type=client_credential&appid={mini_appid}&secret={mini_secret}",
-            timeout=10,
+        from services.wechat_http import wechat_get_sync
+        tr = wechat_get_sync(
+            f"https://api.weixin.qq.com/cgi-bin/token?grant_type=client_credential&appid={mini_appid}&secret={mini_secret}"
         )
         access_token = tr.json().get("access_token", "")
     except Exception:
@@ -991,10 +999,12 @@ def _wx_refund_virtual_order(db: Session, order) -> tuple:
     print(f"[VPAY-REFUND] endpoint={endpoint} env={env_val} order={order.out_trade_no} {safe_info}", flush=True)
 
     try:
-        r = httpx.post(url, content=body_str.encode("utf-8"), headers={"Content-Type": "application/json"}, timeout=20)
+        from services.wechat_http import wechat_post_sync
+        r = wechat_post_sync(url, content=body_str.encode("utf-8"), headers={"Content-Type": "application/json"})
         status = r.status_code
         result = r.json()
-        print(f"[VPAY-REFUND] http={status} order={order.out_trade_no} resp={json.dumps(result,ensure_ascii=False)[:500]}", flush=True)
+        _rs = f"ec={result.get('errcode')} msg={(result.get('errmsg') or '')[:60]}"
+        print(f"[VPAY-REFUND] http={status} order={order.out_trade_no} {_rs}", flush=True)
 
         errcode = result.get("errcode", -1)
         errmsg = (result.get("errmsg") or result.get("msg") or "").strip()
@@ -1161,9 +1171,9 @@ def admin_refund_sync(
         raise HTTPException(status_code=503, detail="小程序凭证未配置")
 
     try:
-        tr = httpx.get(
-            f"https://api.weixin.qq.com/cgi-bin/token?grant_type=client_credential&appid={mini_appid}&secret={mini_secret}",
-            timeout=10,
+        from services.wechat_http import wechat_get_sync
+        tr = wechat_get_sync(
+            f"https://api.weixin.qq.com/cgi-bin/token?grant_type=client_credential&appid={mini_appid}&secret={mini_secret}"
         )
         access_token = tr.json().get("access_token", "")
     except Exception:

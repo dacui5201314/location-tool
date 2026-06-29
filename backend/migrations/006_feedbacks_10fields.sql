@@ -1,0 +1,10 @@
+ALTER TABLE feedbacks ADD COLUMN image_urls TEXT DEFAULT '[]';
+ALTER TABLE feedbacks ADD COLUMN credits_granted INTEGER DEFAULT 0;
+ALTER TABLE feedbacks ADD COLUMN report_uuid VARCHAR(64) DEFAULT '';
+ALTER TABLE feedbacks ADD COLUMN report_title VARCHAR(200) DEFAULT '';
+ALTER TABLE feedbacks ADD COLUMN report_address TEXT DEFAULT '';
+ALTER TABLE feedbacks ADD COLUMN source VARCHAR(40) DEFAULT 'profile';
+ALTER TABLE feedbacks ADD COLUMN status VARCHAR(20) DEFAULT 'pending';
+ALTER TABLE feedbacks ADD COLUMN admin_reply TEXT DEFAULT '';
+ALTER TABLE feedbacks ADD COLUMN replied_at DATETIME DEFAULT NULL;
+ALTER TABLE feedbacks ADD COLUMN updated_at DATETIME DEFAULT NULL;

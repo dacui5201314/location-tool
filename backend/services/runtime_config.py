@@ -11,7 +11,7 @@ from models.db_models import SystemConfig
 CORE_CONFIG_DEFAULTS = {
     "amap_key": os.getenv("AMAP_WEB_KEY", os.getenv("AMAP_KEY", "")),
     "ai_provider": os.getenv("LLM_PROVIDER", "deepseek"),
-    "ai_key": os.getenv("LLM_API_KEY", os.getenv("DEEPSEEK_API_KEY", "")),
+    "ai_key": "",  # 默认为空；真实 DB 值由 get_llm_config() 按优先级解析
     "system_prompt": "",
     "wx_mch_id": "",
     "wx_app_id": "",
@@ -188,16 +188,54 @@ def clear_user_skus(user_id: int, db_session=None) -> None:
             db.close()
 
 
+def _read_db_ai_key() -> str:
+    """直接从 SystemConfig 表读取 ai_key（不含默认值）。"""
+    db = SessionLocal()
+    try:
+        row = db.query(SystemConfig).filter(SystemConfig.key == "ai_key").first()
+        return (row.value or "").strip() if row else ""
+    except Exception:
+        return ""
+    finally:
+        db.close()
+
+
 def get_llm_config() -> dict[str, str]:
+    """获取 LLM 配置，含 key 来源信息。
+    Key 优先级：provider 专用 env > 真实 DB ai_key > LLM_API_KEY 兜底 > missing。
+    不 fallback 到其他 provider 的 key。
+    """
     cfg = get_core_config()
     provider = (cfg.get("ai_provider") or "deepseek").strip() or "deepseek"
     defaults = PROVIDER_RUNTIME_DEFAULTS.get(provider, PROVIDER_RUNTIME_DEFAULTS["deepseek"])
-    env_key = os.getenv("LLM_API_KEY") or os.getenv(f"{provider.upper()}_API_KEY", "")
+    db_key = _read_db_ai_key()
+    provider_env_name = f"{provider.upper()}_API_KEY"
+    provider_env_key = os.getenv(provider_env_name, "")
+    # kimi 兼容 MOONSHOT_API_KEY
+    if not provider_env_key and provider == "kimi":
+        provider_env_key = os.getenv("MOONSHOT_API_KEY", "")
+        if provider_env_key:
+            provider_env_name = "MOONSHOT_API_KEY"
+    llm_env_key = os.getenv("LLM_API_KEY", "")
+
+    api_key = ""
+    key_source = "missing"
+    if provider_env_key:
+        api_key = provider_env_key
+        key_source = f"env:{provider_env_name}"
+    elif db_key:
+        api_key = db_key
+        key_source = "db:ai_key"
+    elif llm_env_key:
+        api_key = llm_env_key
+        key_source = "env:LLM_API_KEY"
+
     return {
         "provider": provider,
         "base_url": defaults["base_url"].rstrip("/"),
         "model": defaults["model"],
-        "api_key": (cfg.get("ai_key") or env_key or "").strip(),
+        "api_key": api_key,
+        "key_source": key_source,
     }
 
 

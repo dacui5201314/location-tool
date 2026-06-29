@@ -131,7 +131,24 @@ export default {
         count: 3 - this.images.length,
         sizeType: ['compressed'],
         sourceType: ['album', 'camera'],
-        success: (res) => { this.images = this.images.concat(res.tempFilePaths).slice(0, 3) }
+        success: (res) => {
+          const files = res.tempFiles || []
+          const paths = res.tempFilePaths || []
+          for (let i = 0; i < paths.length; i++) {
+            if (this.images.length >= 3) break
+            const f = files[i]
+            if (f && f.size > 2 * 1024 * 1024) {
+              uni.showToast({ title: '图片不能超过2MB', icon: 'none' })
+              continue
+            }
+            const ext = (paths[i] || '').split('.').pop().toLowerCase()
+            if (!['png','jpg','jpeg','webp'].includes(ext)) {
+              uni.showToast({ title: '仅支持 PNG/JPG/WebP 图片', icon: 'none' })
+              continue
+            }
+            this.images.push(paths[i])
+          }
+        }
       })
     },
     removeImg (i) { this.images.splice(i, 1) },
@@ -181,7 +198,7 @@ export default {
             try {
               const d = JSON.parse(res.data)
               if (res.statusCode >= 200 && res.statusCode < 300 && d.ok) {
-                resolve(d.url)
+                resolve(d.image_key || d.url || '')
               } else {
                 reject(new Error(d.detail || '图片上传失败'))
               }
@@ -198,11 +215,11 @@ export default {
       this.submitting = true; this.errMsg = ''
 
       try {
-        const urls = []
+        const keys = []
         for (const img of this.images) {
           try {
-            const url = await this.uploadOne(img)
-            urls.push(url)
+            const key = await this.uploadOne(img)
+            keys.push(key)
           } catch (e) {
             this.errMsg = (e && e.message) || '图片上传失败'
             this.submitting = false
@@ -222,7 +239,7 @@ export default {
             data: {
               content: c,
               contact: (this.contact || '').trim(),
-              image_urls: JSON.stringify(urls),
+              image_keys: keys.join(','),
               report_uuid: this.reportContext.report_uuid || '',
               report_title: this.reportContext.report_title || '',
               report_address: this.reportContext.report_address || '',

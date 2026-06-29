@@ -1,6 +1,7 @@
 import json
 import os
 import re
+import time
 import asyncio
 import sys
 import uuid
@@ -18,9 +19,12 @@ if os.getcwd() != _this_dir:
 from dotenv import load_dotenv
 load_dotenv(os.path.join(_this_dir, ".env"))
 
+# ★ 读取 ENVIRONMENT（必须在 FastAPI 创建前，用于 docs 开关）
+_ENV = os.getenv("ENVIRONMENT", "development").strip().lower()
+
 from sqlalchemy.orm import Session
 
-from fastapi import FastAPI, HTTPException, Depends
+from fastapi import FastAPI, HTTPException, Depends, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import StreamingResponse, FileResponse
@@ -52,7 +56,8 @@ from routers.location import router as location_router
 from routers.virtual_pay import router as virtual_pay_router
 from routers.feedback import router as feedback_router
 
-app = FastAPI(title="址得选 API", version="3.7.0", description="址得选 — 选址分析 SaaS 平台后端服务")
+_docs_kw = {} if _ENV != "production" else {"docs_url": None, "redoc_url": None, "openapi_url": None}
+app = FastAPI(title="址得选 API", version="3.7.0", description="址得选 — 选址分析 SaaS 平台后端服务", **_docs_kw)
 app.include_router(auth_router)
 app.include_router(records_router)
 app.include_router(favorites_router)
@@ -67,63 +72,169 @@ app.include_router(feedback_router)
 
 
 # ═══════════════════════════════════════════
-# 公开只读分享接口 — 替代 PDF 分享
+# 公开只读分享接口 — 白名单输出 + 轻量限流
 # ═══════════════════════════════════════════
 
-_REPORT_SHARE_STRIP_KEYS = {
-    "error", "provider", "request_id",
-    "fact_errors", "retry_errors", "fallback_errors",
-    "debug", "raw_prompt", "raw_response",
-    "token", "access_token", "refresh_token",
-    "openid", "open_id", "unionid", "wx_openid", "wx_unionid",
-    "phone", "phone_number", "mobile",
-    "billing", "billing_source", "billing_status",
-    "admin", "admin_id",
-    "user_id",
+# ── 分享白名单：顶层允许字段 ──
+_REPORT_SHARE_TOP_WHITELIST = {
+    "report_type", "summary", "executive_summary", "decision_snapshot",
+    "overall_score", "score", "total_score",
+    "dimension_scores", "advantages", "disadvantages", "details", "warning", "disclaimer",
+    "action_plan", "field_checklist", "evidence_summary", "data_boundary",
+    "caliber_explanation", "location_profile", "business_model_snapshot",
+    "data_sufficiency", "revenue_disclaimer", "dimension_score_meta",
+    "location_fundamentals", "cost_inputs", "generated_at", "business_type",
+    "demand_contradiction_note", "real_data",
 }
+
+# ── real_data 子白名单：客户可见的地理/统计/竞品/锚点/POI数据 ──
+_REPORT_SHARE_REALDATA_WHITELIST = {
+    "city", "district", "township", "formatted_address",
+    "nearby_roads", "business_areas", "building_type",
+    "poi_counts", "stats_200m", "stats_500m", "stats_1000m",
+    "competitor_list", "direct_competitor_list", "substitute_list", "traffic_anchor_list",
+    "competitors_200m", "competitors_500m", "competitors_1000m",
+    "direct_competitors_200m", "direct_competitors_500m", "direct_competitors_1000m",
+    "substitute_competitors_200m", "substitute_competitors_500m", "substitute_competitors_1000m",
+    "traffic_anchors_200m", "traffic_anchors_500m", "traffic_anchors_1000m",
+    "direct_competitor_list_200m", "direct_competitor_list_500m", "direct_competitor_list_1000m",
+    "substitute_list_200m", "substitute_list_500m", "substitute_list_1000m",
+    "traffic_anchor_list_200m", "traffic_anchor_list_500m", "traffic_anchor_list_1000m",
+    "poi_lists", "hot_brands", "data_quality_notes",
+    "city_has_subway", "subway_applicable", "rigor_enabled",
+}
+
+# ── 递归敏感 key 黑名单（精确 + 派生模式）──
+_SENSITIVE_EXACT_LOWER = {
+    "openid", "open_id", "unionid", "phone", "phone_number", "mobile",
+    "user_id", "token", "access_token", "refresh_token",
+    "billing", "billing_source", "billing_status",
+    "order", "payment", "pay_channel", "out_trade_no", "transaction_id",
+    "raw_prompt", "raw_response", "debug", "error_stage",
+    "provider", "secret", "api_key", "password", "passwd",
+    "wx_openid", "wx_unionid", "wx_mini_openid", "wx_session_key",
+    "admin", "admin_id", "request_id", "idempotency_key",
+}
+
+# 派生敏感模式：key 中包含以下子串即视为敏感（大小写不敏感）
+# 注意不要误伤正常字段：dimension_score_meta.key 是展示用维度名，不受影响
+_SENSITIVE_SUBSTRINGS = [
+    "secret", "password", "passwd", "session_key",
+    "openid", "unionid", "phone", "mobile",
+    "raw_prompt", "raw_response", "error_stage",
+    "billing", "payment", "out_trade_no", "transaction_id",
+    "idempotency", "api_key",
+]
+
+
+def _is_sensitive_key(k: str) -> bool:
+    if k.startswith("_"):
+        return True
+    kl = k.lower()
+    if kl in _SENSITIVE_EXACT_LOWER:
+        return True
+    for pat in _SENSITIVE_SUBSTRINGS:
+        if pat in kl:
+            return True
+    return False
 
 
 def _sanitize_report_for_share(report_json_str: str) -> str:
-    """脱敏报告 JSON：递归移除 _ 开头的 key、敏感字段。"""
+    """白名单输出：顶层用白名单，允许字段内层递归去敏感/下划线。"""
     try:
         data = json.loads(report_json_str)
     except (json.JSONDecodeError, TypeError):
         return "{}"
 
-    def _clean(obj, depth=0):
+    def _scrub(obj, depth=0):
+        """递归去下划线 + 敏感 key。不套白名单，保留所有展示内容。"""
         if depth > 20:
             return obj
         if isinstance(obj, dict):
             cleaned = {}
             for k, v in obj.items():
-                # 移除 _ 开头的内部字段
-                if k.startswith("_"):
+                if _is_sensitive_key(k):
                     continue
-                # 移除指定敏感 key
-                if k in _REPORT_SHARE_STRIP_KEYS:
-                    continue
-                cleaned[k] = _clean(v, depth + 1)
+                cleaned[k] = _scrub(v, depth + 1)
             return cleaned
         if isinstance(obj, list):
-            return [_clean(v, depth + 1) for v in obj]
+            return [_scrub(v, depth + 1) for v in obj]
+        return obj
+
+    def _clean(obj, depth=0, is_realdata=False):
+        """顶层/real_data第一层：白名单过滤 + 内层 _scrub。"""
+        if depth > 20:
+            return obj
+        if isinstance(obj, dict):
+            cleaned = {}
+            allowed = _REPORT_SHARE_REALDATA_WHITELIST if is_realdata else _REPORT_SHARE_TOP_WHITELIST
+            for k, v in obj.items():
+                if k.startswith("_"):
+                    continue
+                if k not in allowed:
+                    continue
+                if k == "real_data":
+                    # real_data 第一层：RD 白名单，更深层只做敏感剥离
+                    cleaned[k] = _clean(v, depth + 1, is_realdata=True)
+                elif is_realdata:
+                    # real_data 内层：不再套白名单，递归去敏感
+                    cleaned[k] = _scrub(v, depth + 1)
+                else:
+                    # 顶层允许字段：递归去敏感，保留展示内容
+                    cleaned[k] = _scrub(v, depth + 1)
+            return cleaned
+        if isinstance(obj, list):
+            return [_clean(v, depth + 1, is_realdata=is_realdata) for v in obj]
         return obj
 
     cleaned = _clean(data) if isinstance(data, dict) else {}
     return json.dumps(cleaned, ensure_ascii=False)
 
 
+# ── 分享接口轻量 IP 限流 ──
+_share_rate_map: dict[str, list[float]] = {}
+_share_rate_max_keys = 10000
+
+
+def _check_share_rate(client_ip: str) -> bool:
+    """分享接口 IP 限流：有效 token 宽松，无效 token 从严。返回 True 表示允许。"""
+    import time as _time
+    now = _time.time()
+    window = 60.0
+    # 有效访问上限较宽松（正常裂变不受影响）
+    max_valid = int(os.getenv("SHARE_VALID_LIMIT_PER_MIN", "30"))
+    # 无效 token 上限较严（防枚举）
+    max_invalid = int(os.getenv("SHARE_INVALID_LIMIT_PER_MIN", "10"))
+    return max_valid, max_invalid
+
+
 @app.get("/api/reports/share/{share_token}")
 def get_shared_report(
     share_token: str,
+    request: Request,
     db: Session = Depends(get_db),
 ):
-    """公开只读分享接口。
-    通过 share_token 查找报告，仅返回展示所需字段。
-    不返回手机号、token、openid、billing、admin 等隐私数据。
-    """
+    """公开只读分享接口。朋友免登录查看，白名单输出客户可见字段。"""
     from models.db_models import AnalysisRecord
+    import time as _time
+
+    from services.client_ip import get_client_ip
+    client_ip = get_client_ip(request)
+    now = _time.time()
+    max_valid, max_invalid = _check_share_rate(client_ip)
+
+    # ── 轻量 IP 限流 ──
+    timestamps = _share_rate_map.get(client_ip, [])
+    timestamps = [t for t in timestamps if t > now - 60]
+    _share_rate_map[client_ip] = timestamps
+    if len(_share_rate_map) > _share_rate_max_keys:
+        oldest = min(_share_rate_map, key=lambda k: _share_rate_map[k][0] if _share_rate_map[k] else now)
+        del _share_rate_map[oldest]
 
     if not share_token or len(share_token) < 10:
+        timestamps.append(now)
+        if len(timestamps) > max_invalid:
+            raise HTTPException(status_code=429, detail="请求过于频繁，请稍后再试")
         raise HTTPException(status_code=404, detail="报告不存在或已失效")
 
     record = db.query(AnalysisRecord).filter(
@@ -131,7 +242,16 @@ def get_shared_report(
     ).first()
 
     if not record:
+        timestamps.append(now)
+        if len(timestamps) > max_invalid:
+            raise HTTPException(status_code=429, detail="请求过于频繁，请稍后再试")
+        # debug 日志不输出完整 token
+        print(f"[SHARE] invalid token {share_token[:6]}*** ip={client_ip} count={len(timestamps)}", flush=True)
         raise HTTPException(status_code=404, detail="报告不存在或已失效")
+
+    timestamps.append(now)
+    if len(timestamps) > max_valid:
+        raise HTTPException(status_code=429, detail="请求过于频繁，请稍后再试")
 
     return {
         "report_uuid": record.report_uuid,
@@ -162,28 +282,55 @@ def on_startup():
     init_db()
 
 
-# CORS: 生产环境必须显式设置 CORS_ORIGINS（逗号分隔），不允许 "*" 或空列表
+# ── 生产环境安全启动校验 ──
+def _validate_startup_config(env: str, cors_raw: str, fallback_raw: str):
+    """启动期安全校验（可独立测试）。不合规直接 raise RuntimeError。"""
+    if env == "production":
+        # CORS 校验
+        if not cors_raw:
+            raise RuntimeError(
+                "生产环境必须设置 CORS_ORIGINS 为具体域名（如 https://example.com），"
+                "不允许空值。如需本地开发，请设置 ENVIRONMENT=development。"
+            )
+        origins = [o.strip() for o in cors_raw.split(",") if o.strip()]
+        if not origins:
+            raise RuntimeError(
+                "生产环境 CORS_ORIGINS 解析为空列表，必须包含至少一个具体域名。"
+            )
+        if any(o == "*" for o in origins):
+            raise RuntimeError(
+                "生产环境 CORS_ORIGINS 不允许包含 '*' 通配符，必须使用具体域名。"
+            )
+        # ALLOW_CLIENT_REALDATA_FALLBACK 生产禁用
+        fallback_enabled = (fallback_raw or "").strip().lower() in ("1", "true", "yes")
+        if fallback_enabled:
+            raise RuntimeError(
+                "生产环境禁止启用 ALLOW_CLIENT_REALDATA_FALLBACK。"
+                "该开关仅限本地开发调试使用。"
+            )
+
+
 _cors_raw = os.getenv("CORS_ORIGINS", "").strip()
-_env = os.getenv("ENVIRONMENT", "development").strip().lower()
-if _env == "production":
-    if not _cors_raw:
-        raise RuntimeError(
-            "生产环境必须设置 CORS_ORIGINS 为具体域名（如 https://example.com），"
-            "不允许空值。如需本地开发，请设置 ENVIRONMENT=development。"
-        )
+_fallback_raw = os.getenv("ALLOW_CLIENT_REALDATA_FALLBACK", "")
+_validate_startup_config(_ENV, _cors_raw, _fallback_raw)
+
+if _ENV == "production":
     _cors_origins = [o.strip() for o in _cors_raw.split(",") if o.strip()]
-    if not _cors_origins:
-        raise RuntimeError(
-            "生产环境 CORS_ORIGINS 解析为空列表，必须包含至少一个具体域名。"
-        )
-    if any(o == "*" for o in _cors_origins):
-        raise RuntimeError(
-            "生产环境 CORS_ORIGINS 不允许包含 '*' 通配符，必须使用具体域名。"
-        )
-    _allow_creds = True  # 全部为具体域名时可开启
+    _allow_creds = True
 else:
     _cors_origins = [o.strip() for o in _cors_raw.split(",") if o.strip()] if _cors_raw else ["*"]
     _allow_creds = True
+print(f"[STARTUP] ENVIRONMENT={_ENV} CORS_ORIGINS={_cors_origins} docs={'off' if _ENV=='production' else 'on'}", flush=True)
+
+# 基础安全响应头
+@app.middleware("http")
+async def _add_security_headers(request: Request, call_next):
+    response = await call_next(request)
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["Content-Security-Policy"] = "frame-ancestors 'none'"
+    return response
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=_cors_origins,
@@ -378,12 +525,85 @@ def _int_guard(v, default=0):
     except: return default
 
 
+# ── AMap 成功后计费确认（P1-7：不可静默吞异常）──
+def _commit_billing_after_amap(db_billing, request_id: str, user_id: int, billing_source: str):
+    """AMap 采集成功后确认扣费。commit 失败时 rollback + 抛 RuntimeError。"""
+    try:
+        db_billing.commit()
+    except Exception as e:
+        try:
+            db_billing.rollback()
+        except Exception:
+            pass
+        ename = type(e).__name__
+        print(f"[BILLING] commit 失败 request={request_id} user={user_id} "
+              f"source={billing_source} err={ename}", flush=True)
+        raise RuntimeError(
+            f"BILLING_COMMIT_FAILED: 计费确认失败，本次未扣费，请稍后重试 "
+            f"(ref={request_id})"
+        ) from e
+    finally:
+        try:
+            db_billing.close()
+        except Exception:
+            pass
+
+
+# ── /api/analyze 轻量限流 + 并发锁 ──
+_analyze_rates: dict[int, list[float]] = {}  # user_id → [timestamps]
+_analyze_rates_max = 5000
+_analyze_active: set[int] = set()  # 正在分析的用户 ID
+
+_ANALYZE_LIMIT_60S = int(os.getenv("ANALYZE_RATE_LIMIT_60S", "5"))
+_ANALYZE_LIMIT_1H = int(os.getenv("ANALYZE_RATE_LIMIT_1H", "20"))
+_ANALYZE_LIMIT_1D = int(os.getenv("ANALYZE_RATE_LIMIT_1D", "50"))
+
+
+def _check_analyze_rate(user_id: int) -> bool:
+    """检查用户分析频率。返回 True 允许。"""
+    now = time.time()
+    timestamps = _analyze_rates.get(user_id, [])
+    timestamps = [t for t in timestamps if t > now - 86400]  # 只保留24h
+    _analyze_rates[user_id] = timestamps
+    if len(_analyze_rates) > _analyze_rates_max:
+        oldest = min(_analyze_rates, key=lambda k: _analyze_rates[k][0] if _analyze_rates[k] else now + 1)
+        del _analyze_rates[oldest]
+    count_60s = sum(1 for t in timestamps if t > now - 60)
+    count_1h = sum(1 for t in timestamps if t > now - 3600)
+    count_1d = len(timestamps)
+    if count_60s >= _ANALYZE_LIMIT_60S: return False
+    if count_1h >= _ANALYZE_LIMIT_1H: return False
+    if count_1d >= _ANALYZE_LIMIT_1D: return False
+    timestamps.append(now)
+    return True
+
+
 @app.post("/api/analyze")
-async def analyze_location(req: AnalyzeRequest, user: dict = Depends(get_current_user)):
+async def analyze_location(req: AnalyzeRequest, user: dict = Depends(get_current_user), request: Request = None):
     """SSE 流式选址分析 — 四步进度推送 + 最终报告 JSON"""
     current_user_id = user["user_id"]
+    # 滥用监控（仅日志，不阻断）
+    try:
+        from services.abuse_monitor import note_analyze
+        from services.client_ip import get_client_ip
+        ip = get_client_ip(request) if request else "0.0.0.0"
+        note_analyze(ip, current_user_id, req.location.lat, req.location.lng)
+    except Exception:
+        pass
     refund_idem_key = uuid.uuid4().hex[:16]  # 单次分析请求粒度幂等键
     request_id = uuid.uuid4().hex[:12]  # 本次请求追踪ID
+
+    # ── 并发锁检查（扣费前，不计入频率）──
+    if current_user_id in _analyze_active:
+        raise HTTPException(status_code=429, detail="您有一个分析正在进行中，请等待完成后再发起新的分析")
+
+    # ── 限流检查（扣费前）──
+    if not _check_analyze_rate(current_user_id):
+        raise HTTPException(status_code=429, detail="分析请求过于频繁，请稍后再试")
+
+    # ── 并发锁（限流通过后才计数+加锁）──
+    _analyze_active.add(current_user_id)
+    lock_held = True
 
     # ── 前置计费校验（流开始前必须通过，失败直接返回 402）──
     billing = None
@@ -399,14 +619,17 @@ async def analyze_location(req: AnalyzeRequest, user: dict = Depends(get_current
         billing = check_billing_access(db_user, cost=1, db_session=db_billing)
         if not billing.allowed:
             db_billing.close()
+            _analyze_active.discard(current_user_id)
             raise HTTPException(status_code=402, detail=billing.reason)
         billing_source = billing.source  # "points" / "membership"
         # ★ P0修复：计费扣点延后到 AMap 采集成功后 commit，避免崩溃丢点
         # db_billing 在 event_stream 内 AMap 成功后 commit，失败则 rollback
     except HTTPException:
+        _analyze_active.discard(current_user_id)
         raise
     except Exception:
         db_billing.close()
+        _analyze_active.discard(current_user_id)
         raise HTTPException(status_code=500, detail="计费系统异常")
 
     async def event_stream():
@@ -534,16 +757,6 @@ async def analyze_location(req: AnalyzeRequest, user: dict = Depends(get_current
                       f"total_poi_1km={_int_guard(sum(ld.stats_1000m.values()))}", flush=True)
                 # ★ P0.5-final: 小餐饮替代消费过滤药店/医疗 POI
                 real_data = filter_substitute_pharmacy(real_data, req.business_type or "")
-                # ★ P0修复：AMap 采集成功 → 计费确认
-                try:
-                    db_billing.commit()
-                except Exception:
-                    pass  # 可能已提交或会话异常，不影响主流程
-                finally:
-                    try:
-                        db_billing.close()
-                    except Exception:
-                        pass
             except Exception as _ame:
                 import traceback
                 _am_err = str(_ame)[:200]
@@ -589,6 +802,10 @@ async def analyze_location(req: AnalyzeRequest, user: dict = Depends(get_current
                         "data_quality_notes": ["数据采集失败：后端AMap服务不可用，报告数据不完整"],
                         "rigor_enabled": False,
                     }
+
+            # ★ P1-7：AMap 成功 → 计费确认（AMap try 外，不可静默）
+            if not _amap_failed:
+                _commit_billing_after_amap(db_billing, request_id, current_user_id, billing_source)
 
             # ═══════════════════════════════════════════
             # Step 2 — 数据脱水与竞品交叉比对
@@ -1113,6 +1330,12 @@ async def analyze_location(req: AnalyzeRequest, user: dict = Depends(get_current
                                  error_stage="amap_failed",
                                  billing_source=billing_source,
                                  billing_status="not_charged")
+            elif msg.startswith("BILLING_COMMIT_FAILED"):
+                print(f"[SSE Error] billing_commit_failed request={request_id} user={current_user_id}", flush=True)
+                yield _sse_error("本次未扣费，请稍后重试", request_id=request_id,
+                                 error_stage="billing_commit_failed",
+                                 billing_source=billing_source,
+                                 billing_status="not_charged")
             elif msg.startswith("DB_SAVE_FAILED"):
                 _db_save_error = True
                 print(f"[SSE Error] {msg}", flush=True)
@@ -1208,6 +1431,8 @@ async def analyze_location(req: AnalyzeRequest, user: dict = Depends(get_current
                                  billing_status="unknown")
             await asyncio.sleep(0)
         finally:
+            # ★ 释放并发锁（无论成功/失败/客户端断开，都必须释放）
+            _analyze_active.discard(current_user_id)
             # ★ 退款收口：LLM/JSON/DB/Fact Guard 失败 → 点数模式退款（幂等保护）
             should_refund = (_llm_server_error or _llm_parse_error or _db_save_error or _fact_guard_failed) and not _refund_processed
             if should_refund and billing and billing.source == "points":

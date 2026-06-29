@@ -174,7 +174,7 @@ export default {
           })
         } catch (payErr) {
           const errMsg = (payErr && payErr.errMsg) || ''
-          if (errMsg.includes('cancel')) return
+          if (errMsg.includes('cancel')) { uni.showToast({ title: '已取消支付', icon: 'none' }); return }
           uni.showToast({ title: errMsg || '支付失败', icon: 'none' })
           return
         }

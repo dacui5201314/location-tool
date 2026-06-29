@@ -441,21 +441,24 @@ def _build_report_html(record_id: int, report_data: dict, address: str, brand_na
         low_note = ""
         if meta.get("score_confidence") == "low":
             note_text = _esc(meta.get("note") or "")
+            missing_inputs = meta.get("missing_required_inputs")
+            missing_inputs = missing_inputs if isinstance(missing_inputs, list) else []
             # 旧报告兼容：如果 note 是旧技术文案，替换为白话
             if note_text and ("不具备成本压力精算依据" in note_text or "50分为占位值" in note_text
                               or "人工成本" in note_text or "预估营业额" in note_text
                               or "成本判断仍需结合实际经营情况" in note_text):
                 if key == "cost_estimate":
-                    _has_rent = bool((meta.get("missing_required_inputs") or []) and
-                                     "rent_per_sqm" not in (meta.get("missing_required_inputs") or []))
+                    _has_rent = bool(missing_inputs and
+                                     "rent_per_sqm" not in missing_inputs)
                     note_text = "" if _has_rent else "未填写月租金，房租压力只能粗略参考；如方便，建议补充月租金后再看成本判断。"
             if not note_text:
-                # 兜底：旧报告完全无 note，从 missing_required_inputs 构造但必须过滤英文 key
-                old_missing = meta.get("missing_required_inputs") or []
+                # 兜底：旧报告完全无 note，从 missing_inputs 构造但必须过滤英文 key
                 safe_labels = {"rent_per_sqm": "月租金", "monthly_rent": "月租金", "store_area": "门店面积"}
-                cn_parts = [safe_labels[k] for k in old_missing if k in safe_labels]
+                cn_parts = [safe_labels[k] for k in missing_inputs if k in safe_labels]
                 if cn_parts:
-                    note_text = "因未填写" + "、".join(cn_parts[:3]) + "，当前分数为占位参考"
+                    note_text = "因未填写" + "、".join(cn_parts[:3]) + "，当前分数仅供参考"
+            if not note_text:
+                note_text = "信息还不够完整，当前分数仅供参考"
             if note_text:
                 low_note = f'<div style="font-size:11px;color:#f59e0b;margin-top:4px">⚠ {note_text}</div>'
         dim_cards += f"""

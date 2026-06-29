@@ -49,7 +49,7 @@ def test_fallback_no_estimate_disclaimer():
                                        store_size=100, is_fallback=True)
     rd_text = e.get("revenue_disclaimer","")
     assert "以上为模型估算" not in rd_text, f"fallback无测算不应写模型估算: {rd_text[:80]}"
-    assert "未生成营收测算" in rd_text, f"应包含未生成营收测算提示: {rd_text[:80]}"
+    assert "营收测算建议在完成现场客流" in rd_text, f"应包含营收测算说明: {rd_text[:80]}"
     print(f"T3 no estimate: {rd_text[:100]} PASS")
 
 
@@ -134,7 +134,7 @@ def test_html_renders_from_report_json_only():
 
     html = _build_report_html(1, fb, "addr", "brand")
     # HTML 应包含 P1 字段内容
-    for marker in ["保守版数据摘要", "选址决策参考", "地点基本面", "现场核验清单", "经营建议"]:
+    for marker in ["初筛版报告", "选址决策参考", "地点基本面", "现场核验清单", "经营建议"]:
         assert marker in html, f"HTML missing: {marker}"
     print("T8 HTML renders from report_json: PASS")
 
@@ -201,7 +201,7 @@ def test_html_display_field_coverage():
         "关键证据摘要",      # evidence_summary
         "数据说明与风险提示", # data_boundary
         "营收测算说明",      # revenue_disclaimer
-        "保守版数据摘要",    # fallback badge
+        "初筛版报告",    # fallback badge（原"保守版数据摘要"）
         "选址决策参考",      # decision_snapshot
         "经营建议",          # action_plan
     ]

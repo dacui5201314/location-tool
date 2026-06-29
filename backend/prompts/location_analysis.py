@@ -225,13 +225,23 @@ def build_analysis_prompt(address: str, lng: float, lat: float,
         try: return int(v)
         except: return default
 
+    def _user_input_block(label, value):
+        """包裹用户输入字段，添加明确边界标记防止 prompt 注入。"""
+        if value is None:
+            return ""
+        text = str(value).strip()
+        if not text:
+            return ""
+        return f"【用户输入开始：{label}】\n{text}\n【用户输入结束：{label}】"
+
     cfg = config or get_config(business_type)
     label = cfg.get("label", business_type or "通用商业")
 
     # 品牌描述和门店面积
     biz_desc_info = ""
     if brand_name:
-        biz_desc_info = f"\n品牌/特色描述：{brand_name}"
+        brand_block = _user_input_block("brand_name", brand_name)
+        biz_desc_info = f"\n品牌/特色描述：{brand_block}"
     size_info = ""
     if store_size > 0:
         size_info = f"\n门店预估面积：{store_size} 平方米"
@@ -259,11 +269,12 @@ def build_analysis_prompt(address: str, lng: float, lat: float,
             parts.append("（来源：用户输入）。成本估算维度必须优先引用此租金。仍须提示建议现场与相邻商户核实实际成交租金。")
             rent_context = "".join(parts)
 
+    address_block = _user_input_block("address", address)
     brand_info = biz_desc_info + size_info + rent_context
 
     if not location_data:
         return f"""请分析以下地址是否适合开设「{label}」：
-地址：{address}
+地址：{address_block}
 坐标：经度 {lng}，纬度 {lat}
 {brand_info}
 请从人口密集度、交通与可达性、客流特征、消费人群属性、竞争环境、周边互补业态、品类优势、房租成本预估、营收测算、选址分析十个维度进行全面评估。"""
@@ -274,8 +285,8 @@ def build_analysis_prompt(address: str, lng: float, lat: float,
     if brand_name:
         brand_context = f"""
 ## 🏷️ 品牌信息
-品牌名称：{brand_name}
-请结合「{brand_name}」的品牌定位，评估该品牌在此选址的竞争优劣势和具体打法。
+{brand_block}
+请结合上述用户填写的品牌/特色描述，评估该品牌在此选址的竞争优劣势和具体打法。
 """
 
     # 场景识别
@@ -387,7 +398,7 @@ def build_analysis_prompt(address: str, lng: float, lat: float,
 分析目标：在以下位置开设「{label}」是否具备商业可行性。
 {brand_info}{brand_context}
 ## 基本信息
-- 地址：{address}
+- 地址：{address_block}
 - 坐标：经度 {lng}，纬度 {lat}
 - 城市：{ld.get('city', '')} {ld.get('district', '')} {ld.get('township', '')}
 - 商圈：{', '.join(ld.get('business_areas', [])) or '无大型商圈'}

@@ -1125,6 +1125,45 @@ check("wx_mini_appid" in mini_src and "wx_mini_secret" in mini_src,
 check("小程序未配置" in mini_src,
       "P16-7c 缺少配置时给出中文提示")
 
+# ═══ P2-11: _safe_int null safety ═══
+print("=== P2-11: _safe_int ===")
+from report_fact_guard import _safe_int, check_radius_mismatch, _validate_small_counts
+
+check(_safe_int(None) == -1, "None → -1")
+check(_safe_int(5) == 5, "int → int")
+check(_safe_int("10") == 10, "str → int")
+check(_safe_int("abc") == -1, "non-numeric str → -1")
+check(_safe_int([1,2]) == -1, "list → -1")
+
+# Verify real_data with None stats doesn't crash
+rd_null = {
+    "stats_200m": {"residential": None, "office": 0},
+    "stats_500m": {"residential": 2, "office": None},
+    "stats_1000m": {"residential": 10, "office": 5},
+    "direct_competitors_200m": 0, "direct_competitors_500m": 0, "direct_competitors_1000m": 0,
+    "substitute_competitors_200m": 0, "substitute_competitors_500m": 0, "substitute_competitors_1000m": 0,
+    "traffic_anchors_200m": 0, "traffic_anchors_500m": 0, "traffic_anchors_1000m": 0,
+}
+try:
+    issues = check_radius_mismatch("test text with 5 residential 500m", rd_null)
+    check(isinstance(issues, list), f"None stats doesn't crash: {len(issues)} issues")
+except Exception as e:
+    check(False, f"None stats should not crash: {e}")
+
+# Verify normal numbers still work
+rd_normal = {
+    "stats_200m": {"residential": 1}, "stats_500m": {"residential": 5}, "stats_1000m": {"residential": 20},
+    "direct_competitors_200m": 0, "direct_competitors_500m": 3, "direct_competitors_1000m": 8,
+    "substitute_competitors_200m": 0, "substitute_competitors_500m": 0, "substitute_competitors_1000m": 0,
+    "traffic_anchors_200m": 0, "traffic_anchors_500m": 0, "traffic_anchors_1000m": 0,
+}
+issues2 = check_radius_mismatch("test text with 30 residential 1000m", rd_normal)
+check(isinstance(issues2, list), "normal stats still checked")
+
+check("_safe_int" in open(os.path.join(
+    os.path.dirname(__file__), '..', 'report_fact_guard.py'), 'r', encoding='utf-8').read(),
+      "report_fact_guard.py uses _safe_int")
+
 # ═══════════════════════════════════════════════════════════════
 print(f"\n{'='*50}")
 print(f"TOTAL: {p} PASS, {f} FAIL")

@@ -513,7 +513,7 @@ def _check_sample(s):
     enriched["business_type"] = bt
     enriched["generated_at"] = "2026-06-15 10:00"
     html = _build_report_html(1, enriched, "addr", bn)
-    for marker in ["选址决策参考","保守版数据摘要","地点基本面","现场核验清单"]:
+    for marker in ["选址决策参考","初筛版报告","地点基本面","现场核验清单"]:
         assert marker in html, f"{s['case_id']}: HTML missing {marker}"
 
     # ── 硬化扫描：JSON + HTML 双文本 ──

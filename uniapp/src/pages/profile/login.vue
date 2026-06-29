@@ -147,7 +147,6 @@ export default {
         uni.hideLoading()
         if (r.ok) {
           auth.setToken(r.data.token); auth.setUser(r.data.user)
-          if (r.data.wx_mini_openid) uni.setStorageSync('wx_mini_openid', r.data.wx_mini_openid)
           this.handleAfterLogin(r.data.user)
         } else {
           const sc = r.statusCode

@@ -14,9 +14,9 @@ function request ({ url, method = 'GET', data = {}, auth = true, header: extraHe
       data,
       header,
       success (res) {
-        // ★ Global 401 handler: clear expired token so user is prompted to re-login
+        // ★ Global 401 handler
         if (res.statusCode === 401 && auth) {
-          uni.removeStorageSync('token')
+          import('./auth.js').then(m => m.handleAuthExpired()).catch(() => {})
         }
         resolve({ ok: res.statusCode >= 200 && res.statusCode < 300, statusCode: res.statusCode, data: res.data })
       },
@@ -220,6 +220,7 @@ function analyzeLocation (payload) {
           sseRequestId, sseErrorStage, sseBillingSource, sseBillingStatus } = _parseAnalyzeBody(bodyText)
 
         if (res.statusCode === 401) {
+          import('./auth.js').then(m => m.handleAuthExpired()).catch(() => {})
           resolve({ ok: false, statusCode: 401, error: '登录已过期，请去「我的」重新登录', steps: [] })
         } else if (res.statusCode === 422) {
           let msg = '分析参数校验失败'

@@ -437,7 +437,7 @@ def test_html_renders_all_modules():
     html = _build_report_html(1, report, "九悦香都", "小学生托管")
 
     required_modules = [
-        "保守版数据摘要",       # fallback 标识
+        "初筛版报告",       # fallback 标识（原"保守版数据摘要"）
         "选址决策参考",          # decision_snapshot
         "地点基本面",            # location_fundamentals
         "行业生意模型",          # business_model_snapshot
@@ -696,7 +696,7 @@ def test_revenue_disclaimer_per_family():
     assert "revenue_disclaimer" in r1
     rd1 = r1["revenue_disclaimer"]
     assert "以上为模型估算" not in rd1, f"fallback无测算不应写模型估算: {rd1[:60]}"
-    assert "未生成营收测算" in rd1, f"应包含未生成营收测算: {rd1[:60]}"
+    assert "营收测算建议在完成现场客流" in rd1, f"应包含营收测算说明: {rd1[:80]}"
 
     # 教育托管 fallback → 无实际测算，使用 no_estimate 口径
     r2 = build_fallback_report(_base_rd(**_EDUCATION_RD), address="test",
@@ -704,7 +704,7 @@ def test_revenue_disclaimer_per_family():
     assert "revenue_disclaimer" in r2
     rd2 = r2["revenue_disclaimer"]
     assert "以上为模型估算" not in rd2, f"fallback无测算不应写模型估算: {rd2[:60]}"
-    assert "未生成营收测算" in rd2, f"应包含未生成营收测算: {rd2[:60]}"
+    assert "营收测算建议在完成现场客流" in rd2, f"应包含营收测算说明: {rd2[:80]}"
     assert "出餐" not in rd2
     assert "外卖" not in rd2
 
@@ -712,7 +712,7 @@ def test_revenue_disclaimer_per_family():
     r3 = build_fallback_report(_base_rd(), address="test",
                                business_type="酒店", brand_name="汉庭", store_size=2000)
     assert "revenue_disclaimer" in r3
-    assert "未生成营收测算" in r3["revenue_disclaimer"]
+    assert "营收测算建议在完成现场客流" in r3["revenue_disclaimer"]
 
     print("T16 revenue_disclaimer per family: PASS")
 

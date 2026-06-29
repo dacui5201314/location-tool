@@ -1,0 +1,1 @@
+ALTER TABLE payment_orders ADD COLUMN pay_channel VARCHAR(20) DEFAULT 'WECHAT_JSAPI';

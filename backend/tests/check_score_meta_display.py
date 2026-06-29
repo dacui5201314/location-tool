@@ -52,15 +52,16 @@ print("T-SM-02 PASS")
 # T-SM-03: HTML renders cost low confidence notice
 print("=== T-SM-03: HTML shows low confidence notice ===")
 html = _build_report_html(1, enr, "addr", "brand")
-check("低置信" in html, "HTML must show low confidence indicator")
-check("占位参考" in html or "占位值" in html, "HTML shows placeholder notice")
+check("仅供参考" in html or "粗略参考" in html, "HTML must show low confidence indicator")
+check("粗略参考" in html or "仅供参考" in html, "HTML shows placeholder notice")
+check("占位参考" not in html, "HTML must not use old placeholder wording")
 print("T-SM-03 PASS")
 
 # T-SM-04: HTML renders population_density weak
 print("=== T-SM-04: HTML shows weak near field ===")
 pop_m = [m for m in meta if m["key"] == "population_density"]
 if pop_m and pop_m[0].get("score_basis") == "weak_near_field_demand":
-    check("人口密集度" in html or "依据偏弱" in html, "HTML should have pop note")
+    check("客源密度" in html or "客源数据不足" in html, "HTML should have pop note")
 print("T-SM-04 PASS")
 
 # T-SM-05: scores unchanged
@@ -94,7 +95,7 @@ print("=== T-SM-08: uniapp reads score meta ===")
 uniapp_src = open(os.path.join(os.path.dirname(__file__), '..', '..', 'uniapp', 'src', 'pages', 'report-detail', 'index.vue'), 'r', encoding='utf-8').read()
 check("dimension_score_meta" in uniapp_src, "uniapp reads meta")
 check("rptScoreMeta" in uniapp_src, "uniapp has rptScoreMeta")
-check("低置信" in uniapp_src, "uniapp shows low confidence")
+check("需要补充的信息" in uniapp_src, "uniapp shows low confidence hint")
 print("T-SM-08 PASS")
 
 # T-SM-09: meta text doesn't cause new guard false positives
@@ -110,7 +111,7 @@ txt_c = build_user_visible_report_text(enr_c)
 # score meta keywords should not trigger radius mismatch
 from report_fact_guard import check_radius_mismatch
 rm = check_radius_mismatch(txt_c, rd_clean)
-# Filter: only check for "占位参考" / "低置信" related mismatches, not legitimate data mismatches
+# Filter: only check for score-meta placeholder / confidence related mismatches, not legitimate data mismatches
 meta_related = [e for e in rm if "占位" in e or "低置信" in e or "score" in e.lower()]
 check(len(meta_related) == 0, f"meta text should not trigger radius mismatch: {meta_related}")
 print("T-SM-09 PASS")
@@ -136,7 +137,7 @@ dirty2["dimension_score_meta"] = [
 ]
 try:
     h2 = _build_report_html(1, dirty2, "addr", "brand")
-    check("低置信" in h2, f"cost note still renders in mixed meta: {'found' if '低置信' in h2 else 'missing'}")
+    check("仅供参考" in h2 or "粗略参考" in h2, f"cost note still renders in mixed meta: {'found' if '仅供参考' in h2 or '粗略参考' in h2 else 'missing'}")
 except Exception as e:
     check(False, f"mixed meta should not crash: {e}")
 print("T-SM-11 PASS")
@@ -161,6 +162,80 @@ print("=== T-SM-14: scores numeric with dirty meta ===")
 for d in dirty2.get("dimension_scores", []):
     check(isinstance(d.get("score"), (int, float)), f"score numeric: {d['key']}")
 print("T-SM-14 PASS")
+
+# T-SM-15: dirty missing_required_inputs normalization (P1-6 regression)
+print("=== T-SM-15: dirty missing_required_inputs ===")
+# 15a: int value
+dirty_int = copy.deepcopy(enr)
+dirty_int["dimension_score_meta"] = [
+    {"key": "cost_estimate", "score_confidence": "low", "is_score_applicable": False,
+     "missing_required_inputs": 123}
+]
+try:
+    hi = _build_report_html(1, dirty_int, "addr", "brand")
+    check(len(hi) > 0, "int missing_required_inputs does not crash")
+    check("仅供参考" in hi or "粗略参考" in hi, "int missing shows fallback")
+    check("rent_per_sqm" not in hi, "int missing does not leak rent_per_sqm")
+except Exception as e:
+    check(False, f"int missing_required_inputs should not crash: {e}")
+
+# 15b: string value
+dirty_str = copy.deepcopy(enr)
+dirty_str["dimension_score_meta"] = [
+    {"key": "cost_estimate", "score_confidence": "low", "is_score_applicable": False,
+     "missing_required_inputs": "rent_per_sqm"}
+]
+try:
+    hs = _build_report_html(1, dirty_str, "addr", "brand")
+    check(len(hs) > 0, "str missing_required_inputs does not crash")
+    check("rent_per_sqm" not in hs, "str missing does not leak rent_per_sqm")
+    check("仅供参考" in hs or "粗略参考" in hs, "str missing shows fallback")
+except Exception as e:
+    check(False, f"str missing_required_inputs should not crash: {e}")
+
+# 15c: dict value
+dirty_dict = copy.deepcopy(enr)
+dirty_dict["dimension_score_meta"] = [
+    {"key": "cost_estimate", "score_confidence": "low", "is_score_applicable": False,
+     "missing_required_inputs": {"rent_per_sqm": True}}
+]
+try:
+    hd = _build_report_html(1, dirty_dict, "addr", "brand")
+    check(len(hd) > 0, "dict missing_required_inputs does not crash")
+    check("rent_per_sqm" not in hd, "dict missing does not leak rent_per_sqm")
+except Exception as e:
+    check(False, f"dict missing_required_inputs should not crash: {e}")
+
+# 15d: None value
+dirty_none = copy.deepcopy(enr)
+dirty_none["dimension_score_meta"] = [
+    {"key": "cost_estimate", "score_confidence": "low", "is_score_applicable": False,
+     "missing_required_inputs": None}
+]
+try:
+    hn = _build_report_html(1, dirty_none, "addr", "brand")
+    check(len(hn) > 0, "None missing_required_inputs does not crash")
+except Exception as e:
+    check(False, f"None missing_required_inputs should not crash: {e}")
+
+# 15e: mixed dirty + valid still renders
+dirty3 = copy.deepcopy(enr)
+dirty3["dimension_score_meta"] = [
+    "bad_string", None,
+    {"key": "cost_estimate", "score_confidence": "low", "is_score_applicable": False,
+     "missing_required_inputs": 999},
+    {"key": "population_density", "score_confidence": "medium", "is_score_applicable": True,
+     "missing_required_inputs": ["rent_per_sqm"]},
+    {"score_confidence": "low", "missing_required_inputs": "garbage"}
+]
+try:
+    h3 = _build_report_html(1, dirty3, "addr", "brand")
+    check(len(h3) > 0, "mixed dirty missing does not crash")
+    check("rent_per_sqm" not in h3, "mixed dirty does not leak rent_per_sqm")
+    check("仅供参考" in h3 or "粗略参考" in h3, "mixed dirty has fallback")
+except Exception as e:
+    check(False, f"mixed dirty missing_required_inputs should not crash: {e}")
+print("T-SM-15 PASS")
 
 print(f"\n{'='*50}")
 print(f"SCORE META DISPLAY: {p} PASS, {f} FAIL (total {p+f})")

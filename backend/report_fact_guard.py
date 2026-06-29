@@ -3,6 +3,16 @@
 可被 main.py 和 check_report_fact_guard.py 分别导入，无需 FastAPI / AMap / LLM 依赖。
 """
 import json as _json
+
+
+def _safe_int(value, default=-1):
+    """安全转整数：None / 非数字 → default，不抛异常。"""
+    if value is None:
+        return default
+    try:
+        return int(value)
+    except (ValueError, TypeError):
+        return default
 import re
 
 
@@ -282,7 +292,7 @@ def check_radius_mismatch(report_text: str, real_data: dict) -> list[str]:
             for cat, keywords, units in _CATEGORY_MAP:
                 current_stats_key = _RADIUS_STATS_MAP.get(radius_key)
                 current_stats = (real_data.get(current_stats_key, {}) or {})
-                current_val = int(current_stats.get(cat, -1))
+                current_val = _safe_int(current_stats.get(cat))
                 if current_val < 0:
                     continue
 
@@ -304,7 +314,7 @@ def check_radius_mismatch(report_text: str, real_data: dict) -> list[str]:
                         if other_radius == radius_key:
                             continue
                         other_stats = (real_data.get(other_stats_key, {}) or {})
-                        other_val = int(other_stats.get(cat, -1))
+                        other_val = _safe_int(other_stats.get(cat))
                         if other_val == claimed and current_val != claimed:
                             errors.append(
                                 f"[RADIUS-MISMATCH] 文案写{_RADIUS_KEYWORDS[radius_key][0]}但{cat}={claimed}实际来自{other_radius}"
@@ -329,7 +339,7 @@ def _validate_small_counts(report_text: str, real_data: dict) -> list[str]:
             for cat, keywords, units in _CATEGORY_MAP:
                 current_stats_key = _RADIUS_STATS_MAP.get(radius_key)
                 current_stats = (real_data.get(current_stats_key, {}) or {})
-                actual = int(current_stats.get(cat, -1))
+                actual = _safe_int(current_stats.get(cat))
                 if actual < 0 or actual > 3:
                     continue
                 unit_pat = "|".join(units)

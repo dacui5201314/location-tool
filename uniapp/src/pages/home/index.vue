@@ -364,6 +364,7 @@ import FavoritesPanel from '../../components/tab/FavoritesPanel.vue'
 import ProfilePanel from '../../components/tab/ProfilePanel.vue'
 import api from '../../utils/api'
 import config from '../../utils/config'
+import { resolveShareImage, downloadShareImage } from '../../utils/share-helper'
 
 export default {
   components: { IndustryPicker, RecordsPanel, FavoritesPanel, ProfilePanel },
@@ -637,21 +638,11 @@ export default {
       // #endif
       this.heroTopPadding = Math.round(Math.max(capsuleBottom + 18, statusBarHeight + 58, 72))
     },
-    resolveShareImage (url) {
-      if (!url) return ''
-      if (url.startsWith('/assets/')) return config.API_BASE_URL + url
-      return url
-    },
+    resolveShareImage,  // from share-helper.js
     _downloadShareImage (url, type) {
-      uni.downloadFile({
-        url,
-        success: (res) => {
-          if (res.statusCode === 200 && res.tempFilePath) {
-            if (type === 'home') this.homeShareImageLocal = res.tempFilePath
-            else if (type === 'report') this.reportShareImageLocal = res.tempFilePath
-          }
-        },
-        fail: (err) => { console.warn('[share] download image failed', (err && err.errMsg) || err) }
+      downloadShareImage(url, (tempFilePath) => {
+        if (type === 'home') this.homeShareImageLocal = tempFilePath
+        else if (type === 'report') this.reportShareImageLocal = tempFilePath
       })
     },
     onSwitchTab (key) {
@@ -975,7 +966,12 @@ export default {
     },
     onSearch () {
       if (this.suggestTimer) { clearTimeout(this.suggestTimer); this.suggestTimer = null }
-      this.runSuggest((this.addressKeyword || '').trim(), 'manual')
+      const kw = (this.addressKeyword || '').trim()
+      if (kw.length < 2) {
+        uni.showToast({ title: '请输入至少 2 个字再搜索', icon: 'none', duration: 1500 })
+        return
+      }
+      this.runSuggest(kw, 'manual')
     },
     onSelectSuggestion (s) {
       if (this.suggestTimer) { clearTimeout(this.suggestTimer); this.suggestTimer = null }

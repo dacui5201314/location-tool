@@ -153,20 +153,19 @@ def _sign(method, url_path, body_str, mchid, cert_serial, private_key):
 
 # ── APIv3 HTTP ──
 def _wx_post(url_path, body, mchid, appid, key, cert_serial, private_key):
-    """private_key 为已加载的 cryptography 私钥对象"""
-    import urllib.request, urllib.error, ssl
+    """private_key 为已加载的 cryptography 私钥对象 — 使用统一 wechat HTTP 封装。"""
+    from services.wechat_http import wechat_post_sync
     body_str = json.dumps(body, ensure_ascii=False)
     token = _sign("POST", url_path, body_str, mchid, cert_serial, private_key)
     url = f"https://api.mch.weixin.qq.com{url_path}"
-    req = urllib.request.Request(url, data=body_str.encode(), headers={
+    resp = wechat_post_sync(url, content=body_str.encode(), headers={
         "Content-Type": "application/json",
         "Accept": "application/json",
         "Authorization": token,
         "User-Agent": "Zhidexuan/1.0",
     })
-    ctx = ssl.create_default_context()
-    resp = urllib.request.urlopen(req, context=ctx, timeout=15)
-    return json.loads(resp.read().decode())
+    resp.raise_for_status()
+    return resp.json()
 
 
 class PrepayBody(BaseModel):

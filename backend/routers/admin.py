@@ -67,6 +67,17 @@ _login_attempts: dict[str, list[float]] = {}
 _login_lock = threading.Lock()
 _LOGIN_RATE_LIMIT = 5       # 每分钟最多尝试次数
 _LOGIN_RATE_WINDOW = 60.0   # 窗口（秒）
+_LOGIN_MAX_KEYS = 5000
+
+
+def _prune_admin_rate_map(rate_map: dict, now: float, window: float, max_keys: int):
+    """清理过期；超容量淘汰最旧 key。调用方必须持有锁。"""
+    stale = [k for k, v in rate_map.items() if not any(t > now - window for t in v)]
+    for k in stale:
+        del rate_map[k]
+    while len(rate_map) > max_keys:
+        oldest = min(rate_map, key=lambda k: rate_map[k][0] if rate_map[k] else now + 1)
+        del rate_map[oldest]
 
 
 def _check_login_rate(client_ip: str) -> bool:
@@ -74,13 +85,14 @@ def _check_login_rate(client_ip: str) -> bool:
     now = _time.time()
     with _login_lock:
         attempts = _login_attempts.get(client_ip, [])
-        # 清理过期记录
         attempts = [t for t in attempts if now - t < _LOGIN_RATE_WINDOW]
         if len(attempts) >= _LOGIN_RATE_LIMIT:
-            _login_attempts[client_ip] = attempts  # 保持现状
+            _login_attempts[client_ip] = attempts
+            _prune_admin_rate_map(_login_attempts, now, _LOGIN_RATE_WINDOW, _LOGIN_MAX_KEYS)
             return False
         attempts.append(now)
         _login_attempts[client_ip] = attempts
+        _prune_admin_rate_map(_login_attempts, now, _LOGIN_RATE_WINDOW, _LOGIN_MAX_KEYS)
         return True
 
 
@@ -91,7 +103,8 @@ class LoginBody(BaseModel):
 @router.post("/login")
 def admin_login(body: LoginBody, request: Request):
     """管理员登录：密码校验通过后签发 JWT（role=admin）— 速率限制 5次/分钟"""
-    client_ip = request.client.host if request.client else "127.0.0.1"
+    from services.client_ip import get_client_ip
+    client_ip = get_client_ip(request)
     if not _check_login_rate(client_ip):
         raise HTTPException(
             status_code=429,
@@ -99,6 +112,11 @@ def admin_login(body: LoginBody, request: Request):
             headers={"Retry-After": "60"},
         )
     if body.password != ADMIN_PASSWORD:
+        try:
+            from services.abuse_monitor import note_login_fail
+            note_login_fail(client_ip)
+        except Exception:
+            pass
         raise HTTPException(status_code=403, detail="密码错误")
     token = create_token(user_id=0, role="admin")
     return {"ok": True, "token": token}
@@ -385,8 +403,12 @@ class ConfigBody(BaseModel):
     wx_notify_url: str = ""
     wx_private_key_pem: str = ""
     wx_platform_cert_pem: str = ""
+    clear_amap_key: bool = False
+    clear_ai_key: bool = False
+    clear_wx_api_key: bool = False
     clear_wx_private_key_pem: bool = False
     clear_wx_platform_cert_pem: bool = False
+    clear_wx_virtual_app_key: bool = False
     # 虚拟支付
     wx_virtual_pay_enabled: str = "0"
     wx_virtual_offer_id: str = ""
@@ -398,9 +420,13 @@ class ConfigBody(BaseModel):
 
 def _mask_core_config(raw: dict) -> dict:
     """统一脱敏 helper：GET /config 和 PUT /config 均使用此函数。
-    敏感字段（ai_key、wx_api_key、wx_private_key_pem、wx_platform_cert_pem）
-    不回传原文，仅返回 masked 指示器或空字符串。"""
+    敏感字段不回传原文，仅返回 masked 指示器或空字符串。"""
     masked = dict(raw)
+    # AMap key 脱敏
+    amap_key = (raw.get("amap_key") or "").strip()
+    if amap_key:
+        masked["amap_key_masked"] = amap_key[:4] + "****" + amap_key[-4:] if len(amap_key) > 8 else "****"
+    masked["amap_key"] = ""
     # AI key 脱敏
     ai_key = (raw.get("ai_key") or "").strip()
     if ai_key:
@@ -430,6 +456,10 @@ def _mask_core_config(raw: dict) -> dict:
     else:
         masked["has_wx_virtual_app_key"] = False
     masked["wx_virtual_app_key"] = ""
+    # LLM key 来源（不返回明文）
+    from services.runtime_config import get_llm_config
+    llm_cfg = get_llm_config()
+    masked["llm_key_source"] = llm_cfg.get("key_source", "missing")
     return masked
 
 
@@ -470,6 +500,15 @@ def save_config(body: ConfigBody, admin: dict = Depends(get_current_admin), db: 
             filtered_map[key] = str(value).strip()
         else:
             skipped.append(key)
+    # ★ 显式清空：clear_xxx 标志强制置空
+    if body.clear_amap_key:
+        filtered_map["amap_key"] = ""
+    if body.clear_ai_key:
+        filtered_map["ai_key"] = ""
+    if body.clear_wx_api_key:
+        filtered_map["wx_api_key"] = ""
+    if body.clear_wx_virtual_app_key:
+        filtered_map["wx_virtual_app_key"] = ""
     # ★ PEM 证书字段单独处理：trim 后非空写入；空值保留现有；clear 标志显式清空
     # ★ 使用 cryptography 做真实解析校验，不依赖字符串包含检查
     pem_actions = []
@@ -499,6 +538,26 @@ def save_config(body: ConfigBody, admin: dict = Depends(get_current_admin), db: 
             raise HTTPException(status_code=400, detail="平台证书格式无效")
         filtered_map["wx_platform_cert_pem"] = plat_pem
         pem_actions.append("更新平台证书")
+    # ── Provider / Key 自检（仅在切换 provider 或清空 ai_key 时触发）──
+    from services.runtime_config import PROVIDER_RUNTIME_DEFAULTS
+    new_provider = config_map.get("ai_provider") or ""
+    clearing_ai_key = body.clear_ai_key
+    changing_provider = bool(new_provider and new_provider != (load_core_config(db).get("ai_provider") or "deepseek"))
+    if clearing_ai_key or changing_provider:
+        provider = (new_provider or (load_core_config(db).get("ai_provider") or "deepseek")).strip() or "deepseek"
+        if provider not in PROVIDER_RUNTIME_DEFAULTS:
+            raise HTTPException(status_code=400, detail=f"不支持的 AI 服务商: {provider}")
+        # 检查新 provider 是否有可用 key
+        provider_env = os.getenv(f"{provider.upper()}_API_KEY", "") or (
+            os.getenv("MOONSHOT_API_KEY", "") if provider == "kimi" else "")
+        has_db_key = bool((config_map.get("ai_key") or "").strip() or
+                          ((load_core_config(db).get("ai_key") or "").strip() and not clearing_ai_key))
+        has_llm_env = bool(os.getenv("LLM_API_KEY", ""))
+        has_provider_env = bool(provider_env)
+        if not has_provider_env and not has_db_key and not has_llm_env:
+            hint = f"请设置环境变量 {provider.upper()}_API_KEY 或在后台填写 AI Key"
+            raise HTTPException(status_code=400, detail=f"切换到 {provider} 后无可用的 API Key。{hint}")
+
     # 持久化
     if filtered_map:
         set_config_values(filtered_map, {key: f"系统设置-{key}" for key in CORE_CONFIG_DEFAULTS}, db)
@@ -1077,22 +1136,26 @@ def delete_cdk_batch_post(body: DeleteCdkBody, admin: dict = Depends(get_current
 # ── CDK 激活速率限制（防暴力枚举）──────────────────────────
 _CDK_RATE_WINDOW = 60      # 窗口：60 秒
 _CDK_RATE_LIMIT = 5        # 每窗口最多 5 次尝试
+_CDK_MAX_KEYS = 5000
 _cdk_rate_map: dict[str, list[float]] = {}  # ip → [timestamps]
+_cdk_rate_lock = threading.Lock()
 
 def _check_cdk_rate(request: Request) -> None:
     """基于客户端 IP 的滑动窗口速率限制，超出返回 429"""
+    from services.client_ip import get_client_ip
     now = _time.time()
-    ip = request.client.host if request.client else "unknown"
-    # 清理过期记录
-    window = now - _CDK_RATE_WINDOW
-    timestamps = [t for t in _cdk_rate_map.get(ip, []) if t > window]
-    if len(timestamps) >= _CDK_RATE_LIMIT:
-        raise HTTPException(
-            status_code=429,
-            detail=f"尝试次数过多，请 {_CDK_RATE_WINDOW} 秒后再试",
-        )
-    timestamps.append(now)
-    _cdk_rate_map[ip] = timestamps
+    ip = get_client_ip(request)
+    with _cdk_rate_lock:
+        timestamps = [t for t in _cdk_rate_map.get(ip, []) if t > now - _CDK_RATE_WINDOW]
+        if len(timestamps) >= _CDK_RATE_LIMIT:
+            _prune_admin_rate_map(_cdk_rate_map, now, _CDK_RATE_WINDOW, _CDK_MAX_KEYS)
+            raise HTTPException(
+                status_code=429,
+                detail=f"尝试次数过多，请 {_CDK_RATE_WINDOW} 秒后再试",
+            )
+        timestamps.append(now)
+        _cdk_rate_map[ip] = timestamps
+        _prune_admin_rate_map(_cdk_rate_map, now, _CDK_RATE_WINDOW, _CDK_MAX_KEYS)
 
 
 @router.post("/cdk/activate")
@@ -1284,32 +1347,67 @@ class StorageConfigBody(BaseModel):
 
 @router.get("/storage-config")
 def get_storage_config(admin: dict = Depends(get_current_admin), db: Session = Depends(get_db)):
-    """获取对象存储配置（需管理员权限 — 含 OSS 密钥等敏感信息）"""
-    return _load_storage_config(db)
+    """获取对象存储配置（需管理员权限）。oss_access_key_secret 返回 has_ 布尔值。"""
+    cfg = _load_storage_config(db)
+    has_secret = bool((cfg.get("oss_access_key_secret") or "").strip())
+    cfg["has_oss_access_key_secret"] = has_secret
+    cfg["oss_access_key_secret"] = ""
+    return cfg
+
+
+_CLEAR_SENTINEL = "__CLEAR__"
 
 
 @router.put("/storage-config")
 def save_storage_config(body: StorageConfigBody, admin: dict = Depends(get_current_admin), db: Session = Depends(get_db)):
-    """保存对象存储配置（需管理员权限）"""
+    """保存对象存储配置（需管理员权限）。
+    留空字段保持旧值；填入 __CLEAR__ 显式清空；填入新值替换。
+    """
     if body.storage_provider not in _AVAILABLE_STORAGE_PROVIDERS:
         raise HTTPException(
             status_code=400,
             detail=f"不支持的对象存储服务商: {body.storage_provider}，仅支持: {', '.join(sorted(_AVAILABLE_STORAGE_PROVIDERS))}",
         )
-    if body.storage_mode == "cloud" and not all([body.oss_bucket, body.oss_access_key_id, body.oss_access_key_secret]):
+    # 加载旧值用于留空保持
+    old = _load_storage_config(db)
+    def _resolve(new_val: str, key: str) -> str:
+        if new_val == _CLEAR_SENTINEL:
+            return ""
+        if not new_val and new_val != _CLEAR_SENTINEL:
+            return old.get(key, "")
+        return new_val
+
+    resolved_secret = _resolve(body.oss_access_key_secret, "oss_access_key_secret")
+    resolved_key_id = _resolve(body.oss_access_key_id, "oss_access_key_id")
+
+    # 云端校验：留空可保留旧值，但 __CLEAR__ 不能靠旧值兜底
+    def _cloud_ok(body_val, old_val):
+        if body_val == _CLEAR_SENTINEL:
+            return False  # 显式清空不通过
+        if body_val:
+            return True   # 新值
+        return bool(old_val.strip())  # 留空，旧值存在则通过
+    if body.storage_mode == "cloud" and not all([
+        body.oss_bucket or old.get("oss_bucket", "").strip(),
+        _cloud_ok(body.oss_access_key_id, old.get("oss_access_key_id", "")),
+        _cloud_ok(body.oss_access_key_secret, old.get("oss_access_key_secret", "")),
+    ]):
         raise HTTPException(
             status_code=400,
-            detail="云存储模式下 bucket / access_key_id / access_key_secret 不能为空。配置不完整，报告不会写入存储桶。",
+            detail="云存储模式下 bucket / access_key_id / access_key_secret 不能为空。如需清空 Secret 请先切换到本地存储。",
         )
     cfg = {
         "storage_mode": body.storage_mode,
         "storage_provider": body.storage_provider,
-        "oss_endpoint": body.oss_endpoint,
-        "oss_bucket": body.oss_bucket,
-        "oss_access_key_id": body.oss_access_key_id,
-        "oss_access_key_secret": body.oss_access_key_secret,
+        "oss_endpoint": _resolve(body.oss_endpoint, "oss_endpoint"),
+        "oss_bucket": _resolve(body.oss_bucket, "oss_bucket"),
+        "oss_access_key_id": resolved_key_id,
+        "oss_access_key_secret": resolved_secret,
     }
     _save_storage_config(db, cfg)
+    # 返回时脱敏
+    cfg["has_oss_access_key_secret"] = bool(resolved_secret)
+    cfg["oss_access_key_secret"] = ""
     return {"ok": True, "config": cfg}
 
 
@@ -1667,231 +1765,58 @@ class SystemSettingsBody(BaseModel):
     items: dict[str, str] = {}  # key → value
 
 
+_SYSTEM_SECRET_KEYS = {"wx_mp_secret", "wx_mini_secret", "wx_service_secret"}
+
+
+def _mask_system_config(cfg: dict) -> dict:
+    """脱敏系统参数：secret 字段返回 has_xxx，value 置空。"""
+    for key in _SYSTEM_SECRET_KEYS:
+        if key in cfg:
+            entry = cfg[key]
+            if isinstance(entry, dict):
+                has = bool((entry.get("value") or "").strip())
+                entry["has"] = has
+                entry["value"] = ""
+            else:
+                has = bool((str(entry) if entry else "").strip())
+                cfg[key] = {"value": "", "description": "", "has": has}
+    return cfg
+
+
 @router.get("/system-settings")
 def get_system_settings(admin: dict = Depends(get_current_admin), db: Session = Depends(get_db)):
-    """获取全部系统参数（需管理员权限）"""
-    return {"configs": _load_all_system_config(db)}
+    """获取全部系统参数（需管理员权限）。Secret 字段返回 has_xxx 布尔值。"""
+    cfg = _load_all_system_config(db)
+    return {"configs": _mask_system_config(cfg)}
 
 
 @router.put("/system-settings")
 def save_system_settings(body: SystemSettingsBody, admin: dict = Depends(get_current_admin), db: Session = Depends(get_db)):
-    """批量更新系统参数（需管理员权限）"""
+    """批量更新系统参数（需管理员权限）。
+    留空保持旧值；填入 __CLEAR__ 显式清空；填入新值替换。
+    """
+    old_cfg = _load_all_system_config(db)
     for key, value in body.items.items():
-        # 仅允许更新白名单内的配置键
         if key not in _SYSTEM_CONFIG_DEFAULTS:
             continue
+        # 留空保持旧值
+        if not value and value != _CLEAR_SENTINEL:
+            continue
+        resolved = "" if value == _CLEAR_SENTINEL else value
         row = db.query(SystemConfig).filter(SystemConfig.key == key).first()
         if row:
-            row.value = value
+            row.value = resolved
         else:
-            db.add(SystemConfig(key=key, value=value, description=_SYSTEM_CONFIG_DEFAULTS[key][1]))
+            db.add(SystemConfig(key=key, value=resolved, description=_SYSTEM_CONFIG_DEFAULTS[key][1]))
     db.commit()
-    return {"ok": True, "configs": _load_all_system_config(db)}
+    cfg = _load_all_system_config(db)
+    return {"ok": True, "configs": _mask_system_config(cfg)}
 
 
 # ═══════════════════════════════════════════
 # 高德 Web 服务 Key 池管理
-# ═══════════════════════════════════════════
-from models.db_models import AmapKey as _AmapKey
-from pydantic import BaseModel as _BaseModel
-
-
-class _AmapKeyBody(_BaseModel):
-    name: str = ""
-    api_key: str = ""
-    security_secret: str = ""
-    enabled: bool = True
-    priority: int = 0
-    clear_security_secret: bool = False
-
-
-@router.get("/amap-keys")
-def list_amap_keys(admin: dict = Depends(get_current_admin), db: Session = Depends(get_db)):
-    """Key 池列表 — 不返回明文"""
-    rows = db.query(_AmapKey).order_by(_AmapKey.priority, _AmapKey.id).all()
-    return {"keys": [r.to_dict_admin() for r in rows], "total": len(rows)}
-
-
-@router.post("/amap-keys")
-def create_amap_key(body: _AmapKeyBody, admin: dict = Depends(get_current_admin), db: Session = Depends(get_db)):
-    """新增 Key"""
-    if not body.api_key.strip():
-        raise HTTPException(status_code=400, detail="API Key 不能为空")
-    row = _AmapKey(
-        name=body.name.strip(),
-        api_key=body.api_key.strip(),
-        security_secret=body.security_secret.strip(),
-        enabled=1 if body.enabled else 0,
-        priority=body.priority,
-    )
-    db.add(row)
-    db.commit()
-    db.refresh(row)
-    return {"ok": True, "key": row.to_dict_admin()}
-
-
-@router.put("/amap-keys/{key_id}")
-def update_amap_key(key_id: int, body: _AmapKeyBody, admin: dict = Depends(get_current_admin), db: Session = Depends(get_db)):
-    """编辑 Key — 空 api_key 字段表示保留原值"""
-    row = db.query(_AmapKey).filter(_AmapKey.id == key_id).first()
-    if not row:
-        raise HTTPException(status_code=404, detail="Key 不存在")
-    if body.name.strip():
-        row.name = body.name.strip()
-    if body.api_key.strip():
-        row.api_key = body.api_key.strip()
-    if body.security_secret.strip():
-        row.security_secret = body.security_secret.strip()
-    if body.clear_security_secret:
-        row.security_secret = ""
-    row.enabled = 1 if body.enabled else 0
-    row.priority = body.priority
-    db.commit()
-    return {"ok": True, "key": row.to_dict_admin()}
-
-
-@router.delete("/amap-keys/{key_id}")
-def delete_amap_key(key_id: int, admin: dict = Depends(get_current_admin), db: Session = Depends(get_db)):
-    """删除 Key"""
-    row = db.query(_AmapKey).filter(_AmapKey.id == key_id).first()
-    if not row:
-        raise HTTPException(status_code=404, detail="Key 不存在")
-    db.delete(row)
-    db.commit()
-    return {"ok": True}
-
-
-@router.post("/amap-keys/{key_id}/test")
-def test_amap_key(key_id: int, admin: dict = Depends(get_current_admin), db: Session = Depends(get_db)):
-    """连通性测试 — 调高德逆地理编码轻量接口"""
-    row = db.query(_AmapKey).filter(_AmapKey.id == key_id).first()
-    if not row:
-        raise HTTPException(status_code=404, detail="Key 不存在")
-    import httpx as _httpx
-    from datetime import datetime as _dt
-
-    key = row.api_key
-    if not key:
-        return {"ok": False, "status": "0", "info": "Key 未配置", "infocode": "KEY_EMPTY", "normalized_status": "INVALID_USER_KEY"}
-
-    params = {"key": key, "location": "116.3975,39.9087"}
-    try:
-        resp = _httpx.get("https://restapi.amap.com/v3/geocode/regeo", params=params, timeout=10)
-        data = resp.json()
-        st = str(data.get("status", ""))
-        info = str(data.get("info", "") or "")[:200]
-        ic = str(data.get("infocode", "") or "")
-    except Exception as e:
-        st = "0"
-        info = str(e)[:200]
-        ic = "NETWORK_ERROR"
-
-    _info_upper = info.upper()
-    normalized = "OK" if st == "1" else (
-        "DAILY_QUERY_OVER_LIMIT" if "OVER_DAILY" in _info_upper or ic in ("10003", "10004") else
-        "QPS_EXCEEDED" if "CUQPS" in _info_upper or ic == "10007" else
-        "USERKEY_PLAT_NOMATCH" if "PLAT_NOMATCH" in _info_upper or ic == "10005" else
-        "INVALID_USER_KEY" if ic in ("10001", "20001", "20002", "20003") else
-        "SIGNATURE_REQUIRED" if "SIGN" in _info_upper or ic in ("10006",) else
-        "NETWORK_ERROR" if ic == "NETWORK_ERROR" else
-        "UNKNOWN_ERROR"
-    )
-
-    # Human-readable messages
-    _human = {
-        "OK": "高德 Web服务 Key 可用",
-        "DAILY_QUERY_OVER_LIMIT": "该 Key 今日额度已用完，请添加新的 Web服务 Key 或等待额度恢复",
-        "QPS_EXCEEDED": "QPS 超限，系统将自动切换其他 Key",
-        "USERKEY_PLAT_NOMATCH": "Key 平台/服务类型不匹配，请使用高德 Web服务 API Key（非微信小程序 Key 或 JS API Key）",
-        "INVALID_USER_KEY": "Key 无效，请检查是否复制完整或已过期",
-        "SIGNATURE_REQUIRED": "需要安全密钥签名，当前未启用 sig 签名",
-        "NETWORK_ERROR": "网络连接失败，请检查服务器网络",
-        "UNKNOWN_ERROR": f"未知错误: {info[:60]}",
-    }
-
-    row.last_status = normalized
-    row.last_info = info
-    row.last_infocode = ic
-    row.last_checked_at = _dt.utcnow()
-    if normalized != "OK":
-        row.fail_count = (row.fail_count or 0) + 1
-    else:
-        row.fail_count = 0
-    db.commit()
-
-    return {
-        "ok": st == "1",
-        "status": st,
-        "info": info,
-        "infocode": ic,
-        "normalized_status": normalized,
-        "human_message": _human.get(normalized, _human["UNKNOWN_ERROR"]),
-        "source": "direct_test",
-    }
-
-
-# ═══════════════════════════════════════════
-# 高德 Key 选择器 — 统一入口
-# ═══════════════════════════════════════════
-def _get_amap_key_selector(db: Session):
-    """返回 (api_key, security_secret) 优先从 DB 池选"""
-    from datetime import datetime as _dt
-    rows = db.query(_AmapKey).filter(_AmapKey.enabled == 1).order_by(_AmapKey.priority, _AmapKey.id).all()
-    if rows:
-        r = rows[0]
-        return r.api_key, (r.security_secret or "")
-    # fallback to env
-    import os as _os
-    return _os.getenv("AMAP_WEB_KEY", _os.getenv("AMAP_KEY", "")), ""
-
-
-def _report_amap_key_failure(db: Session, key_str: str, status: str, info: str = "", infocode: str = ""):
-    """标记 Key 失败状态"""
-    from datetime import datetime as _dt
-    if not key_str:
-        return
-    row = db.query(_AmapKey).filter(_AmapKey.api_key == key_str, _AmapKey.enabled == 1).first()
-    if row:
-        row.last_status = status
-        row.last_info = info[:200] if info else ""
-        row.last_infocode = infocode[:20] if infocode else ""
-        row.last_checked_at = _dt.utcnow()
-        row.fail_count = (row.fail_count or 0) + 1
-        db.commit()
-
-
-# ═══════════════════════════════════════════════════════════
-# 报告库 — 运营查看所有已生成报告
-# ═══════════════════════════════════════════════════════════
-
-def _parse_report_type(report_json_str: str) -> str:
-    """从 report_json 安全解析报告类型"""
-    if not report_json_str:
-        return "ai"
-    try:
-        rj = json.loads(report_json_str) if isinstance(report_json_str, str) else report_json_str
-        if isinstance(rj, dict):
-            if rj.get("_fallback_report"):
-                return "fallback"
-            if rj.get("_fact_retry") and rj.get("_fact_retry_passed"):
-                return "retry_ai"
-    except Exception:
-        pass
-    return "ai"
-
-
-class ReportsQuery(BaseModel):
-    page: int = 1
-    page_size: int = 20
-    q: str = ""
-    user_id: int = 0
-    business_type: str = ""
-    score_min: int = 0
-    score_max: int = 100
-    date_from: str = ""
-    date_to: str = ""
-    report_type: str = ""
-
+from routers.admin_amap import amap_router, _get_amap_key_selector, _AmapKeyBody, update_amap_key, _AmapKey
+router.include_router(amap_router)
 
 @router.get("/reports")
 def list_reports(
