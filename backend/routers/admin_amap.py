@@ -81,7 +81,6 @@ def test_amap_key(key_id: int, admin: dict = Depends(get_current_admin), db: Ses
     if not row:
         raise HTTPException(status_code=404, detail="Key 不存在")
     import httpx as _httpx
-    from datetime import datetime as _dt
 
     key = row.api_key
     if not key:
