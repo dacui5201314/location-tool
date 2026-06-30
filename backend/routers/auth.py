@@ -54,6 +54,63 @@ def _check_user_login_rate(identifier: str) -> bool:
         _prune_rate_map(_login_rate_map, now, _LOGIN_RATE_WINDOW, _LOGIN_RATE_MAX_KEYS)
         return True
 
+# ── /api/auth/token 轻量限流 + device_id 校验（P2-B）──
+_token_device_rate_map: dict[str, list[float]] = {}
+_token_ip_rate_map: dict[str, list[float]] = {}
+_token_rate_lock = threading.Lock()
+_TOKEN_DEVICE_LIMIT_PER_MIN = int(os.getenv("TOKEN_DEVICE_LIMIT_PER_MIN", "20"))
+_TOKEN_IP_LIMIT_PER_MIN = int(os.getenv("TOKEN_IP_LIMIT_PER_MIN", "120"))
+_TOKEN_RATE_WINDOW = 60.0
+_TOKEN_RATE_MAX_KEYS = 10000
+_DEVICE_ID_RE = __import__("re").compile(r'^[A-Za-z0-9._:-]+$')
+_DEVICE_ID_MAX_LEN = 100  # 与 User.device_id String(100) 对齐
+
+
+def _prune_token_rate_maps(now: float):
+    """窗口清理 + 超容量淘汰（token 限流 map）"""
+    _prune_rate_map(_token_device_rate_map, now, _TOKEN_RATE_WINDOW, _TOKEN_RATE_MAX_KEYS)
+    _prune_rate_map(_token_ip_rate_map, now, _TOKEN_RATE_WINDOW, _TOKEN_RATE_MAX_KEYS)
+
+
+def _check_token_rate(device_id: str, client_ip: str) -> None:
+    """检查 token 端点限流。命中返回 HTTPException(429)，否则记录时间戳。"""
+    now = _time.time()
+    with _token_rate_lock:
+        # device 维度
+        dev_key = f"{client_ip}:{device_id}"
+        dev_hits = [t for t in _token_device_rate_map.get(dev_key, []) if now - t < _TOKEN_RATE_WINDOW]
+        if len(dev_hits) >= _TOKEN_DEVICE_LIMIT_PER_MIN:
+            _token_device_rate_map[dev_key] = dev_hits
+            _prune_token_rate_maps(now)
+            raise HTTPException(status_code=429, detail="请求过于频繁，请稍后再试")
+        # IP 维度
+        ip_hits = [t for t in _token_ip_rate_map.get(client_ip, []) if now - t < _TOKEN_RATE_WINDOW]
+        if len(ip_hits) >= _TOKEN_IP_LIMIT_PER_MIN:
+            _token_ip_rate_map[client_ip] = ip_hits
+            _prune_token_rate_maps(now)
+            raise HTTPException(status_code=429, detail="请求过于频繁，请稍后再试")
+        # 记录
+        dev_hits.append(now)
+        _token_device_rate_map[dev_key] = dev_hits
+        ip_hits.append(now)
+        _token_ip_rate_map[client_ip] = ip_hits
+        _prune_token_rate_maps(now)
+
+
+def _validate_device_id(device_id: str) -> str:
+    """校验并返回 strip 后的 device_id。非法时抛 HTTPException(400)。"""
+    stripped = device_id.strip()
+    if not stripped:
+        raise HTTPException(status_code=400, detail="device_id 不能为空")
+    if len(stripped) < 8:
+        raise HTTPException(status_code=400, detail="device_id 至少 8 个字符")
+    if len(stripped) > _DEVICE_ID_MAX_LEN:
+        raise HTTPException(status_code=400, detail="device_id 不能超过 100 个字符")
+    if not _DEVICE_ID_RE.match(stripped):
+        raise HTTPException(status_code=400,
+                           detail="device_id 包含无效字符，仅允许字母、数字、. _ : -")
+    return stripped
+
 router = APIRouter(prefix="/api/auth", tags=["认证"])
 
 MAX_FREE_ACCOUNTS_PER_DEVICE = 2
@@ -279,12 +336,13 @@ def get_token(
 ):
     """仅用于匿名设备用户，不接受 phone 或 wx_openid。
     手机号登录请用 /auth/login，微信授权请用 /auth/wechat/official。"""
-    if not device_id:
-        raise HTTPException(status_code=400, detail="device_id 不能为空")
+    # P2-B: device_id 校验 + 限流
+    validated_device_id = _validate_device_id(device_id)
     client_ip = _get_client_ip(request) if request else ""
+    _check_token_rate(validated_device_id, client_ip)
     user, is_new, gift_note = _find_or_create_user(
         db,
-        device_id=device_id,
+        device_id=validated_device_id,
         channel=channel,
         client_ip=client_ip,
     )

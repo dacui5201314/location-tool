@@ -526,10 +526,13 @@ def _int_guard(v, default=0):
 
 
 # ── AMap 成功后计费确认（P1-7：不可静默吞异常）──
-def _commit_billing_after_amap(db_billing, request_id: str, user_id: int, billing_source: str):
-    """AMap 采集成功后确认扣费。commit 失败时 rollback + 抛 RuntimeError。"""
+def _commit_billing_after_amap(db_billing, request_id: str, user_id: int, billing_source: str, billing_state: dict | None = None):
+    """AMap 采集成功后确认扣费。commit 失败时 rollback + 抛 RuntimeError。
+    billing_state 可选，传入时会同步标记 committed/closed 状态。"""
     try:
         db_billing.commit()
+        if billing_state is not None:
+            billing_state["committed"] = True
     except Exception as e:
         try:
             db_billing.rollback()
@@ -545,8 +548,29 @@ def _commit_billing_after_amap(db_billing, request_id: str, user_id: int, billin
     finally:
         try:
             db_billing.close()
+            if billing_state is not None:
+                billing_state["closed"] = True
         except Exception:
             pass
+
+
+def _rollback_close_billing_session(db_billing, billing_state: dict):
+    """统一兜底：确保 billing session 正确 rollback/close（P1-B）。
+    - 未 committed 且未 closed：rollback 后 close。
+    - 已 closed：不重复 rollback/close。
+    - 已 committed：不 rollback；如未 closed 只 close。"""
+    if billing_state.get("closed"):
+        return
+    if not billing_state.get("committed"):
+        try:
+            db_billing.rollback()
+        except Exception:
+            pass
+    try:
+        db_billing.close()
+    except Exception:
+        pass
+    billing_state["closed"] = True
 
 
 # ── /api/analyze 轻量限流 + 并发锁 ──
@@ -643,6 +667,8 @@ async def analyze_location(req: AnalyzeRequest, user: dict = Depends(get_current
         _amap_failed = False       # ★ AMap 采集失败（非调试模式）
         _db_save_error = False     # ★ Phase 13: DB 主记录保存失败（硬阻断，触发退款）
         _fact_guard_failed = False # ★ C-4: 报告事实校验失败（P0/P2/P3 hard error）
+        # ★ P1-B: billing session 状态标记（统一兜底 rollback/close）
+        billing_state = {"committed": False, "closed": False}
         # ★ C-4 统计计数器
         _fact_guard_first_fail = False  # 首次 guard 失败
         _retry_attempted = False        # 是否尝试了 retry
@@ -781,16 +807,8 @@ async def analyze_location(req: AnalyzeRequest, user: dict = Depends(get_current
                     real_data = fallback
                 else:
                     _amap_failed = True
-                    # ★ P0修复：AMap 失败 → 计费回滚，不扣点
-                    try:
-                        db_billing.rollback()
-                    except Exception:
-                        pass
-                    finally:
-                        try:
-                            db_billing.close()
-                        except Exception:
-                            pass
+                    # ★ P0修复 + P1-B：AMap 失败 → 计费回滚（统一 helper），不扣点
+                    _rollback_close_billing_session(db_billing, billing_state)
                     real_data = {
                         "city": "", "district": "", "township": "",
                         "poi_counts": {}, "stats_200m": {}, "stats_500m": {}, "stats_1000m": {},
@@ -805,7 +823,7 @@ async def analyze_location(req: AnalyzeRequest, user: dict = Depends(get_current
 
             # ★ P1-7：AMap 成功 → 计费确认（AMap try 外，不可静默）
             if not _amap_failed:
-                _commit_billing_after_amap(db_billing, request_id, current_user_id, billing_source)
+                _commit_billing_after_amap(db_billing, request_id, current_user_id, billing_source, billing_state=billing_state)
 
             # ═══════════════════════════════════════════
             # Step 2 — 数据脱水与竞品交叉比对
@@ -1431,6 +1449,8 @@ async def analyze_location(req: AnalyzeRequest, user: dict = Depends(get_current
                                  billing_status="unknown")
             await asyncio.sleep(0)
         finally:
+            # ★ P1-B: billing session 统一兜底（无论成功/失败/客户端断开）
+            _rollback_close_billing_session(db_billing, billing_state)
             # ★ 释放并发锁（无论成功/失败/客户端断开，都必须释放）
             _analyze_active.discard(current_user_id)
             # ★ 退款收口：LLM/JSON/DB/Fact Guard 失败 → 点数模式退款（幂等保护）

@@ -111,58 +111,94 @@ async def upload_avatar(
     user: dict = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    """上传用户头像（需 JWT）。只允许 PNG/JPEG/WebP/GIF，限制 2MB。
-    以文件头魔数为准，content_type 仅作辅助参考（真机可能回传 application/octet-stream）。"""
-    _ct = (file.content_type or "").lower()
-    if _ct and _ct not in AVATAR_ALLOWED and _ct not in ("", "application/octet-stream"):
-        # 明确不是 image/* 但也不是常见 fallback，继续让魔数校验裁决
-        pass
-    content = await file.read()
-    if len(content) > AVATAR_MAX_BYTES:
+    """上传用户头像（需 JWT）。PNG/JPEG/WebP/GIF 输入 → Pillow 解码验证重编码后写入。
+    GIF 只保留首帧，重编码为 PNG。限制 2MB（原始上传大小）。"""
+    raw_content = await file.read()
+    if len(raw_content) > AVATAR_MAX_BYTES:
         raise HTTPException(status_code=400, detail="头像文件不能超过 2MB")
-    # 二次校验：通过文件头魔数确认真实类型
-    if len(content) < 4:
+
+    # ── 魔数校验 ──
+    if len(raw_content) < 4:
         raise HTTPException(status_code=400, detail="文件内容无效")
-    header = content[:4]
+    header = raw_content[:4]
     magic_map = {
         b"\x89PNG": "png",
         b"\xff\xd8\xff": "jpeg",
-        b"RIFF": "webp",   # RIFF....WEBP
+        b"RIFF": "webp",
         b"GIF8": "gif",
     }
-    ext = None
+    detected_ext = None
     for magic, e in magic_map.items():
         if header.startswith(magic):
-            ext = e
+            detected_ext = e
             break
-    # 额外检查 WebP: RIFF header 后需有 WEBP 标记
-    if ext == "webp" and (len(content) < 12 or content[8:12] != b"WEBP"):
-        ext = None
-    if ext is None:
+    if detected_ext == "webp" and (len(raw_content) < 12 or raw_content[8:12] != b"WEBP"):
+        detected_ext = None
+    if detected_ext is None:
         raise HTTPException(status_code=400, detail="无法识别的图片格式")
-    # 生成安全文件名
+
+    # ── Pillow 解码 / 验证 / 重编码（P3-A）──
+    import io as _io
+    from PIL import Image as _Image
+    try:
+        img = _Image.open(_io.BytesIO(raw_content))
+        img.verify()
+        img = _Image.open(_io.BytesIO(raw_content))
+    except Exception:
+        raise HTTPException(status_code=400, detail="图片格式无效或已损坏")
+
+    is_gif = detected_ext == "gif"
+    if is_gif:
+        # GIF → 只保留首帧，重编码为 PNG
+        if getattr(img, "is_animated", False) and getattr(img, "n_frames", 1) > 1:
+            img.seek(0)
+        if img.mode not in ("RGB", "RGBA", "L", "P"):
+            img = img.convert("RGBA")
+        out_ext = "png"
+        out_content_type = "image/png"
+        out_buf = _io.BytesIO()
+        img.save(out_buf, format="PNG")
+    else:
+        # PNG / JPEG / WebP → 重编码为同格式
+        fmt_map = {"png": "PNG", "jpeg": "JPEG", "webp": "WEBP"}
+        pil_fmt = fmt_map.get(detected_ext, "PNG")
+        if img.mode not in ("RGB", "RGBA", "L"):
+            img = img.convert("RGB")
+        out_ext = detected_ext
+        out_content_type = f"image/{out_ext}"
+        out_buf = _io.BytesIO()
+        save_kw = {"format": pil_fmt}
+        if pil_fmt == "JPEG":
+            save_kw["quality"] = 85
+        img.save(out_buf, **save_kw)
+
+    reencoded = out_buf.getvalue()
+
+    # ── 本地写入（使用重编码 bytes）──
     uid = int(user["user_id"])
     ts = int(time.time() * 1000)
     token = secrets.token_hex(4)
-    filename = f"avatar_{uid}_{ts}_{token}.{ext}"
+    filename = f"avatar_{uid}_{ts}_{token}.{out_ext}"
     filepath = os.path.join(AVATAR_ROOT, filename)
-    # 防路径穿越
     if os.path.abspath(filepath) != filepath or not filepath.startswith(os.path.abspath(AVATAR_ROOT)):
         raise HTTPException(status_code=400, detail="文件名无效")
     with open(filepath, "wb") as f:
-        f.write(content)
+        f.write(reencoded)
+
     avatar_url = f"/assets/user_avatars/{filename}"
-    # 尝试云存储
+
+    # ── 云存储（使用重编码 bytes）──
     from services.storage_service import save_user_asset_structured
     try:
-        result = save_user_asset_structured("avatars", filename, content,
-                                             content_type=f"image/{ext}",
+        result = save_user_asset_structured("avatars", filename, reencoded,
+                                             content_type=out_content_type,
                                              metadata={"user_id": uid})
         if result.ok and result.url:
             avatar_url = result.url
     except Exception:
-        pass  # 云失败静默，保持本地 URL
-    # 更新数据库
+        pass
+
+    # ── 更新数据库 ──
     db_user = db.query(User).filter(User.id == uid).first()
     if db_user:
         db_user.avatar_url = avatar_url

@@ -1815,8 +1815,64 @@ def save_system_settings(body: SystemSettingsBody, admin: dict = Depends(get_cur
 
 # ═══════════════════════════════════════════
 # 高德 Web 服务 Key 池管理
-from routers.admin_amap import amap_router, _get_amap_key_selector, _AmapKeyBody, update_amap_key, _AmapKey
+from routers.admin_amap import amap_router, _get_amap_key_selector, _AmapKeyBody, update_amap_key, _AmapKey, _parse_report_type
 router.include_router(amap_router)
+
+
+def _compute_storage_location(has_url: bool, has_file: bool, has_json: bool) -> str:
+    """报告存储位置（P2-A：与渲染来源拆开）。"""
+    if has_url: return "cloud"
+    if has_file: return "local"
+    if has_json: return "database"
+    return "missing"
+
+
+def _compute_render_source(report_json_raw: str, has_file: bool, has_url: bool) -> str:
+    """列表端渲染来源预估（P2-A：解析 JSON 确认有效性，坏 JSON 不回 db_json）。"""
+    if report_json_raw:
+        try:
+            parsed = json.loads(report_json_raw) if isinstance(report_json_raw, str) else report_json_raw
+            if isinstance(parsed, dict):
+                return "db_json"
+        except Exception:
+            pass
+        # JSON 存在但无法解析为有效 dict → 预估回退
+        if has_url:
+            return "cloud_html"
+        if has_file:
+            return "html_file"
+        return "db_json_parse_error"
+    if has_file:
+        return "html_file"
+    if has_url:
+        return "cloud_html"
+    return "missing"
+
+
+def _load_report_html_for_admin(record_id: int, report_file: str, report_url: str):
+    """加载报告 HTML（先尝试云端 URL，失败再回退本地文件）。
+    返回 (html_content: str, render_source: str, error: str)。
+    P2-A: render_source 反映实际成功的来源，不用 has_url 简单判断。"""
+    from services.storage_service import get_report_content
+
+    if report_url:
+        try:
+            content = get_report_content(record_id, "", report_url)
+            if content:
+                return content.decode("utf-8", errors="replace"), "cloud_html", ""
+        except Exception as e:
+            pass
+
+    if report_file:
+        try:
+            content = get_report_content(record_id, report_file, "")
+            if content:
+                return content.decode("utf-8", errors="replace"), "html_file", ""
+        except Exception as e:
+            pass
+
+    return "", "", ""
+
 
 @router.get("/reports")
 def list_reports(
@@ -1872,14 +1928,8 @@ def list_reports(
         has_json = bool(record.report_json)
         has_file = bool(record.report_file)
         has_url = bool(record.report_url)
-        if has_json:
-            storage_source = "db_json"
-        elif has_url:
-            storage_source = "cloud_url"
-        elif has_file:
-            storage_source = "local_file"
-        else:
-            storage_source = "missing"
+        storage_location = _compute_storage_location(has_url, has_file, has_json)
+        render_source = _compute_render_source(record.report_json or "", has_file, has_url)
         all_items.append({
             "id": record.id,
             "report_uuid": record.report_uuid,
@@ -1891,7 +1941,8 @@ def list_reports(
             "business_type": record.business_type or "",
             "overall_score": record.overall_score,
             "report_type": rtype,
-            "storage_source": storage_source,
+            "storage_location": storage_location,
+            "render_source": render_source,
             "has_report_json": has_json,
             "has_report_file": has_file,
             "has_report_url": has_url,
@@ -1947,11 +1998,16 @@ def get_report_detail(
 
     parsed = None
     parse_error = ""
-    storage_source = "missing"
     html_content = ""
     storage_error = ""
 
-    # 优先级 1：report_json
+    # storage_location: 报告存在哪里（独立于渲染来源）
+    has_json = bool(report_json_raw)
+    has_file = bool(report_file)
+    has_url = bool(report_url)
+    storage_location = _compute_storage_location(has_url, has_file, has_json)
+
+    # 优先级 1：report_json（保持优先渲染 JSON 的现有行为）
     if report_json_raw:
         try:
             parsed = json.loads(report_json_raw) if isinstance(report_json_raw, str) else report_json_raw
@@ -1959,31 +2015,27 @@ def get_report_detail(
                 for k in list(parsed.keys()):
                     if k.startswith("_"):
                         parsed.pop(k, None)
-            storage_source = "db_json"
         except Exception as e:
             parse_error = str(e)
 
-    # 优先级 2：本地文件或 COS（始终尝试，用于 HTML 预览）
+    # 优先级 2：加载 HTML（先云端后本地，P2-A：记录实际成功来源）
     if report_file or report_url:
-        try:
-            from services.storage_service import get_report_content
-            content = get_report_content(record.id, report_file, report_url)
-            if content:
-                text = content.decode("utf-8", errors="replace")
-                html_content = text
-                if not parsed:
-                    if report_url:
-                        storage_source = "cloud_url"
-                    elif report_file:
-                        storage_source = "local_file"
-        except Exception as e:
-            storage_error = str(e)
+        html_content, html_render_src, storage_error = _load_report_html_for_admin(
+            record.id, report_file, report_url
+        )
 
-    if not parsed and not html_content:
-        storage_source = "missing"
-    if storage_source == "missing" and parse_error:
-        storage_source = "db_json_parse_error"
-    meta["storage_source"] = storage_source
+    # render_source: 详情页实际渲染来源
+    if isinstance(parsed, dict):
+        render_source = "db_json"
+    elif html_content:
+        render_source = html_render_src  # cloud_html / html_file（来自实际成功来源）
+    elif parse_error or (report_json_raw and not isinstance(parsed, dict)):
+        render_source = "db_json_parse_error"
+    else:
+        render_source = "missing"
+
+    meta["storage_location"] = storage_location
+    meta["render_source"] = render_source
 
     result = {"meta": meta}
     if parsed:

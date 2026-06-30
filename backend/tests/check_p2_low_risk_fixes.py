@@ -109,7 +109,6 @@ check("X-Content-Type-Options" in main_src, "nosniff header present")
 check("X-Frame-Options" in main_src, "frame options present")
 check("nosniff" in main_src, "nosniff value present")
 check("frame-ancestors" in main_src, "CSP frame-ancestors header present")
-# README has production build and dep audit notes
 readme = open(os.path.join(os.path.dirname(__file__), '..', '..', 'README.md'), 'r', encoding='utf-8').read()
 check("uv run" in readme, "README uses uv consistently")
 print("6.5 PASS")
@@ -139,10 +138,213 @@ check(amap_router is not None, "amap_router importable")
 check(_get_amap_key_selector is not None, "_get_amap_key_selector importable")
 from services.amap_service import collect_location_data
 check(collect_location_data is not None, "collect_location_data importable (thin wrapper)")
-# admin.py re-exports
-from routers.admin import amap_router as admin_amap_router
+from routers.admin import amap_router as admin_amap_router, _parse_report_type as admin_parse_report_type
 check(admin_amap_router is amap_router, "admin.py re-exports amap_router")
+check(callable(admin_parse_report_type), "admin.py re-exports _parse_report_type for report library")
+# 6.1e: P2-A — storage_location / render_source 行为测试
+from routers.admin import _compute_storage_location, _compute_render_source
+VALID_JSON = '{"score":80,"summary":"ok"}'
+INVALID_JSON = '{bad json'
+# storage_location 规则
+check(_compute_storage_location(True, False, False) == "cloud",     "stor_loc: url → cloud")
+check(_compute_storage_location(False, True, False) == "local",     "stor_loc: file → local")
+check(_compute_storage_location(False, False, True) == "database",  "stor_loc: json → database")
+check(_compute_storage_location(False, False, False) == "missing",  "stor_loc: none → missing")
+check(_compute_storage_location(True, True, True) == "cloud",       "stor_loc: url+file+json → cloud")
+# render_source 规则（P2-A 返修：解析 JSON 确认有效性）
+check(_compute_render_source(VALID_JSON, False, False) == "db_json",        "render: valid_json → db_json")
+check(_compute_render_source(INVALID_JSON, False, True) == "cloud_html",    "render: bad_json+url → cloud_html")
+check(_compute_render_source(INVALID_JSON, True, False) == "html_file",     "render: bad_json+file → html_file")
+check(_compute_render_source(INVALID_JSON, False, False) == "db_json_parse_error", "render: bad_json+nothing → db_json_parse_error")
+check(_compute_render_source("", True, False) == "html_file",               "render: no_json+file → html_file")
+check(_compute_render_source("", False, True) == "cloud_html",              "render: no_json+url → cloud_html")
+check(_compute_render_source("", False, False) == "missing",                "render: none → missing")
+# admin/index.html: 新字段名，无 "DB JSON"
+check("storage_location" in admin_html, "admin HTML uses storage_location")
+check("render_source" in admin_html, "admin HTML uses render_source")
+check("storage_source" not in admin_html, "admin HTML no longer references storage_source")
+check('DB JSON' not in admin_html, "admin HTML hides DB JSON")
+check("cloud:'云端'" in admin_html, "admin HTML has locMap cloud")
+check("database:'数据库'" in admin_html, "admin HTML has locMap database")
+check("db_json:'数据库JSON'" in admin_html, "admin HTML has renderMap db_json")
+check("db_json_parse_error:'数据库异常'" in admin_html, "admin HTML has parse_error label")
 print("6.1 PASS")
+
+# ═══ 6.1f: P2-A DB-backed — 真实调用 list_reports / get_report_detail ═══
+print("=== 6.1f: P2-A DB-backed endpoint tests ===")
+from sqlalchemy import create_engine as _ce2, event as _ev2
+from sqlalchemy.orm import sessionmaker as _sm2
+from datetime import datetime as _dt2
+
+_p2a_engine = _ce2("sqlite://", echo=False)
+@_ev2.listens_for(_p2a_engine, "connect")
+def _p2a_pragma(dbapi_conn, _rec):
+    dbapi_conn.execute("PRAGMA journal_mode=WAL;")
+_P2aSession = _sm2(bind=_p2a_engine)
+
+from database import Base as _Base2
+from models.db_models import AnalysisRecord as _AR, User as _User2
+_Base2.metadata.create_all(bind=_p2a_engine)
+
+from routers.admin import list_reports, get_report_detail
+
+_p2a_counter = 0
+def _make_ar(db, report_uuid, report_json="", report_file="", report_url="", user_id=1):
+    """创建 AnalysisRecord 测试行"""
+    global _p2a_counter
+    _p2a_counter += 1
+    # ensure user exists
+    u = db.query(_User2).filter(_User2.id == user_id).first()
+    if not u:
+        u = _User2(id=user_id, balance_credits=10, membership_tier="free", wx_mini_openid=f"oAR{user_id}")
+        db.add(u)
+        db.commit()
+    ar = _AR(report_uuid=report_uuid, user_id=user_id,
+             report_json=report_json, report_file=report_file, report_url=report_url,
+             brand_desc="测试品牌", address="测试地址", business_type="测试业态",
+             overall_score=80, created_at=_dt2.now())
+    db.add(ar)
+    db.commit()
+    db.refresh(ar)
+    return ar
+
+_ADMIN = {"user_id": 1, "role": "admin"}
+
+# ── DB1: report_json + report_url → list storage_location=cloud, render_source=db_json ──
+print("  DB1: valid json + url → list")
+db1 = _P2aSession()
+_ar1 = _make_ar(db1, "uuid-db1-001", report_json=VALID_JSON, report_url="https://example.com/r.html")
+r1 = list_reports(admin=_ADMIN, db=db1, page=1, page_size=20, score_min=0, score_max=100, q="", user_id=0, business_type="", date_from="", date_to="", report_type="")
+items1 = r1["items"]
+check(len(items1) == 1, f"list has 1 item: {len(items1)}")
+check(items1[0]["storage_location"] == "cloud", f"stor_loc=cloud: {items1[0]['storage_location']}")
+check(items1[0]["render_source"] == "db_json", f"render=db_json: {items1[0]['render_source']}")
+db1.rollback()
+print("  DB1 PASS")
+
+# ── DB2: report_json + report_url → detail storage_location=cloud, render_source=db_json ──
+print("  DB2: valid json + url → detail")
+db2 = _P2aSession()
+_ar2 = _make_ar(db2, "uuid-db2-001", report_json=VALID_JSON, report_url="https://example.com/r.html")
+r2 = get_report_detail("uuid-db2-001", admin=_ADMIN, db=db2)
+m2 = r2["meta"]
+check(m2["storage_location"] == "cloud", f"stor_loc=cloud: {m2['storage_location']}")
+check(m2["render_source"] == "db_json", f"render=db_json: {m2['render_source']}")
+db2.rollback()
+print("  DB2 PASS")
+
+# ── DB3: 坏 JSON + report_file → list render_source=html_file ──
+print("  DB3: bad json + file → list")
+db3 = _P2aSession()
+_ar3 = _make_ar(db3, "uuid-db3-001", report_json=INVALID_JSON, report_file="/tmp/test.html")
+r3 = list_reports(admin=_ADMIN, db=db3, page=1, page_size=20, score_min=0, score_max=100, q="", user_id=0, business_type="", date_from="", date_to="", report_type="")
+check(r3["items"][0]["storage_location"] == "local", "stor_loc=local")
+check(r3["items"][0]["render_source"] == "html_file", f"render=html_file: {r3['items'][0]['render_source']}")
+db3.rollback()
+print("  DB3 PASS")
+
+# ── DB4: 坏 JSON + report_file → detail render_source=html_file, parse_error 有值 ──
+print("  DB4: bad json + file → detail")
+import tempfile as _tf
+_tf4 = _tf.NamedTemporaryFile(suffix=".html", delete=False, mode="w")
+_tf4.write("<html><body>test</body></html>")
+_tf4.close()
+db4 = _P2aSession()
+_ar4 = _make_ar(db4, "uuid-db4-001", report_json=INVALID_JSON, report_file=_tf4.name)
+r4 = get_report_detail("uuid-db4-001", admin=_ADMIN, db=db4)
+m4 = r4["meta"]
+check(m4["storage_location"] == "local", f"stor_loc=local: {m4['storage_location']}")
+check(m4["render_source"] == "html_file", f"render=html_file: {m4['render_source']}")
+check(bool(r4.get("parse_error")), f"parse_error present: {r4.get('parse_error', '')[:60]}")
+db4.rollback()
+os.unlink(_tf4.name)
+print("  DB4 PASS")
+
+# ── DB5: 坏 JSON + report_url → list render_source=cloud_html ──
+print("  DB5: bad json + url → list")
+db5 = _P2aSession()
+_ar5 = _make_ar(db5, "uuid-db5-001", report_json=INVALID_JSON, report_url="https://example.com/r.html")
+r5 = list_reports(admin=_ADMIN, db=db5, page=1, page_size=20, score_min=0, score_max=100, q="", user_id=0, business_type="", date_from="", date_to="", report_type="")
+check(r5["items"][0]["storage_location"] == "cloud", "stor_loc=cloud")
+check(r5["items"][0]["render_source"] == "cloud_html", f"render=cloud_html: {r5['items'][0]['render_source']}")
+db5.rollback()
+print("  DB5 PASS")
+
+# ── DB6: 坏 JSON + report_url → detail render_source=cloud_html (云端真实尝试) ──
+# 注：in-memory DB 无法真实 HTTP 获取云端内容，render_source 应回退为 missing
+# 但 report_url 存在且 report_json 解析失败 → 应尝试云端加载（失败则标 db_json_parse_error）
+print("  DB6: bad json + url → detail (no real cloud)")
+db6 = _P2aSession()
+_ar6 = _make_ar(db6, "uuid-db6-001", report_json=INVALID_JSON, report_url="https://example.com/r.html")
+r6 = get_report_detail("uuid-db6-001", admin=_ADMIN, db=db6)
+m6 = r6["meta"]
+check(m6["storage_location"] == "cloud", f"stor_loc=cloud: {m6['storage_location']}")
+# 云端获取失败 + 坏 JSON → db_json_parse_error
+check(m6["render_source"] == "db_json_parse_error",
+      f"render=db_json_parse_error (cloud fetch failed, no valid json): {m6['render_source']}")
+check(bool(r6.get("parse_error")), "parse_error present")
+db6.rollback()
+print("  DB6 PASS")
+
+# ── DB7: 都没有 → list storage_location=missing, render_source=missing ──
+print("  DB7: nothing → list")
+db7 = _P2aSession()
+_ar7 = _make_ar(db7, "uuid-db7-001")
+r7 = list_reports(admin=_ADMIN, db=db7, page=1, page_size=20, score_min=0, score_max=100, q="", user_id=0, business_type="", date_from="", date_to="", report_type="")
+check(r7["items"][0]["storage_location"] == "missing", f"stor_loc=missing: {r7['items'][0]['storage_location']}")
+check(r7["items"][0]["render_source"] == "missing", f"render=missing: {r7['items'][0]['render_source']}")
+db7.rollback()
+print("  DB7 PASS")
+
+# ── DB8: 都没有 → detail storage_location=missing, render_source=missing ──
+print("  DB8: nothing → detail")
+db8 = _P2aSession()
+_ar8 = _make_ar(db8, "uuid-db8-001")
+r8 = get_report_detail("uuid-db8-001", admin=_ADMIN, db=db8)
+m8 = r8["meta"]
+check(m8["storage_location"] == "missing", f"stor_loc=missing: {m8['storage_location']}")
+check(m8["render_source"] == "missing", f"render=missing: {m8['render_source']}")
+db8.rollback()
+print("  DB8 PASS")
+
+# ── DB9: 坏 JSON + report_url + 无 report_file → detail db_json_parse_error ──
+print("  DB9: bad json + url only, no file → detail")
+db9 = _P2aSession()
+_ar9 = _make_ar(db9, "uuid-db9-001", report_json=INVALID_JSON, report_url="https://bad.example/nonexistent")
+r9 = get_report_detail("uuid-db9-001", admin=_ADMIN, db=db9)
+m9 = r9["meta"]
+check(m9["storage_location"] == "cloud", f"stor_loc=cloud: {m9['storage_location']}")
+check(m9["render_source"] == "db_json_parse_error",
+      f"render=db_json_parse_error: {m9['render_source']}")
+check(bool(r9.get("parse_error")), "parse_error present")
+db9.rollback()
+print("  DB9 PASS")
+
+# ── DB10: valid JSON only → list storage_location=database, render_source=db_json ──
+print("  DB10: valid json only → list")
+db10 = _P2aSession()
+_ar10 = _make_ar(db10, "uuid-db10-001", report_json=VALID_JSON)
+r10 = list_reports(admin=_ADMIN, db=db10, page=1, page_size=20, score_min=0, score_max=100, q="", user_id=0, business_type="", date_from="", date_to="", report_type="")
+check(r10["items"][0]["storage_location"] == "database",
+      f"stor_loc=database: {r10['items'][0]['storage_location']}")
+check(r10["items"][0]["render_source"] == "db_json",
+      f"render=db_json: {r10['items'][0]['render_source']}")
+db10.rollback()
+print("  DB10 PASS")
+
+# ── DB11: valid JSON only → detail storage_location=database, render_source=db_json ──
+print("  DB11: valid json only → detail")
+db11 = _P2aSession()
+_ar11 = _make_ar(db11, "uuid-db11-001", report_json=VALID_JSON)
+r11 = get_report_detail("uuid-db11-001", admin=_ADMIN, db=db11)
+m11 = r11["meta"]
+check(m11["storage_location"] == "database", f"stor_loc=database: {m11['storage_location']}")
+check(m11["render_source"] == "db_json", f"render=db_json: {m11['render_source']}")
+check("report" in r11, "report object returned for valid json")
+db11.rollback()
+print("  DB11 PASS")
+
+print("6.1f PASS")
 
 # ═══ P2-15: user input boundary in prompt ═══
 print("=== P2-15: prompt input boundary ===")

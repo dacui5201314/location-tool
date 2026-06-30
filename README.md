@@ -71,8 +71,13 @@ location-tool/
 │   ├── prompts/                       # 提示词系统（14 套 Master 业态规则）
 │   ├── routers/                       # RESTful API 路由（11 个模块）
 │   ├── knowledge/                     # 选址知识库（12 族 YAML / location_profiles / 18 张 source card / manifest 27 条）
-│   ├── services/                      # 业务服务（14 个模块：amap / business_model / location_profile / fallback_report / report_enrichment / poi_name_guard / billing / storage / cloud_storage / report_quality / report_decision / substitute_pharmacy_filter / runtime_config）
-│   ├── tests/                         # 测试套件（industry 2178 / fact guard 188 / BM 46 / sample 71 / LP 12 / schema 18 / enrichment 11 全 PASS）
+│   ├── services/                      # 业务服务（17 模块）
+│   │   ├── amap_service.py            #   兼容入口（9 行）—— 保持外部导入路径不变
+│   │   ├── amap_models.py             #   数据结构（77 行）—— LocationData + 城市地铁拓扑
+│   │   ├── amap_poi_rules.py          #   纯函数（697 行）—— POI 分类规则 + 脱水函数
+│   │   ├── amap_collect_service.py    #   服务层（859 行）—— AmapService + HTTP + Key池 + 采集流程
+│   │   ├── ...                        #   business_model / location_profile / fallback_report / report_enrichment / poi_name_guard / billing / storage / cloud_storage / report_quality / report_decision / runtime_config / abuse_monitor / client_ip / log_sanitizer / payment_idempotency / wechat_http
+│   ├── tests/                         # 测试套件（industry 2179 / fact guard 188 / BM 46 / sample 71 / LP 12 / schema 18 / enrichment 11 / 25 套 check_*.py 全 PASS）
 │   └── storage/                       # 运行时文件存储（reports / assets）
 ├── uniapp/                            # uni-app 多端客户端
 │   ├── src/pages/                     # 页面（home / records / favorites / report-detail / profile）
@@ -199,6 +204,23 @@ http://localhost:8000/docs           # Swagger API 文档（仅开发环境）
 
 ## 版本历史
 
+- **v4.3.0** (2026-06-30) — Chapter 6 安全加固与发布后治理收口 + POST_AUDIT_REPAIR_PLAN 5 项全关
+  - **P1-A 虚拟支付守卫**：refund/cancel 通知未发放权益不误扣余额/会员（40 PASS）。CREATED/PROCESSING refund 只同步 REFUNDED 不写负向账本；cancel 已发放权益拒绝并提示走 refund 路径；`_handle_refund_cancel_notify` 可独立测试
+  - **P1-B billing session 兜底**：`event_stream` finally 统一 `_rollback_close_billing_session`（30 PASS）。未 committed 兜底 rollback，已 committed 不重复，已 closed 不重复；`_commit_billing_after_amap` 支持 billing_state 参数
+  - **P2-A 报告库双字段**：storage_location（cloud/local/database/missing）+ render_source（db_json/html_file/cloud_html/missing/db_json_parse_error）替代单一 storage_source（116 PASS）。列表+详情均返回双字段；`_load_report_html_for_admin` 精确识别云端/本地 HTML 来源
+  - **P2-B token 守卫**：device_id 校验（8≤len≤100，A-Za-z0-9._:-）+ IP+device 双维度限流（33 PASS）。阈值可配（TOKEN_DEVICE_LIMIT_PER_MIN=20 / TOKEN_IP_LIMIT_PER_MIN=120），map 窗口清理+容量淘汰
+  - **P3-A 头像 Pillow 重编码**：decode→verify→reopen→重编码后写入本地+云端（30 PASS）。PNG metadata 剥离确认；GIF 首帧→PNG；JPEG/WebP 保持原格式
+  - **安全加固**：分享白名单化（79 PASS）、生产 OpenAPI 禁用（79 PASS）、后台 Secret masked/has 回显（66 PASS）、X-Forwarded-For 信任边界（135 PASS）、反馈上传安全（171 PASS）、LLM key 优先级（164 PASS）+ 网络重试（154 PASS）、身份字段收敛反枚举（90 PASS）、日志脱敏（107 PASS）、轻量滥用监控（236 PASS）
+  - **支付原子性**：支付幂等（55 PASS）+ 端到端验收（47 PASS）+ 虚拟支付防重放、计费 commit 失败不生成报告（145 PASS）、扣点退款事务边界（180 PASS）
+  - **限流与并发**：`/api/analyze` 限流并发锁（107 PASS）、高德代理限流缓存（99 PASS）、限流 map TTL 清理（151 PASS）
+  - **前端治理**：生产 API URL 构建环境注入 + 占位符 fail + **HTTPS 强制**（生产 `http://` 域名构建直接 exit 1）、401 统一登录失效、maskDeep 深度+循环引用、支付参数检查+轮询、prompt 用户输入边界隔离
+  - **大文件拆分**：`services/amap_service.py` 拆为 4 模块——`amap_models.py`（LocationData，77 行）+ `amap_poi_rules.py`（纯分类规则，697 行）+ `amap_collect_service.py`（HTTP + 采集，859 行）+ `amap_service.py`（兼容入口，9 行）。原外部导入路径全部保持
+  - **迁移体系**：`migrations/runner.py` + 7 个 SQL 版本化迁移，替代运行时 ALTER TABLE
+  - **管理后台**：admin.py 拆分出 admin_amap.py（200 行），innerHTML 治理（esc/escUrl 函数）
+  - **旧小程序目录**：`miniprogram/` 标记废弃，不可发布/继续开发
+  - **安全响应头**：X-Content-Type-Options / X-Frame-Options / CSP frame-ancestors
+  - **测试基线**：14 条验收命令 591 PASS 0 FAIL，compileall 干净，`import main` ok
+  - **硬边界**：不改报告链路、POI 规则、prompt、评分阈值、report_fact_guard.py 校验口径、poi_name_guard.py
 - **v4.2.0** (2026-06-18) — 前端/管理后台体验 + 上线收口：小程序首页流程重排（选位置→选业态→填画像→出报告），报告详情页按评分/结论/证据/核验/边界重排，登录审核文案脱敏（"手机号快捷登录"），用户反馈闭环（报告详情/个人中心提交 → 后台回复 → 用户端查看），管理后台 IA 分组（概览/客户与报告/交易与权益/配置中心），仪表盘新增今日运营指标，报告库结构化预览对齐小程序展示，反馈处理页支持运营回复，存储配置状态修正，全站时间按北京时间统一。报告生成逻辑/YAML/guard/prompt 保持冻结，测试基线 188/2178/71/46/12/18 全 PASS。
 - **v4.1.0** (2026-06-17) — 选址知识蒸馏框架收口：12 族 YAML 全部 source_refs 追溯，school 流量化归并全线关闭，小餐饮竞品分层五类竞争语义落地，公交站名去重，宠物店 category-only 修复。详见 `docs/location_knowledge_framework_progress.md`。
 - **v4.1.0** (2026-06-15) — P1 第一优先级体验提升：12 族群生意模型模板（小吃快餐/教育托管/教育培训/正餐/茶饮咖啡/便利零售/购物零售/美业/基础服务/酒店/娱乐/通用），同一地址不同业态共享地点基本面但输出不同业务判断；教育托管从教育培训拆出独立模板，禁止餐饮词（外卖骑手/出餐速度/上座率/午晚高峰堂食），0 竞品必须提示暗竞品/漏收录；竞争/品类评分增加需求侧约束封顶（弱需求+0竞品不拿高分）；小吃快餐结论更锋利（低租金/小档口/午市/外卖 vs 高租金/晚餐弱/外卖不足）；统一 P1 enrichment 服务确保 normal/retry/fallback 三条链路模块一致；HTML 与小程序报告模块对齐（fallback 标识/地点基本面/生意模型快照/竞品口径/证据摘要/数据边界/营收免责）；category 参数全链路传播支持 category-only 托管识别；数据充分度文案克制化（POI 数据充分 ≠ 经营数据充分）；严格 regression：188/2178/fallback/28 P0.5/22 P1 全 PASS。
@@ -346,12 +368,16 @@ CORS_ORIGINS=https://your-domain.com
 ```bash
 cd /www/wwwroot/location-tool/uniapp
 npm install
-npm run build:mp-weixin
+# ★ 生产构建必须使用 https:// 前缀，http:// 会导致构建失败
+VITE_API_BASE_URL=https://www.oliver188.top npm run build:mp-weixin
 ```
 
 将 `dist/build/mp-weixin/` 目录用微信开发者工具打开，上传审核。
 
-> **注意**：编译前确认 `src/utils/config.js` 中的 `API_BASE_URL` 指向生产环境域名。
+> **注意**：
+> - 生产构建 `VITE_API_BASE_URL` **必须**以 `https://` 开头，`http://` 开头会在构建时直接失败（exit 1）。
+> - 开发环境可用 `http://127.0.0.1:8000`，不触发 HTTPS 强制校验。
+> - API 地址由构建时环境变量注入，`src/utils/config.js` 中不硬编码域名。
 
 ---
 
@@ -436,12 +462,22 @@ curl http://localhost:8000/api/health
 cd C:\Users\admin\location-tool\backend
 uv pip install -r requirements.txt
 
-# 回归测试（每次改动后必须全部通过）
+# 编译检查 + 导入验证
 uv run --with-requirements requirements.txt python -m compileall -q .
+uv run --with-requirements requirements.txt python -c "import main; print('ok')"
+
+# Chapter 6 验收命令（25 套 check_*.py，全 PASS）
+uv run --with-requirements requirements.txt python tests/check_admin_secret_masking.py      # 66 PASS
+uv run --with-requirements requirements.txt python tests/check_p2_low_risk_fixes.py          # 68 PASS
+uv run --with-requirements requirements.txt python tests/check_industry_rigor_rules.py       # 2179 PASS
+uv run --with-requirements requirements.txt python tests/check_sample_regression.py          # 71 PASS
+uv run --with-requirements requirements.txt python tests/check_share_security.py             # 79 PASS
+uv run --with-requirements requirements.txt python tests/check_payment_idempotency.py        # 55 PASS
+uv run --with-requirements requirements.txt python tests/check_payment_e2e_acceptance.py     # 47 PASS
 uv run --with-requirements requirements.txt python tests/check_report_fact_guard.py
-uv run --with-requirements requirements.txt python tests/check_industry_rigor_rules.py
 uv run --with-requirements requirements.txt python tests/check_fallback_report.py
 uv run --with-requirements requirements.txt python tests/check_p05_report_quality.py
+# ... 其余 15 套按需运行
 
 # 依赖安全审计（每次发布前执行）
 uv pip list --outdated                              # Python 依赖过期检查
@@ -469,3 +505,4 @@ uv run --with-requirements requirements.txt python tests/check_report_fact_guard
 - [ ] 生产环境 `ENVIRONMENT=production` 下 `/docs`、`/redoc`、`/openapi.json` 已禁用；如需文档仅在受保护的 staging/dev 开启
 - [ ] 数据库文件权限设为 600（`chmod 600 location_tool.db`）
 - [ ] 高德 Key 已通过管理后台 Key 池配置（支持自动故障切换）
+- [ ] uni-app 生产构建使用 `VITE_API_BASE_URL=https://www.oliver188.top`（`http://` 构建直接失败）

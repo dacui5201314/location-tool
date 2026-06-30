@@ -391,6 +391,68 @@ def _revoke_order(db: Session, order, db_user):
         raise
 
 
+def _order_has_granted_benefits(db: Session, order) -> bool:
+    """判断本订单是否已实际发放过权益（点数/会员）。
+    条件：order.status == 'PAID'，或存在 BillingRecord
+    类型为 PURCHASE/MEMBERSHIP 且 reason 包含本订单 out_trade_no。
+    只匹配本订单，不按用户历史 PURCHASE/MEMBERSHIP 判断，避免误命中其他订单。"""
+    if order.status == "PAID":
+        return True
+    record = db.query(BillingRecord).filter(
+        BillingRecord.user_id == order.user_id,
+        BillingRecord.record_type.in_(["PURCHASE", "MEMBERSHIP"]),
+        BillingRecord.reason.contains(order.out_trade_no),
+    ).first()
+    return record is not None
+
+
+def _mark_order_refunded_no_revoke(db: Session, order):
+    """退款通知到达但权益从未发放 → 只同步 REFUNDED，不扣点/不扣会员/不写负向账本。"""
+    order.status = "REFUNDED"
+    db.commit()
+    print(f"[VPAY] refund without revoke (benefits never granted) order={order.out_trade_no}", flush=True)
+
+
+def _handle_refund_cancel_notify(db: Session, order, db_user,
+                                  is_refund: bool, is_cancel: bool,
+                                  order_no: str = "") -> dict:
+    """处理退款/取消通知分支（从 virtual_notify 抽取，便于测试）。
+    返回 {'ErrCode': int, 'ErrMsg': str}，由调用方包装为 JSONResponse。
+    P1-A: 已发放权益才允许扣回；未发放权益只同步状态不扣余额。"""
+    if order.status in ("REFUNDED", "CANCELLED", "CLOSED"):
+        return {"ErrCode": 0, "ErrMsg": "Success"}
+
+    has_benefits = _order_has_granted_benefits(db, order)
+
+    if is_refund:
+        if has_benefits:
+            try:
+                _revoke_order(db, order, db_user)
+                return {"ErrCode": 0, "ErrMsg": "Success"}
+            except Exception:
+                db.rollback()
+                print(f"[VPAY-NOTIFY] 退款处理失败 order={order_no or order.out_trade_no}", flush=True)
+                return {"ErrCode": 1, "ErrMsg": "refund failed"}
+        else:
+            _mark_order_refunded_no_revoke(db, order)
+            return {"ErrCode": 0, "ErrMsg": "Success"}
+
+    if is_cancel:
+        if has_benefits:
+            oid = order_no or order.out_trade_no
+            print(f"[VPAY] cancel refused: order={oid} has granted benefits (status={order.status}), "
+                  f"must use refund path instead", flush=True)
+            return {"ErrCode": 1,
+                    "ErrMsg": "order has granted benefits, use refund instead"}
+        else:
+            order.status = "CANCELLED"
+            db.commit()
+            print(f"[VPAY] 订单取消 order={order_no or order.out_trade_no}", flush=True)
+            return {"ErrCode": 0, "ErrMsg": "Success"}
+
+    return {"ErrCode": 0, "ErrMsg": "Success"}
+
+
 def _parse_notify_body(body_str: str) -> dict:
     """解析虚拟支付回调 body，兼容两种格式：
     A. {"MiniGame":{"Payload":"...","PayEventSig":"..."}}  → auth_mode="pay_event_sig"
@@ -621,23 +683,12 @@ async def virtual_notify(request: Request, db: Session = Depends(get_db)):
         return JSONResponse(status_code=200, content={"ErrCode": 1, "ErrMsg": "openid mismatch"})
 
     # ═══ ★ 退款 / 取消 优先处理（不受 PAID 幂等拦截）═══
+    # P1-A: 通过 _handle_refund_cancel_notify 统一处理（可独立测试）。
     is_refund = fields.get("is_refund", False)
     is_cancel = fields.get("is_cancel", False)
     if is_refund or is_cancel:
-        if order.status in ("REFUNDED", "CANCELLED", "CLOSED"):
-            return JSONResponse(status_code=200, content={"ErrCode": 0, "ErrMsg": "Success"})
-        try:
-            if is_refund:
-                _revoke_order(db, order, db_user)
-            else:
-                order.status = "CANCELLED"
-                db.commit()
-                print(f"[VPAY] 订单取消 order={order_no}", flush=True)
-            return JSONResponse(status_code=200, content={"ErrCode": 0, "ErrMsg": "Success"})
-        except Exception:
-            db.rollback()
-            print(f"[VPAY-NOTIFY] 退款/取消处理失败 order={order_no}", flush=True)
-            return JSONResponse(status_code=200, content={"ErrCode": 1, "ErrMsg": "grant failed"})
+        result = _handle_refund_cancel_notify(db, order, db_user, is_refund, is_cancel, order_no)
+        return JSONResponse(status_code=200, content=result)
 
     # ═══ 支付到账幂等 ═══
     if order.status == "PAID":
