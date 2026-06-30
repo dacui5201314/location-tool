@@ -18,6 +18,8 @@ check("oliver188.top" not in cfg, "no hardcoded domain in config.js")
 vite_cfg = open(os.path.join(uniapp, '..', 'vite.config.js'), 'r', encoding='utf-8').read()
 check("process.exit(1)" in vite_cfg, "vite.config.js fails build on placeholder")
 check("VITE_API_BASE_URL" in vite_cfg, "vite reads VITE_API_BASE_URL")
+# 6.1 生产构建 URL 校验：必须 https://，拦截 http:// 生产域名
+check("startsWith('https://')" in vite_cfg, "vite.config.js enforces https:// for production builds")
 print("P2-1 PASS")
 
 # ═══ P2-4: 401 unified handler in both request() and analyzeLocation() ═══

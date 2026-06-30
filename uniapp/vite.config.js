@@ -14,6 +14,13 @@ if (isPlaceholder && process.env.NODE_ENV === 'production') {
   process.exit(1)
 }
 
+// 生产构建必须使用 HTTPS，拒绝 http:// 明文传输
+if (process.env.NODE_ENV === 'production' && !raw.startsWith('https://')) {
+  console.error('[BUILD] 生产构建 VITE_API_BASE_URL 必须以 https:// 开头: ' + raw)
+  console.error('[BUILD] 开发环境可用 http://127.0.0.1:8000，生产环境请使用 https://www.oliver188.top')
+  process.exit(1)
+}
+
 export default defineConfig({
   plugins: [uni()],
   define: {
